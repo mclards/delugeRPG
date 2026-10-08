@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DelugeRPG Desktop Client [Hardened]</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    input, textarea, select, [contenteditable="true"] {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      cursor: text !important;
+    }
+    #gameContainer, #delugeView, webview {
+      user-select: auto !important;
+      -webkit-user-select: auto !important;
+    }
+    input[type="checkbox"], input[type="radio"], select {
+      cursor: pointer !important;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+      background: #0b0f17;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    /* --- TOP TOOLBAR --- */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 44px;
+      background: #111827;
+      border-bottom: 1px solid #1f2937;
+      padding: 0 14px;
+      gap: 8px;
+      flex-shrink: 0;
+      z-index: 50;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+      position: relative;
+    }
+    .nav-section {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .nav-left {
+      gap: 10px;
+      justify-content: flex-start;
+    }
+    .nav-center {
+      justify-content: center;
+      padding: 0 6px;
+    }
+    .nav-right {
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    /* Brand Logo & Title */
+    .brand-cluster {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .icon-pokeball {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #ef4444 48%, #1f2937 48%, #1f2937 52%, #f8fafc 52%);
+      border: 2px solid #111827;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
+      position: relative;
+      flex-shrink: 0;
+    }
+    .icon-pokeball::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 1.5px solid #1f2937;
+      box-shadow: 0 0 2px rgba(0,0,0,0.5);
+    }
+    .title-badge {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+    .title-badge .app-name {
+      font-weight: 800;
+      font-size: 12px;
+      color: #f8fafc;
+      letter-spacing: 0.2px;
+    }
+    .title-badge .app-sub {
+      font-size: 8.5px;
+      font-weight: 700;
+      color: #38bdf8;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+
+    /* Buttons */
+    .btn {
+      height: 28px;
+      padding: 0 9px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      outline: none;
+    }
+    .btn:hover {
+      background: #334155;
+      border-color: #475569;
+      color: #ffffff;
+    }
+    .btn:active {
+      transform: translateY(1px);
+    }
+    .btn-icon {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      line-height: 1;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    /* Primary Action Toggle Button (Hunting / Paused) - Plain, No Shadow, Beveled */
+    .btn-toggle-main {
+      height: 28px;
+      min-width: 80px;
+      padding: 0 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      cursor: pointer;
+      box-shadow: none !important;
+      transition: all 0.1s ease;
+      flex-shrink: 0;
+      letter-spacing: 0.3px;
+      line-height: 1;
+    }
+    .btn-toggle-main.btn-active {
+      background: #059669;
+      border: 1px solid #10b981;
+      border-bottom: 2px solid #047857;
+      color: #ffffff;
+      box-shadow: none !important;
+    }
+    .btn-toggle-main.btn-active:hover {
+      background: #10b981;
+      border-color: #34d399;
+      color: #ffffff;
+      box-shadow: none !important;
+    }
+    .btn-toggle-main.btn-active:active {
+      transform: translateY(1px);
+      border-bottom-width: 1px;
+    }
+    .btn-toggle-main.btn-paused {
+      background: #d97706;
+      border: 1px solid #f59e0b;
+      border-bottom: 2px solid #92400e;
+      color: #ffffff;
+      box-shadow: none !important;
+    }
+    .btn-toggle-main.btn-paused:hover {
+      background: #f59e0b;
+      border-color: #fbbf24;
+      color: #ffffff;
+      box-shadow: none !important;
+    }
+    .btn-toggle-main.btn-paused:active {
+      transform: translateY(1px);
+      border-bottom-width: 1px;
+    }
+
+    .btn-active {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border: 1px solid #34d399;
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
+    }
+    .btn-active:hover {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      box-shadow: 0 0 18px rgba(16, 185, 129, 0.5);
+    }
+    .btn-paused {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      border: 1px solid #fbbf24;
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.25);
+    }
+
+    /* Secondary Specialized Button Variants */
+    .btn-accent {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.35);
+      color: #38bdf8;
+    }
+    .btn-accent:hover {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: #38bdf8;
+      color: #bae6fd;
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #f87171;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+      border-color: #ef4444;
+      color: #ffffff;
+    }
+
+    /* Custom Dropdowns */
+    .select-wrap {
+      position: relative;
+      display: inline-block;
+    }
+    select {
+      height: 30px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f1f5f9;
+      padding: 0 22px 0 8px;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      transition: all 0.15s ease;
+    }
+    #walkModeSelect {
+      width: 100%;
+    }
+    select:hover {
+      border-color: #475569;
+      background: #273549;
+    }
+    select:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    .select-arrow {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      font-size: 8px;
+      color: #94a3b8;
+    }
+
+    /* Telemetry & Status Badges */
+    .status-chip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 28px;
+      width: 300px;
+      min-width: 300px;
+      max-width: 300px;
+      padding: 0 14px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+      box-sizing: border-box;
+      flex-shrink: 0;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #94a3b8;
+      flex-shrink: 0;
+      box-shadow: 0 0 6px currentColor;
+    }
+    .status-text {
+      color: #cbd5e1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+      max-width: 255px;
+    }
+    .counter {
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 6px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      color: #94a3b8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      letter-spacing: 0.3px;
+    }
+
+    /* Zoom Controls Cluster */
+    .zoom-cluster {
+      display: inline-flex;
+      align-items: center;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .btn-zoom-icon {
+      width: 26px;
+      height: 100%;
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      outline: none;
+      user-select: none;
+    }
+    .btn-zoom-icon:hover {
+      background: #334155;
+      color: #38bdf8;
+    }
+    .btn-zoom-icon:active {
+      background: #1e293b;
+    }
+    .btn-zoom-val {
+      min-width: 44px;
+      height: 100%;
+      padding: 0 4px;
+      border: none;
+      border-left: 1px solid rgba(148, 163, 184, 0.15);
+      border-right: 1px solid rgba(148, 163, 184, 0.15);
+      background: transparent;
+      color: #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      outline: none;
+      user-select: none;
+    }
+    .btn-zoom-val:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    /* Quick Action Cluster */
+    .action-cluster {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    /* Network Shield Badge */
+    .network-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      max-width: 145px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-shrink: 0;
+    }
+    #netText {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .network-starlink {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      color: #34d399;
+    }
+    .network-starlink:hover {
+      background: rgba(16, 185, 129, 0.25);
+      border-color: #10b981;
+    }
+    .network-warning {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      color: #f87171;
+    }
+    .network-warning:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+    }
+    .network-direct {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #7dd3fc;
+    }
+    .network-direct:hover {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: #38bdf8;
+    }
+    .network-proxied {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+    }
+    .network-proxied:hover {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: #10b981;
+    }
+    .network-checking {
+      background: rgba(148, 163, 184, 0.12);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: #94a3b8;
+    }
+
+    /* Collapsible Navigation Dropdown Menu */
+    .nav-menu-wrapper {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .nav-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      width: 210px;
+      background: #161f33;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      padding: 6px;
+      z-index: 90;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      animation: dropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .nav-dropdown.hidden {
+      display: none;
+    }
+    @keyframes dropdownFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-5px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .nav-dropdown-header {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 6px 8px 4px 8px;
+    }
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: #e2e8f0;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      transition: background 0.12s ease, color 0.12s ease;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .dropdown-item:hover {
+      background: #1e293b;
+      color: #38bdf8;
+    }
+    .dropdown-danger:hover {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+    }
+    .dropdown-icon {
+      font-size: 13px;
+      width: 18px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .dropdown-label {
+      flex: 1;
+      white-space: nowrap;
+    }
+    .dropdown-divider {
+      height: 1px;
+      background: #1f2937;
+      margin: 4px 0;
+    }
+
+    /* --- GAME CONTAINER --- */
+    #gameContainer {
+      flex: 1;
+      display: flex;
+      width: 100%;
+      height: calc(100vh - 44px);
+      position: relative;
+      background: #0f172a;
+    }
+    #delugeView {
+      width: 100%;
+      height: 100%;
+      border: none;
+      user-select: auto !important;
+      -webkit-user-select: auto !important;
+      outline: none;
+    }
+
+    /* --- MODAL BACKDROP & CENTERING --- */
+    #modalBackdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 8, 15, 0.75);
+      backdrop-filter: blur(5px);
+      z-index: 9998;
+    }
+    #modalBackdrop.active {
+      display: block;
+    }
+
+    body.modal-open #gameContainer,
+    body.modal-open #delugeView {
+      pointer-events: none !important;
+    }
+
+    .modal-box {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #161f33;
+      border: 1px solid #29354f;
+      border-radius: 14px;
+      padding: 18px 22px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255,255,255,0.07);
+      z-index: 9999;
+      color: #f1f5f9;
+      box-sizing: border-box;
+      pointer-events: auto !important;
+    }
+    .modal-header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .modal-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-close-icon {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .modal-close-icon:hover {
+      color: #f8fafc;
+      background: rgba(255,255,255,0.06);
+    }
+    .modal-desc {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 14px;
+      line-height: 1.45;
+    }
+
+    .modal-account {
+      width: 320px;
+    }
+    .modal-network {
+      width: 400px;
+    }
+    .modal-targets {
+      display: none;
+      width: 550px;
+      max-height: 86vh;
+      flex-direction: column;
+      scrollbar-width: thin;
+      padding: 18px 20px;
+    }
+
+    /* Modal Navigation Tab Bar */
+    .modal-tab-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 8px;
+    }
+    .modal-tab-btn {
+      padding: 6px 12px;
+      border-radius: 7px;
+      border: 1px solid transparent;
+      background: rgba(15, 23, 42, 0.6);
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .modal-tab-btn:hover {
+      background: rgba(30, 41, 59, 0.8);
+      color: #f1f5f9;
+      border-color: #334155;
+    }
+    .modal-tab-btn.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+    }
+    .modal-tab-content {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      padding-right: 2px;
+    }
+    .modal-tab-content.active {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .modal-tab-content::-webkit-scrollbar {
+      width: 5px;
+    }
+    .modal-tab-content::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+
+    /* Segmented Preset Controls */
+    .preset-pill-group {
+      display: flex;
+      gap: 4px;
+      background: #0b1120;
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+      margin-bottom: 2px;
+    }
+    .preset-pill-btn {
+      flex: 1;
+      height: 28px;
+      padding: 0 6px;
+      font-size: 10.5px;
+      font-weight: 600;
+      justify-content: center;
+      text-align: center;
+      white-space: nowrap;
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+    .preset-pill-btn:hover {
+      background: rgba(255,255,255,0.06);
+      color: #f1f5f9;
+    }
+    .preset-pill-btn.btn-active {
+      background: #0284c7;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+    }
+
+    /* Filter Cards */
+    .filter-card {
+      display: flex;
+      flex-direction: column;
+      padding: 12px 14px;
+      border-radius: 9px;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      transition: border-color 0.15s ease;
+      position: relative;
+    }
+    .filter-card:hover {
+      border-color: #334155;
+    }
+    .filter-card-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+      width: 100%;
+    }
+    .filter-card-text {
+      flex: 1;
+    }
+    .filter-card input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: #0284c7;
+      margin: 0;
+      flex-shrink: 0;
+    }
+    .filter-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 2px;
+    }
+    .filter-sub {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.35;
+    }
+    .filter-card-header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Sub Options & Chips */
+    .sub-options-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .variant-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .variant-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 9px;
+      border-radius: 6px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.12s ease;
+    }
+    .variant-chip:hover {
+      border-color: #38bdf8;
+      color: #ffffff;
+      background: #273549;
+    }
+    .variant-chip input {
+      margin: 0;
+      width: 13px;
+      height: 13px;
+      accent-color: #0284c7;
+      cursor: pointer;
+    }
+
+    /* Quick Tag Buttons */
+    .quick-btn-group {
+      display: flex;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .quick-tag-btn {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 5px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      color: #7dd3fc;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      display: inline-flex;
+      align-items: center;
+      user-select: none;
+    }
+    .quick-tag-btn:hover {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: #38bdf8;
+      color: #ffffff;
+    }
+    .quick-add-cluster {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .quick-add-label {
+      font-size: 10px;
+      color: #64748b;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-right: 2px;
+    }
+
+    /* Input Fields */
+    .input-field {
+      width: 100%;
+      box-sizing: border-box;
+      background: #0b1120;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 8px 12px;
+      border-radius: 7px;
+      font-size: 11.5px;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+    .input-field:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    .input-field::placeholder {
+      color: #475569;
+    }
+
+    /* Level Controls */
+    .level-controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(148, 163, 184, 0.1);
+      transition: opacity 0.15s ease;
+    }
+    .level-controls-row.dimmed {
+      opacity: 0.45;
+    }
+    .clean-select {
+      height: 28px;
+      font-size: 11px;
+      background: #0b1120;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      border-radius: 6px;
+      padding: 0 8px;
+      cursor: pointer;
+    }
+    .clean-num-input {
+      width: 55px;
+      height: 28px;
+      background: #0b1120;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      border-radius: 6px;
+      padding: 0 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    /* Summary & Footer Actions */
+    .target-summary-callout {
+      font-size: 11px;
+      color: #38bdf8;
+      font-weight: 600;
+      padding: 8px 12px;
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      border-radius: 8px;
+      margin-top: 12px;
+      margin-bottom: 12px;
+      white-space: normal;
+      word-break: break-word;
+    }
+    .modal-footer-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #e2e8f0;
+      cursor: pointer;
+    }
+    .checkbox-row input {
+      width: 15px;
+      height: 15px;
+      accent-color: #0284c7;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- Modal Dimmed Backdrop -->
+  <div id="modalBackdrop"></div>
+
+  <!-- TOP TOOLBAR -->
+  <div id="toolbar">
+    <!-- Left Section: Branding Logo -->
+    <div class="nav-section nav-left">
+      <div class="brand-cluster">
+        <div class="icon-pokeball" title="DelugeRPG Stealth Engine"></div>
+        <div class="title-badge">
+          <span class="app-name">DelugeRPG</span>
+          <span class="app-sub">Stealth Client</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Section: Static Live Status Display (Fixed Width - Never Jitters or Pushes) -->
+    <div class="nav-section nav-center">
+      <div class="status-chip" id="statusChip" title="Bot Status">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">Ready</span>
+      </div>
+    </div>
+
+    <!-- Right Section: Telemetry, Action Toggles & Collapsible Menu -->
+    <div class="nav-section nav-right">
+      <!-- Steps Telemetry Counter -->
+      <div class="counter" id="stepCounter" title="Total steps walked in current session">Steps: 0</div>
+
+      <!-- Zoom Controls Cluster -->
+      <div class="zoom-cluster" title="Zoom in / out of DelugeRPG (Ctrl + Scroll or Ctrl +/-)">
+        <button id="zoomOutBtn" class="btn-zoom-icon" title="Zoom Out (Ctrl -)">&#8722;</button>
+        <button id="zoomResetBtn" class="btn-zoom-val" title="Reset Zoom to 100% (Ctrl 0)">100%</button>
+        <button id="zoomInBtn" class="btn-zoom-icon" title="Zoom In (Ctrl +)">&#43;</button>
+      </div>
+
+      <!-- Quick Action Toggles Cluster -->
+      <div class="action-cluster">
+        <button id="targetModalBtn" class="btn btn-accent" title="Target Pokemon Filters &amp; Presets">&#127919; Targets</button>
+        <button id="autoCatchBtn" class="btn btn-icon" title="Toggle Auto-Catch (Master Ball throwing)">&#9733;</button>
+        <button id="soundBtn" class="btn btn-icon btn-accent" title="Toggle Audio Chime Alert">&#128266;</button>
+      </div>
+
+      <!-- Network Shield Badge -->
+      <div id="networkBadge" class="network-badge network-checking" title="Detecting live public IP and ISP...">
+        <span id="netIcon">&#8635;</span>
+        <span id="netText">Checking Network...</span>
+      </div>
+
+      <!-- Main Hunting Toggle Button (Relocated beside Nav Menu Button - Plain, Beveled, No Shadow) -->
+      <button id="toggleBtn" class="btn btn-toggle-main btn-paused" title="Start / Pause Automated Hunting [Space / F2]">
+        <span id="btnIcon">&#9654;</span>
+        <span id="btnText">Paused</span>
+      </button>
+
+      <!-- Collapsible Navigation Menu (Gracefully houses secondary settings) -->
+      <div class="nav-menu-wrapper">
+        <button id="navMenuBtn" class="btn btn-icon" title="Tools &amp; Settings Menu">&#9776;</button>
+        <div id="navDropdown" class="nav-dropdown hidden">
+          <div class="nav-dropdown-header">Walking Movement Mode</div>
+          <div style="padding: 2px 8px 4px 8px;">
+            <select id="walkModeSelect" style="width: 100%; height: 28px; background:#0f172a; border-color:#334155; font-size:11px;" title="Select Walking Movement Pattern">
+              <option value="wander">Mode: Smart Wander</option>
+              <option value="diagonal">Mode: Diagonal Stair</option>
+              <option value="line_horizontal">Mode: Horizontal Line</option>
+              <option value="line_vertical">Mode: Vertical Line</option>
+              <option value="patrol_square">Mode: Square Patrol</option>
+            </select>
+          </div>
+          <div style="padding: 2px 8px 6px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <label for="stepsPerDirInput" style="font-size: 11px; color: #94a3b8; font-weight: 600;">Max steps per turn:</label>
+            <input type="number" id="stepsPerDirInput" class="clean-num-input" min="1" max="50" value="3" title="Maximum number of steps before changing direction (randomized 1 to max)" style="width: 52px; height: 26px;">
+          </div>
+          <div class="dropdown-divider"></div>
+
+          <div class="nav-dropdown-header">Tools &amp; Settings</div>
+          <button id="loginHelperBtn" class="dropdown-item" title="Configure saved credentials for one-click login">
+            <span class="dropdown-icon">&#128100;</span>
+            <span class="dropdown-label">Account Credentials</span>
+          </button>
+          <button id="networkBtn" class="dropdown-item" title="Configure proxy routing">
+            <span class="dropdown-icon">&#127760;</span>
+            <span class="dropdown-label">Proxy Configuration</span>
+          </button>
+          <div class="dropdown-divider"></div>
+          <button id="refreshBtn" class="dropdown-item" title="Reload game map">
+            <span class="dropdown-icon">&#8635;</span>
+            <span class="dropdown-label">Reload Game Map</span>
+          </button>
+          <button id="wipeBtn" class="dropdown-item dropdown-danger" title="Wipe all cookies, cache, and site data">
+            <span class="dropdown-icon">&#128465;</span>
+            <span class="dropdown-label">Wipe Session &amp; Identity</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. TARGET FILTER CONFIGURATION MODAL -->
+  <div id="targetModal" class="modal-box modal-targets">
+    <div class="modal-header-row">
+      <div class="modal-title">&#127919; Target Filters &amp; Presets</div>
+      <button id="closeTargetBtn" class="modal-close-icon" title="Close">&#10005;</button>
+    </div>
+
+    <!-- 1-Click Global Presets (Configures All Tabs) -->
+    <div class="preset-pill-group" style="margin-bottom: 10px;" title="1-Click Quick Presets across all tabs">
+      <button id="presetAllBtn" type="button" class="btn preset-pill-btn btn-active">All</button>
+      <button id="presetLegBtn" type="button" class="btn preset-pill-btn">Legendaries</button>
+      <button id="presetMegaBtn" type="button" class="btn preset-pill-btn">Megas &amp; Rare</button>
+      <button id="presetVarBtn" type="button" class="btn preset-pill-btn">Variants</button>
+      <button id="presetShinyBtn" type="button" class="btn preset-pill-btn">&#9733; Shinies</button>
+      <button id="presetLegMegaBtn" type="button" class="btn preset-pill-btn">Leg+Mega</button>
+    </div>
+
+    <!-- Segmented Navigation Tabs -->
+    <div class="modal-tab-bar">
+      <button type="button" class="modal-tab-btn active" data-tab="tabSpecies">&#127919; 1. Pokemon Tiers</button>
+      <button type="button" class="modal-tab-btn" data-tab="tabVariants">&#10024; 2. Sprite Variants (10)</button>
+      <button type="button" class="modal-tab-btn" data-tab="tabCustom">&#128683; 3. Blacklist Only</button>
+    </div>
+
+    <!-- TAB 1: POKEMON TIERS (FROM COMMON TO RAREST) -->
+    <div id="tabSpecies" class="modal-tab-content active">
+
+      <!-- Tier 1: Common / Custom Whitelist Targets -->
+      <div class="filter-card">
+        <div class="filter-title">&#128269; Tier 1: Custom Whitelist Targets</div>
+        <div class="filter-sub" style="margin-bottom:8px;">Target specific species by name (comma-separated):</div>
+        <input type="text" id="customTargetInput" class="input-field" placeholder="e.g. Ditto, Eevee, Lucario, Gengar, Bagon, Dratini">
+        <div class="quick-add-cluster">
+          <span class="quick-add-label">QUICK ADD:</span>
+          <button type="button" class="quick-tag-btn" data-add-target="Ditto">+ Ditto</button>
+          <button type="button" class="quick-tag-btn" data-add-target="Eevee">+ Eevee</button>
+          <button type="button" class="quick-tag-btn" data-add-target="Lucario">+ Lucario</button>
+          <button type="button" class="quick-tag-btn" data-add-target="Gengar">+ Gengar</button>
+          <button type="button" class="quick-tag-btn" data-add-target="Bagon">+ Bagon</button>
+          <button type="button" class="quick-tag-btn" data-add-target="Dratini">+ Dratini</button>
+        </div>
+      </div>
+
+      <!-- Tier 1B: Wild Level Filter Gatekeeper -->
+      <div class="filter-card">
+        <label class="filter-card-row">
+          <input type="checkbox" id="filterLevelCheckbox">
+          <div class="filter-card-text">
+            <div class="filter-title">Wild Pokemon Level Filter</div>
+            <div class="filter-sub">Halt only when wild encounter satisfies level criteria</div>
+          </div>
+        </label>
+        <div id="levelControlsWrap" class="level-controls-row dimmed">
+          <select id="levelModeSelect" class="clean-select">
+            <option value="min">Level At Least (&gt;=)</option>
+            <option value="exact">Exact Level (==)</option>
+            <option value="max">Level At Most (&lt;=)</option>
+          </select>
+          <input type="number" id="levelValueInput" class="clean-num-input" min="1" max="100" value="50">
+          <select id="levelScopeSelect" class="clean-select" title="Choose whether level requirement applies to selected target categories or all wild encounters">
+            <option value="targets">Filter: Targets Only</option>
+            <option value="all">Filter: All Wild Encounters</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tier 2: Mega Evolution Families & Rare Lines -->
+      <div class="filter-card">
+        <label class="filter-card-row">
+          <input type="checkbox" id="filterMegasCheckbox" checked>
+          <div class="filter-card-text">
+            <div class="filter-title">Tier 2: Mega Evolution Families &amp; Rare Lines</div>
+            <div class="filter-sub">All 46 evolutionary families (Aron, Meditite, Absol, Beldum, Riolu, Larvitar...)</div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Tier 3: Legendaries, Mythicals, Ultra Beasts & Paradox (Rarest) -->
+      <div class="filter-card">
+        <label class="filter-card-row">
+          <input type="checkbox" id="filterLegendariesCheckbox" checked>
+          <div class="filter-card-text">
+            <div class="filter-title">Tier 3: Legendaries, Mythicals, Ultra Beasts &amp; Paradox</div>
+            <div class="filter-sub">All 135 Dex targets (Rayquaza, Mewtwo, Arceus, Koraidon, Slither Wing...)</div>
+          </div>
+        </label>
+        <div id="subLegendaryWrap" class="sub-options-wrap">
+          <label class="variant-chip">
+            <input type="checkbox" id="subClassicLegCheckbox" checked>
+            <span>Classic (Gen 1-8)</span>
+          </label>
+          <label class="variant-chip">
+            <input type="checkbox" id="subUltraBeastsCheckbox" checked>
+            <span>Ultra Beasts (Gen 7)</span>
+          </label>
+          <label class="variant-chip">
+            <input type="checkbox" id="subParadoxCheckbox" checked>
+            <span>Gen 9 Paradox</span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: SPECIFIC SPRITE VARIANTS SELECTOR FOR TAB 1 TARGETS -->
+    <div id="tabVariants" class="modal-tab-content">
+      <div class="filter-card">
+        <div class="filter-card-header-flex">
+          <label class="filter-card-row" style="margin-bottom:0;">
+            <input type="checkbox" id="filterVariantsCheckbox" checked>
+            <div class="filter-card-text">
+              <div class="filter-title">Specific Variants Selector</div>
+              <div class="filter-sub">Choose which variant forms to catch for your Tab 1 targets:</div>
+            </div>
+          </label>
+          <div class="quick-btn-group">
+            <button id="btnAllVariants" type="button" class="quick-tag-btn">All (10)</button>
+            <button id="btnVariantsOnly" type="button" class="quick-tag-btn">Variants Only (9)</button>
+            <button id="btnShiniesOnly" type="button" class="quick-tag-btn">&#9733; Shiny Only</button>
+          </div>
+        </div>
+        <div id="subVariantsWrap" class="variant-grid">
+          <label class="variant-chip" style="border-color: #38bdf8;"><input type="checkbox" id="varNormal" checked><span style="color:#38bdf8;font-weight:700;">Normal</span></label>
+          <label class="variant-chip"><input type="checkbox" id="varShiny" checked><span>Shiny</span></label>
+          <label class="variant-chip"><input type="checkbox" id="varChrome" checked><span>Chrome</span></label>
+          <label class="variant-chip"><input type="checkbox" id="varRetro" checked><span>Retro</span></label>
+          <label class="variant-chip"><input type="checkbox" id="varMetallic" checked><span>Metallic</span></label>
+          <label class="variant-chip"><input type="checkbox" id="varShadow" checked><span>Shadow</span></label>
+          <label class="variant-chip"><input type="checkbox" id="varGhostly" checked><span>Ghostly</span></label>
+          <label class="variant-chip"><input type="checkbox" id="varDark" checked><span>Dark</span></label>
+          <label class="variant-chip"><input type="checkbox" id="varMirage" checked><span>Mirage</span></label>
+          <label class="variant-chip"><input type="checkbox" id="varNegative" checked><span>Negative</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: BLACKLIST ONLY -->
+    <div id="tabCustom" class="modal-tab-content">
+      <div class="filter-card">
+        <div class="filter-card-header-flex" style="margin-bottom:6px;">
+          <div>
+            <div class="filter-title">&#128683; Blacklist / Ignore Common Junk</div>
+            <div class="filter-sub">Never alert or pause on these species under any circumstance, even if variant or level matches:</div>
+          </div>
+          <button id="clearBlacklistBtn" type="button" class="quick-tag-btn" style="border-color:rgba(239,68,68,0.4);color:#f87171;">Clear All</button>
+        </div>
+        <input type="text" id="blacklistInput" class="input-field" placeholder="e.g. Sentret, Rattata, Pidgey, Zubat, Caterpie, Weedle, Magikarp">
+        <div class="quick-add-cluster">
+          <span class="quick-add-label">QUICK ADD:</span>
+          <button type="button" class="quick-tag-btn" data-add-blacklist="Sentret">+ Sentret</button>
+          <button type="button" class="quick-tag-btn" data-add-blacklist="Rattata">+ Rattata</button>
+          <button type="button" class="quick-tag-btn" data-add-blacklist="Pidgey">+ Pidgey</button>
+          <button type="button" class="quick-tag-btn" data-add-blacklist="Zubat">+ Zubat</button>
+          <button type="button" class="quick-tag-btn" data-add-blacklist="Caterpie">+ Caterpie</button>
+          <button type="button" class="quick-tag-btn" data-add-blacklist="Magikarp">+ Magikarp</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pinned Bottom Section: Target Summary Callout & Action Buttons -->
+    <div id="targetSummaryText" class="target-summary-callout">
+      Active: 135 Legendaries + 107 Mega Line Species + 9 Sprite Variants
+    </div>
+
+    <div class="modal-footer-actions">
+      <button id="cancelTargetBtn" class="btn" style="width:90px;">Cancel</button>
+      <button id="saveTargetsBtn" class="btn btn-active" style="width:130px;">Apply Targets</button>
+    </div>
+  </div>
+
+  <!-- 2. NETWORK & PROXY CONFIGURATION MODAL -->
+  <div id="networkModal" class="modal-box modal-network">
+    <div class="modal-header-row">
+      <div class="modal-title">&#127760; Network &amp; Proxy Settings</div>
+      <button id="closeNetBtn" class="modal-close-icon" title="Close">&#10005;</button>
+    </div>
+    <div class="modal-desc">
+      Before logging in, verify that your outbound IP is on Starlink or Mobile Data rather than your banned home network.
+    </div>
+
+    <!-- Live Real-Time Network Identity Card -->
+    <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid #334155; border-radius: 9px; padding: 12px 14px; margin-bottom: 14px; font-size: 11px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+        <span style="font-weight:700; color:#f8fafc; font-size:12px;">Live Outbound Identity</span>
+        <button id="refreshIpBtn" class="btn" style="height:22px; padding:0 8px; font-size:10px;" title="Re-check IP address now">&#8635; Refresh IP</button>
+      </div>
+      <div style="color:#94a3b8; margin-bottom: 4px;">
+        Public IP: <span id="modalDetectedIp" style="font-weight:700; color:#38bdf8; font-family:monospace; font-size:12px;">Detecting...</span>
+      </div>
+      <div style="color:#94a3b8; margin-bottom: 4px;">
+        Provider / ISP: <span id="modalDetectedIsp" style="font-weight:700; color:#f8fafc;">Detecting...</span>
+      </div>
+      <div id="modalSecurityNotice" style="font-size:10px; margin-top:6px; padding:4px 8px; border-radius:5px; background:rgba(56,189,248,0.1); color:#38bdf8;">
+        Detecting network status...
+      </div>
+    </div>
+
+    <label class="checkbox-row">
+      <input type="checkbox" id="enableProxyCheckbox">
+      <span>Enable Proxy Routing</span>
+    </label>
+
+    <label style="font-size:11px; font-weight:600; color:#94a3b8; display:block; margin-bottom:6px;">Proxy Server Address:</label>
+    <input type="text" id="proxyRulesInput" class="input-field" placeholder="socks5://127.0.0.1:9050 or http://ip:port">
+
+    <div style="font-size:11px; color:#64748b; margin-bottom:16px; line-height:1.4;">
+      Supported protocols: SOCKS5 and HTTP. Chromium WebRTC leak prevention is active.
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button id="cancelNetBtn" class="btn" style="width:90px;">Cancel</button>
+      <button id="saveProxyBtn" class="btn btn-active" style="width:130px;">Apply &amp; Reload</button>
+    </div>
+  </div>
+
+  <!-- 3. ACCOUNT CONFIGURATION MODAL -->
+  <div id="accountModal" class="modal-box modal-account">
+    <div class="modal-header-row">
+      <div class="modal-title">&#128100; Account Credentials</div>
+      <button id="closeAccBtn" class="modal-close-icon" title="Close">&#10005;</button>
+    </div>
+    <div class="modal-desc">
+      Configure your saved credentials for quick one-click auto-fill on the login screen.
+    </div>
+
+    <label style="font-size:11px; font-weight:600; color:#94a3b8; display:block; margin-bottom:4px;">Nickname / Username:</label>
+    <input type="text" id="accUser" class="input-field" placeholder="Username (e.g. PokeDen)">
+
+    <label style="font-size:11px; font-weight:600; color:#94a3b8; display:block; margin-bottom:4px;">Password:</label>
+    <input type="password" id="accPass" class="input-field" placeholder="Password">
+
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:6px;">
+      <button id="cancelAccBtn" class="btn" style="width:80px;">Cancel</button>
+      <button id="fillLoginBtn" class="btn btn-accent" style="width:110px;">Auto-Fill</button>
+    </div>
+  </div>
+
+  <!-- MAIN DELUGERPG GAME CONTAINER -->
+  <div id="gameContainer">
+    <webview
+      id="delugeView"
+      tabindex="0"
+      src="https://www.delugerpg.com/map"
+      partition="persist:delugerpg"
+      preload="./game-preload.js"
+      useragent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.7444.52 Safari/537.36"
+      allowpopups>
+    </webview>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

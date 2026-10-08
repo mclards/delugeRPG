@@ -1,0 +1,17 @@
+{
+  "name": "delugerpg-desktop-client",
+  "version": "1.0.0",
+  "description": "Standalone Stealth Desktop Client for DelugeRPG",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [
+    "delugerpg",
+    "stealth",
+    "client"
+  ],
+  "author": "Antigravity",
+  "license": "MIT"
+}
+

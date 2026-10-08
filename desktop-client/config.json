@@ -1,0 +1,51 @@
+{
+  "dummyAccount": {
+    "username": "Gwapooo",
+    "password": "adsi1123",
+    "autoLogin": false
+  },
+  "network": {
+    "useProxy": false,
+    "proxyRules": "",
+    "proxyBypass": "<local>"
+  },
+  "settings": {
+    "profile": "flagged_network_stealth",
+    "walkMode": "wander",
+    "targetPreset": "legendaries",
+    "stepsPerDirection": 2,
+    "baseDelay": 2100,
+    "jitter": 550,
+    "minSafetyFloor": 1700,
+    "enableMicroBreaks": true,
+    "enableIdlePauses": true,
+    "soundAlert": true,
+    "autoPauseOnTarget": true,
+    "autoCatch": false,
+    "findLegendaries": true,
+    "findMegasAndGigantamax": false,
+    "findAnySpecialVariant": true,
+    "enableLevelFilter": false,
+    "levelFilterMode": "min",
+    "levelFilterValue": 12,
+    "zoomFactor": 0.8,
+    "levelFilterScope": "targets",
+    "legendaryClassic": true,
+    "legendaryUltraBeasts": true,
+    "legendaryParadox": true,
+    "selectedVariants": [
+      "Normal",
+      "Shiny",
+      "Chrome",
+      "Retro",
+      "Metallic",
+      "Shadow",
+      "Ghostly",
+      "Dark",
+      "Mirage",
+      "Negative"
+    ],
+    "customTargetList": "",
+    "blacklistList": ""
+  }
+}

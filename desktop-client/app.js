@@ -1270,6 +1270,19 @@ delugeView.addEventListener('ipc-message', (event) => {
     isEncounterOnScreen = hasEnc;
   }
 
+  if (event.channel === 'nav-status') {
+    const data = event.args[0] || {};
+    if (data.blocked) {
+      for (const d in data.blocked) {
+        if (data.blocked[d]) {
+          blockedDirections[d] = Date.now() + 3000;
+        } else if (blockedDirections[d]) {
+          delete blockedDirections[d];
+        }
+      }
+    }
+  }
+
   if (event.channel === 'move-result') {
     const data = event.args[0] || {};
     if (data.allBlocked) {

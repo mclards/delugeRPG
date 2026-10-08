@@ -1009,7 +1009,18 @@ function getDexyText() {
 let unconfirmedBlockedCount = 0;
 let lastUnconfirmedDir = null;
 
+let lastBroadcastBlockedStr = '';
+function syncNavStatusToHost() {
+    const blocked = getBlockedNavDirections();
+    const str = JSON.stringify(blocked);
+    if (str !== lastBroadcastBlockedStr) {
+        lastBroadcastBlockedStr = str;
+        ipcRenderer.sendToHost('nav-status', { blocked: blocked });
+    }
+}
+
 const observer = new MutationObserver(() => {
+    syncNavStatusToHost();
     if (activeStep && !activeStep.resolved) {
         const curPos = getPlayerPosition();
         const curDexy = getDexyText();
@@ -1151,6 +1162,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // High-frequency polling (300ms) for instant responsiveness
 setInterval(() => {
+    syncNavStatusToHost();
     const path = (window.location.pathname || '').toLowerCase();
     const isHuntingPage = path.indexOf('/map') !== -1 || path.indexOf('/catch') !== -1;
     if (!isHuntingPage && isHuntingActive) {

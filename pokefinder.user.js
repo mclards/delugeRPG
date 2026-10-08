@@ -576,8 +576,14 @@
         return 37;
     }
 
+    function isGameLoading() {
+        // If all 4 cardinal directions are blocked simultaneously, it's a transient AJAX loading state, not a wall.
+        return isNavButtonBlocked('Up') && isNavButtonBlocked('Down') && isNavButtonBlocked('Left') && isNavButtonBlocked('Right');
+    }
+
     const recentMoves = [];
     const deadEndCooldowns = {};
+
 
     function detectPingPongLoop() {
         if (recentMoves.length < 4) return null;
@@ -1104,7 +1110,6 @@
             const posChanged = !!(curPos && lastPlayerPosSnapshot && (curPos.x !== lastPlayerPosSnapshot.x || curPos.y !== lastPlayerPosSnapshot.y));
             const textChanged = (currentDexyHtml !== lastDexyContentSnapshot);
 
-            // Check if last step was acknowledged by DelugeRPG
             if (lastDispatchedWalkKey !== null && !walkStepAcknowledged) {
                 if (posChanged || textChanged) {
                     // Step was successful!
@@ -1113,72 +1118,28 @@
                     if (blockedWalkKeys[lastDispatchedWalkKey]) {
                         delete blockedWalkKeys[lastDispatchedWalkKey];
                     }
-                } else if (isNavButtonBlocked(lastDispatchedWalkKey)) {
-                    // Step failed: button is physically disabled
-                    consecutiveBlockedSteps++;
-                    const nowCollision = Date.now();
-                    blockedWalkKeys[lastDispatchedWalkKey] = nowCollision + 8000;
-                    const normColl = normalizeKey(lastDispatchedWalkKey);
-                    blockedWalkKeys[normColl] = nowCollision + 8000;
-                    const sharedColl = SHARED_COMPONENTS_8[normColl] || [normColl];
-                    sharedColl.forEach(function(sc) {
-                        blockedWalkKeys[sc] = nowCollision + 8000;
-                    });
-                    wanderStepsRemaining = 0;
-
-                    // Synchronize stepCounter to the next turn boundary
-                    const remainder = stepCounter % stepsPerDirection;
-                    if (remainder !== 0) {
-                        stepCounter += (stepsPerDirection - remainder);
-                    }
-
-                    // Invert diagonal axes on collision
-                    if (lastDispatchedWalkKey === 38 || lastDispatchedWalkKey === 'Up') diagonalVerticalKey = 40;
-                    else if (lastDispatchedWalkKey === 40 || lastDispatchedWalkKey === 'Down') diagonalVerticalKey = 38;
-                    else if (lastDispatchedWalkKey === 37 || lastDispatchedWalkKey === 'Left') diagonalHorizontalKey = 39;
-                    else if (lastDispatchedWalkKey === 39 || lastDispatchedWalkKey === 'Right') diagonalHorizontalKey = 37;
-                    else if (lastDispatchedWalkKey === 'Up-Right') {
-                        if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
-                        else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
-                        else { diagonalVerticalKey = 40; diagonalHorizontalKey = 37; }
-                    } else if (lastDispatchedWalkKey === 'Up-Left') {
-                        if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
-                        else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
-                        else { diagonalVerticalKey = 40; diagonalHorizontalKey = 39; }
-                    } else if (lastDispatchedWalkKey === 'Down-Right') {
-                        if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
-                        else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
-                        else { diagonalVerticalKey = 38; diagonalHorizontalKey = 37; }
-                    } else if (lastDispatchedWalkKey === 'Down-Left') {
-                        if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
-                        else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
-                        else { diagonalVerticalKey = 38; diagonalHorizontalKey = 39; }
-                    }
-
-                    console.log('[PokeFinder] Collision detected with key ' + lastDispatchedWalkKey + '! Consecutive: ' + consecutiveBlockedSteps);
-                    updateStatusUI('Obstacle! Evading...', '#ff9800');
-
-                    if (consecutiveBlockedSteps >= 6) {
-                        console.log('[PokeFinder] Trapped in maze! Reloading map to safe spawn...');
-                        consecutiveBlockedSteps = 0;
-                        blockedWalkKeys = {};
-                        location.reload();
-                        return;
-                    }
-                    
-                    walkStepAcknowledged = true; // Proceed to evade
                 } else {
-                    // Still waiting for network response. Do not dispatch another key yet!
-                    // Wait 5 seconds maximum for a response, then retry.
+                    // Step hasn't completed yet (pos/text unchanged).
+                    // The button might be greyed out right now, but that is purely DelugeRPG's temporary AJAX loading state!
+                    // We must NOT treat this loading state as a wall. We patiently wait for the server.
                     if (!this.lastDispatchTime) this.lastDispatchTime = Date.now();
+                    
+                    // If the server doesn't respond after 5 seconds, clear the lock to retry.
+                    // If it actually was a wall (e.g., you were teleported), our PRE-DISPATCH guard will catch it on the retry.
                     if (Date.now() - this.lastDispatchTime > 5000) {
                          console.log('[PokeFinder] Move timed out (5s). Network lag suspected. Retrying...');
                          walkStepAcknowledged = true;
                          this.lastDispatchTime = Date.now();
                     }
-                    return;
+                    return; // Crucial: skip firing next key until acknowledged
                 }
             }
+            
+            if (isGameLoading()) {
+                // UI is still fully locked from previous AJAX request, wait for it to un-grey.
+                return;
+            }
+
             this.lastDispatchTime = Date.now();
 
             let key = getNextWalkKey();

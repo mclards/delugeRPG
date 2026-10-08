@@ -1046,6 +1046,13 @@ let lastUnconfirmedDir = null;
 let lastBroadcastBlockedStr = '';
 function syncNavStatusToHost() {
     const blocked = getBlockedNavDirections();
+    
+    // If all 4 cardinal directions are blocked, it's a transient AJAX loading state, not a real physical wall.
+    // Do NOT broadcast this to the host, otherwise it will hallucinate 4 walls and turn randomly.
+    if (blocked['Up'] && blocked['Down'] && blocked['Left'] && blocked['Right']) {
+        return;
+    }
+
     const str = JSON.stringify(blocked);
     if (str !== lastBroadcastBlockedStr) {
         lastBroadcastBlockedStr = str;
@@ -1088,8 +1095,10 @@ ipcRenderer.on('step-dispatched', (event, data) => {
     }
 
     const allBlocked = getBlockedNavDirections();
-    // Fast path: if the nav arrow on DelugeRPG is ALREADY disabled, report obstacle immediately
-    if (isNavButtonBlocked(dir)) {
+    const isGameLoading = allBlocked['Up'] && allBlocked['Down'] && allBlocked['Left'] && allBlocked['Right'];
+
+    // Fast path: if the nav arrow on DelugeRPG is ALREADY disabled (and the game is not just loading), report obstacle immediately
+    if (isNavButtonBlocked(dir) && !isGameLoading) {
         ipcRenderer.sendToHost('move-result', {
             direction: dir,
             blocked: true,
@@ -1108,38 +1117,9 @@ ipcRenderer.on('step-dispatched', (event, data) => {
         resolved: false
     };
 
-    // Fast-reacting obstacle evaluation timer (600ms)
-    collisionCheckTimer = setTimeout(() => {
-        if (activeStep && !activeStep.resolved) {
-            activeStep.resolved = true;
-            const currentPos = getPlayerPosition();
-            const currentDexy = getDexyText();
-            const posMoved = !!(initialPos && currentPos && (initialPos.x !== currentPos.x || initialPos.y !== currentPos.y));
-            const textChanged = !!(currentDexy && currentDexy !== initialDexy);
-            const navBlockedNow = isNavButtonBlocked(dir);
+    // We rely purely on the DOM MutationObserver for successful moves, 
+    // and the host app's fallback timer for physical wall collisions.
 
-            if (posMoved || textChanged) {
-                unconfirmedBlockedCount = 0;
-                lastUnconfirmedDir = null;
-                ipcRenderer.sendToHost('move-result', {
-                    direction: dir,
-                    success: true,
-                    allBlocked: getBlockedNavDirections()
-                });
-            } else {
-                // If neither position moved nor dexy text changed, player did NOT advance!
-                // Report as blocked immediately to prevent repeating attempts into walls.
-                unconfirmedBlockedCount = 0;
-                lastUnconfirmedDir = null;
-                ipcRenderer.sendToHost('move-result', {
-                    direction: dir,
-                    blocked: true,
-                    navBlocked: navBlockedNow,
-                    allBlocked: getBlockedNavDirections()
-                });
-            }
-        }
-    }, 600);
 });
 
 // Guest Context Spacebar Toggle Handler

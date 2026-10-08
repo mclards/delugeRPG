@@ -931,11 +931,21 @@ const SHARED_COMPONENTS_8 = {
   'Down': ['Down', 'Down-Left', 'Down-Right'],
   'Left': ['Left', 'Up-Left', 'Down-Left'],
   'Right': ['Right', 'Up-Right', 'Down-Right'],
-  'Up-Left': ['Up-Left'],
-  'Up-Right': ['Up-Right'],
-  'Down-Left': ['Down-Left'],
-  'Down-Right': ['Down-Right']
+  'Up-Left': ['Up-Left', 'Up', 'Left'],
+  'Up-Right': ['Up-Right', 'Up', 'Right'],
+  'Down-Left': ['Down-Left', 'Down', 'Left'],
+  'Down-Right': ['Down-Right', 'Down', 'Right']
 };
+
+function isDirectionPhysicallyBlocked(dir, now = Date.now()) {
+  if (!dir) return false;
+  if (blockedDirections[dir] && blockedDirections[dir] > now) return true;
+  if (dir === 'Up-Left' && (isDirectionPhysicallyBlocked('Up', now) || isDirectionPhysicallyBlocked('Left', now))) return true;
+  if (dir === 'Up-Right' && (isDirectionPhysicallyBlocked('Up', now) || isDirectionPhysicallyBlocked('Right', now))) return true;
+  if (dir === 'Down-Left' && (isDirectionPhysicallyBlocked('Down', now) || isDirectionPhysicallyBlocked('Left', now))) return true;
+  if (dir === 'Down-Right' && (isDirectionPhysicallyBlocked('Down', now) || isDirectionPhysicallyBlocked('Right', now))) return true;
+  return false;
+}
 
 const deadEndCooldowns = {};
 
@@ -967,13 +977,13 @@ function chooseEvadeDirection(blockedDir) {
 
   // 1. Prioritize unblocked perpendicular directions (gliding parallel along obstacle surface)
   const perpList = PERPENDICULARS_8[blockedDir] || ['Up', 'Down', 'Left', 'Right'];
-  const unblockedFreshPerp = perpList.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
+  const unblockedFreshPerp = perpList.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
   if (unblockedFreshPerp.length > 0) {
     return unblockedFreshPerp[Math.floor(Math.random() * unblockedFreshPerp.length)];
   }
 
   // Fallback to any unblocked perpendicular
-  const anyUnblockedPerp = perpList.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now));
+  const anyUnblockedPerp = perpList.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now));
   if (anyUnblockedPerp.length > 0) {
     return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
   }
@@ -981,19 +991,19 @@ function chooseEvadeDirection(blockedDir) {
   // 2. Check retreating diagonal or cardinal angles (moving away from obstacle surface)
   const opp = OPPOSITES_8[blockedDir] || 'Down';
   const retreatDiagonals = ADJACENT_45_8[opp] || [];
-  const unblockedRetreat = retreatDiagonals.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
+  const unblockedRetreat = retreatDiagonals.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
   if (unblockedRetreat.length > 0) {
     return unblockedRetreat[Math.floor(Math.random() * unblockedRetreat.length)];
   }
 
   // 3. Reversing (180-degree back-out) into opposite direction
-  if (!excluded.includes(opp) && (!blockedDirections[opp] || blockedDirections[opp] <= now)) {
+  if (!excluded.includes(opp) && !isDirectionPhysicallyBlocked(opp, now)) {
     deadEndCooldowns[blockedDir] = now + 10000;
     return opp;
   }
 
   // 4. Any unblocked direction from all 8 directions (excluding shared component)
-  const anyUnblocked = ALL_DIRECTIONS_8.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now));
+  const anyUnblocked = ALL_DIRECTIONS_8.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now));
   if (anyUnblocked.length > 0) {
     return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
   }
@@ -1007,10 +1017,10 @@ function chooseWanderDirection(currentDir) {
   currentDir = currentDir || 'Right';
 
   // Gather unblocked candidates from all 8 directions
-  const unblocked = ALL_DIRECTIONS_8.filter(d => (!blockedDirections[d] || blockedDirections[d] <= now) && (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now));
+  const unblocked = ALL_DIRECTIONS_8.filter(d => !isDirectionPhysicallyBlocked(d, now) && (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now));
 
   if (unblocked.length === 0) {
-    const anyUnblocked = ALL_DIRECTIONS_8.filter(d => !blockedDirections[d] || blockedDirections[d] <= now);
+    const anyUnblocked = ALL_DIRECTIONS_8.filter(d => !isDirectionPhysicallyBlocked(d, now));
     if (anyUnblocked.length > 0) {
       return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
     }
@@ -1064,7 +1074,7 @@ function getNextKey() {
     recentMoves.length = 0;
 
     const escapePerps = PERPENDICULARS_8[loop.dirA] || ['Up', 'Down'];
-    const unblockedEscape = escapePerps.filter(k => !blockedDirections[k] || blockedDirections[k] <= now);
+    const unblockedEscape = escapePerps.filter(k => !isDirectionPhysicallyBlocked(k, now));
     if (unblockedEscape.length > 0) {
       const escapeDir = unblockedEscape[Math.floor(Math.random() * unblockedEscape.length)];
       currentDirectionKey = escapeDir;
@@ -1072,7 +1082,7 @@ function getNextKey() {
       updateStatus(`Escaping choke point (${escapeDir})...`, '#38bdf8');
       return escapeDir;
     }
-    const anyEscape = ALL_DIRECTIONS_8.filter(k => k !== loop.dirA && k !== loop.dirB && (!blockedDirections[k] || blockedDirections[k] <= now));
+    const anyEscape = ALL_DIRECTIONS_8.filter(k => k !== loop.dirA && k !== loop.dirB && !isDirectionPhysicallyBlocked(k, now));
     if (anyEscape.length > 0) {
       const escapeDir = anyEscape[Math.floor(Math.random() * anyEscape.length)];
       currentDirectionKey = escapeDir;
@@ -1084,29 +1094,29 @@ function getNextKey() {
 
   // MODE: DIAGONAL (True 8-Way Diagonal Sweeping utilizing #dr-nw, #dr-ne, #dr-sw, #dr-se)
   if (mode === 'diagonal') {
-    if (blockedDirections[diagonalVertical] && blockedDirections[diagonalVertical] > now) {
+    if (isDirectionPhysicallyBlocked(diagonalVertical, now)) {
       diagonalVertical = diagonalVertical === 'Up' ? 'Down' : 'Up';
     }
-    if (blockedDirections[diagonalHorizontal] && blockedDirections[diagonalHorizontal] > now) {
+    if (isDirectionPhysicallyBlocked(diagonalHorizontal, now)) {
       diagonalHorizontal = diagonalHorizontal === 'Right' ? 'Left' : 'Right';
     }
 
     let candidate = `${diagonalVertical}-${diagonalHorizontal}`;
 
     // If candidate diagonal button is blocked, reflect off surfaces
-    if (blockedDirections[candidate] && blockedDirections[candidate] > now) {
+    if (isDirectionPhysicallyBlocked(candidate, now)) {
       const altV = (diagonalVertical === 'Up' ? 'Down' : 'Up') + '-' + diagonalHorizontal;
-      if (!blockedDirections[altV] || blockedDirections[altV] <= now) {
+      if (!isDirectionPhysicallyBlocked(altV, now)) {
         diagonalVertical = diagonalVertical === 'Up' ? 'Down' : 'Up';
         candidate = altV;
       } else {
         const altH = diagonalVertical + '-' + (diagonalHorizontal === 'Right' ? 'Left' : 'Right');
-        if (!blockedDirections[altH] || blockedDirections[altH] <= now) {
+        if (!isDirectionPhysicallyBlocked(altH, now)) {
           diagonalHorizontal = diagonalHorizontal === 'Right' ? 'Left' : 'Right';
           candidate = altH;
         } else {
           const altBoth = (diagonalVertical === 'Up' ? 'Down' : 'Up') + '-' + (diagonalHorizontal === 'Right' ? 'Left' : 'Right');
-          if (!blockedDirections[altBoth] || blockedDirections[altBoth] <= now) {
+          if (!isDirectionPhysicallyBlocked(altBoth, now)) {
             diagonalVertical = diagonalVertical === 'Up' ? 'Down' : 'Up';
             diagonalHorizontal = diagonalHorizontal === 'Right' ? 'Left' : 'Right';
             candidate = altBoth;
@@ -1122,9 +1132,9 @@ function getNextKey() {
   if (mode === 'line_horizontal') {
     let isLeft = Math.floor(stepCount / stepsPerDir) % 2 === 0;
     let target = isLeft ? 'Left' : 'Right';
-    if (blockedDirections[target] && blockedDirections[target] > now) {
+    if (isDirectionPhysicallyBlocked(target, now)) {
       const opp = target === 'Left' ? 'Right' : 'Left';
-      if (!blockedDirections[opp] || blockedDirections[opp] <= now) {
+      if (!isDirectionPhysicallyBlocked(opp, now)) {
         const remainder = stepCount % stepsPerDir;
         if (remainder !== 0) stepCount += (stepsPerDir - remainder);
         return opp;
@@ -1137,9 +1147,9 @@ function getNextKey() {
   if (mode === 'line_vertical') {
     let isUp = Math.floor(stepCount / stepsPerDir) % 2 === 0;
     let target = isUp ? 'Up' : 'Down';
-    if (blockedDirections[target] && blockedDirections[target] > now) {
+    if (isDirectionPhysicallyBlocked(target, now)) {
       const opp = target === 'Up' ? 'Down' : 'Up';
-      if (!blockedDirections[opp] || blockedDirections[opp] <= now) {
+      if (!isDirectionPhysicallyBlocked(opp, now)) {
         const remainder = stepCount % stepsPerDir;
         if (remainder !== 0) stepCount += (stepsPerDir - remainder);
         return opp;
@@ -1152,11 +1162,11 @@ function getNextKey() {
   if (mode === 'patrol_square') {
     let idx = Math.floor(stepCount / stepsPerDir) % 4;
     let candidate = keys[idx];
-    if (blockedDirections[candidate] && blockedDirections[candidate] > now) {
+    if (isDirectionPhysicallyBlocked(candidate, now)) {
       stepCount += stepsPerDir;
       idx = Math.floor(stepCount / stepsPerDir) % 4;
       candidate = keys[idx];
-      if (blockedDirections[candidate] && blockedDirections[candidate] > now) {
+      if (isDirectionPhysicallyBlocked(candidate, now)) {
         return chooseEvadeDirection(candidate);
       }
     }
@@ -1166,8 +1176,8 @@ function getNextKey() {
   // Mode: Wander with 8-Way Roaming, Corridor Momentum, and Anti-Looping
   const maxSteps = config.settings.stepsPerDirection || 1;
   const perpList = PERPENDICULARS_8[currentDirectionKey] || ['Up', 'Down'];
-  const bothPerpsBlocked = perpList.every(k => blockedDirections[k] && blockedDirections[k] > now);
-  const forwardIsBlocked = !!(blockedDirections[currentDirectionKey] && blockedDirections[currentDirectionKey] > now);
+  const bothPerpsBlocked = perpList.every(k => isDirectionPhysicallyBlocked(k, now));
+  const forwardIsBlocked = isDirectionPhysicallyBlocked(currentDirectionKey, now);
 
   // If inside a straight corridor (both side walls blocked) and forward is clear:
   // PRESERVE MOMENTUM! Never turn around in the middle of a hallway!
@@ -1218,7 +1228,7 @@ function sendKeyStep(keyName) {
 
   const now = Date.now();
   // Pre-dispatch Zero-Collision Guard: Never hit a direction that is currently known to be blocked
-  if (blockedDirections[keyName] && blockedDirections[keyName] > now) {
+  if (isDirectionPhysicallyBlocked(keyName, now)) {
     const evaded = chooseEvadeDirection(keyName);
     if (evaded && evaded !== keyName) {
       keyName = evaded;
@@ -1261,7 +1271,8 @@ function sendKeyStep(keyName) {
     // Fallback collision timer: Safety net if preload doesn't resolve within 1600ms
     if (fallbackCollisionTimer) clearTimeout(fallbackCollisionTimer);
     fallbackCollisionTimer = setTimeout(() => {
-      handleMoveSuccess(keyName);
+      // Unconfirmed timeout after 1600ms: treat as collision, NEVER as success!
+      handleMoveBlocked(keyName);
     }, 1600);
 
     stepCount++;

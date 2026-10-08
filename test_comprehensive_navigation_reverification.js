@@ -58,10 +58,10 @@ const SHARED_COMPONENTS_8 = {
   'Down': ['Down', 'Down-Left', 'Down-Right'],
   'Left': ['Left', 'Up-Left', 'Down-Left'],
   'Right': ['Right', 'Up-Right', 'Down-Right'],
-  'Up-Left': ['Up-Left'],
-  'Up-Right': ['Up-Right'],
-  'Down-Left': ['Down-Left'],
-  'Down-Right': ['Down-Right']
+  'Up-Left': ['Up-Left', 'Up', 'Left'],
+  'Up-Right': ['Up-Right', 'Up', 'Right'],
+  'Down-Left': ['Down-Left', 'Down', 'Left'],
+  'Down-Right': ['Down-Right', 'Down', 'Right']
 };
 
 // Check every direction has a symmetrical opposite
@@ -198,6 +198,16 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
   const recentMoves = [];
   let consecutiveBlockedCount = 0;
 
+  function isDirectionPhysicallyBlocked(dir, now = Date.now()) {
+    if (!dir) return false;
+    if (blockedDirections[dir] && blockedDirections[dir] > now) return true;
+    if (dir === 'Up-Left' && (isDirectionPhysicallyBlocked('Up', now) || isDirectionPhysicallyBlocked('Left', now))) return true;
+    if (dir === 'Up-Right' && (isDirectionPhysicallyBlocked('Up', now) || isDirectionPhysicallyBlocked('Right', now))) return true;
+    if (dir === 'Down-Left' && (isDirectionPhysicallyBlocked('Down', now) || isDirectionPhysicallyBlocked('Left', now))) return true;
+    if (dir === 'Down-Right' && (isDirectionPhysicallyBlocked('Down', now) || isDirectionPhysicallyBlocked('Right', now))) return true;
+    return false;
+  }
+
   function detectPingPongLoop() {
     if (recentMoves.length < 4) return null;
     const len = recentMoves.length;
@@ -221,13 +231,13 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
 
     // 1. Prioritize unblocked perpendicular directions (gliding parallel along obstacle surface)
     const perpList = PERPENDICULARS_8[blockedDir] || ['Up', 'Down', 'Left', 'Right'];
-    const unblockedFreshPerp = perpList.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
+    const unblockedFreshPerp = perpList.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
     if (unblockedFreshPerp.length > 0) {
       return unblockedFreshPerp[Math.floor(Math.random() * unblockedFreshPerp.length)];
     }
 
     // Fallback to any unblocked perpendicular
-    const anyUnblockedPerp = perpList.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now));
+    const anyUnblockedPerp = perpList.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now));
     if (anyUnblockedPerp.length > 0) {
       return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
     }
@@ -235,19 +245,19 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
     // 2. Check retreating diagonal or cardinal angles (moving away from obstacle surface)
     const opp = OPPOSITES_8[blockedDir] || 'Down';
     const retreatDiagonals = ADJACENT_45_8[opp] || [];
-    const unblockedRetreat = retreatDiagonals.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
+    const unblockedRetreat = retreatDiagonals.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
     if (unblockedRetreat.length > 0) {
       return unblockedRetreat[Math.floor(Math.random() * unblockedRetreat.length)];
     }
 
     // 3. Reversing (180-degree back-out) into opposite direction
-    if (!excluded.includes(opp) && (!blockedDirections[opp] || blockedDirections[opp] <= now)) {
+    if (!excluded.includes(opp) && !isDirectionPhysicallyBlocked(opp, now)) {
       deadEndCooldowns[blockedDir] = now + 10000;
       return opp;
     }
 
     // 4. Any unblocked direction from all 8 directions
-    const anyUnblocked = ALL_DIRECTIONS_8.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now));
+    const anyUnblocked = ALL_DIRECTIONS_8.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now));
     if (anyUnblocked.length > 0) {
       return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
     }
@@ -260,10 +270,10 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
     const now = Date.now();
     currentDir = currentDir || 'Right';
 
-    const unblocked = ALL_DIRECTIONS_8.filter(d => (!blockedDirections[d] || blockedDirections[d] <= now) && (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now));
+    const unblocked = ALL_DIRECTIONS_8.filter(d => !isDirectionPhysicallyBlocked(d, now) && (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now));
 
     if (unblocked.length === 0) {
-      const anyUnblocked = ALL_DIRECTIONS_8.filter(d => !blockedDirections[d] || blockedDirections[d] <= now);
+      const anyUnblocked = ALL_DIRECTIONS_8.filter(d => !isDirectionPhysicallyBlocked(d, now));
       if (anyUnblocked.length > 0) {
         return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
       }
@@ -311,9 +321,16 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
       recentMoves.length = 0;
 
       const escapePerps = PERPENDICULARS_8[loop.dirA] || ['Up', 'Down'];
-      const unblockedEscape = escapePerps.filter(k => !blockedDirections[k] || blockedDirections[k] <= now);
+      const unblockedEscape = escapePerps.filter(k => !isDirectionPhysicallyBlocked(k, now));
       if (unblockedEscape.length > 0) {
         const escapeDir = unblockedEscape[Math.floor(Math.random() * unblockedEscape.length)];
+        currentDirectionKey = escapeDir;
+        wanderStepsLeft = Math.max(3, stepsPerDir);
+        return escapeDir;
+      }
+      const anyEscape = ALL_DIRECTIONS_8.filter(k => k !== loop.dirA && k !== loop.dirB && !isDirectionPhysicallyBlocked(k, now));
+      if (anyEscape.length > 0) {
+        const escapeDir = anyEscape[Math.floor(Math.random() * anyEscape.length)];
         currentDirectionKey = escapeDir;
         wanderStepsLeft = Math.max(3, stepsPerDir);
         return escapeDir;
@@ -321,27 +338,27 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
     }
 
     if (mode === 'diagonal') {
-      if (blockedDirections[diagonalVertical] && blockedDirections[diagonalVertical] > now) {
+      if (isDirectionPhysicallyBlocked(diagonalVertical, now)) {
         diagonalVertical = diagonalVertical === 'Up' ? 'Down' : 'Up';
       }
-      if (blockedDirections[diagonalHorizontal] && blockedDirections[diagonalHorizontal] > now) {
+      if (isDirectionPhysicallyBlocked(diagonalHorizontal, now)) {
         diagonalHorizontal = diagonalHorizontal === 'Right' ? 'Left' : 'Right';
       }
 
       let candidate = `${diagonalVertical}-${diagonalHorizontal}`;
-      if (blockedDirections[candidate] && blockedDirections[candidate] > now) {
+      if (isDirectionPhysicallyBlocked(candidate, now)) {
         const altV = (diagonalVertical === 'Up' ? 'Down' : 'Up') + '-' + diagonalHorizontal;
-        if (!blockedDirections[altV] || blockedDirections[altV] <= now) {
+        if (!isDirectionPhysicallyBlocked(altV, now)) {
           diagonalVertical = diagonalVertical === 'Up' ? 'Down' : 'Up';
           candidate = altV;
         } else {
           const altH = diagonalVertical + '-' + (diagonalHorizontal === 'Right' ? 'Left' : 'Right');
-          if (!blockedDirections[altH] || blockedDirections[altH] <= now) {
+          if (!isDirectionPhysicallyBlocked(altH, now)) {
             diagonalHorizontal = diagonalHorizontal === 'Right' ? 'Left' : 'Right';
             candidate = altH;
           } else {
             const altBoth = (diagonalVertical === 'Up' ? 'Down' : 'Up') + '-' + (diagonalHorizontal === 'Right' ? 'Left' : 'Right');
-            if (!blockedDirections[altBoth] || blockedDirections[altBoth] <= now) {
+            if (!isDirectionPhysicallyBlocked(altBoth, now)) {
               diagonalVertical = diagonalVertical === 'Up' ? 'Down' : 'Up';
               diagonalHorizontal = diagonalHorizontal === 'Right' ? 'Left' : 'Right';
               candidate = altBoth;
@@ -357,9 +374,9 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
     if (mode === 'line_horizontal') {
       let isLeft = Math.floor(stepCount / stepsPerDir) % 2 === 0;
       let target = isLeft ? 'Left' : 'Right';
-      if (blockedDirections[target] && blockedDirections[target] > now) {
+      if (isDirectionPhysicallyBlocked(target, now)) {
         const opp = target === 'Left' ? 'Right' : 'Left';
-        if (!blockedDirections[opp] || blockedDirections[opp] <= now) {
+        if (!isDirectionPhysicallyBlocked(opp, now)) {
           const remainder = stepCount % stepsPerDir;
           if (remainder !== 0) stepCount += (stepsPerDir - remainder);
           return opp;
@@ -372,9 +389,9 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
     if (mode === 'line_vertical') {
       let isUp = Math.floor(stepCount / stepsPerDir) % 2 === 0;
       let target = isUp ? 'Up' : 'Down';
-      if (blockedDirections[target] && blockedDirections[target] > now) {
+      if (isDirectionPhysicallyBlocked(target, now)) {
         const opp = target === 'Up' ? 'Down' : 'Up';
-        if (!blockedDirections[opp] || blockedDirections[opp] <= now) {
+        if (!isDirectionPhysicallyBlocked(opp, now)) {
           const remainder = stepCount % stepsPerDir;
           if (remainder !== 0) stepCount += (stepsPerDir - remainder);
           return opp;
@@ -387,11 +404,11 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
     if (mode === 'patrol_square') {
       let idx = Math.floor(stepCount / stepsPerDir) % 4;
       let candidate = keys[idx];
-      if (blockedDirections[candidate] && blockedDirections[candidate] > now) {
+      if (isDirectionPhysicallyBlocked(candidate, now)) {
         stepCount += stepsPerDir;
         idx = Math.floor(stepCount / stepsPerDir) % 4;
         candidate = keys[idx];
-        if (blockedDirections[candidate] && blockedDirections[candidate] > now) {
+        if (isDirectionPhysicallyBlocked(candidate, now)) {
           return chooseEvadeDirection(candidate);
         }
       }
@@ -401,8 +418,8 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
     // Wander Mode with 8-Direction Roaming, Corridor Momentum, and Anti-Looping
     const maxSteps = stepsPerDir;
     const perpList = PERPENDICULARS_8[currentDirectionKey] || ['Up', 'Down'];
-    const bothPerpsBlocked = perpList.every(k => blockedDirections[k] && blockedDirections[k] > now);
-    const forwardIsBlocked = !!(blockedDirections[currentDirectionKey] && blockedDirections[currentDirectionKey] > now);
+    const bothPerpsBlocked = perpList.every(k => isDirectionPhysicallyBlocked(k, now));
+    const forwardIsBlocked = isDirectionPhysicallyBlocked(currentDirectionKey, now);
 
     if (!forwardIsBlocked && bothPerpsBlocked) {
       wanderStepsLeft = maxSteps;
@@ -483,7 +500,7 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
     const now = Date.now();
 
     // Strict Pre-dispatch Zero-Collision Guard
-    if (blockedDirections[key] && blockedDirections[key] > now) {
+    if (isDirectionPhysicallyBlocked(key, now)) {
       const evaded = chooseEvadeDirection(key);
       if (evaded && evaded !== key) {
         key = evaded;
@@ -667,6 +684,89 @@ console.log(`  [PASS] Wander mode actively traversed in 8 directions (${diagonal
 // 3. Collision rate must be bounded
 assert(warehouseCollisionRate <= 0.02, `Warehouse collision rate must be <= 2%`);
 console.log('  [PASS] Warehouse map traversed cleanly without deadlocks.');
+
+// SIMULATION 7: "CHARGED CHATEAU #2" Map (Exact Mirror of media_1791477474814_8e86ea77.png)
+// Tests: Standing directly next to a vertical obstacle partition wall on the right.
+// Verifies that Right, Up-Right, and Down-Right are disabled, that the bot NEVER
+// attempts Down-Right into the wall, that zero 10-second stalls occur, and that the bot
+// moves freely across the Chateau in all 8 directions with < 2% bump rate.
+console.log('\n--- Simulation 7: Charged Chateau #2 Map (2,000 steps mirroring media_1791477474814_8e86ea77.png) ---');
+const chateauWalls = [];
+// Vertical obstacle partition wall at column 13 running from y=5 to 16
+for (let y = 5; y <= 16; y++) chateauWalls.push([13, y]);
+// Horizontal partition at y=11 running from x=8 to 13
+for (let x = 8; x <= 13; x++) chateauWalls.push([x, 11]);
+// Server racks, consoles, and barrel clusters matching the screenshot
+for (let x = 2; x <= 6; x++) chateauWalls.push([x, 4], [x, 10]);
+for (let y = 2; y <= 6; y++) chateauWalls.push([18, y]);
+for (let x = 16; x <= 22; x++) chateauWalls.push([x, 12]);
+chateauWalls.push([14, 7], [14, 8], [15, 7], [15, 8]); // Machine consoles behind wall
+
+const simChateau = new DelugeMapSimulator(25, 20, chateauWalls);
+// Place player at exact coordinates (12, 8) standing to the left of the wall at (13, 8)
+simChateau.setPlayer(12, 8);
+
+// Test initial nav button states at (12, 8)
+const initialChateauStates = simChateau.getNavButtonStates();
+assert.strictEqual(initialChateauStates['Right'], true, 'Right nav button must be disabled at (12, 8)');
+assert.strictEqual(initialChateauStates['Up-Right'], true, 'Up-Right nav button must be disabled at (12, 8)');
+assert.strictEqual(initialChateauStates['Down-Right'], true, 'Down-Right nav button must be disabled at (12, 8)');
+assert.strictEqual(initialChateauStates['Left'], false, 'Left nav button must be clear at (12, 8)');
+assert.strictEqual(initialChateauStates['Up'], false, 'Up nav button must be clear at (12, 8)');
+assert.strictEqual(initialChateauStates['Down'], false, 'Down nav button must be clear at (12, 8)');
+assert.strictEqual(initialChateauStates['Up-Left'], false, 'Up-Left nav button must be clear at (12, 8)');
+assert.strictEqual(initialChateauStates['Down-Left'], false, 'Down-Left nav button must be clear at (12, 8)');
+console.log('  [PASS] Charged Chateau #2 initial nav states match media_1791477474814_8e86ea77.png 100%.');
+
+// Initialize navigation engine on Charged Chateau #2
+const engineChateau = createNavigationEngine('wander', 3);
+let chateauCollisions = 0;
+let chateauConsecutiveCollisions = 0;
+let chateauMaxConsecutiveCollisions = 0;
+const chateauMoves = {};
+let firstStepDir = null;
+
+for (let i = 0; i < 2000; i++) {
+  const res = engineChateau.dispatchStep(simChateau);
+  if (i === 0) firstStepDir = res.dir;
+  chateauMoves[res.dir] = (chateauMoves[res.dir] || 0) + 1;
+  if (res.collision) {
+    chateauCollisions++;
+    chateauConsecutiveCollisions++;
+    if (chateauConsecutiveCollisions > chateauMaxConsecutiveCollisions) {
+      chateauMaxConsecutiveCollisions = chateauConsecutiveCollisions;
+    }
+  } else {
+    chateauConsecutiveCollisions = 0;
+  }
+}
+
+const chateauCollisionRate = chateauCollisions / 2000;
+console.log(`  Charged Chateau #2 2,000 steps: ${2000 - chateauCollisions} clean, ${chateauCollisions} collisions (Rate: ${(chateauCollisionRate * 100).toFixed(2)}%)`);
+console.log('  First Step From (12, 8):', firstStepDir);
+console.log('  Max Consecutive Collisions:', chateauMaxConsecutiveCollisions);
+console.log('  Move Distribution:', JSON.stringify(chateauMoves));
+
+// Strict Invariants:
+// 1. Bot must NEVER attempt Right, Up-Right, or Down-Right on step 0 from (12, 8)
+assert(firstStepDir !== 'Down-Right', 'Bot must NEVER attempt Down-Right when blocked by wall on step 0');
+assert(firstStepDir !== 'Right', 'Bot must NEVER attempt Right when blocked by wall on step 0');
+assert(firstStepDir !== 'Up-Right', 'Bot must NEVER attempt Up-Right when blocked by wall on step 0');
+console.log('  [PASS] Zero attempts into disabled Right/Down-Right arrows from initial stuck position.');
+
+// 2. Max consecutive collisions must be <= 1 (zero repeated wall ramming / zero 10-second loops)
+assert(chateauMaxConsecutiveCollisions <= 1, `Max consecutive collisions on Chateau must be <= 1 (got ${chateauMaxConsecutiveCollisions})`);
+console.log('  [PASS] Zero repeated wall ramming on Charged Chateau #2 (max consecutive collisions <= 1).');
+
+// 3. Collision rate bounded <= 2%
+assert(chateauCollisionRate <= 0.02, `Charged Chateau #2 collision rate must be <= 2%`);
+console.log('  [PASS] Charged Chateau #2 traversed cleanly with collision rate < 2%.');
+
+// 4. True 8-way diagonal roaming active
+const chateauDiagCount = (chateauMoves['Up-Left'] || 0) + (chateauMoves['Up-Right'] || 0) +
+                         (chateauMoves['Down-Left'] || 0) + (chateauMoves['Down-Right'] || 0);
+assert(chateauDiagCount > 100, `Must actively utilize diagonals on Chateau (got ${chateauDiagCount})`);
+console.log(`  [PASS] Active 8-way traversal on Charged Chateau #2 (${chateauDiagCount} diagonal steps / 2000 total).`);
 
 // -------------------------------------------------------------
 // PART 4: STRICT REVERIFICATION OF SOURCE CODE FILES

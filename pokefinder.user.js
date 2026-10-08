@@ -504,11 +504,17 @@
             'Left': ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]', '[title*="West" i]', '[title*="Left" i]', '[aria-label*="West" i]', '[aria-label*="Left" i]'],
             39: ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]', '[title*="East" i]', '[title*="Right" i]', '[aria-label*="East" i]', '[aria-label*="Right" i]'],
             'Right': ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]', '[title*="East" i]', '[title*="Right" i]', '[aria-label*="East" i]', '[aria-label*="Right" i]'],
-            'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]'],
-            'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]'],
-            'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]'],
-            'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]']
+            'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]', '[title*="North-West" i]', '[title*="Northwest" i]', '[title*="Up-Left" i]', '[aria-label*="North-West" i]', '[aria-label*="Northwest" i]'],
+            'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]', '[title*="North-East" i]', '[title*="Northeast" i]', '[title*="Up-Right" i]', '[aria-label*="North-East" i]', '[aria-label*="Northeast" i]'],
+            'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]', '[title*="South-West" i]', '[title*="Southwest" i]', '[title*="Down-Left" i]', '[aria-label*="South-West" i]', '[aria-label*="Southwest" i]'],
+            'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]', '[title*="South-East" i]', '[title*="Southeast" i]', '[title*="Down-Right" i]', '[aria-label*="South-East" i]', '[aria-label*="Southeast" i]']
         };
+
+        // Grid physics: a diagonal move is impossible if either cardinal component is blocked
+        if ((keyCode === 'Up-Left' || keyCode === 'nw') && (isNavButtonBlocked('Up') || isNavButtonBlocked('Left'))) return true;
+        if ((keyCode === 'Up-Right' || keyCode === 'ne') && (isNavButtonBlocked('Up') || isNavButtonBlocked('Right'))) return true;
+        if ((keyCode === 'Down-Left' || keyCode === 'sw') && (isNavButtonBlocked('Down') || isNavButtonBlocked('Left'))) return true;
+        if ((keyCode === 'Down-Right' || keyCode === 'se') && (isNavButtonBlocked('Down') || isNavButtonBlocked('Right'))) return true;
 
         const selectors = keyMap[keyCode] || [];
         for (let i = 0; i < selectors.length; i++) {
@@ -633,10 +639,10 @@
         40: ['Down', 'Down-Left', 'Down-Right', 40],
         37: ['Left', 'Up-Left', 'Down-Left', 37],
         39: ['Right', 'Up-Right', 'Down-Right', 39],
-        'Up-Left': ['Up-Left'],
-        'Up-Right': ['Up-Right'],
-        'Down-Left': ['Down-Left'],
-        'Down-Right': ['Down-Right']
+        'Up-Left': ['Up-Left', 'Up', 'Left', 38, 37],
+        'Up-Right': ['Up-Right', 'Up', 'Right', 38, 39],
+        'Down-Left': ['Down-Left', 'Down', 'Left', 40, 37],
+        'Down-Right': ['Down-Right', 'Down', 'Right', 40, 39]
     };
 
     function normalizeKey(k) {
@@ -645,6 +651,22 @@
         if (k === 39) return 'Right';
         if (k === 40) return 'Down';
         return k || 'Right';
+    }
+
+    function isWalkKeyPhysicallyBlocked(key, now) {
+        now = now || Date.now();
+        const norm = normalizeKey(key);
+        if ((blockedWalkKeys[key] && blockedWalkKeys[key] > now) ||
+            (blockedWalkKeys[norm] && blockedWalkKeys[norm] > now) ||
+            isNavButtonBlocked(key) ||
+            isNavButtonBlocked(norm)) {
+            return true;
+        }
+        if (norm === 'Up-Left' && (isWalkKeyPhysicallyBlocked('Up', now) || isWalkKeyPhysicallyBlocked('Left', now))) return true;
+        if (norm === 'Up-Right' && (isWalkKeyPhysicallyBlocked('Up', now) || isWalkKeyPhysicallyBlocked('Right', now))) return true;
+        if (norm === 'Down-Left' && (isWalkKeyPhysicallyBlocked('Down', now) || isWalkKeyPhysicallyBlocked('Left', now))) return true;
+        if (norm === 'Down-Right' && (isWalkKeyPhysicallyBlocked('Down', now) || isWalkKeyPhysicallyBlocked('Right', now))) return true;
+        return false;
     }
 
     function chooseEvadeWalkKey(blockedKey) {
@@ -660,8 +682,7 @@
         const perpList = PERPENDICULARS_8[normBlocked] || ['Up', 'Down', 'Left', 'Right'];
         const unblockedFreshPerp = perpList.filter(function(k) {
             return !excluded.includes(k) &&
-                   (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) &&
-                   !isNavButtonBlocked(k) &&
+                   !isWalkKeyPhysicallyBlocked(k, now) &&
                    (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now);
         });
 
@@ -672,8 +693,7 @@
         // Fallback to any unblocked perpendicular
         const anyUnblockedPerp = perpList.filter(function(k) {
             return !excluded.includes(k) &&
-                   (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) &&
-                   !isNavButtonBlocked(k);
+                   !isWalkKeyPhysicallyBlocked(k, now);
         });
         if (anyUnblockedPerp.length > 0) {
             return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
@@ -684,8 +704,7 @@
         const retreatDiagonals = ADJACENT_45_8[opp] || [];
         const unblockedRetreat = retreatDiagonals.filter(function(k) {
             return !excluded.includes(k) &&
-                   (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) &&
-                   !isNavButtonBlocked(k) &&
+                   !isWalkKeyPhysicallyBlocked(k, now) &&
                    (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now);
         });
         if (unblockedRetreat.length > 0) {
@@ -693,14 +712,14 @@
         }
 
         // 3. Reversing (180-degree back-out) into opposite direction
-        if (!excluded.includes(opp) && (!blockedWalkKeys[opp] || blockedWalkKeys[opp] <= now) && !isNavButtonBlocked(opp)) {
+        if (!excluded.includes(opp) && !isWalkKeyPhysicallyBlocked(opp, now)) {
             deadEndCooldowns[normBlocked] = now + 10000;
             return opp;
         }
 
         // 4. Any unblocked direction from all 8 directions
         const anyUnblocked = ALL_DIRECTIONS_8.filter(function(k) {
-            return !excluded.includes(k) && (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) && !isNavButtonBlocked(k);
+            return !excluded.includes(k) && !isWalkKeyPhysicallyBlocked(k, now);
         });
         if (anyUnblocked.length > 0) {
             return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
@@ -715,14 +734,13 @@
         const normCurrent = normalizeKey(currentKey);
 
         const unblocked = ALL_DIRECTIONS_8.filter(function(d) {
-            return (!blockedWalkKeys[d] || blockedWalkKeys[d] <= now) &&
-                   !isNavButtonBlocked(d) &&
+            return !isWalkKeyPhysicallyBlocked(d, now) &&
                    (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now);
         });
 
         if (unblocked.length === 0) {
             const anyUnblocked = ALL_DIRECTIONS_8.filter(function(d) {
-                return (!blockedWalkKeys[d] || blockedWalkKeys[d] <= now) && !isNavButtonBlocked(d);
+                return !isWalkKeyPhysicallyBlocked(d, now);
             });
             if (anyUnblocked.length > 0) {
                 return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
@@ -775,7 +793,7 @@
 
             const escapePerps = (loop.keyA === 37 || loop.keyA === 39) ? [38, 40] : [37, 39];
             const unblockedEscape = escapePerps.filter(function(k) {
-                return (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) && !isNavButtonBlocked(k);
+                return !isWalkKeyPhysicallyBlocked(k, now);
             });
             if (unblockedEscape.length > 0) {
                 const escapeKey = unblockedEscape[Math.floor(Math.random() * unblockedEscape.length)];
@@ -784,13 +802,23 @@
                 updateStatusUI('Escaping choke point...', '#38bdf8');
                 return escapeKey;
             }
+            const anyEscape = ALL_DIRECTIONS_8.filter(function(k) {
+                return k !== loop.keyA && k !== loop.keyB && !isWalkKeyPhysicallyBlocked(k, now);
+            });
+            if (anyEscape.length > 0) {
+                const escapeKey = anyEscape[Math.floor(Math.random() * anyEscape.length)];
+                currentWanderKey = escapeKey;
+                wanderStepsRemaining = Math.max(3, stepsPerDirection);
+                updateStatusUI('Escaping choke point...', '#38bdf8');
+                return escapeKey;
+            }
         }
 
         if (walkMode === "diagonal") {
-            if (blockedWalkKeys[diagonalVerticalKey] || isNavButtonBlocked(diagonalVerticalKey)) {
+            if (isWalkKeyPhysicallyBlocked(diagonalVerticalKey, now)) {
                 diagonalVerticalKey = diagonalVerticalKey === 38 ? 40 : 38;
             }
-            if (blockedWalkKeys[diagonalHorizontalKey] || isNavButtonBlocked(diagonalHorizontalKey)) {
+            if (isWalkKeyPhysicallyBlocked(diagonalHorizontalKey, now)) {
                 diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
             }
 
@@ -798,19 +826,19 @@
             const horizStr = diagonalHorizontalKey === 39 ? 'Right' : 'Left';
             let candidate = vertStr + '-' + horizStr;
 
-            if (blockedWalkKeys[candidate] || isNavButtonBlocked(candidate)) {
+            if (isWalkKeyPhysicallyBlocked(candidate, now)) {
                 const altV = (vertStr === 'Up' ? 'Down' : 'Up') + '-' + horizStr;
-                if (!blockedWalkKeys[altV] && !isNavButtonBlocked(altV)) {
+                if (!isWalkKeyPhysicallyBlocked(altV, now)) {
                     diagonalVerticalKey = diagonalVerticalKey === 38 ? 40 : 38;
                     candidate = altV;
                 } else {
                     const altH = vertStr + '-' + (horizStr === 'Right' ? 'Left' : 'Right');
-                    if (!blockedWalkKeys[altH] && !isNavButtonBlocked(altH)) {
+                    if (!isWalkKeyPhysicallyBlocked(altH, now)) {
                         diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
                         candidate = altH;
                     } else {
                         const altBoth = (vertStr === 'Up' ? 'Down' : 'Up') + '-' + (horizStr === 'Right' ? 'Left' : 'Right');
-                        if (!blockedWalkKeys[altBoth] && !isNavButtonBlocked(altBoth)) {
+                        if (!isWalkKeyPhysicallyBlocked(altBoth, now)) {
                             diagonalVerticalKey = diagonalVerticalKey === 38 ? 40 : 38;
                             diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
                             candidate = altBoth;
@@ -827,9 +855,9 @@
         if (walkMode === "line_horizontal") {
             let isLeft = Math.floor(stepCounter / stepsPerDirection) % 2 === 0;
             let targetKey = isLeft ? 37 : 39;
-            if ((blockedWalkKeys[targetKey] && blockedWalkKeys[targetKey] > now) || isNavButtonBlocked(targetKey)) {
+            if (isWalkKeyPhysicallyBlocked(targetKey, now)) {
                 const opp = targetKey === 37 ? 39 : 37;
-                if ((!blockedWalkKeys[opp] || blockedWalkKeys[opp] <= now) && !isNavButtonBlocked(opp)) {
+                if (!isWalkKeyPhysicallyBlocked(opp, now)) {
                     const remainder = stepCounter % stepsPerDirection;
                     if (remainder !== 0) stepCounter += (stepsPerDirection - remainder);
                     return opp;
@@ -843,9 +871,9 @@
         if (walkMode === "line_vertical") {
             let isUp = Math.floor(stepCounter / stepsPerDirection) % 2 === 0;
             let targetKey = isUp ? 38 : 40;
-            if ((blockedWalkKeys[targetKey] && blockedWalkKeys[targetKey] > now) || isNavButtonBlocked(targetKey)) {
+            if (isWalkKeyPhysicallyBlocked(targetKey, now)) {
                 const opp = targetKey === 38 ? 40 : 38;
-                if ((!blockedWalkKeys[opp] || blockedWalkKeys[opp] <= now) && !isNavButtonBlocked(opp)) {
+                if (!isWalkKeyPhysicallyBlocked(opp, now)) {
                     const remainder = stepCounter % stepsPerDirection;
                     if (remainder !== 0) stepCounter += (stepsPerDirection - remainder);
                     return opp;
@@ -859,11 +887,11 @@
         if (walkMode === "patrol_square") {
             let dirIndex = Math.floor(stepCounter / stepsPerDirection) % 4;
             let candidate = keys[dirIndex];
-            if ((blockedWalkKeys[candidate] && blockedWalkKeys[candidate] > now) || isNavButtonBlocked(candidate)) {
+            if (isWalkKeyPhysicallyBlocked(candidate, now)) {
                 stepCounter += stepsPerDirection;
                 dirIndex = Math.floor(stepCounter / stepsPerDirection) % 4;
                 candidate = keys[dirIndex];
-                if ((blockedWalkKeys[candidate] && blockedWalkKeys[candidate] > now) || isNavButtonBlocked(candidate)) {
+                if (isWalkKeyPhysicallyBlocked(candidate, now)) {
                     return chooseEvadeWalkKey(candidate);
                 }
             }
@@ -875,9 +903,9 @@
             const normKey = normalizeKey(currentWanderKey);
             const perpList = PERPENDICULARS_8[normKey] || ['Up', 'Down'];
             const bothPerpsBlocked = perpList.every(function(k) {
-                return (blockedWalkKeys[k] && blockedWalkKeys[k] > now) || isNavButtonBlocked(k);
+                return isWalkKeyPhysicallyBlocked(k, now);
             });
-            const forwardIsBlocked = (blockedWalkKeys[normKey] && blockedWalkKeys[normKey] > now) || isNavButtonBlocked(normKey) || (blockedWalkKeys[currentWanderKey] && blockedWalkKeys[currentWanderKey] > now) || isNavButtonBlocked(currentWanderKey);
+            const forwardIsBlocked = isWalkKeyPhysicallyBlocked(normKey, now) || isWalkKeyPhysicallyBlocked(currentWanderKey, now);
 
             // If inside a straight corridor (both side walls blocked) and forward is clear:
             // PRESERVE MOMENTUM! Never turn around in the middle of a hallway!
@@ -1151,10 +1179,7 @@
             let key = getNextWalkKey();
             const nowTime = Date.now();
             // Pre-dispatch Zero-Collision Guard: avoid bumping known blocked direction
-            const normKeyCheck = normalizeKey(key);
-            if ((blockedWalkKeys[key] && blockedWalkKeys[key] > nowTime) ||
-                (blockedWalkKeys[normKeyCheck] && blockedWalkKeys[normKeyCheck] > nowTime) ||
-                isNavButtonBlocked(key) || isNavButtonBlocked(normKeyCheck)) {
+            if (isWalkKeyPhysicallyBlocked(key, nowTime)) {
                 const evaded = chooseEvadeWalkKey(key);
                 if (evaded && evaded !== key) {
                     key = evaded;

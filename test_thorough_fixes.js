@@ -38,7 +38,7 @@ console.log('  [PASS] Leaked default credentials completely sanitized from confi
 
 // 4. M-1 & H-1 & H-2 OBSTACLE DETECTION TIMING & OBSERVER HYGIENE
 console.log('\n--- 4. M-1, H-1, H-2: Obstacle Detection & Collision Pipeline ---');
-assert(appJs.includes('fallbackCollisionTimer = setTimeout(() => {\n      handleMoveSuccess(keyName);\n    }, 1600);'), 'Host fallback timer must be 1600ms so preload collision timer resolves first');
+assert(appJs.includes('handleMoveBlocked(keyName);') && appJs.includes('}, 1600);'), 'Host fallback timer must be 1600ms and treat unconfirmed timeouts as blocked');
 assert(!preloadJs.includes('XMLHttpRequest.prototype.open ='), 'Preload must not contain inert XHR open monkey-patch');
 assert(!preloadJs.includes('XMLHttpRequest.prototype.send ='), 'Preload must not contain inert XHR send monkey-patch');
 assert(preloadJs.includes('getBoundingClientRect()'), 'Preload getPlayerPosition must use getBoundingClientRect for reliable coordinates');

@@ -926,11 +926,17 @@ function isNavButtonBlocked(dir) {
         'Down': ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]', '[title*="South" i]', '[title*="Down" i]', '[aria-label*="South" i]', '[aria-label*="Down" i]'],
         'Left': ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]', '[title*="West" i]', '[title*="Left" i]', '[aria-label*="West" i]', '[aria-label*="Left" i]'],
         'Right': ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]', '[title*="East" i]', '[title*="Right" i]', '[aria-label*="East" i]', '[aria-label*="Right" i]'],
-        'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]'],
-        'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]'],
-        'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]'],
-        'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]']
+        'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]', '[title*="North-West" i]', '[title*="Northwest" i]', '[title*="Up-Left" i]', '[aria-label*="North-West" i]', '[aria-label*="Northwest" i]'],
+        'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]', '[title*="North-East" i]', '[title*="Northeast" i]', '[title*="Up-Right" i]', '[aria-label*="North-East" i]', '[aria-label*="Northeast" i]'],
+        'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]', '[title*="South-West" i]', '[title*="Southwest" i]', '[title*="Down-Left" i]', '[aria-label*="South-West" i]', '[aria-label*="Southwest" i]'],
+        'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]', '[title*="South-East" i]', '[title*="Southeast" i]', '[title*="Down-Right" i]', '[aria-label*="South-East" i]', '[aria-label*="Southeast" i]']
     };
+
+    // Grid physics: a diagonal move is impossible if either cardinal component is blocked
+    if (dir === 'Up-Left' && (isNavButtonBlocked('Up') || isNavButtonBlocked('Left'))) return true;
+    if (dir === 'Up-Right' && (isNavButtonBlocked('Up') || isNavButtonBlocked('Right'))) return true;
+    if (dir === 'Down-Left' && (isNavButtonBlocked('Down') || isNavButtonBlocked('Left'))) return true;
+    if (dir === 'Down-Right' && (isNavButtonBlocked('Down') || isNavButtonBlocked('Right'))) return true;
 
     const selectors = dirMap[dir] || [];
     for (let i = 0; i < selectors.length; i++) {
@@ -1124,30 +1130,15 @@ ipcRenderer.on('step-dispatched', (event, data) => {
                     success: true,
                     allBlocked: getBlockedNavDirections()
                 });
-            } else if (navBlockedNow) {
+            } else {
+                // If neither position moved nor dexy text changed, player did NOT advance!
+                // Report as blocked immediately to prevent repeating attempts into walls.
                 unconfirmedBlockedCount = 0;
                 lastUnconfirmedDir = null;
                 ipcRenderer.sendToHost('move-result', {
                     direction: dir,
                     blocked: true,
-                    navBlocked: true,
-                    allBlocked: getBlockedNavDirections()
-                });
-            } else {
-                if (initialPos && currentPos) {
-                    unconfirmedBlockedCount = 0;
-                    lastUnconfirmedDir = null;
-                    ipcRenderer.sendToHost('move-result', {
-                        direction: dir,
-                        blocked: true,
-                        allBlocked: getBlockedNavDirections()
-                    });
-                    return;
-                }
-
-                ipcRenderer.sendToHost('move-result', {
-                    direction: dir,
-                    success: true,
+                    navBlocked: navBlockedNow,
                     allBlocked: getBlockedNavDirections()
                 });
             }

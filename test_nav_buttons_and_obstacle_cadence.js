@@ -346,9 +346,9 @@ function simulateDispatchSequence(totalSteps, blockedMap) {
     return { cleanSteps, collisionsDispatched, totalSteps };
 }
 
-const stats50 = simulateDispatchSequence(100, { 'Up': Date.now() + 50000 });
+const stats50 = simulateDispatchSequence(1000, { 'Up': Date.now() + 50000 });
 const collisionRate = stats50.collisionsDispatched / stats50.totalSteps;
-console.log(`  Dispatched across 100 steps: ${stats50.cleanSteps} clean, ${stats50.collisionsDispatched} collisions (collision rate: ${(collisionRate * 100).toFixed(1)}%)`);
+console.log(`  Dispatched across 1,000 steps: ${stats50.cleanSteps} clean, ${stats50.collisionsDispatched} collisions (collision rate: ${(collisionRate * 100).toFixed(1)}%)`);
 assert(collisionRate <= 0.02, 'Collision rate must be <= 2% (at most 1 in 50 steps)');
 console.log('  [PASS] Pre-dispatch zero-collision guard guarantees >= 98% clean traversal.');
 

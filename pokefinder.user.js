@@ -559,12 +559,12 @@
         );
         if (catchBtn && window.getComputedStyle(catchBtn).display !== 'none') return true;
 
-        const catchLinks = document.querySelectorAll('#showpoke a, #dexy a, .catch-form a, a[href*="/catch/"]');
+        const catchLinks = document.querySelectorAll('#showpoke a, #dexy a, .catch-form a, a[href*="catch" i], a[href*="battle" i]');
         for (let l = 0; l < catchLinks.length; l++) {
             const clk = catchLinks[l];
             const cHref = (clk.getAttribute('href') || '').toLowerCase();
             const cText = (clk.textContent || clk.innerText || '').toLowerCase();
-            if ((cHref.indexOf('/catch/') !== -1 || cText.indexOf('catch') !== -1) &&
+            if ((cHref.indexOf('catch') !== -1 || cHref.indexOf('battle') !== -1 || cText.indexOf('catch') !== -1 || cText.indexOf('battle') !== -1) &&
                 window.getComputedStyle(clk).display !== 'none') {
                 return true;
             }
@@ -577,7 +577,10 @@
             document.querySelector('.catch-form'),
             document.getElementById('show-pokemon'),
             document.getElementById('dexy'),
-            document.querySelector('.dexy')
+            document.querySelector('.dexy'),
+            document.getElementById('catch'),
+            document.querySelector('form[action*="catch"]'),
+            document.querySelector('form[action*="battle"]')
         ];
 
         for (let c = 0; c < candidateContainers.length; c++) {
@@ -589,7 +592,7 @@
                 if (style.display === 'none' || style.visibility === 'hidden') continue;
             } catch (_) {}
 
-            const pokeImg = box.querySelector('img[src*="/pokemon/"], img[src*="/sprites/"], img[src*="/dex/"]');
+            const pokeImg = box.querySelector('img[src*="/pokemon/"], img[src*="/sprites/"], img[src*="/dex/"], img[src*="/regular/"], img[src*="/shiny/"], img[src*="/retro/"], img[src*="/chrome/"], img[src*="/metallic/"], img[src*="/shadow/"], img[src*="/ghostly/"], img[src*="/dark/"], img[src*="/mirage/"], img[src*="/negative/"], img[src*="delugerpg"]');
             if (pokeImg) {
                 return true;
             }
@@ -598,7 +601,7 @@
             for (let e = 0; e < innerElements.length; e++) {
                 const inner = innerElements[e];
                 const innerText = ((inner.textContent || '') + ' ' + (inner.value || '') + ' ' + (inner.getAttribute('href') || '')).toLowerCase();
-                if (innerText.indexOf('catch') !== -1) {
+                if (innerText.indexOf('catch') !== -1 || innerText.indexOf('battle') !== -1) {
                     return true;
                 }
             }
@@ -997,9 +1000,9 @@
         }
 
         // 2. Entire parent container of any catch button
-        const catchBtns = document.querySelectorAll('input[value*="Catch" i], button[value*="Catch" i], #catch, a#catch, #showpoke a, a[href*="/catch/"]');
+        const catchBtns = document.querySelectorAll('input[value*="Catch" i], button[value*="Catch" i], #catch, a#catch, #showpoke a, a[href*="catch" i], a[href*="battle" i]');
         for (let b = 0; b < catchBtns.length; b++) {
-            const parent = catchBtns[b].closest('form, .catch-form, #dexy, #showpoke');
+            const parent = catchBtns[b].closest('form, .catch-form, #dexy, #showpoke, #showpoke-name, #show-pokemon');
             if (parent) {
                 pageText += ' ' + (parent.innerText || parent.textContent || '');
                 const pImgs = parent.querySelectorAll('img');

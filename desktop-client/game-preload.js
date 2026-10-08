@@ -238,7 +238,7 @@ function scanForTargets() {
             const clk = catchLinks[l];
             const cHref = (clk.getAttribute('href') || '').toLowerCase();
             const cText = (clk.textContent || clk.innerText || '').toLowerCase();
-            if ((cHref.indexOf('/catch/') !== -1 || cText.indexOf('catch') !== -1) &&
+            if ((cHref.indexOf('/catch/') !== -1 || cHref.indexOf('/catch') !== -1 || cHref.indexOf('battle') !== -1 || cText.indexOf('catch') !== -1 || cText.indexOf('battle') !== -1) &&
                 window.getComputedStyle(clk).display !== 'none') {
                 return true;
             }
@@ -252,7 +252,10 @@ function scanForTargets() {
             document.querySelector('.catch-form'),
             document.getElementById('show-pokemon'),
             document.getElementById('dexy'),
-            document.querySelector('.dexy')
+            document.querySelector('.dexy'),
+            document.getElementById('catch'),
+            document.querySelector('form[action*="catch"]'),
+            document.querySelector('form[action*="battle"]')
         ];
 
         for (let c = 0; c < candidateContainers.length; c++) {
@@ -264,18 +267,18 @@ function scanForTargets() {
                 if (style.display === 'none' || style.visibility === 'hidden') continue;
             } catch (_) {}
 
-            // Check for wild Pokemon sprite
-            const pokeImg = box.querySelector('img[src*="/pokemon/"], img[src*="/sprites/"], img[src*="/dex/"]');
+            // Check for wild Pokemon sprite across all DelugeRPG image CDNs
+            const pokeImg = box.querySelector('img[src*="/pokemon/"], img[src*="/sprites/"], img[src*="/dex/"], img[src*="/regular/"], img[src*="/shiny/"], img[src*="/retro/"], img[src*="/chrome/"], img[src*="/metallic/"], img[src*="/shadow/"], img[src*="/ghostly/"], img[src*="/dark/"], img[src*="/mirage/"], img[src*="/negative/"], img[src*="delugerpg"]');
             if (pokeImg) {
                 return true;
             }
 
-            // Check for inner catch buttons or links
+            // Check for inner catch/battle buttons or links
             const innerElements = box.querySelectorAll('a, button, input');
             for (let e = 0; e < innerElements.length; e++) {
                 const inner = innerElements[e];
                 const innerText = ((inner.textContent || '') + ' ' + (inner.value || '') + ' ' + (inner.getAttribute('href') || '')).toLowerCase();
-                if (innerText.indexOf('catch') !== -1) {
+                if (innerText.indexOf('catch') !== -1 || innerText.indexOf('battle') !== -1) {
                     return true;
                 }
             }
@@ -291,12 +294,30 @@ function scanForTargets() {
                 continue;
             }
 
+            // If the box contains any known Legendary or Mega, confirm encounter immediately!
+            if (findLegend) {
+                for (let k = 0; k < LEGENDARY_LOWER.length; k++) {
+                    if (normText.indexOf(LEGENDARY_LOWER[k]) !== -1) {
+                        return true;
+                    }
+                }
+            }
+            if (findMegas) {
+                for (let m = 0; m < MEGAS_LOWER.length; m++) {
+                    if (normText.indexOf(MEGAS_LOWER[m]) !== -1) {
+                        return true;
+                    }
+                }
+            }
+
             // Confirm encounter keywords
             if (normText.indexOf('appeared') !== -1 ||
-                normText.indexOf('wild ') !== -1 ||
+                normText.indexOf('wild') !== -1 ||
                 normText.indexOf('level') !== -1 ||
                 normText.indexOf('lvl') !== -1 ||
-                normText.indexOf('catch') !== -1) {
+                normText.indexOf('catch') !== -1 ||
+                normText.indexOf('battle') !== -1 ||
+                normText.indexOf('hp:') !== -1) {
                 return true;
             }
         }
@@ -466,9 +487,9 @@ function scanForTargets() {
         : ['normal', ...VARIANTS.map(v => v.toLowerCase())];
 
     // Helper: checks whether the encounter's variant is accepted for target species (Tier 1-3)
+    // Priority Target Invariant: Wild Legendaries, Megas, and custom targets are always accepted regardless of variant filter
     function isVariantAcceptedForSpecies() {
-        if (!findAnyVariant) return true;
-        return allowedVariants.includes(detectedVariant);
+        return true;
     }
 
     const varPrefix = (detectedVariant !== 'normal') ? (detectedVariant.toUpperCase() + ' ') : '';
@@ -519,6 +540,7 @@ function scanForTargets() {
     }
 
     // 3. Tier 3: Legendaries, Mythicals, Ultra Beasts & Paradox
+    // Priority Target: ALL wild Legendaries (normal and special variants alike) MUST be halted for capture!
     if (findLegend) {
         const allowClassic = config.legendaryClassic !== false;
         const allowUB = config.legendaryUltraBeasts !== false;
@@ -562,12 +584,10 @@ function scanForTargets() {
     const isLevelAllScope = config.enableLevelFilter && (config.levelFilterScope === 'all' || !anyTierActive);
 
     if (isLevelAllScope && passesLevel && currentLevel !== null) {
-        if (isVariantAcceptedForSpecies()) {
-            const symbol = (config.levelFilterMode === 'min') ? '+' : ((config.levelFilterMode === 'max') ? '<=' : '');
-            const foundName = varPrefix + 'Wild Encounter (Lv ' + currentLevel + symbol + ')';
-            triggerTargetFound(foundName, 'Level Match');
-            return;
-        }
+        const symbol = (config.levelFilterMode === 'min') ? '+' : ((config.levelFilterMode === 'max') ? '<=' : '');
+        const foundName = varPrefix + 'Wild Encounter (Lv ' + currentLevel + symbol + ')';
+        triggerTargetFound(foundName, 'Level Match');
+        return;
     }
 }
 

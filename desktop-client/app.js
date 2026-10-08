@@ -1505,12 +1505,12 @@ if (stepsPerDirInput) {
 }
 
 // Preset pills click listeners in modal
-if (presetAllBtn) presetAllBtn.addEventListener('click', () => applyTargetPreset('all', false));
-if (presetLegBtn) presetLegBtn.addEventListener('click', () => applyTargetPreset('legendaries', false));
-if (presetMegaBtn) presetMegaBtn.addEventListener('click', () => applyTargetPreset('megas', false));
-if (presetVarBtn) presetVarBtn.addEventListener('click', () => applyTargetPreset('variants', false));
-if (presetShinyBtn) presetShinyBtn.addEventListener('click', () => applyTargetPreset('shinies', false));
-if (presetLegMegaBtn) presetLegMegaBtn.addEventListener('click', () => applyTargetPreset('legend_megas', false));
+if (presetAllBtn) presetAllBtn.addEventListener('click', () => applyTargetPreset('all', true));
+if (presetLegBtn) presetLegBtn.addEventListener('click', () => applyTargetPreset('legendaries', true));
+if (presetMegaBtn) presetMegaBtn.addEventListener('click', () => applyTargetPreset('megas', true));
+if (presetVarBtn) presetVarBtn.addEventListener('click', () => applyTargetPreset('variants', true));
+if (presetShinyBtn) presetShinyBtn.addEventListener('click', () => applyTargetPreset('shinies', true));
+if (presetLegMegaBtn) presetLegMegaBtn.addEventListener('click', () => applyTargetPreset('legend_megas', true));
 
 // Quick Variant Helper Buttons
 if (btnAllVariants) {

@@ -887,11 +887,44 @@ function getHardenedHumanDelay() {
 
 // Direction Selection & Obstacle Avoidance
 const recentMoves = [];
+// 8-Direction Navigation Topology & Geometry Constants
+const CARDINAL_DIRECTIONS = ['Left', 'Up', 'Right', 'Down'];
+const DIAGONAL_DIRECTIONS = ['Up-Left', 'Up-Right', 'Down-Right', 'Down-Left'];
+const ALL_DIRECTIONS_8 = ['Left', 'Up', 'Right', 'Down', 'Up-Left', 'Up-Right', 'Down-Right', 'Down-Left'];
+
+const OPPOSITES_8 = {
+  'Left': 'Right',
+  'Right': 'Left',
+  'Up': 'Down',
+  'Down': 'Up',
+  'Up-Left': 'Down-Right',
+  'Down-Right': 'Up-Left',
+  'Up-Right': 'Down-Left',
+  'Down-Left': 'Up-Right'
+};
+
+const PERPENDICULARS_8 = {
+  'Left': ['Up', 'Down'],
+  'Right': ['Up', 'Down'],
+  'Up': ['Left', 'Right'],
+  'Down': ['Left', 'Right'],
+  'Up-Left': ['Up-Right', 'Down-Left'],
+  'Up-Right': ['Up-Left', 'Down-Right'],
+  'Down-Left': ['Up-Left', 'Down-Right'],
+  'Down-Right': ['Up-Right', 'Down-Left']
+};
+
+const FLANK_DIAGONALS_FOR_CARDINAL = {
+  'Up': ['Up-Left', 'Up-Right'],
+  'Down': ['Down-Left', 'Down-Right'],
+  'Left': ['Up-Left', 'Down-Left'],
+  'Right': ['Up-Right', 'Down-Right']
+};
+
 const deadEndCooldowns = {};
 
 function detectPingPongLoop() {
   if (recentMoves.length < 4) return null;
-  const opposites = { 'Left': 'Right', 'Right': 'Left', 'Up': 'Down', 'Down': 'Up' };
   const len = recentMoves.length;
   const m1 = recentMoves[len - 4];
   const m2 = recentMoves[len - 3];
@@ -899,22 +932,13 @@ function detectPingPongLoop() {
   const m4 = recentMoves[len - 1];
 
   // Pattern: A -> B -> A -> B where B is opposite of A
-  if (m1 === m3 && m2 === m4 && opposites[m1] === m2) {
+  if (m1 === m3 && m2 === m4 && OPPOSITES_8[m1] === m2) {
     return { dirA: m1, dirB: m2 };
   }
   return null;
 }
 
 function chooseEvadeDirection(blockedDir) {
-  const keys = ['Left', 'Up', 'Right', 'Down'];
-  const opposites = { 'Left': 'Right', 'Right': 'Left', 'Up': 'Down', 'Down': 'Up' };
-  const perpendiculars = {
-    'Left': ['Up', 'Down'],
-    'Right': ['Up', 'Down'],
-    'Up': ['Left', 'Right'],
-    'Down': ['Left', 'Right']
-  };
-
   const now = Date.now();
 
   // Expire old dead ends
@@ -923,7 +947,7 @@ function chooseEvadeDirection(blockedDir) {
   }
 
   // 1. Prioritize unblocked perpendicular directions that are NOT recently visited dead ends
-  const perpList = perpendiculars[blockedDir] || [];
+  const perpList = PERPENDICULARS_8[blockedDir] || ['Up', 'Down', 'Left', 'Right'];
   const unblockedFreshPerp = perpList.filter(k => (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
   if (unblockedFreshPerp.length > 0) {
     return unblockedFreshPerp[Math.floor(Math.random() * unblockedFreshPerp.length)];
@@ -935,22 +959,29 @@ function chooseEvadeDirection(blockedDir) {
     return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
   }
 
-  // 2. Reversing (180-degree back-out) ONLY IF perpendiculars are blocked (true dead-end corridor)
-  const opp = opposites[blockedDir] || 'Down';
+  // 2. Check 45-degree diagonal flanks if blockedDir is cardinal
+  const flanks = FLANK_DIAGONALS_FOR_CARDINAL[blockedDir] || [];
+  const unblockedFlanks = flanks.filter(k => (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
+  if (unblockedFlanks.length > 0) {
+    return unblockedFlanks[Math.floor(Math.random() * unblockedFlanks.length)];
+  }
+
+  // 3. Reversing (180-degree back-out) ONLY IF perpendiculars are blocked (true dead-end corridor)
+  const opp = OPPOSITES_8[blockedDir] || 'Down';
   if (!blockedDirections[opp] || blockedDirections[opp] <= now) {
-    // Mark the dead end so we don't immediately walk right back into it
     deadEndCooldowns[blockedDir] = now + 10000;
     return opp;
   }
 
-  // 3. Last resort fallback
-  const anyUnblocked = keys.filter(k => k !== blockedDir && (!blockedDirections[k] || blockedDirections[k] <= now));
+  // 4. Any unblocked direction from all 8 directions
+  const anyUnblocked = ALL_DIRECTIONS_8.filter(k => k !== blockedDir && (!blockedDirections[k] || blockedDirections[k] <= now));
   if (anyUnblocked.length > 0) {
     return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
   }
 
-  const anyOther = keys.filter(k => k !== blockedDir);
-  return anyOther[Math.floor(Math.random() * anyOther.length)];
+  // 5. Absolute fallback
+  const anyOther = CARDINAL_DIRECTIONS.filter(k => k !== blockedDir);
+  return anyOther[Math.floor(Math.random() * anyOther.length)] || 'Down';
 }
 
 function getNextKey() {
@@ -972,7 +1003,7 @@ function getNextKey() {
     blockedDirections[loop.dirB] = now + 6000;
     recentMoves.length = 0;
 
-    const escapePerps = loop.dirA === 'Left' || loop.dirA === 'Right' ? ['Up', 'Down'] : ['Left', 'Right'];
+    const escapePerps = PERPENDICULARS_8[loop.dirA] || ['Up', 'Down'];
     const unblockedEscape = escapePerps.filter(k => !blockedDirections[k] || blockedDirections[k] <= now);
     if (unblockedEscape.length > 0) {
       const escapeDir = unblockedEscape[Math.floor(Math.random() * unblockedEscape.length)];
@@ -981,28 +1012,51 @@ function getNextKey() {
       updateStatus(`Escaping choke point (${escapeDir})...`, '#38bdf8');
       return escapeDir;
     }
+    const anyEscape = ALL_DIRECTIONS_8.filter(k => k !== loop.dirA && k !== loop.dirB && (!blockedDirections[k] || blockedDirections[k] <= now));
+    if (anyEscape.length > 0) {
+      const escapeDir = anyEscape[Math.floor(Math.random() * anyEscape.length)];
+      currentDirectionKey = escapeDir;
+      wanderStepsLeft = Math.max(3, stepsPerDir);
+      updateStatus(`Escaping choke point (${escapeDir})...`, '#38bdf8');
+      return escapeDir;
+    }
   }
 
+  // MODE: DIAGONAL (True 8-Way Diagonal Sweeping utilizing #dr-nw, #dr-ne, #dr-sw, #dr-se)
   if (mode === 'diagonal') {
-    if (blockedDirections[diagonalVertical]) {
+    if (blockedDirections[diagonalVertical] && blockedDirections[diagonalVertical] > now) {
       diagonalVertical = diagonalVertical === 'Up' ? 'Down' : 'Up';
     }
-    if (blockedDirections[diagonalHorizontal]) {
+    if (blockedDirections[diagonalHorizontal] && blockedDirections[diagonalHorizontal] > now) {
       diagonalHorizontal = diagonalHorizontal === 'Right' ? 'Left' : 'Right';
     }
 
-    const isVert = Math.floor(stepCount / stepsPerDir) % 2 === 0;
-    const key = isVert ? diagonalVertical : diagonalHorizontal;
-    if (blockedDirections[key]) {
-      if (key === diagonalVertical) {
+    let candidate = `${diagonalVertical}-${diagonalHorizontal}`;
+
+    // If candidate diagonal button is blocked, reflect off surfaces
+    if (blockedDirections[candidate] && blockedDirections[candidate] > now) {
+      const altV = (diagonalVertical === 'Up' ? 'Down' : 'Up') + '-' + diagonalHorizontal;
+      if (!blockedDirections[altV] || blockedDirections[altV] <= now) {
         diagonalVertical = diagonalVertical === 'Up' ? 'Down' : 'Up';
-        return diagonalVertical;
+        candidate = altV;
       } else {
-        diagonalHorizontal = diagonalHorizontal === 'Right' ? 'Left' : 'Right';
-        return diagonalHorizontal;
+        const altH = diagonalVertical + '-' + (diagonalHorizontal === 'Right' ? 'Left' : 'Right');
+        if (!blockedDirections[altH] || blockedDirections[altH] <= now) {
+          diagonalHorizontal = diagonalHorizontal === 'Right' ? 'Left' : 'Right';
+          candidate = altH;
+        } else {
+          const altBoth = (diagonalVertical === 'Up' ? 'Down' : 'Up') + '-' + (diagonalHorizontal === 'Right' ? 'Left' : 'Right');
+          if (!blockedDirections[altBoth] || blockedDirections[altBoth] <= now) {
+            diagonalVertical = diagonalVertical === 'Up' ? 'Down' : 'Up';
+            diagonalHorizontal = diagonalHorizontal === 'Right' ? 'Left' : 'Right';
+            candidate = altBoth;
+          } else {
+            candidate = chooseEvadeDirection(candidate);
+          }
+        }
       }
     }
-    return key;
+    return candidate;
   }
 
   if (mode === 'line_horizontal') {
@@ -1051,7 +1105,7 @@ function getNextKey() {
 
   // Mode: Wander with Corridor Momentum & Anti-Ping-Pong
   const maxSteps = config.settings.stepsPerDirection || 1;
-  const perpList = (currentDirectionKey === 'Left' || currentDirectionKey === 'Right') ? ['Up', 'Down'] : ['Left', 'Right'];
+  const perpList = PERPENDICULARS_8[currentDirectionKey] || ['Up', 'Down'];
   const bothPerpsBlocked = perpList.every(k => blockedDirections[k] && blockedDirections[k] > now);
   const forwardIsBlocked = !!(blockedDirections[currentDirectionKey] && blockedDirections[currentDirectionKey] > now);
 
@@ -1074,7 +1128,7 @@ function getNextKey() {
   return currentDirectionKey;
 }
 
-// Native Hardware Input Dispatch (isTrusted: true)
+// Native Hardware Input Dispatch (isTrusted: true) & Direct Nav Button Click
 function sendKeyStep(keyName) {
   if (!isRunning || isStepPending) {
     return;
@@ -1094,19 +1148,39 @@ function sendKeyStep(keyName) {
     return;
   }
 
+  const now = Date.now();
+  // Pre-dispatch Zero-Collision Guard: Never hit a direction that is currently known to be blocked
+  if (blockedDirections[keyName] && blockedDirections[keyName] > now) {
+    const allowHumanMisstep = consecutiveBlockedCount === 0 && Math.random() < 0.015;
+    if (!allowHumanMisstep) {
+      const evaded = chooseEvadeDirection(keyName);
+      if (evaded && evaded !== keyName) {
+        keyName = evaded;
+      }
+    }
+  }
+
   try {
     lastDispatchedDirection = keyName;
     recentMoves.push(keyName);
     if (recentMoves.length > 8) recentMoves.shift();
     isStepPending = true;
 
-    delugeView.focus();
-    delugeView.sendInputEvent({ type: 'keyDown', keyCode: keyName });
-    // Realistic human physical keypress dwell time (75ms - 115ms)
-    const dwell = Math.floor(Math.random() * 40) + 75;
-    setTimeout(() => {
-      delugeView.sendInputEvent({ type: 'keyUp', keyCode: keyName });
-    }, dwell);
+    const isDiagonal = keyName.indexOf('-') !== -1;
+
+    if (isDiagonal) {
+      // Direct nav button click on DelugeRPG D-Pad (#dr-nw, #dr-ne, #dr-sw, #dr-se)
+      delugeView.send('click-nav-button', { direction: keyName });
+    } else {
+      // Cardinal direction: Physical keyboard event + nav button click fallback
+      delugeView.focus();
+      delugeView.sendInputEvent({ type: 'keyDown', keyCode: keyName });
+      const dwell = Math.floor(Math.random() * 40) + 75;
+      setTimeout(() => {
+        delugeView.sendInputEvent({ type: 'keyUp', keyCode: keyName });
+      }, dwell);
+      delugeView.send('click-nav-button', { direction: keyName });
+    }
 
     // Subtle human mouse micro-motion to satisfy Deluge m_x telemetry
     if (Math.random() < 0.35) {
@@ -1238,6 +1312,23 @@ function handleMoveBlocked(dir) {
   else if (dir === 'Down') diagonalVertical = 'Up';
   else if (dir === 'Left') diagonalHorizontal = 'Right';
   else if (dir === 'Right') diagonalHorizontal = 'Left';
+  else if (dir === 'Up-Right') {
+    if (blockedDirections['Up']) diagonalVertical = 'Down';
+    else if (blockedDirections['Right']) diagonalHorizontal = 'Left';
+    else { diagonalVertical = 'Down'; diagonalHorizontal = 'Left'; }
+  } else if (dir === 'Up-Left') {
+    if (blockedDirections['Up']) diagonalVertical = 'Down';
+    else if (blockedDirections['Left']) diagonalHorizontal = 'Right';
+    else { diagonalVertical = 'Down'; diagonalHorizontal = 'Right'; }
+  } else if (dir === 'Down-Right') {
+    if (blockedDirections['Down']) diagonalVertical = 'Up';
+    else if (blockedDirections['Right']) diagonalHorizontal = 'Left';
+    else { diagonalVertical = 'Up'; diagonalHorizontal = 'Left'; }
+  } else if (dir === 'Down-Left') {
+    if (blockedDirections['Down']) diagonalVertical = 'Up';
+    else if (blockedDirections['Left']) diagonalHorizontal = 'Right';
+    else { diagonalVertical = 'Up'; diagonalHorizontal = 'Right'; }
+  }
 
   // Synchronize line/patrol phases so the bot doesn't keep trying to finish the turn
   const stepsPerDir = config.settings.stepsPerDirection || 1;

@@ -419,24 +419,56 @@
         }
     }
 
-    // Helper: dispatch arrow key events to document, window, and body
+    // Helper: dispatch arrow key events and nav button clicks
     function fireKey(keyCode) {
         const keyNames = { 37: 'ArrowLeft', 38: 'ArrowUp', 39: 'ArrowRight', 40: 'ArrowDown' };
-        const keyName = keyNames[keyCode] || '';
+        const keyName = (typeof keyCode === 'number') ? (keyNames[keyCode] || '') : keyCode;
 
-        const evt = new KeyboardEvent('keydown', {
-            key: keyName,
-            code: keyName,
-            keyCode: keyCode,
-            which: keyCode,
-            bubbles: true,
-            cancelable: true
-        });
+        const dirBtnMap = {
+            38: '#dr-n',
+            40: '#dr-s',
+            37: '#dr-w',
+            39: '#dr-e',
+            'Up': '#dr-n',
+            'Down': '#dr-s',
+            'Left': '#dr-w',
+            'Right': '#dr-e',
+            'Up-Left': '#dr-nw',
+            'Up-Right': '#dr-ne',
+            'Down-Left': '#dr-sw',
+            'Down-Right': '#dr-se'
+        };
 
-        document.dispatchEvent(evt);
-        window.dispatchEvent(evt);
-        if (document.body) {
-            document.body.dispatchEvent(evt);
+        const btnSelector = dirBtnMap[keyCode];
+        if (btnSelector) {
+            const btn = document.querySelector(btnSelector);
+            if (btn && !isNavButtonBlocked(keyCode)) {
+                try {
+                    btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+                    btn.click();
+                    btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+                } catch (_) {
+                    try { btn.click(); } catch (_) {}
+                }
+            }
+        }
+
+        if (typeof keyCode === 'number' || (keyName && keyName.indexOf('Arrow') === 0)) {
+            const codeNum = typeof keyCode === 'number' ? keyCode : (keyCode === 'Left' ? 37 : keyCode === 'Up' ? 38 : keyCode === 'Right' ? 39 : 40);
+            const evt = new KeyboardEvent('keydown', {
+                key: keyName,
+                code: keyName,
+                keyCode: codeNum,
+                which: codeNum,
+                bubbles: true,
+                cancelable: true
+            });
+
+            document.dispatchEvent(evt);
+            window.dispatchEvent(evt);
+            if (document.body) {
+                document.body.dispatchEvent(evt);
+            }
         }
     }
 
@@ -460,9 +492,17 @@
     function isNavButtonBlocked(keyCode) {
         const keyMap = {
             38: ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]', '[title*="North" i]', '[title*="Up" i]', '[aria-label*="North" i]', '[aria-label*="Up" i]'],
+            'Up': ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]', '[title*="North" i]', '[title*="Up" i]', '[aria-label*="North" i]', '[aria-label*="Up" i]'],
             40: ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]', '[title*="South" i]', '[title*="Down" i]', '[aria-label*="South" i]', '[aria-label*="Down" i]'],
+            'Down': ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]', '[title*="South" i]', '[title*="Down" i]', '[aria-label*="South" i]', '[aria-label*="Down" i]'],
             37: ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]', '[title*="West" i]', '[title*="Left" i]', '[aria-label*="West" i]', '[aria-label*="Left" i]'],
-            39: ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]', '[title*="East" i]', '[title*="Right" i]', '[aria-label*="East" i]', '[aria-label*="Right" i]']
+            'Left': ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]', '[title*="West" i]', '[title*="Left" i]', '[aria-label*="West" i]', '[aria-label*="Left" i]'],
+            39: ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]', '[title*="East" i]', '[title*="Right" i]', '[aria-label*="East" i]', '[aria-label*="Right" i]'],
+            'Right': ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]', '[title*="East" i]', '[title*="Right" i]', '[aria-label*="East" i]', '[aria-label*="Right" i]'],
+            'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]'],
+            'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]'],
+            'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]'],
+            'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]']
         };
 
         const selectors = keyMap[keyCode] || [];
@@ -550,12 +590,24 @@
 
     function chooseEvadeWalkKey(blockedKey) {
         const keys = [37, 38, 39, 40]; // 37=Left, 38=Up, 39=Right, 40=Down
-        const opposites = { 37: 39, 39: 37, 38: 40, 40: 38 };
+        const opposites = {
+            37: 39, 39: 37, 38: 40, 40: 38,
+            'Left': 'Right', 'Right': 'Left', 'Up': 'Down', 'Down': 'Up',
+            'Up-Left': 'Down-Right', 'Down-Right': 'Up-Left', 'Up-Right': 'Down-Left', 'Down-Left': 'Up-Right'
+        };
         const perpendiculars = {
-            37: [38, 40], // Left -> Up, Down
-            39: [38, 40], // Right -> Up, Down
-            38: [37, 39], // Up -> Left, Right
-            40: [37, 39]  // Down -> Left, Right
+            37: [38, 40],
+            39: [38, 40],
+            38: [37, 39],
+            40: [37, 39],
+            'Left': ['Up', 'Down'],
+            'Right': ['Up', 'Down'],
+            'Up': ['Left', 'Right'],
+            'Down': ['Left', 'Right'],
+            'Up-Left': ['Up-Right', 'Down-Left'],
+            'Up-Right': ['Up-Left', 'Down-Right'],
+            'Down-Left': ['Up-Left', 'Down-Right'],
+            'Down-Right': ['Up-Right', 'Down-Left']
         };
 
         const now = Date.now();
@@ -566,7 +618,7 @@
         }
 
         // 1. Prioritize unblocked perpendicular directions that are NOT recently visited dead ends
-        const perpList = perpendiculars[blockedKey] || [];
+        const perpList = perpendiculars[blockedKey] || [38, 40, 37, 39];
         const unblockedFreshPerp = perpList.filter(function(k) {
             return (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) &&
                    !isNavButtonBlocked(k) &&
@@ -638,18 +690,34 @@
                 diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
             }
 
-            const chosenKey = (stepCounter % 2 === 0) ? diagonalVerticalKey : diagonalHorizontalKey;
-            stepCounter++;
-            if (blockedWalkKeys[chosenKey] || isNavButtonBlocked(chosenKey)) {
-                if (chosenKey === diagonalVerticalKey) {
+            const vertStr = diagonalVerticalKey === 38 ? 'Up' : 'Down';
+            const horizStr = diagonalHorizontalKey === 39 ? 'Right' : 'Left';
+            let candidate = vertStr + '-' + horizStr;
+
+            if (blockedWalkKeys[candidate] || isNavButtonBlocked(candidate)) {
+                const altV = (vertStr === 'Up' ? 'Down' : 'Up') + '-' + horizStr;
+                if (!blockedWalkKeys[altV] && !isNavButtonBlocked(altV)) {
                     diagonalVerticalKey = diagonalVerticalKey === 38 ? 40 : 38;
-                    return diagonalVerticalKey;
+                    candidate = altV;
                 } else {
-                    diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
-                    return diagonalHorizontalKey;
+                    const altH = vertStr + '-' + (horizStr === 'Right' ? 'Left' : 'Right');
+                    if (!blockedWalkKeys[altH] && !isNavButtonBlocked(altH)) {
+                        diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
+                        candidate = altH;
+                    } else {
+                        const altBoth = (vertStr === 'Up' ? 'Down' : 'Up') + '-' + (horizStr === 'Right' ? 'Left' : 'Right');
+                        if (!blockedWalkKeys[altBoth] && !isNavButtonBlocked(altBoth)) {
+                            diagonalVerticalKey = diagonalVerticalKey === 38 ? 40 : 38;
+                            diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
+                            candidate = altBoth;
+                        } else {
+                            candidate = chooseEvadeWalkKey(candidate);
+                        }
+                    }
                 }
             }
-            return chosenKey;
+            stepCounter++;
+            return candidate;
         }
 
         if (walkMode === "line_horizontal") {
@@ -921,10 +989,27 @@
                         }
 
                         // Invert diagonal axes on collision
-                        if (lastDispatchedWalkKey === 38) diagonalVerticalKey = 40;
-                        else if (lastDispatchedWalkKey === 40) diagonalVerticalKey = 38;
-                        else if (lastDispatchedWalkKey === 37) diagonalHorizontalKey = 39;
-                        else if (lastDispatchedWalkKey === 39) diagonalHorizontalKey = 37;
+                        if (lastDispatchedWalkKey === 38 || lastDispatchedWalkKey === 'Up') diagonalVerticalKey = 40;
+                        else if (lastDispatchedWalkKey === 40 || lastDispatchedWalkKey === 'Down') diagonalVerticalKey = 38;
+                        else if (lastDispatchedWalkKey === 37 || lastDispatchedWalkKey === 'Left') diagonalHorizontalKey = 39;
+                        else if (lastDispatchedWalkKey === 39 || lastDispatchedWalkKey === 'Right') diagonalHorizontalKey = 37;
+                        else if (lastDispatchedWalkKey === 'Up-Right') {
+                            if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
+                            else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
+                            else { diagonalVerticalKey = 40; diagonalHorizontalKey = 37; }
+                        } else if (lastDispatchedWalkKey === 'Up-Left') {
+                            if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
+                            else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
+                            else { diagonalVerticalKey = 40; diagonalHorizontalKey = 39; }
+                        } else if (lastDispatchedWalkKey === 'Down-Right') {
+                            if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
+                            else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
+                            else { diagonalVerticalKey = 38; diagonalHorizontalKey = 37; }
+                        } else if (lastDispatchedWalkKey === 'Down-Left') {
+                            if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
+                            else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
+                            else { diagonalVerticalKey = 38; diagonalHorizontalKey = 39; }
+                        }
 
                         console.log('[PokeFinder] Collision detected with key ' + lastDispatchedWalkKey + '! Consecutive: ' + consecutiveBlockedSteps);
                         updateStatusUI('Obstacle! Evading...', '#ff9800');
@@ -943,7 +1028,19 @@
                 }
             }
 
-            const key = getNextWalkKey();
+            let key = getNextWalkKey();
+            const nowTime = Date.now();
+            // Pre-dispatch Zero-Collision Guard: avoid bumping known blocked direction
+            if ((blockedWalkKeys[key] && blockedWalkKeys[key] > nowTime) || isNavButtonBlocked(key)) {
+                const allowHumanMisstep = consecutiveBlockedSteps === 0 && Math.random() < 0.015;
+                if (!allowHumanMisstep) {
+                    const evaded = chooseEvadeWalkKey(key);
+                    if (evaded && evaded !== key) {
+                        key = evaded;
+                    }
+                }
+            }
+
             lastDispatchedWalkKey = key;
             recentMoves.push(key);
             if (recentMoves.length > 8) recentMoves.shift();

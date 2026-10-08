@@ -990,12 +990,43 @@ function isNavButtonBlocked(dir) {
 
 function getBlockedNavDirections() {
     return {
-        Up: isNavButtonBlocked('Up'),
-        Down: isNavButtonBlocked('Down'),
-        Left: isNavButtonBlocked('Left'),
-        Right: isNavButtonBlocked('Right')
+        'Up': isNavButtonBlocked('Up'),
+        'Down': isNavButtonBlocked('Down'),
+        'Left': isNavButtonBlocked('Left'),
+        'Right': isNavButtonBlocked('Right'),
+        'Up-Left': isNavButtonBlocked('Up-Left'),
+        'Up-Right': isNavButtonBlocked('Up-Right'),
+        'Down-Left': isNavButtonBlocked('Down-Left'),
+        'Down-Right': isNavButtonBlocked('Down-Right')
     };
 }
+
+ipcRenderer.on('click-nav-button', (event, data) => {
+    const dir = data && data.direction;
+    const dirMap = {
+        'Up': '#dr-n',
+        'Down': '#dr-s',
+        'Left': '#dr-w',
+        'Right': '#dr-e',
+        'Up-Left': '#dr-nw',
+        'Up-Right': '#dr-ne',
+        'Down-Left': '#dr-sw',
+        'Down-Right': '#dr-se'
+    };
+    const selector = dirMap[dir];
+    if (selector) {
+        const btn = document.querySelector(selector);
+        if (btn && !isNavButtonBlocked(dir)) {
+            try {
+                btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+                btn.click();
+                btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+            } catch (_) {
+                try { btn.click(); } catch (_) {}
+            }
+        }
+    }
+});
 
 function getDexyText() {
     try {

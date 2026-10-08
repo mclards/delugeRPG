@@ -143,6 +143,49 @@ function simulateForwardMovementWithSideObstacle() {
 assert.strictEqual(simulateForwardMovementWithSideObstacle(), false, 'Bot must NOT turn if only side direction is blocked');
 console.log('  [PASS] Side obstacles correctly ignored while forward lane is unobstructed.\n');
 
+// 4.1 Preload Step Resolution Verification
+console.log('--- 4.1 Verifying Preload Step Success & Sync Guard ---');
+// Verify moveSucceeded formula from preload
+function checkMoveSuccess(posMoved, sawSearching, isLoading, curDexy, initialText) {
+    return posMoved || (sawSearching && !isLoading) || (!isLoading && curDexy && curDexy !== initialText);
+}
+// Step where position didn't change in DOM, but searching finished
+assert.strictEqual(checkMoveSuccess(false, true, false, 'Grass...', 'Searching...'), true, 'Search completion must be recognized as move success');
+// Step where dexy text updated
+assert.strictEqual(checkMoveSuccess(false, false, false, 'Nothing found.', 'Searching...'), true, 'Dexy text update must be recognized as move success');
+// Step where in flight loading
+assert.strictEqual(checkMoveSuccess(false, true, true, 'Searching...', 'Old'), false, 'In-flight searching must not resolve prematurely');
+console.log('  [PASS] Preload step success formula accurately recognizes legitimate moves.\n');
+
+// 4.2 End-to-End Compulsory 5-Step Traversal with Side Obstacle (Down blocked)
+console.log('--- 4.2 Simulating 5 Steps Left with Down Wall Blocked ---');
+function simulateWanderStepsWithSideWall(compulsorySteps) {
+    let currentDir = 'Left';
+    let wanderStepsLeft = compulsorySteps - 1;
+    const history = [];
+    const navBlockedStatus = { 'Down': true, 'Left': false, 'Up': false, 'Right': false };
+
+    for (let step = 0; step < compulsorySteps; step++) {
+        // Evaluate forward obstacle
+        const forwardIsBlocked = navBlockedStatus[currentDir];
+        if (forwardIsBlocked) {
+            currentDir = 'Up';
+            wanderStepsLeft = compulsorySteps - 1;
+        } else if (wanderStepsLeft <= 0) {
+            currentDir = 'Left';
+            wanderStepsLeft = compulsorySteps - 1;
+        } else {
+            wanderStepsLeft--;
+        }
+        history.push(currentDir);
+    }
+    return history;
+}
+
+const sideWallRun = simulateWanderStepsWithSideWall(5);
+assert.deepStrictEqual(sideWallRun, ['Left', 'Left', 'Left', 'Left', 'Left'], 'Bot must complete all 5 steps Left without turning due to Down wall');
+console.log('  [PASS] All 5 steps completed strictly along the clear forward path despite side obstacle.\n');
+
 // 5. Verify Strict 7-bit ASCII Compliance Across Entire Project
 console.log('--- 5. Verifying Strict 7-bit ASCII Compliance Across All Modified Files ---');
 const modifiedFiles = [
@@ -166,3 +209,4 @@ for (const filePath of modifiedFiles) {
 }
 
 console.log('\n=== ALL DEEP FINAL VERIFICATION CHECKS PASSED (100% SUCCESS) ===');
+

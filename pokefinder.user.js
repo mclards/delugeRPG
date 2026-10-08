@@ -659,9 +659,10 @@
         now = now || Date.now();
         const norm = normalizeKey(key);
         if ((blockedWalkKeys[key] && blockedWalkKeys[key] > now) ||
-            (blockedWalkKeys[norm] && blockedWalkKeys[norm] > now) ||
-            isNavButtonBlocked(key) ||
-            isNavButtonBlocked(norm)) {
+            (blockedWalkKeys[norm] && blockedWalkKeys[norm] > now)) {
+            return true;
+        }
+        if (!isGameLoading() && (isNavButtonBlocked(key) || isNavButtonBlocked(norm))) {
             return true;
         }
         if (norm === 'Up-Left' && (isWalkKeyPhysicallyBlocked('Up', now) || isWalkKeyPhysicallyBlocked('Left', now))) return true;
@@ -904,27 +905,18 @@
         if (walkMode === "wander") {
             const normKey = normalizeKey(currentWanderKey);
             const compulsorySteps = stepsPerDirection || 1;
-            const perpList = PERPENDICULARS_8[normKey] || ['Up', 'Down'];
-            const bothPerpsBlocked = perpList.every(function(k) {
-                return isWalkKeyPhysicallyBlocked(k, now);
-            });
             const forwardIsBlocked = isWalkKeyPhysicallyBlocked(normKey, now) || isWalkKeyPhysicallyBlocked(currentWanderKey, now);
 
-            // If inside a straight corridor (both side walls blocked) and forward is clear:
-            // PRESERVE MOMENTUM! Never turn around in the middle of a hallway!
-            if (!forwardIsBlocked && bothPerpsBlocked) {
-                wanderStepsRemaining = compulsorySteps;
-                return currentWanderKey;
-            }
-
             // If forward is blocked: trigger immediate zero-latency evasion!
+            // Momentum MUST stop immediately when an obstacle is directly in the path:
+            // reset remaining steps counter and immediately switch to a different unobstructed direction.
             if (forwardIsBlocked) {
                 currentWanderKey = chooseEvadeWalkKey(normKey);
                 wanderStepsRemaining = compulsorySteps - 1;
                 return currentWanderKey;
             }
 
-            // Normal turn condition: steps expired at an open junction or room
+            // Normal turn condition: compulsory steps completed on clear path
             if (wanderStepsRemaining <= 0) {
                 currentWanderKey = chooseWanderWalkKey(normKey);
                 wanderStepsRemaining = compulsorySteps - 1;
@@ -1111,7 +1103,7 @@
             const textChanged = (currentDexyHtml !== lastDexyContentSnapshot);
 
             if (lastDispatchedWalkKey !== null && !walkStepAcknowledged) {
-                if (posChanged) {
+                if (posChanged || textChanged) {
                     // Step was successful!
                     walkStepAcknowledged = true;
                     consecutiveBlockedSteps = 0;
@@ -1122,7 +1114,7 @@
                     if (blockedWalkKeys[normSuccess]) {
                         delete blockedWalkKeys[normSuccess];
                     }
-                } else if (!isLoading && !isGameLoading()) {
+                } else if (!isLoading && !isGameLoading() && isNavButtonBlocked(lastDispatchedWalkKey)) {
                     // Step failed: Server finished processing (not loading) but position did not change!
                     // This means we hit a physical obstacle (wall, tree, water).
                     consecutiveBlockedSteps++;

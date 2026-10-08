@@ -857,6 +857,7 @@ function toggleHunting() {
   if (isRunning) {
     isEncounterOnScreen = false;
     isStepPending = false;
+    wanderStepsLeft = 0;
     scheduleNextStep(200);
   } else {
     isStepPending = false;
@@ -942,7 +943,8 @@ const navBlockedStatus = {}; // Persistent DOM button state
 
 function isDirectionPhysicallyBlocked(dir, now = Date.now()) {
   if (!dir) return false;
-  if (navBlockedStatus[dir]) return true;
+  const isTransientLoad = navBlockedStatus['Up'] && navBlockedStatus['Down'] && navBlockedStatus['Left'] && navBlockedStatus['Right'];
+  if (!isTransientLoad && navBlockedStatus[dir]) return true;
   if (blockedDirections[dir] && blockedDirections[dir] > now) return true;
   return false;
 }
@@ -1176,25 +1178,18 @@ function getNextKey() {
 
   // Mode: Wander with 8-Way Roaming, Corridor Momentum, and Anti-Looping
   const compulsorySteps = config.settings.stepsPerDirection || 1;
-  const perpList = PERPENDICULARS_8[currentDirectionKey] || ['Up', 'Down'];
-  const bothPerpsBlocked = perpList.every(k => isDirectionPhysicallyBlocked(k, now));
   const forwardIsBlocked = isDirectionPhysicallyBlocked(currentDirectionKey, now);
 
-  // If inside a straight corridor (both side walls blocked) and forward is clear:
-  // PRESERVE MOMENTUM! Never turn around in the middle of a hallway!
-  if (!forwardIsBlocked && bothPerpsBlocked) {
-    wanderStepsLeft = compulsorySteps;
-    return currentDirectionKey;
-  }
-
   // If forward is blocked: trigger immediate zero-latency evasion!
+  // Momentum MUST stop immediately when an obstacle is directly in the path:
+  // reset remaining steps counter and immediately switch to a different unobstructed direction.
   if (forwardIsBlocked) {
     currentDirectionKey = chooseEvadeDirection(currentDirectionKey);
     wanderStepsLeft = compulsorySteps - 1;
     return currentDirectionKey;
   }
 
-  // Normal turn condition: steps expired at an open junction or room
+  // Normal turn condition: compulsory steps completed on clear path
   if (wanderStepsLeft <= 0) {
     currentDirectionKey = chooseWanderDirection(currentDirectionKey);
     wanderStepsLeft = compulsorySteps - 1;
@@ -1788,7 +1783,7 @@ if (stepsPerDirInput) {
     config.settings.stepsPerDirection = val;
     wanderStepsLeft = 0;
     saveLocalConfig();
-    updateStatus('Max steps: ' + val, '#10b981');
+    updateStatus('Required steps: ' + val, '#10b981');
   };
   stepsPerDirInput.addEventListener('change', handleStepsChange);
   stepsPerDirInput.addEventListener('input', handleStepsChange);

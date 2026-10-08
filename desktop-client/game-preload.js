@@ -1045,6 +1045,10 @@ let lastUnconfirmedDir = null;
 
 let lastBroadcastBlockedStr = '';
 function syncNavStatusToHost() {
+    // Strictly guard: never broadcast nav button status while a step is in flight or page is searching!
+    if (activeStep && !activeStep.resolved) {
+        return;
+    }
     const dexyEl = document.getElementById('dexy') || document.querySelector('.dexy');
     const isLoading = dexyEl && (dexyEl.innerText || dexyEl.textContent || '').indexOf('Searching...') !== -1;
     if (isLoading) {
@@ -1067,7 +1071,6 @@ function syncNavStatusToHost() {
 }
 
 const observer = new MutationObserver(() => {
-    syncNavStatusToHost();
     if (activeStep && !activeStep.resolved) {
         const curPos = getPlayerPosition();
         const curDexy = getDexyText();
@@ -1078,7 +1081,13 @@ const observer = new MutationObserver(() => {
             activeStep.sawSearching = true;
         }
 
-        if (posMoved) {
+        // True step success on DelugeRPG:
+        // 1. Position moved, OR
+        // 2. Searching appeared and finished, OR
+        // 3. Dexy text changed from initial snapshot and is not searching
+        const moveSucceeded = posMoved || (activeStep.sawSearching && !isLoading) || (!isLoading && curDexy && curDexy !== activeStep.initialText);
+
+        if (moveSucceeded) {
             activeStep.resolved = true;
             unconfirmedBlockedCount = 0;
             lastUnconfirmedDir = null;
@@ -1088,23 +1097,13 @@ const observer = new MutationObserver(() => {
             }
             ipcRenderer.sendToHost('move-result', {
                 direction: activeStep.direction,
-                success: true
-            });
-        } else if (!isLoading && (activeStep.sawSearching || (curDexy && curDexy !== activeStep.initialText) || isNavButtonBlocked(activeStep.direction))) {
-            // Server responded (not searching) but position did not move. This is a physical obstacle!
-            activeStep.resolved = true;
-            unconfirmedBlockedCount = 0;
-            lastUnconfirmedDir = null;
-            if (collisionCheckTimer) {
-                clearTimeout(collisionCheckTimer);
-                collisionCheckTimer = null;
-            }
-            ipcRenderer.sendToHost('move-result', {
-                direction: activeStep.direction,
-                blocked: true,
+                success: true,
                 allBlocked: getBlockedNavDirections()
             });
+            syncNavStatusToHost();
         }
+    } else {
+        syncNavStatusToHost();
     }
     scanForTargets();
 });

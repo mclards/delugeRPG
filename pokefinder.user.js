@@ -441,6 +441,86 @@
     }
 
     /* ========== SMART WALKING & OBSTACLE AVOIDANCE ENGINE ========== */
+    function isGreyColor(c) {
+        if (!c) return false;
+        const s = (c + '').toLowerCase().trim();
+        if (s === '#808080' || s === '#888' || s === '#999' || s === '#aaa' || s === '#bbb' || s === '#ccc') return true;
+        const m = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (m) {
+            const r = parseInt(m[1], 10);
+            const g = parseInt(m[2], 10);
+            const b = parseInt(m[3], 10);
+            if (r > 60 && g > 60 && b > 60 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function isNavButtonBlocked(keyCode) {
+        const keyMap = {
+            38: ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]', '[title*="North" i]', '[title*="Up" i]', '[aria-label*="North" i]', '[aria-label*="Up" i]'],
+            40: ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]', '[title*="South" i]', '[title*="Down" i]', '[aria-label*="South" i]', '[aria-label*="Down" i]'],
+            37: ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]', '[title*="West" i]', '[title*="Left" i]', '[aria-label*="West" i]', '[aria-label*="Left" i]'],
+            39: ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]', '[title*="East" i]', '[title*="Right" i]', '[aria-label*="East" i]', '[aria-label*="Right" i]']
+        };
+
+        const selectors = keyMap[keyCode] || [];
+        for (let i = 0; i < selectors.length; i++) {
+            const el = document.querySelector(selectors[i]);
+            if (!el) continue;
+
+            if (el.disabled || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') {
+                return true;
+            }
+
+            const cls = (el.className || '').toString().toLowerCase();
+            if (cls.indexOf('disabled') !== -1 || cls.indexOf('inactive') !== -1 ||
+                cls.indexOf('blocked') !== -1 || cls.indexOf('off') !== -1 ||
+                cls.indexOf('grey') !== -1 || cls.indexOf('gray') !== -1 ||
+                cls.indexOf('dr-dis') !== -1) {
+                return true;
+            }
+
+            try {
+                const st = window.getComputedStyle(el);
+                if (st.display === 'none' || st.visibility === 'hidden') return true;
+                if (st.pointerEvents === 'none') return true;
+                if (st.cursor === 'not-allowed') return true;
+
+                const op = parseFloat(st.opacity);
+                if (!isNaN(op) && op < 0.75) return true;
+                if (isGreyColor(st.color) || isGreyColor(st.backgroundColor)) return true;
+            } catch (_) {}
+
+            const img = el.querySelector('img');
+            if (img) {
+                const src = (img.getAttribute('src') || '').toLowerCase();
+                if (src.indexOf('disab') !== -1 || src.indexOf('grey') !== -1 || src.indexOf('gray') !== -1 || src.indexOf('off') !== -1) {
+                    return true;
+                }
+                try {
+                    const imgSt = window.getComputedStyle(img);
+                    const imgOp = parseFloat(imgSt.opacity);
+                    if (!isNaN(imgOp) && imgOp < 0.75) return true;
+                    if (imgSt.filter && imgSt.filter.indexOf('grayscale') !== -1) return true;
+                } catch (_) {}
+            }
+
+            const svg = el.querySelector('svg, path, polygon');
+            if (svg) {
+                try {
+                    const svgSt = window.getComputedStyle(svg);
+                    const svgOp = parseFloat(svgSt.opacity);
+                    if (!isNaN(svgOp) && svgOp < 0.75) return true;
+                    const fill = svg.getAttribute('fill') || svgSt.fill;
+                    if (isGreyColor(fill)) return true;
+                } catch (_) {}
+            }
+        }
+        return false;
+    }
+
     function getOppositeKey(k) {
         if (k === 37) return 39; // Left -> Right
         if (k === 39) return 37; // Right -> Left
@@ -461,7 +541,7 @@
 
         const now = Date.now();
         const unblockedPerp = (perpendiculars[blockedKey] || []).filter(function(k) {
-            return !blockedWalkKeys[k] || blockedWalkKeys[k] <= now;
+            return (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) && !isNavButtonBlocked(k);
         });
 
         if (unblockedPerp.length > 0) {
@@ -469,12 +549,15 @@
         }
 
         const opp = opposites[blockedKey] || 37;
-        if (!blockedWalkKeys[opp] || blockedWalkKeys[opp] <= now) {
+        if ((!blockedWalkKeys[opp] || blockedWalkKeys[opp] <= now) && !isNavButtonBlocked(opp)) {
             return opp;
         }
 
-        const anyOther = keys.filter(function(k) { return k !== blockedKey; });
-        return anyOther[Math.floor(Math.random() * anyOther.length)];
+        const anyOther = keys.filter(function(k) { return k !== blockedKey && !isNavButtonBlocked(k); });
+        if (anyOther.length > 0) {
+            return anyOther[Math.floor(Math.random() * anyOther.length)];
+        }
+        return opposites[blockedKey] || 37;
     }
 
     function getNextWalkKey() {
@@ -487,16 +570,16 @@
         }
 
         if (walkMode === "diagonal") {
-            if (blockedWalkKeys[diagonalVerticalKey]) {
+            if (blockedWalkKeys[diagonalVerticalKey] || isNavButtonBlocked(diagonalVerticalKey)) {
                 diagonalVerticalKey = diagonalVerticalKey === 38 ? 40 : 38;
             }
-            if (blockedWalkKeys[diagonalHorizontalKey]) {
+            if (blockedWalkKeys[diagonalHorizontalKey] || isNavButtonBlocked(diagonalHorizontalKey)) {
                 diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
             }
 
             const chosenKey = (stepCounter % 2 === 0) ? diagonalVerticalKey : diagonalHorizontalKey;
             stepCounter++;
-            if (blockedWalkKeys[chosenKey]) {
+            if (blockedWalkKeys[chosenKey] || isNavButtonBlocked(chosenKey)) {
                 if (chosenKey === diagonalVerticalKey) {
                     diagonalVerticalKey = diagonalVerticalKey === 38 ? 40 : 38;
                     return diagonalVerticalKey;
@@ -509,35 +592,54 @@
         }
 
         if (walkMode === "line_horizontal") {
-            if (blockedWalkKeys[37] && !blockedWalkKeys[39]) return 39;
-            if (blockedWalkKeys[39] && !blockedWalkKeys[37]) return 37;
-            const isLeft = Math.floor(stepCounter / stepsPerDirection) % 2 === 0;
+            let isLeft = Math.floor(stepCounter / stepsPerDirection) % 2 === 0;
+            let targetKey = isLeft ? 37 : 39;
+            if ((blockedWalkKeys[targetKey] && blockedWalkKeys[targetKey] > now) || isNavButtonBlocked(targetKey)) {
+                const opp = targetKey === 37 ? 39 : 37;
+                if ((!blockedWalkKeys[opp] || blockedWalkKeys[opp] <= now) && !isNavButtonBlocked(opp)) {
+                    const remainder = stepCounter % stepsPerDirection;
+                    if (remainder !== 0) stepCounter += (stepsPerDirection - remainder);
+                    return opp;
+                }
+                return chooseEvadeWalkKey(targetKey);
+            }
             stepCounter++;
-            return isLeft ? 37 : 39;
+            return targetKey;
         }
 
         if (walkMode === "line_vertical") {
-            if (blockedWalkKeys[38] && !blockedWalkKeys[40]) return 40;
-            if (blockedWalkKeys[40] && !blockedWalkKeys[38]) return 38;
-            const isUp = Math.floor(stepCounter / stepsPerDirection) % 2 === 0;
+            let isUp = Math.floor(stepCounter / stepsPerDirection) % 2 === 0;
+            let targetKey = isUp ? 38 : 40;
+            if ((blockedWalkKeys[targetKey] && blockedWalkKeys[targetKey] > now) || isNavButtonBlocked(targetKey)) {
+                const opp = targetKey === 38 ? 40 : 38;
+                if ((!blockedWalkKeys[opp] || blockedWalkKeys[opp] <= now) && !isNavButtonBlocked(opp)) {
+                    const remainder = stepCounter % stepsPerDirection;
+                    if (remainder !== 0) stepCounter += (stepsPerDirection - remainder);
+                    return opp;
+                }
+                return chooseEvadeWalkKey(targetKey);
+            }
             stepCounter++;
-            return isUp ? 38 : 40;
+            return targetKey;
         }
 
         if (walkMode === "patrol_square") {
             let dirIndex = Math.floor(stepCounter / stepsPerDirection) % 4;
             let candidate = keys[dirIndex];
-            if (blockedWalkKeys[candidate]) {
+            if ((blockedWalkKeys[candidate] && blockedWalkKeys[candidate] > now) || isNavButtonBlocked(candidate)) {
                 stepCounter += stepsPerDirection;
                 dirIndex = Math.floor(stepCounter / stepsPerDirection) % 4;
                 candidate = keys[dirIndex];
+                if ((blockedWalkKeys[candidate] && blockedWalkKeys[candidate] > now) || isNavButtonBlocked(candidate)) {
+                    return chooseEvadeWalkKey(candidate);
+                }
             }
             stepCounter++;
             return candidate;
         }
 
         if (walkMode === "wander") {
-            if (wanderStepsRemaining <= 0 || blockedWalkKeys[currentWanderKey]) {
+            if (wanderStepsRemaining <= 0 || (blockedWalkKeys[currentWanderKey] && blockedWalkKeys[currentWanderKey] > now) || isNavButtonBlocked(currentWanderKey)) {
                 currentWanderKey = chooseEvadeWalkKey(currentWanderKey);
                 wanderStepsRemaining = stepsPerDirection - 1;
             } else {
@@ -731,12 +833,18 @@
                     if (blockedWalkKeys[lastDispatchedWalkKey]) {
                         delete blockedWalkKeys[lastDispatchedWalkKey];
                     }
-                } else if (!walkStepAcknowledged) {
-                    // Only flag collision if position is actively tracked or text confirmed
-                    if (curPos && lastPlayerPosSnapshot) {
+                } else if (!walkStepAcknowledged || isNavButtonBlocked(lastDispatchedWalkKey)) {
+                    // Flag collision if position not moved, text unchanged, or nav button disabled
+                    if ((curPos && lastPlayerPosSnapshot) || isNavButtonBlocked(lastDispatchedWalkKey)) {
                         consecutiveBlockedSteps++;
                         blockedWalkKeys[lastDispatchedWalkKey] = Date.now() + 8000;
                         wanderStepsRemaining = 0;
+
+                        // Synchronize stepCounter to the next turn boundary
+                        const remainder = stepCounter % stepsPerDirection;
+                        if (remainder !== 0) {
+                            stepCounter += (stepsPerDirection - remainder);
+                        }
 
                         // Invert diagonal axes on collision
                         if (lastDispatchedWalkKey === 38) diagonalVerticalKey = 40;

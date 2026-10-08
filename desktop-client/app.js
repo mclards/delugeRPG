@@ -949,26 +949,45 @@ function getNextKey() {
   }
 
   if (mode === 'line_horizontal') {
-    if (blockedDirections['Left'] && !blockedDirections['Right']) return 'Right';
-    if (blockedDirections['Right'] && !blockedDirections['Left']) return 'Left';
-    const isLeft = Math.floor(stepCount / stepsPerDir) % 2 === 0;
-    return isLeft ? 'Left' : 'Right';
+    let isLeft = Math.floor(stepCount / stepsPerDir) % 2 === 0;
+    let target = isLeft ? 'Left' : 'Right';
+    if (blockedDirections[target] && blockedDirections[target] > now) {
+      const opp = target === 'Left' ? 'Right' : 'Left';
+      if (!blockedDirections[opp] || blockedDirections[opp] <= now) {
+        const remainder = stepCount % stepsPerDir;
+        if (remainder !== 0) stepCount += (stepsPerDir - remainder);
+        return opp;
+      }
+      return chooseEvadeDirection(target);
+    }
+    return target;
   }
 
   if (mode === 'line_vertical') {
-    if (blockedDirections['Up'] && !blockedDirections['Down']) return 'Down';
-    if (blockedDirections['Down'] && !blockedDirections['Up']) return 'Up';
-    const isUp = Math.floor(stepCount / stepsPerDir) % 2 === 0;
-    return isUp ? 'Up' : 'Down';
+    let isUp = Math.floor(stepCount / stepsPerDir) % 2 === 0;
+    let target = isUp ? 'Up' : 'Down';
+    if (blockedDirections[target] && blockedDirections[target] > now) {
+      const opp = target === 'Up' ? 'Down' : 'Up';
+      if (!blockedDirections[opp] || blockedDirections[opp] <= now) {
+        const remainder = stepCount % stepsPerDir;
+        if (remainder !== 0) stepCount += (stepsPerDir - remainder);
+        return opp;
+      }
+      return chooseEvadeDirection(target);
+    }
+    return target;
   }
 
   if (mode === 'patrol_square') {
     let idx = Math.floor(stepCount / stepsPerDir) % 4;
     let candidate = keys[idx];
-    if (blockedDirections[candidate]) {
+    if (blockedDirections[candidate] && blockedDirections[candidate] > now) {
       stepCount += stepsPerDir;
       idx = Math.floor(stepCount / stepsPerDir) % 4;
       candidate = keys[idx];
+      if (blockedDirections[candidate] && blockedDirections[candidate] > now) {
+        return chooseEvadeDirection(candidate);
+      }
     }
     return candidate;
   }
@@ -1149,6 +1168,13 @@ function handleMoveBlocked(dir) {
   else if (dir === 'Left') diagonalHorizontal = 'Right';
   else if (dir === 'Right') diagonalHorizontal = 'Left';
 
+  // Synchronize line/patrol phases so the bot doesn't keep trying to finish the turn
+  const stepsPerDir = config.settings.stepsPerDirection || 1;
+  const remainder = stepCount % stepsPerDir;
+  if (remainder !== 0) {
+    stepCount += (stepsPerDir - remainder);
+  }
+
   console.log(`[Obstacle Blocked] Collision in direction: ${dir} (consecutive: ${consecutiveBlockedCount})`);
 
   if (consecutiveBlockedCount >= 6) {
@@ -1246,6 +1272,15 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'move-result') {
     const data = event.args[0] || {};
+    if (data.allBlocked) {
+      for (const d in data.allBlocked) {
+        if (data.allBlocked[d]) {
+          blockedDirections[d] = Date.now() + 3000;
+        } else if (blockedDirections[d] && !data.blocked) {
+          delete blockedDirections[d];
+        }
+      }
+    }
     if (data.blocked) {
       handleMoveBlocked(data.direction || lastDispatchedDirection);
     } else if (data.success) {

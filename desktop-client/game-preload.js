@@ -904,6 +904,99 @@ function getPlayerPosition() {
     return null;
 }
 
+function isGreyColor(c) {
+    if (!c) return false;
+    const s = (c + '').toLowerCase().trim();
+    if (s === '#808080' || s === '#888' || s === '#999' || s === '#aaa' || s === '#bbb' || s === '#ccc') return true;
+    const m = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (m) {
+        const r = parseInt(m[1], 10);
+        const g = parseInt(m[2], 10);
+        const b = parseInt(m[3], 10);
+        if (r > 60 && g > 60 && b > 60 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function isNavButtonBlocked(dir) {
+    const dirMap = {
+        'Up': ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]', '[title*="North" i]', '[title*="Up" i]', '[aria-label*="North" i]', '[aria-label*="Up" i]'],
+        'Down': ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]', '[title*="South" i]', '[title*="Down" i]', '[aria-label*="South" i]', '[aria-label*="Down" i]'],
+        'Left': ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]', '[title*="West" i]', '[title*="Left" i]', '[aria-label*="West" i]', '[aria-label*="Left" i]'],
+        'Right': ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]', '[title*="East" i]', '[title*="Right" i]', '[aria-label*="East" i]', '[aria-label*="Right" i]'],
+        'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]'],
+        'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]'],
+        'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]'],
+        'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]']
+    };
+
+    const selectors = dirMap[dir] || [];
+    for (let i = 0; i < selectors.length; i++) {
+        const el = document.querySelector(selectors[i]);
+        if (!el) continue;
+
+        if (el.disabled || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') {
+            return true;
+        }
+
+        const cls = (el.className || '').toString().toLowerCase();
+        if (cls.indexOf('disabled') !== -1 || cls.indexOf('inactive') !== -1 ||
+            cls.indexOf('blocked') !== -1 || cls.indexOf('off') !== -1 ||
+            cls.indexOf('grey') !== -1 || cls.indexOf('gray') !== -1 ||
+            cls.indexOf('dr-dis') !== -1) {
+            return true;
+        }
+
+        try {
+            const st = window.getComputedStyle(el);
+            if (st.display === 'none' || st.visibility === 'hidden') return true;
+            if (st.pointerEvents === 'none') return true;
+            if (st.cursor === 'not-allowed') return true;
+
+            const op = parseFloat(st.opacity);
+            if (!isNaN(op) && op < 0.75) return true;
+            if (isGreyColor(st.color) || isGreyColor(st.backgroundColor)) return true;
+        } catch (_) {}
+
+        const img = el.querySelector('img');
+        if (img) {
+            const src = (img.getAttribute('src') || '').toLowerCase();
+            if (src.indexOf('disab') !== -1 || src.indexOf('grey') !== -1 || src.indexOf('gray') !== -1 || src.indexOf('off') !== -1) {
+                return true;
+            }
+            try {
+                const imgSt = window.getComputedStyle(img);
+                const imgOp = parseFloat(imgSt.opacity);
+                if (!isNaN(imgOp) && imgOp < 0.75) return true;
+                if (imgSt.filter && imgSt.filter.indexOf('grayscale') !== -1) return true;
+            } catch (_) {}
+        }
+
+        const svg = el.querySelector('svg, path, polygon');
+        if (svg) {
+            try {
+                const svgSt = window.getComputedStyle(svg);
+                const svgOp = parseFloat(svgSt.opacity);
+                if (!isNaN(svgOp) && svgOp < 0.75) return true;
+                const fill = svg.getAttribute('fill') || svgSt.fill;
+                if (isGreyColor(fill)) return true;
+            } catch (_) {}
+        }
+    }
+    return false;
+}
+
+function getBlockedNavDirections() {
+    return {
+        Up: isNavButtonBlocked('Up'),
+        Down: isNavButtonBlocked('Down'),
+        Left: isNavButtonBlocked('Left'),
+        Right: isNavButtonBlocked('Right')
+    };
+}
+
 function getDexyText() {
     try {
         const dexyEl = document.getElementById('dexy') || document.querySelector('.dexy') || document.getElementById('showpoke');
@@ -933,7 +1026,8 @@ const observer = new MutationObserver(() => {
             }
             ipcRenderer.sendToHost('move-result', {
                 direction: activeStep.direction,
-                success: true
+                success: true,
+                allBlocked: getBlockedNavDirections()
             });
         }
     }
@@ -943,11 +1037,23 @@ const observer = new MutationObserver(() => {
 ipcRenderer.on('step-dispatched', (event, data) => {
     const dir = (data && data.direction) || 'Left';
 
-    // Passive obstacle detection tracking
     if (collisionCheckTimer) {
         clearTimeout(collisionCheckTimer);
         collisionCheckTimer = null;
     }
+
+    const allBlocked = getBlockedNavDirections();
+    // Fast path: if the nav arrow on DelugeRPG is ALREADY disabled, report obstacle immediately
+    if (isNavButtonBlocked(dir)) {
+        ipcRenderer.sendToHost('move-result', {
+            direction: dir,
+            blocked: true,
+            navBlocked: true,
+            allBlocked: allBlocked
+        });
+        return;
+    }
+
     const initialPos = getPlayerPosition();
     const initialDexy = getDexyText();
     activeStep = {
@@ -957,7 +1063,7 @@ ipcRenderer.on('step-dispatched', (event, data) => {
         resolved: false
     };
 
-    // Passive collision evaluation timer (1100ms)
+    // Fast-reacting obstacle evaluation timer (600ms)
     collisionCheckTimer = setTimeout(() => {
         if (activeStep && !activeStep.resolved) {
             activeStep.resolved = true;
@@ -965,43 +1071,45 @@ ipcRenderer.on('step-dispatched', (event, data) => {
             const currentDexy = getDexyText();
             const posMoved = !!(initialPos && currentPos && (initialPos.x !== currentPos.x || initialPos.y !== currentPos.y));
             const textChanged = !!(currentDexy && currentDexy !== initialDexy);
+            const navBlockedNow = isNavButtonBlocked(dir);
 
             if (posMoved || textChanged) {
                 unconfirmedBlockedCount = 0;
                 lastUnconfirmedDir = null;
                 ipcRenderer.sendToHost('move-result', {
                     direction: dir,
-                    success: true
+                    success: true,
+                    allBlocked: getBlockedNavDirections()
                 });
-            } else {
-                // Require 2 consecutive failed attempts in same direction with known position before reporting blocked
-                if (initialPos && currentPos) {
-                    if (lastUnconfirmedDir === dir) {
-                        unconfirmedBlockedCount++;
-                    } else {
-                        lastUnconfirmedDir = dir;
-                        unconfirmedBlockedCount = 1;
-                    }
-
-                    if (unconfirmedBlockedCount >= 2) {
-                        unconfirmedBlockedCount = 0;
-                        lastUnconfirmedDir = null;
-                        ipcRenderer.sendToHost('move-result', {
-                            direction: dir,
-                            blocked: true
-                        });
-                        return;
-                    }
-                }
-
-                // If position was unconfirmed or only 1st attempt, do not falsely block
+            } else if (navBlockedNow) {
+                unconfirmedBlockedCount = 0;
+                lastUnconfirmedDir = null;
                 ipcRenderer.sendToHost('move-result', {
                     direction: dir,
-                    success: true
+                    blocked: true,
+                    navBlocked: true,
+                    allBlocked: getBlockedNavDirections()
+                });
+            } else {
+                if (initialPos && currentPos) {
+                    unconfirmedBlockedCount = 0;
+                    lastUnconfirmedDir = null;
+                    ipcRenderer.sendToHost('move-result', {
+                        direction: dir,
+                        blocked: true,
+                        allBlocked: getBlockedNavDirections()
+                    });
+                    return;
+                }
+
+                ipcRenderer.sendToHost('move-result', {
+                    direction: dir,
+                    success: true,
+                    allBlocked: getBlockedNavDirections()
                 });
             }
         }
-    }, 1100);
+    }, 600);
 });
 
 // Guest Context Spacebar Toggle Handler

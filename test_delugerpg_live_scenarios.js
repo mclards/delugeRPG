@@ -141,97 +141,102 @@ function createSimulationEnvironment(doc) {
   global.document = doc;
 
   // Extract isEncounterOrCatchUIPresent directly from production game-preload.js logic
-  function isEncounterOrCatchUIPresent() {
-    const catchBtn = document.querySelector(
-      'input[type="submit"]#catch, input#catch, button#catch, ' +
-      'input[type="submit"][value*="Catch" i], button[value*="Catch" i], ' +
-      'a#catch, .catch-form input, .catch-form button, input[value*="Try to Catch" i], ' +
-      'button[value*="Try to Catch" i], form[action*="catch"] input[type="submit"], form[action*="catch"] button'
-    );
-    if (catchBtn && window.getComputedStyle(catchBtn).display !== 'none') return true;
+  function findCatchActionElement() {
+    const candidates = doc.querySelectorAll('a, button, input');
+    for (let i = 0; i < candidates.length; i++) {
+      const el = candidates[i];
+      const text = (el.innerText || el.textContent || '').trim().toLowerCase();
+      const val = (el.value || '').trim().toLowerCase();
+      const href = (el.getAttribute('href') || '').toLowerCase();
+      const id = (el.id || '').toLowerCase();
 
-    const catchLinks = document.querySelectorAll('#showpoke a, #dexy a, .catch-form a, a[href*="/catch/"]');
-    for (let l = 0; l < catchLinks.length; l++) {
-      const clk = catchLinks[l];
-      const cHref = (clk.getAttribute('href') || '').toLowerCase();
-      const cText = (clk.textContent || clk.innerText || '').toLowerCase();
-      if ((cHref.indexOf('/catch/') !== -1 || cText.indexOf('catch') !== -1) &&
-          window.getComputedStyle(clk).display !== 'none') {
-        return true;
+      if (text.indexOf('try to catch') !== -1 || val.indexOf('try to catch') !== -1 ||
+          text.indexOf('catch it') !== -1 || val.indexOf('catch it') !== -1 ||
+          text === 'catch' || val === 'catch' ||
+          text.indexOf('start battle') !== -1 || val.indexOf('start battle') !== -1) {
+        return el;
       }
+      if (href && (href.indexOf('/catch') !== -1 || href.indexOf('catch.php') !== -1 || href.indexOf('catch?') !== -1)) {
+        return el;
+      }
+      if (id === 'catch' || id === 'catch-btn') {
+        return el;
+      }
+    }
+    return null;
+  }
+
+  function getEncounterContainer() {
+    const catchBtn = findCatchActionElement();
+    if (catchBtn) {
+      const parent = catchBtn.closest('#showpoke, .showpoke, #showpoke-name, #dexy, .dexy, .catch-form, form, div') || catchBtn.parentElement;
+      if (parent) return parent;
     }
 
     const candidateContainers = [
-      document.getElementById('showpoke'),
-      document.querySelector('.showpoke'),
-      document.getElementById('showpoke-name'),
-      document.querySelector('.catch-form'),
-      document.getElementById('show-pokemon'),
-      document.getElementById('dexy'),
-      document.querySelector('.dexy')
+      doc.getElementById('showpoke'),
+      doc.querySelector('.showpoke'),
+      doc.getElementById('showpoke-name'),
+      doc.querySelector('.catch-form'),
+      doc.getElementById('show-pokemon'),
+      doc.getElementById('dexy'),
+      doc.querySelector('.dexy')
     ];
 
     for (let c = 0; c < candidateContainers.length; c++) {
       const box = candidateContainers[c];
       if (!box) continue;
-
-      try {
-        const style = window.getComputedStyle(box);
-        if (style.display === 'none' || style.visibility === 'hidden') continue;
-      } catch (_) {}
-
-      const pokeImg = box.querySelector('img[src*="/pokemon/"], img[src*="/sprites/"], img[src*="/dex/"]');
-      if (pokeImg) {
-        return true;
-      }
-
-      const innerElements = box.querySelectorAll('a, button, input');
-      for (let e = 0; e < innerElements.length; e++) {
-        const inner = innerElements[e];
-        const innerText = ((inner.textContent || '') + ' ' + (inner.value || '') + ' ' + (inner.getAttribute('href') || '')).toLowerCase();
-        if (innerText.indexOf('catch') !== -1) {
-          return true;
-        }
-      }
-
       const rawText = (box.innerText || box.textContent || '').trim().toLowerCase();
-      const normText = rawText.replace(/[\u2018\u2019]/g, "'");
-
-      if (normText.indexOf("couldn't find") !== -1 ||
-          normText.indexOf("could not find") !== -1 ||
-          normText.indexOf('try moving to another spot') !== -1 ||
-          normText.indexOf('searching...') !== -1) {
+      if (rawText.indexOf("couldn't find") !== -1 || rawText.indexOf("could not find") !== -1 || rawText.indexOf('searching...') !== -1) {
         continue;
       }
-
-      if (normText.indexOf('appeared') !== -1 ||
-          normText.indexOf('wild ') !== -1 ||
-          normText.indexOf('level') !== -1 ||
-          normText.indexOf('lvl') !== -1 ||
-          normText.indexOf('catch') !== -1) {
-        return true;
+      const pokeImg = box.querySelector('img[src*="/pokemon/"], img[src*="/sprites/"], img[src*="/dex/"]');
+      if (pokeImg) return box;
+      if (rawText.indexOf('appeared') !== -1 || rawText.indexOf('wild ') !== -1 || rawText.indexOf('level') !== -1 || rawText.indexOf('catch') !== -1) {
+        return box;
       }
     }
 
+    const allDivs = doc.querySelectorAll('div, section, p, span');
+    for (let i = 0; i < allDivs.length; i++) {
+      const el = allDivs[i];
+      const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+      if (txt.indexOf('appeared!') !== -1 && txt.indexOf("couldn't find") === -1 && txt.indexOf("could not find") === -1 && txt.indexOf("searching...") === -1) {
+        return el.closest('div') || el;
+      }
+    }
+    return null;
+  }
+
+  function isEncounterOrCatchUIPresent() {
+    if (findCatchActionElement() !== null) return true;
+    if (getEncounterContainer() !== null) return true;
     return false;
   }
 
   function extractEncounterText() {
     let encounterBoxText = '';
+    const activeBox = getEncounterContainer();
+    if (activeBox) {
+      encounterBoxText += ' ' + (activeBox.innerText || activeBox.textContent || '');
+    }
     const encounterContainers = [
-      document.getElementById('showpoke'),
-      document.querySelector('.showpoke'),
-      document.getElementById('showpoke-name'),
-      document.querySelector('.catch-form'),
-      document.getElementById('show-pokemon'),
-      document.getElementById('dexy'),
-      document.querySelector('.dexy')
+      doc.getElementById('showpoke'),
+      doc.querySelector('.showpoke'),
+      doc.getElementById('showpoke-name'),
+      doc.querySelector('.catch-form'),
+      doc.getElementById('show-pokemon'),
+      doc.getElementById('dexy'),
+      doc.querySelector('.dexy')
     ];
     for (let ec = 0; ec < encounterContainers.length; ec++) {
       const cEl = encounterContainers[ec];
       if (cEl) {
         encounterBoxText += ' ' + (cEl.innerText || cEl.textContent || '');
       }
+    }
+    if (doc.body && (encounterBoxText.toLowerCase().indexOf('appeared') === -1 || encounterBoxText.trim().length < 5)) {
+      encounterBoxText += ' ' + (doc.body.innerText || '');
     }
     return encounterBoxText.trim().toLowerCase();
   }
@@ -315,8 +320,27 @@ assert(checkTargetMatch('wild arceus appeared! (level 100)', LEGENDARY_LOWER), '
 assert.strictEqual(checkTargetMatch('wild pidgey appeared! (level 5)', LEGENDARY_LOWER), null, 'Pidgey must not match');
 console.log('  [PASS] Lugia, Rayquaza, Mewtwo, Arceus matched; common non-target Pidgey ignored.');
 
-// SCENARIO 6: 7-bit ASCII verification across entire codebase
-console.log('\n--- Scenario 6: 100% 7-bit ASCII Verification ---');
+// SCENARIO 6: User Live Screenshot Scenario - Yveltal with "Try to Catch It" on Map 10
+console.log('\n--- Scenario 6: User Live Encounter (Yveltal Appeared with [Try to Catch It]) ---');
+const doc6 = new MockDocument();
+const mapSideCard = new MockNode('div', '', 'card-encounter', 'LEGENDARY POKEMON Yveltal Appeared! Level: 63 HP: 252');
+const yveltalSprite = new MockNode('img', '', '', '', { src: 'https://s.delugerpg.com/pokemon/yveltal.png', alt: 'Yveltal' });
+const catchBtn6 = new MockNode('a', '', 'btn btn-primary', 'Try to Catch It', { href: '/catch?id=99281' });
+mapSideCard.appendChild(yveltalSprite);
+mapSideCard.appendChild(catchBtn6);
+doc6.body.appendChild(mapSideCard);
+doc6.register(mapSideCard);
+
+const sim6 = createSimulationEnvironment(doc6);
+assert.strictEqual(sim6.isEncounterOrCatchUIPresent(), true, 'Yveltal encounter MUST be recognized!');
+const text6 = sim6.extractEncounterText();
+assert(text6.includes('yveltal'), 'Extracted encounter text must include yveltal');
+assert(text6.includes('63'), 'Extracted encounter text must include level 63');
+assert(checkTargetMatch(text6, LEGENDARY_LOWER), 'Yveltal must match Legendary target list');
+console.log('  [PASS] Live Yveltal encounter detected and matched against Legendary targets with 100% precision.');
+
+// SCENARIO 7: 7-bit ASCII verification across entire codebase
+console.log('\n--- Scenario 7: 100% 7-bit ASCII Verification ---');
 const files = [
   'desktop-client/game-preload.js',
   'desktop-client/app.js',

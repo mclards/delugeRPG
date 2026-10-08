@@ -221,30 +221,65 @@ function scanForTargets() {
         return;
     }
 
-    // B. Check if wild encounter or catch UI is present
-    function isEncounterOrCatchUIPresent() {
-        // 1. Explicit catch buttons or submit inputs
-        const catchBtn = document.querySelector(
-            'input[type="submit"]#catch, input#catch, button#catch, ' +
+    // Helper to find the active catch or battle action element (Anchor, Button, or Submit Input)
+    function findCatchActionElement() {
+        // 1. Direct submit inputs, buttons, or links with catch id
+        const directBtn = document.querySelector(
+            'input[type="submit"]#catch, input#catch, button#catch, a#catch, ' +
             'input[type="submit"][value*="Catch" i], button[value*="Catch" i], ' +
-            'a#catch, .catch-form input, .catch-form button, input[value*="Try to Catch" i], ' +
-            'button[value*="Try to Catch" i], form[action*="catch"] input[type="submit"], form[action*="catch"] button'
+            'form[action*="catch"] input[type="submit"], form[action*="catch"] button'
         );
-        if (catchBtn && window.getComputedStyle(catchBtn).display !== 'none') return true;
-
-        // Catch links (anchors leading to /catch/ or with catch text inside encounter containers)
-        const catchLinks = document.querySelectorAll('#showpoke a, #dexy a, .catch-form a, a[href*="/catch/"]');
-        for (let l = 0; l < catchLinks.length; l++) {
-            const clk = catchLinks[l];
-            const cHref = (clk.getAttribute('href') || '').toLowerCase();
-            const cText = (clk.textContent || clk.innerText || '').toLowerCase();
-            if ((cHref.indexOf('/catch/') !== -1 || cHref.indexOf('/catch') !== -1 || cHref.indexOf('battle') !== -1 || cText.indexOf('catch') !== -1 || cText.indexOf('battle') !== -1) &&
-                window.getComputedStyle(clk).display !== 'none') {
-                return true;
-            }
+        if (directBtn) {
+            try {
+                const st = window.getComputedStyle(directBtn);
+                if (st.display !== 'none' && st.visibility !== 'hidden') return directBtn;
+            } catch (_) { return directBtn; }
         }
 
-        // 2. Iterate all candidate encounter containers (prioritizing #showpoke and .showpoke over #dexy)
+        // 2. Scan all candidate interactive elements (anchors, buttons, submit inputs)
+        const candidates = document.querySelectorAll('a, button, input[type="button"], input[type="submit"], [role="button"], .btn');
+        for (let i = 0; i < candidates.length; i++) {
+            const el = candidates[i];
+            try {
+                const style = window.getComputedStyle(el);
+                if (style.display === 'none' || style.visibility === 'hidden') continue;
+            } catch (_) {}
+
+            const text = (el.innerText || el.textContent || '').trim().toLowerCase();
+            const val = (el.value || '').trim().toLowerCase();
+            const href = (el.getAttribute('href') || '').toLowerCase();
+            const id = (el.id || '').toLowerCase();
+
+            // Match "Try to Catch It", "Try to Catch", "Catch It", "Start Battle", exact "Catch"
+            if (text.indexOf('try to catch') !== -1 || val.indexOf('try to catch') !== -1 ||
+                text.indexOf('catch it') !== -1 || val.indexOf('catch it') !== -1 ||
+                text === 'catch' || val === 'catch' ||
+                text.indexOf('start battle') !== -1 || val.indexOf('start battle') !== -1 ||
+                text.indexOf('throw pokeball') !== -1 || val.indexOf('throw pokeball') !== -1) {
+                return el;
+            }
+
+            // Match href containing /catch, catch.php, catch?
+            if (href && (href.indexOf('/catch') !== -1 || href.indexOf('catch.php') !== -1 || href.indexOf('catch?') !== -1)) {
+                return el;
+            }
+
+            // Match ID
+            if (id === 'catch' || id === 'catch-btn' || id === 'btn-catch') {
+                return el;
+            }
+        }
+        return null;
+    }
+
+    // Helper to locate enclosing wild encounter container
+    function getEncounterContainer() {
+        const catchBtn = findCatchActionElement();
+        if (catchBtn) {
+            const parent = catchBtn.closest('#showpoke, .showpoke, #showpoke-name, #dexy, .dexy, .catch-form, form, [class*="encounter" i], [id*="encounter" i], .card, .panel, .box, div') || catchBtn.parentElement;
+            if (parent) return parent;
+        }
+
         const candidateContainers = [
             document.getElementById('showpoke'),
             document.querySelector('.showpoke'),
@@ -261,16 +296,25 @@ function scanForTargets() {
         for (let c = 0; c < candidateContainers.length; c++) {
             const box = candidateContainers[c];
             if (!box) continue;
-
             try {
                 const style = window.getComputedStyle(box);
                 if (style.display === 'none' || style.visibility === 'hidden') continue;
             } catch (_) {}
 
+            const rawText = (box.innerText || box.textContent || '').trim().toLowerCase();
+            const normText = rawText.replace(/[\u2018\u2019]/g, "'");
+
+            if (normText.indexOf("couldn't find") !== -1 ||
+                normText.indexOf("could not find") !== -1 ||
+                normText.indexOf('try moving to another spot') !== -1 ||
+                normText.indexOf('searching...') !== -1) {
+                continue;
+            }
+
             // Check for wild Pokemon sprite across all DelugeRPG image CDNs
             const pokeImg = box.querySelector('img[src*="/pokemon/"], img[src*="/sprites/"], img[src*="/dex/"], img[src*="/regular/"], img[src*="/shiny/"], img[src*="/retro/"], img[src*="/chrome/"], img[src*="/metallic/"], img[src*="/shadow/"], img[src*="/ghostly/"], img[src*="/dark/"], img[src*="/mirage/"], img[src*="/negative/"], img[src*="delugerpg"]');
             if (pokeImg) {
-                return true;
+                return box;
             }
 
             // Check for inner catch/battle buttons or links
@@ -279,33 +323,22 @@ function scanForTargets() {
                 const inner = innerElements[e];
                 const innerText = ((inner.textContent || '') + ' ' + (inner.value || '') + ' ' + (inner.getAttribute('href') || '')).toLowerCase();
                 if (innerText.indexOf('catch') !== -1 || innerText.indexOf('battle') !== -1) {
-                    return true;
+                    return box;
                 }
-            }
-
-            const rawText = (box.innerText || box.textContent || '').trim().toLowerCase();
-            const normText = rawText.replace(/[\u2018\u2019]/g, "'");
-
-            // Ignore non-encounter messages on this specific container
-            if (normText.indexOf("couldn't find") !== -1 ||
-                normText.indexOf("could not find") !== -1 ||
-                normText.indexOf('try moving to another spot') !== -1 ||
-                normText.indexOf('searching...') !== -1) {
-                continue;
             }
 
             // If the box contains any known Legendary or Mega, confirm encounter immediately!
             if (findLegend) {
                 for (let k = 0; k < LEGENDARY_LOWER.length; k++) {
                     if (normText.indexOf(LEGENDARY_LOWER[k]) !== -1) {
-                        return true;
+                        return box;
                     }
                 }
             }
             if (findMegas) {
                 for (let m = 0; m < MEGAS_LOWER.length; m++) {
                     if (normText.indexOf(MEGAS_LOWER[m]) !== -1) {
-                        return true;
+                        return box;
                     }
                 }
             }
@@ -318,8 +351,36 @@ function scanForTargets() {
                 normText.indexOf('catch') !== -1 ||
                 normText.indexOf('battle') !== -1 ||
                 normText.indexOf('hp:') !== -1) {
-                return true;
+                return box;
             }
+        }
+
+        // Generic search for any element containing "appeared!" (e.g. "Yveltal Appeared!")
+        const allCandidates = document.querySelectorAll('div, section, article, p, h2, h3, h4, h5, span');
+        for (let i = 0; i < allCandidates.length; i++) {
+            const el = allCandidates[i];
+            const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+            if ((txt.indexOf('appeared!') !== -1 || txt.indexOf('appeared') !== -1) &&
+                txt.indexOf("couldn't find") === -1 &&
+                txt.indexOf("could not find") === -1 &&
+                txt.indexOf("searching...") === -1 &&
+                txt.indexOf("try moving") === -1) {
+                return el.closest('div, section, form') || el;
+            }
+        }
+
+        return null;
+    }
+
+    // B. Check if wild encounter or catch UI is present
+    function isEncounterOrCatchUIPresent() {
+        if (findCatchActionElement() !== null) {
+            return true;
+        }
+
+        const container = getEncounterContainer();
+        if (container !== null) {
+            return true;
         }
 
         return false;
@@ -333,6 +394,18 @@ function scanForTargets() {
 
     // Aggregate encounter container text across all candidate containers
     let encounterBoxText = '';
+    const activeContainer = getEncounterContainer();
+    if (activeContainer) {
+        encounterBoxText += ' ' + (activeContainer.innerText || activeContainer.textContent || '');
+        const cImgs = activeContainer.querySelectorAll('img');
+        for (let j = 0; j < cImgs.length; j++) {
+            encounterBoxText += ' ' + (cImgs[j].alt || '') + ' ' + (cImgs[j].title || '') + ' ';
+            const src = cImgs[j].src || '';
+            const match = src.match(/\/([a-z0-9\-]+)\.(?:png|gif|jpe?g)/i);
+            if (match) encounterBoxText += ' ' + match[1];
+        }
+    }
+
     const encounterContainers = [
         document.getElementById('showpoke'),
         document.querySelector('.showpoke'),
@@ -348,6 +421,20 @@ function scanForTargets() {
             encounterBoxText += ' ' + (cEl.innerText || cEl.textContent || '');
         }
     }
+
+    const catchAction = findCatchActionElement();
+    if (catchAction && catchAction.parentElement) {
+        encounterBoxText += ' ' + (catchAction.parentElement.innerText || catchAction.parentElement.textContent || '');
+        if (catchAction.parentElement.parentElement) {
+            encounterBoxText += ' ' + (catchAction.parentElement.parentElement.innerText || catchAction.parentElement.parentElement.textContent || '');
+        }
+    }
+
+    // Fallback safety net: if hasCatchUI is true, ensure text contains appeared or body text
+    if (document.body && (encounterBoxText.toLowerCase().indexOf('appeared') === -1 || encounterBoxText.trim().length < 5)) {
+        encounterBoxText += ' ' + (document.body.innerText || '');
+    }
+
     encounterBoxText = encounterBoxText.trim();
 
     const dexyEl = document.getElementById('dexy') || document.querySelector('.dexy');
@@ -614,7 +701,7 @@ function triggerTargetFound(targetName, category) {
     } catch (_) {}
 
     if (isAutoCatch) {
-        const catchBtn = document.querySelector('input[type="submit"][id="catch"], input#catch, button#catch, input[value*="Catch"], input[value*="Try to Catch"], a#catch, #showpoke a, a[href*="/catch/"]');
+        const catchBtn = findCatchActionElement() || document.querySelector('input[type="submit"][id="catch"], input#catch, button#catch, input[value*="Catch"], input[value*="Try to Catch"], a#catch, #showpoke a, a[href*="/catch/"]');
         if (catchBtn) {
             catchBtn.click();
         }

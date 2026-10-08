@@ -1045,6 +1045,12 @@ let lastUnconfirmedDir = null;
 
 let lastBroadcastBlockedStr = '';
 function syncNavStatusToHost() {
+    const dexyEl = document.getElementById('dexy') || document.querySelector('.dexy');
+    const isLoading = dexyEl && (dexyEl.innerText || dexyEl.textContent || '').indexOf('Searching...') !== -1;
+    if (isLoading) {
+        return;
+    }
+
     const blocked = getBlockedNavDirections();
     
     // If all 4 cardinal directions are blocked, it's a transient AJAX loading state, not a real physical wall.
@@ -1066,8 +1072,11 @@ const observer = new MutationObserver(() => {
         const curPos = getPlayerPosition();
         const curDexy = getDexyText();
         const posMoved = !!(activeStep.initialPos && curPos && (activeStep.initialPos.x !== curPos.x || activeStep.initialPos.y !== curPos.y));
-        const textChanged = !!(curDexy && curDexy !== activeStep.initialText);
         const isLoading = curDexy && curDexy.indexOf('Searching...') !== -1;
+
+        if (isLoading) {
+            activeStep.sawSearching = true;
+        }
 
         if (posMoved) {
             activeStep.resolved = true;
@@ -1079,11 +1088,10 @@ const observer = new MutationObserver(() => {
             }
             ipcRenderer.sendToHost('move-result', {
                 direction: activeStep.direction,
-                success: true,
-                allBlocked: getBlockedNavDirections()
+                success: true
             });
-        } else if (textChanged && !isLoading) {
-            // Server responded (text changed, not searching) but position did not move. This is a physical obstacle!
+        } else if (!isLoading && (activeStep.sawSearching || (curDexy && curDexy !== activeStep.initialText) || isNavButtonBlocked(activeStep.direction))) {
+            // Server responded (not searching) but position did not move. This is a physical obstacle!
             activeStep.resolved = true;
             unconfirmedBlockedCount = 0;
             lastUnconfirmedDir = null;
@@ -1129,6 +1137,7 @@ ipcRenderer.on('step-dispatched', (event, data) => {
         direction: dir,
         initialPos: initialPos,
         initialText: initialDexy,
+        sawSearching: false,
         resolved: false
     };
 

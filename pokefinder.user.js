@@ -1118,6 +1118,10 @@
                     if (blockedWalkKeys[lastDispatchedWalkKey]) {
                         delete blockedWalkKeys[lastDispatchedWalkKey];
                     }
+                    const normSuccess = normalizeKey(lastDispatchedWalkKey);
+                    if (blockedWalkKeys[normSuccess]) {
+                        delete blockedWalkKeys[normSuccess];
+                    }
                 } else if (!isLoading && !isGameLoading()) {
                     // Step failed: Server finished processing (not loading) but position did not change!
                     // This means we hit a physical obstacle (wall, tree, water).
@@ -1196,6 +1200,7 @@
                 if (evaded && evaded !== key) {
                     key = evaded;
                     currentWanderKey = evaded;
+                    wanderStepsRemaining = (stepsPerDirection || 1) - 1;
                 }
             }
 

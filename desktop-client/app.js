@@ -1232,6 +1232,7 @@ function sendKeyStep(keyName) {
     if (evaded && evaded !== keyName) {
       keyName = evaded;
       currentDirectionKey = evaded;
+      wanderStepsLeft = (config.settings.stepsPerDirection || 1) - 1;
     }
   }
 
@@ -1267,13 +1268,12 @@ function sendKeyStep(keyName) {
     // Notify guest webview preload of dispatched step
     delugeView.send('step-dispatched', { direction: keyName, time: Date.now() });
 
+    // Fallback collision timer: Safety net if preload doesn't resolve within 1600ms
+    if (fallbackCollisionTimer) clearTimeout(fallbackCollisionTimer);
     fallbackCollisionTimer = setTimeout(() => {
-      console.log(`[Nav] Timeout on ${keyName} after 5s. Network lag suspected. Retrying...`);
-      // We do NOT call handleMoveBlocked here. If it was a real physical wall,
-      // the Pre-Dispatch Zero-Collision Guard will catch it on the next step attempt.
-      isStepPending = false;
-      scheduleNextStep(200);
-    }, 5000);
+      // Unconfirmed timeout after 1600ms: treat as collision, NEVER as success!
+      handleMoveBlocked(keyName);
+    }, 1600);
 
     patternStepCount++;
   } catch (err) {
@@ -1448,8 +1448,9 @@ function handleMoveSuccess(dir) {
     fallbackCollisionTimer = null;
   }
   consecutiveBlockedCount = 0;
-  if (dir && blockedDirections[dir]) {
+  if (dir) {
     delete blockedDirections[dir];
+    delete navBlockedStatus[dir];
   }
   stepCount++;
   if (stepCounterElem) {

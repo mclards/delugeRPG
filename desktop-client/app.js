@@ -139,6 +139,7 @@ const modalBackdrop = document.getElementById('modalBackdrop');
 // State
 let isRunning = false;
 let stepCount = 0;
+let patternStepCount = 0;
 let walkTimeout = null;
 let soundEnabled = config.settings.soundAlert !== false;
 let mapIsSearching = false;
@@ -943,10 +944,6 @@ function isDirectionPhysicallyBlocked(dir, now = Date.now()) {
   if (!dir) return false;
   if (navBlockedStatus[dir]) return true;
   if (blockedDirections[dir] && blockedDirections[dir] > now) return true;
-  if (dir === 'Up-Left' && (isDirectionPhysicallyBlocked('Up', now) || isDirectionPhysicallyBlocked('Left', now))) return true;
-  if (dir === 'Up-Right' && (isDirectionPhysicallyBlocked('Up', now) || isDirectionPhysicallyBlocked('Right', now))) return true;
-  if (dir === 'Down-Left' && (isDirectionPhysicallyBlocked('Down', now) || isDirectionPhysicallyBlocked('Left', now))) return true;
-  if (dir === 'Down-Right' && (isDirectionPhysicallyBlocked('Down', now) || isDirectionPhysicallyBlocked('Right', now))) return true;
   return false;
 }
 
@@ -1133,13 +1130,13 @@ function getNextKey() {
   }
 
   if (mode === 'line_horizontal') {
-    let isLeft = Math.floor(stepCount / stepsPerDir) % 2 === 0;
+    let isLeft = Math.floor(patternStepCount / stepsPerDir) % 2 === 0;
     let target = isLeft ? 'Left' : 'Right';
     if (isDirectionPhysicallyBlocked(target, now)) {
       const opp = target === 'Left' ? 'Right' : 'Left';
       if (!isDirectionPhysicallyBlocked(opp, now)) {
-        const remainder = stepCount % stepsPerDir;
-        if (remainder !== 0) stepCount += (stepsPerDir - remainder);
+        const remainder = patternStepCount % stepsPerDir;
+        if (remainder !== 0) patternStepCount += (stepsPerDir - remainder);
         return opp;
       }
       return chooseEvadeDirection(target);
@@ -1148,13 +1145,13 @@ function getNextKey() {
   }
 
   if (mode === 'line_vertical') {
-    let isUp = Math.floor(stepCount / stepsPerDir) % 2 === 0;
+    let isUp = Math.floor(patternStepCount / stepsPerDir) % 2 === 0;
     let target = isUp ? 'Up' : 'Down';
     if (isDirectionPhysicallyBlocked(target, now)) {
       const opp = target === 'Up' ? 'Down' : 'Up';
       if (!isDirectionPhysicallyBlocked(opp, now)) {
-        const remainder = stepCount % stepsPerDir;
-        if (remainder !== 0) stepCount += (stepsPerDir - remainder);
+        const remainder = patternStepCount % stepsPerDir;
+        if (remainder !== 0) patternStepCount += (stepsPerDir - remainder);
         return opp;
       }
       return chooseEvadeDirection(target);
@@ -1163,15 +1160,16 @@ function getNextKey() {
   }
 
   if (mode === 'patrol_square') {
-    let idx = Math.floor(stepCount / stepsPerDir) % 4;
+    let idx = Math.floor(patternStepCount / stepsPerDir) % 4;
     let candidate = keys[idx];
     if (isDirectionPhysicallyBlocked(candidate, now)) {
-      stepCount += stepsPerDir;
-      idx = Math.floor(stepCount / stepsPerDir) % 4;
+      patternStepCount += stepsPerDir;
+      idx = Math.floor(patternStepCount / stepsPerDir) % 4;
       candidate = keys[idx];
       if (isDirectionPhysicallyBlocked(candidate, now)) {
         return chooseEvadeDirection(candidate);
       }
+
     }
     return candidate;
   }
@@ -1278,8 +1276,7 @@ function sendKeyStep(keyName) {
       handleMoveBlocked(keyName);
     }, 1600);
 
-    stepCount++;
-    stepCounterElem.textContent = `Steps: ${stepCount}`;
+    patternStepCount++;
   } catch (err) {
     console.error('sendInputEvent error:', err);
   }
@@ -1454,6 +1451,10 @@ function handleMoveSuccess(dir) {
   consecutiveBlockedCount = 0;
   if (dir && blockedDirections[dir]) {
     delete blockedDirections[dir];
+  }
+  stepCount++;
+  if (stepCounterElem) {
+    stepCounterElem.textContent = `Steps: ${stepCount}`;
   }
 }
 

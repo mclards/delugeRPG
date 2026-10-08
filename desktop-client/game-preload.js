@@ -932,11 +932,7 @@ function isNavButtonBlocked(dir) {
         'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]', '[title*="South-East" i]', '[title*="Southeast" i]', '[title*="Down-Right" i]', '[aria-label*="South-East" i]', '[aria-label*="Southeast" i]']
     };
 
-    // Grid physics: a diagonal move is impossible if either cardinal component is blocked
-    if (dir === 'Up-Left' && (isNavButtonBlocked('Up') || isNavButtonBlocked('Left'))) return true;
-    if (dir === 'Up-Right' && (isNavButtonBlocked('Up') || isNavButtonBlocked('Right'))) return true;
-    if (dir === 'Down-Left' && (isNavButtonBlocked('Down') || isNavButtonBlocked('Left'))) return true;
-    if (dir === 'Down-Right' && (isNavButtonBlocked('Down') || isNavButtonBlocked('Right'))) return true;
+    // Trust the DOM strictly for diagonal button states.
 
     const selectors = dirMap[dir] || [];
     for (let i = 0; i < selectors.length; i++) {

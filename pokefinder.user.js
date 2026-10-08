@@ -510,11 +510,7 @@
             'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]', '[title*="South-East" i]', '[title*="Southeast" i]', '[title*="Down-Right" i]', '[aria-label*="South-East" i]', '[aria-label*="Southeast" i]']
         };
 
-        // Grid physics: a diagonal move is impossible if either cardinal component is blocked
-        if ((keyCode === 'Up-Left' || keyCode === 'nw') && (isNavButtonBlocked('Up') || isNavButtonBlocked('Left'))) return true;
-        if ((keyCode === 'Up-Right' || keyCode === 'ne') && (isNavButtonBlocked('Up') || isNavButtonBlocked('Right'))) return true;
-        if ((keyCode === 'Down-Left' || keyCode === 'sw') && (isNavButtonBlocked('Down') || isNavButtonBlocked('Left'))) return true;
-        if ((keyCode === 'Down-Right' || keyCode === 'se') && (isNavButtonBlocked('Down') || isNavButtonBlocked('Right'))) return true;
+        // Trust the DOM strictly for diagonal button states.
 
         const selectors = keyMap[keyCode] || [];
         for (let i = 0; i < selectors.length; i++) {

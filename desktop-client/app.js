@@ -1267,12 +1267,17 @@ function sendKeyStep(keyName) {
     // Notify guest webview preload of dispatched step
     delugeView.send('step-dispatched', { direction: keyName, time: Date.now() });
 
-    // Fallback collision timer: Safety net if preload doesn't resolve within 1600ms
-    if (fallbackCollisionTimer) clearTimeout(fallbackCollisionTimer);
     fallbackCollisionTimer = setTimeout(() => {
-      // Unconfirmed timeout after 1600ms: treat as collision, NEVER as success!
-      handleMoveBlocked(keyName);
-    }, 1600);
+      // Timeout after 1600ms: verify with the DOM!
+      // If the DOM says it is NOT blocked, it's just network lag.
+      if (isDirectionPhysicallyBlocked(keyName)) {
+        handleMoveBlocked(keyName);
+      } else {
+        console.log(`[Nav] Timeout on ${keyName} but DOM shows path is clear. Lag suspected. Retrying...`);
+        isStepPending = false;
+        scheduleNextStep(200); // Retry soon without evading
+      }
+    }, 1800);
 
     patternStepCount++;
   } catch (err) {

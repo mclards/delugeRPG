@@ -1105,7 +1105,7 @@
             const textChanged = (currentDexyHtml !== lastDexyContentSnapshot);
 
             // Check if last step was acknowledged by DelugeRPG
-            if (lastDispatchedWalkKey !== null) {
+            if (lastDispatchedWalkKey !== null && !walkStepAcknowledged) {
                 if (posChanged || textChanged) {
                     // Step was successful!
                     walkStepAcknowledged = true;
@@ -1113,65 +1113,73 @@
                     if (blockedWalkKeys[lastDispatchedWalkKey]) {
                         delete blockedWalkKeys[lastDispatchedWalkKey];
                     }
-                } else if (!walkStepAcknowledged || isNavButtonBlocked(lastDispatchedWalkKey)) {
-                    // Flag collision if position not moved, text unchanged, or nav button disabled
-                    if ((curPos && lastPlayerPosSnapshot) || isNavButtonBlocked(lastDispatchedWalkKey)) {
-                        consecutiveBlockedSteps++;
-                        const nowCollision = Date.now();
-                        blockedWalkKeys[lastDispatchedWalkKey] = nowCollision + 8000;
-                        const normColl = normalizeKey(lastDispatchedWalkKey);
-                        blockedWalkKeys[normColl] = nowCollision + 8000;
-                        const sharedColl = SHARED_COMPONENTS_8[normColl] || [normColl];
-                        sharedColl.forEach(function(sc) {
-                            blockedWalkKeys[sc] = nowCollision + 8000;
-                        });
-                        wanderStepsRemaining = 0;
+                } else if (isNavButtonBlocked(lastDispatchedWalkKey)) {
+                    // Step failed: button is physically disabled
+                    consecutiveBlockedSteps++;
+                    const nowCollision = Date.now();
+                    blockedWalkKeys[lastDispatchedWalkKey] = nowCollision + 8000;
+                    const normColl = normalizeKey(lastDispatchedWalkKey);
+                    blockedWalkKeys[normColl] = nowCollision + 8000;
+                    const sharedColl = SHARED_COMPONENTS_8[normColl] || [normColl];
+                    sharedColl.forEach(function(sc) {
+                        blockedWalkKeys[sc] = nowCollision + 8000;
+                    });
+                    wanderStepsRemaining = 0;
 
-                        // Synchronize stepCounter to the next turn boundary
-                        const remainder = stepCounter % stepsPerDirection;
-                        if (remainder !== 0) {
-                            stepCounter += (stepsPerDirection - remainder);
-                        }
-
-                        // Invert diagonal axes on collision
-                        if (lastDispatchedWalkKey === 38 || lastDispatchedWalkKey === 'Up') diagonalVerticalKey = 40;
-                        else if (lastDispatchedWalkKey === 40 || lastDispatchedWalkKey === 'Down') diagonalVerticalKey = 38;
-                        else if (lastDispatchedWalkKey === 37 || lastDispatchedWalkKey === 'Left') diagonalHorizontalKey = 39;
-                        else if (lastDispatchedWalkKey === 39 || lastDispatchedWalkKey === 'Right') diagonalHorizontalKey = 37;
-                        else if (lastDispatchedWalkKey === 'Up-Right') {
-                            if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
-                            else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
-                            else { diagonalVerticalKey = 40; diagonalHorizontalKey = 37; }
-                        } else if (lastDispatchedWalkKey === 'Up-Left') {
-                            if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
-                            else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
-                            else { diagonalVerticalKey = 40; diagonalHorizontalKey = 39; }
-                        } else if (lastDispatchedWalkKey === 'Down-Right') {
-                            if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
-                            else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
-                            else { diagonalVerticalKey = 38; diagonalHorizontalKey = 37; }
-                        } else if (lastDispatchedWalkKey === 'Down-Left') {
-                            if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
-                            else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
-                            else { diagonalVerticalKey = 38; diagonalHorizontalKey = 39; }
-                        }
-
-                        console.log('[PokeFinder] Collision detected with key ' + lastDispatchedWalkKey + '! Consecutive: ' + consecutiveBlockedSteps);
-                        updateStatusUI('Obstacle! Evading...', '#ff9800');
-
-                        if (consecutiveBlockedSteps >= 6) {
-                            console.log('[PokeFinder] Trapped in maze! Reloading map to safe spawn...');
-                            consecutiveBlockedSteps = 0;
-                            blockedWalkKeys = {};
-                            location.reload();
-                            return;
-                        }
-                    } else {
-                        // Without position confirmation, don't falsely claim obstacle
-                        walkStepAcknowledged = true;
+                    // Synchronize stepCounter to the next turn boundary
+                    const remainder = stepCounter % stepsPerDirection;
+                    if (remainder !== 0) {
+                        stepCounter += (stepsPerDirection - remainder);
                     }
+
+                    // Invert diagonal axes on collision
+                    if (lastDispatchedWalkKey === 38 || lastDispatchedWalkKey === 'Up') diagonalVerticalKey = 40;
+                    else if (lastDispatchedWalkKey === 40 || lastDispatchedWalkKey === 'Down') diagonalVerticalKey = 38;
+                    else if (lastDispatchedWalkKey === 37 || lastDispatchedWalkKey === 'Left') diagonalHorizontalKey = 39;
+                    else if (lastDispatchedWalkKey === 39 || lastDispatchedWalkKey === 'Right') diagonalHorizontalKey = 37;
+                    else if (lastDispatchedWalkKey === 'Up-Right') {
+                        if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
+                        else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
+                        else { diagonalVerticalKey = 40; diagonalHorizontalKey = 37; }
+                    } else if (lastDispatchedWalkKey === 'Up-Left') {
+                        if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
+                        else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
+                        else { diagonalVerticalKey = 40; diagonalHorizontalKey = 39; }
+                    } else if (lastDispatchedWalkKey === 'Down-Right') {
+                        if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
+                        else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
+                        else { diagonalVerticalKey = 38; diagonalHorizontalKey = 37; }
+                    } else if (lastDispatchedWalkKey === 'Down-Left') {
+                        if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
+                        else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
+                        else { diagonalVerticalKey = 38; diagonalHorizontalKey = 39; }
+                    }
+
+                    console.log('[PokeFinder] Collision detected with key ' + lastDispatchedWalkKey + '! Consecutive: ' + consecutiveBlockedSteps);
+                    updateStatusUI('Obstacle! Evading...', '#ff9800');
+
+                    if (consecutiveBlockedSteps >= 6) {
+                        console.log('[PokeFinder] Trapped in maze! Reloading map to safe spawn...');
+                        consecutiveBlockedSteps = 0;
+                        blockedWalkKeys = {};
+                        location.reload();
+                        return;
+                    }
+                    
+                    walkStepAcknowledged = true; // Proceed to evade
+                } else {
+                    // Still waiting for network response. Do not dispatch another key yet!
+                    // Wait 5 seconds maximum for a response, then retry.
+                    if (!this.lastDispatchTime) this.lastDispatchTime = Date.now();
+                    if (Date.now() - this.lastDispatchTime > 5000) {
+                         console.log('[PokeFinder] Move timed out (5s). Network lag suspected. Retrying...');
+                         walkStepAcknowledged = true;
+                         this.lastDispatchTime = Date.now();
+                    }
+                    return;
                 }
             }
+            this.lastDispatchTime = Date.now();
 
             let key = getNextWalkKey();
             const nowTime = Date.now();

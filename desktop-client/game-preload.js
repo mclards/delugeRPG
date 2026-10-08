@@ -652,8 +652,12 @@ function scanForTargets() {
     }
 
     // 4. Tier 4: Special Sprite Variants (Generic Wild Pokemon)
-    // If user enabled special variants in Tab 1/Tab 2, catch any wild pokemon that has an allowed special variant!
-    if (findAnyVariant && detectedVariant !== 'normal') {
+    // Only active when generic variants hunting is enabled (presets: 'all', 'variants', 'shinies', or custom with variants).
+    // In species-restricted presets ('legendaries', 'megas', 'legend_megas'), generic wild Pokemon (e.g. Ghostly Indeedee, Chrome Rattata) are strictly IGNORED!
+    const isSpeciesRestricted = config.targetPreset === 'legendaries' || config.targetPreset === 'megas' || config.targetPreset === 'legend_megas';
+    const allowGenericVariants = findAnyVariant && !isSpeciesRestricted;
+
+    if (allowGenericVariants && detectedVariant !== 'normal') {
         if (allowedVariants.includes(detectedVariant)) {
             let specName = '';
             const match = textLower.match(new RegExp('\\b' + detectedVariant + '[- ]+([a-z0-9\\-\':]+)', 'i'));

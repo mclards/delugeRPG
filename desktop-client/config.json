@@ -24,7 +24,7 @@
     "autoCatch": false,
     "findLegendaries": true,
     "findMegasAndGigantamax": false,
-    "findAnySpecialVariant": true,
+    "findAnySpecialVariant": false,
     "enableLevelFilter": false,
     "levelFilterMode": "min",
     "levelFilterValue": 12,

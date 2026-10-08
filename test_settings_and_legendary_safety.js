@@ -46,9 +46,10 @@ const TARGETS = require('./desktop-client/targets');
 // Simulate the exact target scanning function from game-preload.js
 function simulateScanForTargets(encounterText, config) {
     const textLower = encounterText.trim().toLowerCase();
-    const findAnyVariant = config.findAnySpecialVariant !== false;
     const findMegas = config.findMegasAndGigantamax !== false;
     const findLegend = config.findLegendaries !== false;
+    const isSpeciesRestricted = config.targetPreset === 'legendaries' || config.targetPreset === 'megas' || config.targetPreset === 'legend_megas';
+    const findAnyVariant = (config.findAnySpecialVariant !== false) && !isSpeciesRestricted;
 
     const VARIANTS = ["shiny", "metallic", "ghostly", "dark", "shadow", "mirage", "chrome", "negative", "retro"];
     const LEGENDARY_LOWER = TARGETS.legendaries.map(l => l.toLowerCase());
@@ -123,7 +124,8 @@ function simulateScanForTargets(encounterText, config) {
 const legendPresetConfig = {
     findLegendaries: true,
     findMegasAndGigantamax: false,
-    findAnySpecialVariant: true,
+    findAnySpecialVariant: false,
+    targetPreset: 'legendaries',
     selectedVariants: ['Normal', 'Shiny', 'Chrome']
 };
 let res = simulateScanForTargets('Wild Rayquaza appeared! Level 50', legendPresetConfig);
@@ -137,6 +139,13 @@ assert.strictEqual(res.tier, 'legendary');
 // Common wild encounter must NOT halt
 res = simulateScanForTargets('Wild Rattata appeared! Level 4', legendPresetConfig);
 assert.strictEqual(res.halted, false, 'Normal Rattata must NOT halt the bot');
+
+// Non-legendary special variant (Ghostly Indeedee / Chrome Rattata) must NOT halt in legendaries preset!
+res = simulateScanForTargets('Wild Ghostly Indeedee appeared! Level 3', legendPresetConfig);
+assert.strictEqual(res.halted, false, 'Ghostly Indeedee must NOT halt in legendaries preset');
+
+res = simulateScanForTargets('Wild Chrome Rattata appeared! Level 10', legendPresetConfig);
+assert.strictEqual(res.halted, false, 'Chrome Rattata must NOT halt in legendaries preset');
 
 // TEST B: Shinies Preset - selectedVariants has ONLY ['Shiny'], NO 'Normal'
 // CRITICAL: Normal Rayquaza MUST STILL HALT THE BOT!

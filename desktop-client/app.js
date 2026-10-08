@@ -604,11 +604,11 @@ function updateTargetUI() {
 
   let presetKey = 'custom';
   if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'all';
-  else if (isLeg && !isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'legendaries';
-  else if (!isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'megas';
+  else if (isLeg && !isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'legendaries';
+  else if (!isLeg && isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'megas';
   else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) presetKey = 'shinies';
-  else if (isLeg && isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) presetKey = 'variants';
-  else if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'legend_megas';
+  else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) presetKey = 'variants';
+  else if (isLeg && isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'legend_megas';
 
   const pills = [
     { btn: presetAllBtn, key: 'all' },
@@ -635,19 +635,19 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
   let selectedVars = Object.values(variantMap);
 
   if (presetKey === 'legendaries') {
-    isLeg = true; isMega = false; isVar = true;
+    isLeg = true; isMega = false; isVar = false;
     selectedVars = Object.values(variantMap);
   } else if (presetKey === 'megas') {
-    isLeg = false; isMega = true; isVar = true;
+    isLeg = false; isMega = true; isVar = false;
     selectedVars = Object.values(variantMap);
   } else if (presetKey === 'variants') {
-    isLeg = true; isMega = true; isVar = true;
+    isLeg = false; isMega = false; isVar = true;
     selectedVars = Object.values(variantMap).filter(v => v !== 'Normal');
   } else if (presetKey === 'shinies') {
     isLeg = true; isMega = true; isVar = true;
     selectedVars = ['Shiny'];
   } else if (presetKey === 'legend_megas') {
-    isLeg = true; isMega = true; isVar = true;
+    isLeg = true; isMega = true; isVar = false;
     selectedVars = Object.values(variantMap);
   } else if (presetKey === 'all') {
     isLeg = true; isMega = true; isVar = true;
@@ -665,7 +665,7 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
   variantIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
-      el.checked = isVar && selectedVars.includes(variantMap[id]);
+      el.checked = selectedVars.includes(variantMap[id]);
     }
   });
 
@@ -1749,12 +1749,15 @@ if (saveTargetsBtn) {
 
     let preset = 'custom';
     if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'all';
-    else if (isLeg && !isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'legendaries';
-    else if (!isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'megas';
+    else if (isLeg && !isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'legendaries';
+    else if (!isLeg && isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'megas';
     else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) preset = 'shinies';
-    else if (isLeg && isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) preset = 'variants';
-    else if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'legend_megas';
+    else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) preset = 'variants';
+    else if (isLeg && isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'legend_megas';
 
+    // In species-restricted presets (legendaries, megas, legend_megas), generic wild variants are never enabled
+    const allowGenericVar = (preset === 'all' || preset === 'variants' || preset === 'shinies' || (preset === 'custom' && isVar && !isLeg && !isMega));
+    config.settings.findAnySpecialVariant = allowGenericVar;
     config.settings.targetPreset = preset;
     saveLocalConfig();
     updateTargetUI();

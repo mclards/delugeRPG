@@ -396,7 +396,12 @@
         if (targetObserver && document.body) {
             try {
                 targetObserver.disconnect();
-                targetObserver.observe(document.body, { childList: true, subtree: true });
+                targetObserver.observe(document.body, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['class', 'style', 'disabled', 'aria-disabled', 'aria-hidden']
+                });
             } catch (_) {}
         }
     }
@@ -588,39 +593,74 @@
         return null;
     }
 
+    const ALL_DIRECTIONS_8 = ['Left', 'Up', 'Right', 'Down', 'Up-Left', 'Up-Right', 'Down-Right', 'Down-Left'];
+    const CARDINAL_DIRECTIONS = ['Left', 'Up', 'Right', 'Down'];
+
+    const OPPOSITES_8 = {
+        'Left': 'Right', 'Right': 'Left', 'Up': 'Down', 'Down': 'Up',
+        'Up-Left': 'Down-Right', 'Down-Right': 'Up-Left', 'Up-Right': 'Down-Left', 'Down-Left': 'Up-Right',
+        37: 39, 39: 37, 38: 40, 40: 38
+    };
+
+    const PERPENDICULARS_8 = {
+        'Left': ['Up', 'Down'], 'Right': ['Up', 'Down'], 'Up': ['Left', 'Right'], 'Down': ['Left', 'Right'],
+        'Up-Left': ['Up-Right', 'Down-Left'], 'Up-Right': ['Up-Left', 'Down-Right'],
+        'Down-Left': ['Up-Left', 'Down-Right'], 'Down-Right': ['Up-Right', 'Down-Left'],
+        37: [38, 40], 39: [38, 40], 38: [37, 39], 40: [37, 39]
+    };
+
+    const ADJACENT_45_8 = {
+        'Up': ['Up-Left', 'Up-Right'],
+        'Up-Right': ['Up', 'Right'],
+        'Right': ['Up-Right', 'Down-Right'],
+        'Down-Right': ['Right', 'Down'],
+        'Down': ['Down-Right', 'Down-Left'],
+        'Down-Left': ['Down', 'Left'],
+        'Left': ['Down-Left', 'Up-Left'],
+        'Up-Left': ['Left', 'Up'],
+        38: ['Up-Left', 'Up-Right'],
+        39: ['Up-Right', 'Down-Right'],
+        40: ['Down-Right', 'Down-Left'],
+        37: ['Down-Left', 'Up-Left']
+    };
+
+    const SHARED_COMPONENTS_8 = {
+        'Up': ['Up', 'Up-Left', 'Up-Right', 38],
+        'Down': ['Down', 'Down-Left', 'Down-Right', 40],
+        'Left': ['Left', 'Up-Left', 'Down-Left', 37],
+        'Right': ['Right', 'Up-Right', 'Down-Right', 39],
+        38: ['Up', 'Up-Left', 'Up-Right', 38],
+        40: ['Down', 'Down-Left', 'Down-Right', 40],
+        37: ['Left', 'Up-Left', 'Down-Left', 37],
+        39: ['Right', 'Up-Right', 'Down-Right', 39],
+        'Up-Left': ['Up-Left'],
+        'Up-Right': ['Up-Right'],
+        'Down-Left': ['Down-Left'],
+        'Down-Right': ['Down-Right']
+    };
+
+    function normalizeKey(k) {
+        if (k === 37) return 'Left';
+        if (k === 38) return 'Up';
+        if (k === 39) return 'Right';
+        if (k === 40) return 'Down';
+        return k || 'Right';
+    }
+
     function chooseEvadeWalkKey(blockedKey) {
-        const keys = [37, 38, 39, 40]; // 37=Left, 38=Up, 39=Right, 40=Down
-        const opposites = {
-            37: 39, 39: 37, 38: 40, 40: 38,
-            'Left': 'Right', 'Right': 'Left', 'Up': 'Down', 'Down': 'Up',
-            'Up-Left': 'Down-Right', 'Down-Right': 'Up-Left', 'Up-Right': 'Down-Left', 'Down-Left': 'Up-Right'
-        };
-        const perpendiculars = {
-            37: [38, 40],
-            39: [38, 40],
-            38: [37, 39],
-            40: [37, 39],
-            'Left': ['Up', 'Down'],
-            'Right': ['Up', 'Down'],
-            'Up': ['Left', 'Right'],
-            'Down': ['Left', 'Right'],
-            'Up-Left': ['Up-Right', 'Down-Left'],
-            'Up-Right': ['Up-Left', 'Down-Right'],
-            'Down-Left': ['Up-Left', 'Down-Right'],
-            'Down-Right': ['Up-Right', 'Down-Left']
-        };
-
         const now = Date.now();
-
-        // Expire old dead ends
         for (const k in deadEndCooldowns) {
             if (now > deadEndCooldowns[k]) delete deadEndCooldowns[k];
         }
 
-        // 1. Prioritize unblocked perpendicular directions that are NOT recently visited dead ends
-        const perpList = perpendiculars[blockedKey] || [38, 40, 37, 39];
+        const normBlocked = normalizeKey(blockedKey);
+        const excluded = SHARED_COMPONENTS_8[normBlocked] || [normBlocked];
+
+        // 1. Prioritize unblocked perpendicular directions (gliding parallel along obstacle surface)
+        const perpList = PERPENDICULARS_8[normBlocked] || ['Up', 'Down', 'Left', 'Right'];
         const unblockedFreshPerp = perpList.filter(function(k) {
-            return (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) &&
+            return !excluded.includes(k) &&
+                   (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) &&
                    !isNavButtonBlocked(k) &&
                    (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now);
         });
@@ -631,25 +671,89 @@
 
         // Fallback to any unblocked perpendicular
         const anyUnblockedPerp = perpList.filter(function(k) {
-            return (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) && !isNavButtonBlocked(k);
+            return !excluded.includes(k) &&
+                   (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) &&
+                   !isNavButtonBlocked(k);
         });
         if (anyUnblockedPerp.length > 0) {
             return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
         }
 
-        // 2. Reversing (180-degree back-out) ONLY IF perpendiculars are blocked (true dead-end corridor)
-        const opp = opposites[blockedKey] || 37;
-        if ((!blockedWalkKeys[opp] || blockedWalkKeys[opp] <= now) && !isNavButtonBlocked(opp)) {
-            deadEndCooldowns[blockedKey] = now + 10000;
+        // 2. Check retreating diagonal or cardinal angles (moving away from obstacle surface)
+        const opp = OPPOSITES_8[normBlocked] || 'Down';
+        const retreatDiagonals = ADJACENT_45_8[opp] || [];
+        const unblockedRetreat = retreatDiagonals.filter(function(k) {
+            return !excluded.includes(k) &&
+                   (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) &&
+                   !isNavButtonBlocked(k) &&
+                   (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now);
+        });
+        if (unblockedRetreat.length > 0) {
+            return unblockedRetreat[Math.floor(Math.random() * unblockedRetreat.length)];
+        }
+
+        // 3. Reversing (180-degree back-out) into opposite direction
+        if (!excluded.includes(opp) && (!blockedWalkKeys[opp] || blockedWalkKeys[opp] <= now) && !isNavButtonBlocked(opp)) {
+            deadEndCooldowns[normBlocked] = now + 10000;
             return opp;
         }
 
-        // 3. Last resort fallback
-        const anyOther = keys.filter(function(k) { return k !== blockedKey && !isNavButtonBlocked(k); });
-        if (anyOther.length > 0) {
-            return anyOther[Math.floor(Math.random() * anyOther.length)];
+        // 4. Any unblocked direction from all 8 directions
+        const anyUnblocked = ALL_DIRECTIONS_8.filter(function(k) {
+            return !excluded.includes(k) && (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) && !isNavButtonBlocked(k);
+        });
+        if (anyUnblocked.length > 0) {
+            return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
         }
-        return opposites[blockedKey] || 37;
+
+        // 5. Absolute fallback
+        return opp;
+    }
+
+    function chooseWanderWalkKey(currentKey) {
+        const now = Date.now();
+        const normCurrent = normalizeKey(currentKey);
+
+        const unblocked = ALL_DIRECTIONS_8.filter(function(d) {
+            return (!blockedWalkKeys[d] || blockedWalkKeys[d] <= now) &&
+                   !isNavButtonBlocked(d) &&
+                   (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now);
+        });
+
+        if (unblocked.length === 0) {
+            const anyUnblocked = ALL_DIRECTIONS_8.filter(function(d) {
+                return (!blockedWalkKeys[d] || blockedWalkKeys[d] <= now) && !isNavButtonBlocked(d);
+            });
+            if (anyUnblocked.length > 0) {
+                return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
+            }
+            return chooseEvadeWalkKey(normCurrent);
+        }
+
+        const sameDir = normCurrent;
+        const adjList = ADJACENT_45_8[normCurrent] || [];
+        const perpList = PERPENDICULARS_8[normCurrent] || [];
+        const opp = OPPOSITES_8[normCurrent];
+
+        const pool = [];
+        unblocked.forEach(function(d) {
+            if (d === sameDir) {
+                pool.push(d, d, d); // 30% maintain heading
+            } else if (adjList.indexOf(d) !== -1) {
+                pool.push(d, d, d, d); // 40% gentle 45-deg veer
+            } else if (perpList.indexOf(d) !== -1) {
+                pool.push(d, d); // 20% 90-deg turn
+            } else if (d !== opp) {
+                pool.push(d); // 10% wider angle
+            } else if (unblocked.length === 1) {
+                pool.push(d);
+            }
+        });
+
+        if (pool.length > 0) {
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+        return unblocked[Math.floor(Math.random() * unblocked.length)];
     }
 
     function getNextWalkKey() {
@@ -768,11 +872,12 @@
         }
 
         if (walkMode === "wander") {
-            const perpList = (currentWanderKey === 37 || currentWanderKey === 39) ? [38, 40] : [37, 39];
+            const normKey = normalizeKey(currentWanderKey);
+            const perpList = PERPENDICULARS_8[normKey] || ['Up', 'Down'];
             const bothPerpsBlocked = perpList.every(function(k) {
                 return (blockedWalkKeys[k] && blockedWalkKeys[k] > now) || isNavButtonBlocked(k);
             });
-            const forwardIsBlocked = (blockedWalkKeys[currentWanderKey] && blockedWalkKeys[currentWanderKey] > now) || isNavButtonBlocked(currentWanderKey);
+            const forwardIsBlocked = (blockedWalkKeys[normKey] && blockedWalkKeys[normKey] > now) || isNavButtonBlocked(normKey) || (blockedWalkKeys[currentWanderKey] && blockedWalkKeys[currentWanderKey] > now) || isNavButtonBlocked(currentWanderKey);
 
             // If inside a straight corridor (both side walls blocked) and forward is clear:
             // PRESERVE MOMENTUM! Never turn around in the middle of a hallway!
@@ -781,8 +886,16 @@
                 return currentWanderKey;
             }
 
-            if (wanderStepsRemaining <= 0 || forwardIsBlocked) {
-                currentWanderKey = chooseEvadeWalkKey(currentWanderKey);
+            // If forward is blocked: trigger immediate zero-latency evasion!
+            if (forwardIsBlocked) {
+                currentWanderKey = chooseEvadeWalkKey(normKey);
+                wanderStepsRemaining = stepsPerDirection - 1;
+                return currentWanderKey;
+            }
+
+            // Normal turn condition: steps expired at an open junction or room
+            if (wanderStepsRemaining <= 0) {
+                currentWanderKey = chooseWanderWalkKey(normKey);
                 wanderStepsRemaining = stepsPerDirection - 1;
             } else {
                 wanderStepsRemaining--;
@@ -979,7 +1092,14 @@
                     // Flag collision if position not moved, text unchanged, or nav button disabled
                     if ((curPos && lastPlayerPosSnapshot) || isNavButtonBlocked(lastDispatchedWalkKey)) {
                         consecutiveBlockedSteps++;
-                        blockedWalkKeys[lastDispatchedWalkKey] = Date.now() + 8000;
+                        const nowCollision = Date.now();
+                        blockedWalkKeys[lastDispatchedWalkKey] = nowCollision + 8000;
+                        const normColl = normalizeKey(lastDispatchedWalkKey);
+                        blockedWalkKeys[normColl] = nowCollision + 8000;
+                        const sharedColl = SHARED_COMPONENTS_8[normColl] || [normColl];
+                        sharedColl.forEach(function(sc) {
+                            blockedWalkKeys[sc] = nowCollision + 8000;
+                        });
                         wanderStepsRemaining = 0;
 
                         // Synchronize stepCounter to the next turn boundary
@@ -1031,13 +1151,14 @@
             let key = getNextWalkKey();
             const nowTime = Date.now();
             // Pre-dispatch Zero-Collision Guard: avoid bumping known blocked direction
-            if ((blockedWalkKeys[key] && blockedWalkKeys[key] > nowTime) || isNavButtonBlocked(key)) {
-                const allowHumanMisstep = consecutiveBlockedSteps === 0 && Math.random() < 0.015;
-                if (!allowHumanMisstep) {
-                    const evaded = chooseEvadeWalkKey(key);
-                    if (evaded && evaded !== key) {
-                        key = evaded;
-                    }
+            const normKeyCheck = normalizeKey(key);
+            if ((blockedWalkKeys[key] && blockedWalkKeys[key] > nowTime) ||
+                (blockedWalkKeys[normKeyCheck] && blockedWalkKeys[normKeyCheck] > nowTime) ||
+                isNavButtonBlocked(key) || isNavButtonBlocked(normKeyCheck)) {
+                const evaded = chooseEvadeWalkKey(key);
+                if (evaded && evaded !== key) {
+                    key = evaded;
+                    currentWanderKey = evaded;
                 }
             }
 

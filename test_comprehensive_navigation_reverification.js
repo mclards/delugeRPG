@@ -42,6 +42,28 @@ const PERPENDICULARS_8 = {
   'Down-Right': ['Up-Right', 'Down-Left']
 };
 
+const ADJACENT_45_8 = {
+  'Up': ['Up-Left', 'Up-Right'],
+  'Up-Right': ['Up', 'Right'],
+  'Right': ['Up-Right', 'Down-Right'],
+  'Down-Right': ['Right', 'Down'],
+  'Down': ['Down-Right', 'Down-Left'],
+  'Down-Left': ['Down', 'Left'],
+  'Left': ['Down-Left', 'Up-Left'],
+  'Up-Left': ['Left', 'Up']
+};
+
+const SHARED_COMPONENTS_8 = {
+  'Up': ['Up', 'Up-Left', 'Up-Right'],
+  'Down': ['Down', 'Down-Left', 'Down-Right'],
+  'Left': ['Left', 'Up-Left', 'Down-Left'],
+  'Right': ['Right', 'Up-Right', 'Down-Right'],
+  'Up-Left': ['Up-Left'],
+  'Up-Right': ['Up-Right'],
+  'Down-Left': ['Down-Left'],
+  'Down-Right': ['Down-Right']
+};
+
 // Check every direction has a symmetrical opposite
 ALL_DIRECTIONS_8.forEach(dir => {
   const opp = OPPOSITES_8[dir];
@@ -60,6 +82,21 @@ ALL_DIRECTIONS_8.forEach(dir => {
   });
 });
 console.log('  [PASS] 8-Way Perpendiculars are 100% orthogonal and distinct.');
+
+// Check adjacent 45-degree directions
+ALL_DIRECTIONS_8.forEach(dir => {
+  const adjs = ADJACENT_45_8[dir];
+  assert(Array.isArray(adjs) && adjs.length === 2, `Direction ${dir} must have exactly 2 adjacent 45-deg angles`);
+});
+console.log('  [PASS] 8-Way 45-degree Adjacent angles verified.');
+
+// Check shared components
+['Up', 'Down', 'Left', 'Right'].forEach(cardinal => {
+  const shared = SHARED_COMPONENTS_8[cardinal];
+  assert(shared.includes(cardinal), `Shared components of ${cardinal} must include itself`);
+  assert.strictEqual(shared.length, 3, `Cardinal ${cardinal} must share components with exactly 2 diagonals`);
+});
+console.log('  [PASS] Shared Wall Component exclusions verified.');
 
 // -------------------------------------------------------------
 // PART 2: DELUGERPG GRID MAP SIMULATOR
@@ -180,38 +217,83 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
       if (now > deadEndCooldowns[k]) delete deadEndCooldowns[k];
     }
 
+    const excluded = SHARED_COMPONENTS_8[blockedDir] || [blockedDir];
+
+    // 1. Prioritize unblocked perpendicular directions (gliding parallel along obstacle surface)
     const perpList = PERPENDICULARS_8[blockedDir] || ['Up', 'Down', 'Left', 'Right'];
-    const unblockedFreshPerp = perpList.filter(k => (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
+    const unblockedFreshPerp = perpList.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
     if (unblockedFreshPerp.length > 0) {
       return unblockedFreshPerp[Math.floor(Math.random() * unblockedFreshPerp.length)];
     }
 
-    const anyUnblockedPerp = perpList.filter(k => !blockedDirections[k] || blockedDirections[k] <= now);
+    // Fallback to any unblocked perpendicular
+    const anyUnblockedPerp = perpList.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now));
     if (anyUnblockedPerp.length > 0) {
       return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
     }
 
-    const flanks = blockedDir === 'Up' ? ['Up-Left', 'Up-Right'] :
-                   blockedDir === 'Down' ? ['Down-Left', 'Down-Right'] :
-                   blockedDir === 'Left' ? ['Up-Left', 'Down-Left'] :
-                   blockedDir === 'Right' ? ['Up-Right', 'Down-Right'] : [];
-    const unblockedFlanks = flanks.filter(k => (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
-    if (unblockedFlanks.length > 0) {
-      return unblockedFlanks[Math.floor(Math.random() * unblockedFlanks.length)];
+    // 2. Check retreating diagonal or cardinal angles (moving away from obstacle surface)
+    const opp = OPPOSITES_8[blockedDir] || 'Down';
+    const retreatDiagonals = ADJACENT_45_8[opp] || [];
+    const unblockedRetreat = retreatDiagonals.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
+    if (unblockedRetreat.length > 0) {
+      return unblockedRetreat[Math.floor(Math.random() * unblockedRetreat.length)];
     }
 
-    const opp = OPPOSITES_8[blockedDir] || 'Down';
-    if (!blockedDirections[opp] || blockedDirections[opp] <= now) {
+    // 3. Reversing (180-degree back-out) into opposite direction
+    if (!excluded.includes(opp) && (!blockedDirections[opp] || blockedDirections[opp] <= now)) {
       deadEndCooldowns[blockedDir] = now + 10000;
       return opp;
     }
 
-    const anyUnblocked = ALL_DIRECTIONS_8.filter(k => k !== blockedDir && (!blockedDirections[k] || blockedDirections[k] <= now));
+    // 4. Any unblocked direction from all 8 directions
+    const anyUnblocked = ALL_DIRECTIONS_8.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now));
     if (anyUnblocked.length > 0) {
       return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
     }
 
+    // 5. Absolute fallback
     return opp;
+  }
+
+  function chooseWanderDirection(currentDir) {
+    const now = Date.now();
+    currentDir = currentDir || 'Right';
+
+    const unblocked = ALL_DIRECTIONS_8.filter(d => (!blockedDirections[d] || blockedDirections[d] <= now) && (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now));
+
+    if (unblocked.length === 0) {
+      const anyUnblocked = ALL_DIRECTIONS_8.filter(d => !blockedDirections[d] || blockedDirections[d] <= now);
+      if (anyUnblocked.length > 0) {
+        return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
+      }
+      return chooseEvadeDirection(currentDir);
+    }
+
+    const sameDir = currentDir;
+    const adjList = ADJACENT_45_8[currentDir] || [];
+    const perpList = PERPENDICULARS_8[currentDir] || [];
+    const opp = OPPOSITES_8[currentDir];
+
+    const pool = [];
+    unblocked.forEach(d => {
+      if (d === sameDir) {
+        pool.push(d, d, d); // 30% maintain heading
+      } else if (adjList.includes(d)) {
+        pool.push(d, d, d, d); // 40% gentle 45-deg veer
+      } else if (perpList.includes(d)) {
+        pool.push(d, d); // 20% 90-deg turn
+      } else if (d !== opp) {
+        pool.push(d); // 10% wider angle
+      } else if (unblocked.length === 1) {
+        pool.push(d);
+      }
+    });
+
+    if (pool.length > 0) {
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+    return unblocked[Math.floor(Math.random() * unblocked.length)];
   }
 
   function getNextKey() {
@@ -316,7 +398,7 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
       return candidate;
     }
 
-    // Wander Mode
+    // Wander Mode with 8-Direction Roaming, Corridor Momentum, and Anti-Looping
     const maxSteps = stepsPerDir;
     const perpList = PERPENDICULARS_8[currentDirectionKey] || ['Up', 'Down'];
     const bothPerpsBlocked = perpList.every(k => blockedDirections[k] && blockedDirections[k] > now);
@@ -327,8 +409,15 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
       return currentDirectionKey;
     }
 
-    if (wanderStepsLeft <= 0 || forwardIsBlocked) {
+    if (forwardIsBlocked) {
       currentDirectionKey = chooseEvadeDirection(currentDirectionKey);
+      const stepsToTake = maxSteps > 1 ? (Math.floor(Math.random() * maxSteps) + 1) : 1;
+      wanderStepsLeft = stepsToTake - 1;
+      return currentDirectionKey;
+    }
+
+    if (wanderStepsLeft <= 0) {
+      currentDirectionKey = chooseWanderDirection(currentDirectionKey);
       const stepsToTake = maxSteps > 1 ? (Math.floor(Math.random() * maxSteps) + 1) : 1;
       wanderStepsLeft = stepsToTake - 1;
     } else {
@@ -338,7 +427,12 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
   }
 
   function handleCollision(dir) {
-    blockedDirections[dir] = Date.now() + 3500;
+    const nowColl = Date.now();
+    blockedDirections[dir] = nowColl + 3500;
+    const shared = SHARED_COMPONENTS_8[dir] || [dir];
+    shared.forEach(d => {
+      blockedDirections[d] = nowColl + 3500;
+    });
     consecutiveBlockedCount++;
     wanderStepsLeft = 0;
 
@@ -388,14 +482,12 @@ function createNavigationEngine(mode, stepsPerDir = 3) {
     let key = getNextKey();
     const now = Date.now();
 
-    // Pre-dispatch Guard
+    // Strict Pre-dispatch Zero-Collision Guard
     if (blockedDirections[key] && blockedDirections[key] > now) {
-      const allowHumanMisstep = consecutiveBlockedCount === 0 && Math.random() < 0.015;
-      if (!allowHumanMisstep) {
-        const evaded = chooseEvadeDirection(key);
-        if (evaded && evaded !== key) {
-          key = evaded;
-        }
+      const evaded = chooseEvadeDirection(key);
+      if (evaded && evaded !== key) {
+        key = evaded;
+        currentDirectionKey = evaded;
       }
     }
 
@@ -517,6 +609,64 @@ const squareCollisionRate = squareCollisions / 1000;
 console.log(`  Square Patrol 1,000 steps: ${1000 - squareCollisions} clean, ${squareCollisions} collisions (Rate: ${(squareCollisionRate * 100).toFixed(2)}%)`);
 assert(squareCollisionRate <= 0.02, `Square patrol collision rate must be <= 2%`);
 console.log('  [PASS] Square patrol mode verified.');
+
+// SIMULATION 6: Warehouse Map Simulation (Model of media_1791476349101_63819e50.png)
+// Tests: 8-way Wander with Diagonals, Zero Consecutive Collisions, and Shelf Navigation
+console.log('\n--- Simulation 6: Realistic Warehouse Map (2,000 steps) ---');
+const warehouseWalls = [];
+// Horizontal shelving partitions
+for (let x = 2; x <= 12; x++) warehouseWalls.push([x, 4]);
+for (let x = 6; x <= 18; x++) warehouseWalls.push([x, 9]);
+for (let x = 3; x <= 15; x++) warehouseWalls.push([x, 14]);
+// Vertical column partitions
+for (let y = 2; y <= 8; y++) warehouseWalls.push([14, y]);
+for (let y = 10; y <= 16; y++) warehouseWalls.push([8, y]);
+// Barrel clusters & rubble
+warehouseWalls.push([17, 12], [18, 12], [17, 13], [18, 13], [17, 14], [18, 14]);
+warehouseWalls.push([2, 16], [3, 16], [2, 17], [3, 17]);
+
+const simWarehouse = new DelugeMapSimulator(25, 20, warehouseWalls);
+simWarehouse.setPlayer(10, 6); // Start in warehouse open hallway
+
+const engineWarehouse = createNavigationEngine('wander', 3);
+let warehouseCollisions = 0;
+let consecutiveCollisions = 0;
+let maxConsecutiveCollisions = 0;
+const warehouseMoves = {};
+
+for (let i = 0; i < 2000; i++) {
+  const res = engineWarehouse.dispatchStep(simWarehouse);
+  warehouseMoves[res.dir] = (warehouseMoves[res.dir] || 0) + 1;
+  if (res.collision) {
+    warehouseCollisions++;
+    consecutiveCollisions++;
+    if (consecutiveCollisions > maxConsecutiveCollisions) {
+      maxConsecutiveCollisions = consecutiveCollisions;
+    }
+  } else {
+    consecutiveCollisions = 0;
+  }
+}
+
+const warehouseCollisionRate = warehouseCollisions / 2000;
+console.log(`  Warehouse 2,000 steps: ${2000 - warehouseCollisions} clean, ${warehouseCollisions} collisions (Rate: ${(warehouseCollisionRate * 100).toFixed(2)}%)`);
+console.log('  Max Consecutive Collisions:', maxConsecutiveCollisions);
+console.log('  Move Distribution:', JSON.stringify(warehouseMoves));
+
+// Strict Invariants:
+// 1. Max consecutive collisions MUST be <= 1 (ZERO repeated ramming twice or thrice in a row!)
+assert(maxConsecutiveCollisions <= 1, `Max consecutive collisions must be <= 1 (got ${maxConsecutiveCollisions})`);
+console.log('  [PASS] Zero repeated wall ramming (max consecutive collisions <= 1).');
+
+// 2. Diagonals MUST be actively used in Wander mode
+const diagonalUsedCount = (warehouseMoves['Up-Left'] || 0) + (warehouseMoves['Up-Right'] || 0) +
+                          (warehouseMoves['Down-Left'] || 0) + (warehouseMoves['Down-Right'] || 0);
+assert(diagonalUsedCount > 100, `Wander mode must actively utilize diagonals (got ${diagonalUsedCount} diagonal steps)`);
+console.log(`  [PASS] Wander mode actively traversed in 8 directions (${diagonalUsedCount} diagonal steps / 2000 total).`);
+
+// 3. Collision rate must be bounded
+assert(warehouseCollisionRate <= 0.02, `Warehouse collision rate must be <= 2%`);
+console.log('  [PASS] Warehouse map traversed cleanly without deadlocks.');
 
 // -------------------------------------------------------------
 // PART 4: STRICT REVERIFICATION OF SOURCE CODE FILES

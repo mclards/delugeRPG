@@ -914,11 +914,27 @@ const PERPENDICULARS_8 = {
   'Down-Right': ['Up-Right', 'Down-Left']
 };
 
-const FLANK_DIAGONALS_FOR_CARDINAL = {
+const ADJACENT_45_8 = {
   'Up': ['Up-Left', 'Up-Right'],
-  'Down': ['Down-Left', 'Down-Right'],
-  'Left': ['Up-Left', 'Down-Left'],
-  'Right': ['Up-Right', 'Down-Right']
+  'Up-Right': ['Up', 'Right'],
+  'Right': ['Up-Right', 'Down-Right'],
+  'Down-Right': ['Right', 'Down'],
+  'Down': ['Down-Right', 'Down-Left'],
+  'Down-Left': ['Down', 'Left'],
+  'Left': ['Down-Left', 'Up-Left'],
+  'Up-Left': ['Left', 'Up']
+};
+
+// Component sharing: if a direction hits an obstacle, directions sharing that component will also collide
+const SHARED_COMPONENTS_8 = {
+  'Up': ['Up', 'Up-Left', 'Up-Right'],
+  'Down': ['Down', 'Down-Left', 'Down-Right'],
+  'Left': ['Left', 'Up-Left', 'Down-Left'],
+  'Right': ['Right', 'Up-Right', 'Down-Right'],
+  'Up-Left': ['Up-Left'],
+  'Up-Right': ['Up-Right'],
+  'Down-Left': ['Down-Left'],
+  'Down-Right': ['Down-Right']
 };
 
 const deadEndCooldowns = {};
@@ -946,42 +962,86 @@ function chooseEvadeDirection(blockedDir) {
     if (now > deadEndCooldowns[k]) delete deadEndCooldowns[k];
   }
 
-  // 1. Prioritize unblocked perpendicular directions that are NOT recently visited dead ends
+  // Component conflict exclusion: never evade into a direction sharing the blocked wall component!
+  const excluded = SHARED_COMPONENTS_8[blockedDir] || [blockedDir];
+
+  // 1. Prioritize unblocked perpendicular directions (gliding parallel along obstacle surface)
   const perpList = PERPENDICULARS_8[blockedDir] || ['Up', 'Down', 'Left', 'Right'];
-  const unblockedFreshPerp = perpList.filter(k => (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
+  const unblockedFreshPerp = perpList.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
   if (unblockedFreshPerp.length > 0) {
     return unblockedFreshPerp[Math.floor(Math.random() * unblockedFreshPerp.length)];
   }
 
   // Fallback to any unblocked perpendicular
-  const anyUnblockedPerp = perpList.filter(k => !blockedDirections[k] || blockedDirections[k] <= now);
+  const anyUnblockedPerp = perpList.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now));
   if (anyUnblockedPerp.length > 0) {
     return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
   }
 
-  // 2. Check 45-degree diagonal flanks if blockedDir is cardinal
-  const flanks = FLANK_DIAGONALS_FOR_CARDINAL[blockedDir] || [];
-  const unblockedFlanks = flanks.filter(k => (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
-  if (unblockedFlanks.length > 0) {
-    return unblockedFlanks[Math.floor(Math.random() * unblockedFlanks.length)];
+  // 2. Check retreating diagonal or cardinal angles (moving away from obstacle surface)
+  const opp = OPPOSITES_8[blockedDir] || 'Down';
+  const retreatDiagonals = ADJACENT_45_8[opp] || [];
+  const unblockedRetreat = retreatDiagonals.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
+  if (unblockedRetreat.length > 0) {
+    return unblockedRetreat[Math.floor(Math.random() * unblockedRetreat.length)];
   }
 
-  // 3. Reversing (180-degree back-out) ONLY IF perpendiculars are blocked (true dead-end corridor)
-  const opp = OPPOSITES_8[blockedDir] || 'Down';
-  if (!blockedDirections[opp] || blockedDirections[opp] <= now) {
+  // 3. Reversing (180-degree back-out) into opposite direction
+  if (!excluded.includes(opp) && (!blockedDirections[opp] || blockedDirections[opp] <= now)) {
     deadEndCooldowns[blockedDir] = now + 10000;
     return opp;
   }
 
-  // 4. Any unblocked direction from all 8 directions
-  const anyUnblocked = ALL_DIRECTIONS_8.filter(k => k !== blockedDir && (!blockedDirections[k] || blockedDirections[k] <= now));
+  // 4. Any unblocked direction from all 8 directions (excluding shared component)
+  const anyUnblocked = ALL_DIRECTIONS_8.filter(k => !excluded.includes(k) && (!blockedDirections[k] || blockedDirections[k] <= now));
   if (anyUnblocked.length > 0) {
     return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
   }
 
-  // 5. Absolute fallback
-  const anyOther = CARDINAL_DIRECTIONS.filter(k => k !== blockedDir);
-  return anyOther[Math.floor(Math.random() * anyOther.length)] || 'Down';
+  // 5. Absolute fallback if enclosed on 3 sides: pick opposite
+  return opp;
+}
+
+function chooseWanderDirection(currentDir) {
+  const now = Date.now();
+  currentDir = currentDir || 'Right';
+
+  // Gather unblocked candidates from all 8 directions
+  const unblocked = ALL_DIRECTIONS_8.filter(d => (!blockedDirections[d] || blockedDirections[d] <= now) && (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now));
+
+  if (unblocked.length === 0) {
+    const anyUnblocked = ALL_DIRECTIONS_8.filter(d => !blockedDirections[d] || blockedDirections[d] <= now);
+    if (anyUnblocked.length > 0) {
+      return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
+    }
+    return chooseEvadeDirection(currentDir);
+  }
+
+  // Smooth human-like wandering across open maps in all 8 directions
+  const sameDir = currentDir;
+  const adjList = ADJACENT_45_8[currentDir] || [];
+  const perpList = PERPENDICULARS_8[currentDir] || [];
+  const opp = OPPOSITES_8[currentDir];
+
+  const pool = [];
+  unblocked.forEach(d => {
+    if (d === sameDir) {
+      pool.push(d, d, d); // 30% weight: maintain heading
+    } else if (adjList.includes(d)) {
+      pool.push(d, d, d, d); // 40% weight: gentle 45-deg veer into diagonal or cardinal
+    } else if (perpList.includes(d)) {
+      pool.push(d, d); // 20% weight: 90-deg turn
+    } else if (d !== opp) {
+      pool.push(d); // 10% weight: wider angle
+    } else if (unblocked.length === 1) {
+      pool.push(d); // Only reverse if cornered
+    }
+  });
+
+  if (pool.length > 0) {
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  return unblocked[Math.floor(Math.random() * unblocked.length)];
 }
 
 function getNextKey() {
@@ -1103,7 +1163,7 @@ function getNextKey() {
     return candidate;
   }
 
-  // Mode: Wander with Corridor Momentum & Anti-Ping-Pong
+  // Mode: Wander with 8-Way Roaming, Corridor Momentum, and Anti-Looping
   const maxSteps = config.settings.stepsPerDirection || 1;
   const perpList = PERPENDICULARS_8[currentDirectionKey] || ['Up', 'Down'];
   const bothPerpsBlocked = perpList.every(k => blockedDirections[k] && blockedDirections[k] > now);
@@ -1116,9 +1176,17 @@ function getNextKey() {
     return currentDirectionKey;
   }
 
-  // Normal turn condition: forward is blocked OR steps expired at an open junction
-  if (wanderStepsLeft <= 0 || forwardIsBlocked) {
+  // If forward is blocked: trigger immediate zero-latency evasion!
+  if (forwardIsBlocked) {
     currentDirectionKey = chooseEvadeDirection(currentDirectionKey);
+    const stepsToTake = maxSteps > 1 ? (Math.floor(Math.random() * maxSteps) + 1) : 1;
+    wanderStepsLeft = stepsToTake - 1;
+    return currentDirectionKey;
+  }
+
+  // Normal turn condition: steps expired at an open junction or room
+  if (wanderStepsLeft <= 0) {
+    currentDirectionKey = chooseWanderDirection(currentDirectionKey);
     const stepsToTake = maxSteps > 1 ? (Math.floor(Math.random() * maxSteps) + 1) : 1;
     wanderStepsLeft = stepsToTake - 1;
   } else {
@@ -1151,12 +1219,10 @@ function sendKeyStep(keyName) {
   const now = Date.now();
   // Pre-dispatch Zero-Collision Guard: Never hit a direction that is currently known to be blocked
   if (blockedDirections[keyName] && blockedDirections[keyName] > now) {
-    const allowHumanMisstep = consecutiveBlockedCount === 0 && Math.random() < 0.015;
-    if (!allowHumanMisstep) {
-      const evaded = chooseEvadeDirection(keyName);
-      if (evaded && evaded !== keyName) {
-        keyName = evaded;
-      }
+    const evaded = chooseEvadeDirection(keyName);
+    if (evaded && evaded !== keyName) {
+      keyName = evaded;
+      currentDirectionKey = evaded;
     }
   }
 
@@ -1304,8 +1370,15 @@ function handleMoveBlocked(dir) {
   }
 
   wanderStepsLeft = 0;
-  blockedDirections[dir] = Date.now() + 2500;
+  const now = Date.now();
+  blockedDirections[dir] = now + 3000;
   consecutiveBlockedCount++;
+
+  // Mark all shared component directions as blocked as well so bot NEVER hits same obstacle twice!
+  const shared = SHARED_COMPONENTS_8[dir] || [dir];
+  shared.forEach(d => {
+    blockedDirections[d] = now + 3000;
+  });
 
   // Invert diagonal axis immediately on collision
   if (dir === 'Up') diagonalVertical = 'Down';

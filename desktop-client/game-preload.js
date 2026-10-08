@@ -937,7 +937,7 @@ function isNavButtonBlocked(dir) {
         const el = document.querySelector(selectors[i]);
         if (!el) continue;
 
-        if (el.disabled || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') {
+        if (el.disabled || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true' || el.getAttribute('aria-hidden') === 'true') {
             return true;
         }
 
@@ -958,6 +958,7 @@ function isNavButtonBlocked(dir) {
             const op = parseFloat(st.opacity);
             if (!isNaN(op) && op < 0.75) return true;
             if (isGreyColor(st.color) || isGreyColor(st.backgroundColor)) return true;
+            if (st.filter && (st.filter.indexOf('grayscale') !== -1 || st.filter.indexOf('opacity') !== -1)) return true;
         } catch (_) {}
 
         const img = el.querySelector('img');
@@ -1178,8 +1179,13 @@ window.addEventListener('DOMContentLoaded', () => {
     if (dexyEl) {
         observer.observe(dexyEl, { childList: true, subtree: true, characterData: true });
     }
-    if (!mapEl && !dexyEl && document.body) {
-        observer.observe(document.body, { childList: true, subtree: true });
+    if (document.body) {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'style', 'disabled', 'aria-disabled', 'aria-hidden']
+        });
     }
 
     let hasTarget = false;

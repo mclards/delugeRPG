@@ -937,8 +937,11 @@ const SHARED_COMPONENTS_8 = {
   'Down-Right': ['Down-Right', 'Down', 'Right']
 };
 
+const navBlockedStatus = {}; // Persistent DOM button state
+
 function isDirectionPhysicallyBlocked(dir, now = Date.now()) {
   if (!dir) return false;
+  if (navBlockedStatus[dir]) return true;
   if (blockedDirections[dir] && blockedDirections[dir] > now) return true;
   if (dir === 'Up-Left' && (isDirectionPhysicallyBlocked('Up', now) || isDirectionPhysicallyBlocked('Left', now))) return true;
   if (dir === 'Up-Right' && (isDirectionPhysicallyBlocked('Up', now) || isDirectionPhysicallyBlocked('Right', now))) return true;
@@ -1174,7 +1177,7 @@ function getNextKey() {
   }
 
   // Mode: Wander with 8-Way Roaming, Corridor Momentum, and Anti-Looping
-  const maxSteps = config.settings.stepsPerDirection || 1;
+  const baseSteps = Math.max(4, config.settings.stepsPerDirection || 1);
   const perpList = PERPENDICULARS_8[currentDirectionKey] || ['Up', 'Down'];
   const bothPerpsBlocked = perpList.every(k => isDirectionPhysicallyBlocked(k, now));
   const forwardIsBlocked = isDirectionPhysicallyBlocked(currentDirectionKey, now);
@@ -1182,14 +1185,14 @@ function getNextKey() {
   // If inside a straight corridor (both side walls blocked) and forward is clear:
   // PRESERVE MOMENTUM! Never turn around in the middle of a hallway!
   if (!forwardIsBlocked && bothPerpsBlocked) {
-    wanderStepsLeft = maxSteps;
+    wanderStepsLeft = baseSteps;
     return currentDirectionKey;
   }
 
   // If forward is blocked: trigger immediate zero-latency evasion!
   if (forwardIsBlocked) {
     currentDirectionKey = chooseEvadeDirection(currentDirectionKey);
-    const stepsToTake = maxSteps > 1 ? (Math.floor(Math.random() * maxSteps) + 1) : 1;
+    const stepsToTake = Math.floor(Math.random() * (baseSteps + 2)) + Math.max(2, baseSteps - 2);
     wanderStepsLeft = stepsToTake - 1;
     return currentDirectionKey;
   }
@@ -1197,7 +1200,7 @@ function getNextKey() {
   // Normal turn condition: steps expired at an open junction or room
   if (wanderStepsLeft <= 0) {
     currentDirectionKey = chooseWanderDirection(currentDirectionKey);
-    const stepsToTake = maxSteps > 1 ? (Math.floor(Math.random() * maxSteps) + 1) : 1;
+    const stepsToTake = Math.floor(Math.random() * (baseSteps + 6)) + baseSteps;
     wanderStepsLeft = stepsToTake - 1;
   } else {
     wanderStepsLeft--;
@@ -1520,11 +1523,7 @@ delugeView.addEventListener('ipc-message', (event) => {
     const data = event.args[0] || {};
     if (data.blocked) {
       for (const d in data.blocked) {
-        if (data.blocked[d]) {
-          blockedDirections[d] = Date.now() + 3000;
-        } else if (blockedDirections[d]) {
-          delete blockedDirections[d];
-        }
+        navBlockedStatus[d] = !!data.blocked[d];
       }
     }
   }
@@ -1533,14 +1532,10 @@ delugeView.addEventListener('ipc-message', (event) => {
     const data = event.args[0] || {};
     if (data.allBlocked) {
       for (const d in data.allBlocked) {
-        if (data.allBlocked[d]) {
-          blockedDirections[d] = Date.now() + 3000;
-        } else if (blockedDirections[d]) {
-          delete blockedDirections[d];
-        }
+        navBlockedStatus[d] = !!data.allBlocked[d];
       }
     }
-    if (data.blocked) {
+    if (data.blocked || data.navBlocked) {
       handleMoveBlocked(data.direction || lastDispatchedDirection);
     } else if (data.success) {
       handleMoveSuccess(data.direction || lastDispatchedDirection);

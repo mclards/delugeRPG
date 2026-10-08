@@ -901,6 +901,7 @@
 
         if (walkMode === "wander") {
             const normKey = normalizeKey(currentWanderKey);
+            const baseSteps = Math.max(4, stepsPerDirection || 1);
             const perpList = PERPENDICULARS_8[normKey] || ['Up', 'Down'];
             const bothPerpsBlocked = perpList.every(function(k) {
                 return isWalkKeyPhysicallyBlocked(k, now);
@@ -910,21 +911,21 @@
             // If inside a straight corridor (both side walls blocked) and forward is clear:
             // PRESERVE MOMENTUM! Never turn around in the middle of a hallway!
             if (!forwardIsBlocked && bothPerpsBlocked) {
-                wanderStepsRemaining = stepsPerDirection;
+                wanderStepsRemaining = baseSteps;
                 return currentWanderKey;
             }
 
             // If forward is blocked: trigger immediate zero-latency evasion!
             if (forwardIsBlocked) {
                 currentWanderKey = chooseEvadeWalkKey(normKey);
-                wanderStepsRemaining = stepsPerDirection - 1;
+                wanderStepsRemaining = Math.floor(Math.random() * (baseSteps + 2)) + Math.max(2, baseSteps - 2) - 1;
                 return currentWanderKey;
             }
 
             // Normal turn condition: steps expired at an open junction or room
             if (wanderStepsRemaining <= 0) {
                 currentWanderKey = chooseWanderWalkKey(normKey);
-                wanderStepsRemaining = stepsPerDirection - 1;
+                wanderStepsRemaining = Math.floor(Math.random() * (baseSteps + 6)) + baseSteps - 1;
             } else {
                 wanderStepsRemaining--;
             }

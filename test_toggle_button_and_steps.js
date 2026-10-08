@@ -48,8 +48,8 @@ assert(appJs.includes("stepsPerDirInput.addEventListener('change'"), 'stepsPerDi
 assert.strictEqual(typeof configJson.settings.stepsPerDirection, 'number', 'stepsPerDirection must be a number in config.json');
 
 // 7. Verify max steps random roam logic in app.js
-assert(appJs.includes('const maxSteps = config.settings.stepsPerDirection || 1;'), 'maxSteps must read from stepsPerDirection');
-assert(appJs.includes('const stepsToTake = maxSteps > 1 ? (Math.floor(Math.random() * maxSteps) + 1) : 1;'), 'stepsToTake must randomize up to maxSteps');
+assert(appJs.includes('const baseSteps = Math.max(4, config.settings.stepsPerDirection || 1);'), 'baseSteps must read from stepsPerDirection with min 4');
+assert(appJs.includes('const stepsToTake = Math.floor(Math.random() * (baseSteps + 6)) + baseSteps;'), 'stepsToTake must randomize human-like steps');
 assert(appJs.includes('wanderStepsLeft = stepsToTake - 1;'), 'wanderStepsLeft must set stepsToTake - 1 on new direction turn');
 
 console.log('PASS: test_toggle_button_and_steps - Play/Pause label, colors, height, and steps per turn verified!');

@@ -1036,13 +1036,13 @@ function chooseWanderDirection(currentDir) {
   const pool = [];
   unblocked.forEach(d => {
     if (d === sameDir) {
-      for(let i=0; i<25; i++) pool.push(d); // Huge preference (71%) to maintain current heading
+      for(let i=0; i<10; i++) pool.push(d); // 40% chance to proceed same direction for another set
     } else if (adjList.includes(d)) {
-      for(let i=0; i<3; i++) pool.push(d); // Minor chance (17%) to gracefully veer 45 degrees
+      for(let i=0; i<2; i++) pool.push(d); // 16% chance to veer 45 degrees
     } else if (perpList.includes(d)) {
-      pool.push(d); // Rare chance (5%) for a sharp 90-degree turn
+      for(let i=0; i<5; i++) pool.push(d); // 40% chance for a sharp 90-degree turn
     } else if (d !== opp) {
-      pool.push(d); // Very rare chance for a wider angle
+      pool.push(d); // 4% chance for wider angle
     } else if (unblocked.length === 1) {
       pool.push(d); // Only reverse if cornered
     }
@@ -1268,16 +1268,12 @@ function sendKeyStep(keyName) {
     delugeView.send('step-dispatched', { direction: keyName, time: Date.now() });
 
     fallbackCollisionTimer = setTimeout(() => {
-      // Timeout after 1600ms: verify with the DOM!
-      // If the DOM says it is NOT blocked, it's just network lag.
-      if (isDirectionPhysicallyBlocked(keyName)) {
-        handleMoveBlocked(keyName);
-      } else {
-        console.log(`[Nav] Timeout on ${keyName} but DOM shows path is clear. Lag suspected. Retrying...`);
-        isStepPending = false;
-        scheduleNextStep(200); // Retry soon without evading
-      }
-    }, 1800);
+      console.log(`[Nav] Timeout on ${keyName} after 5s. Network lag suspected. Retrying...`);
+      // We do NOT call handleMoveBlocked here. If it was a real physical wall,
+      // the Pre-Dispatch Zero-Collision Guard will catch it on the next step attempt.
+      isStepPending = false;
+      scheduleNextStep(200);
+    }, 5000);
 
     patternStepCount++;
   } catch (err) {

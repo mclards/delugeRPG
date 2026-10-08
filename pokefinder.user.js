@@ -758,13 +758,13 @@
         const pool = [];
         unblocked.forEach(function(d) {
             if (d === sameDir) {
-                for(let i=0; i<25; i++) pool.push(d); // Huge preference (71%) to maintain current heading
+                for(let i=0; i<10; i++) pool.push(d); // 40% chance to proceed same direction for another set
             } else if (adjList.indexOf(d) !== -1) {
-                for(let i=0; i<3; i++) pool.push(d); // Minor chance (17%) to gracefully veer 45 degrees
+                for(let i=0; i<2; i++) pool.push(d); // 16% chance to veer 45 degrees
             } else if (perpList.indexOf(d) !== -1) {
-                pool.push(d); // Rare chance (5%) for a sharp 90-degree turn
+                for(let i=0; i<5; i++) pool.push(d); // 40% chance for a sharp 90-degree turn
             } else if (d !== opp) {
-                pool.push(d); // Very rare chance for a wider angle
+                pool.push(d); // 4% chance for wider angle
             } else if (unblocked.length === 1) {
                 pool.push(d); // Only reverse if cornered
             }
@@ -1111,31 +1111,77 @@
             const textChanged = (currentDexyHtml !== lastDexyContentSnapshot);
 
             if (lastDispatchedWalkKey !== null && !walkStepAcknowledged) {
-                if (posChanged || textChanged) {
+                if (posChanged) {
                     // Step was successful!
                     walkStepAcknowledged = true;
                     consecutiveBlockedSteps = 0;
                     if (blockedWalkKeys[lastDispatchedWalkKey]) {
                         delete blockedWalkKeys[lastDispatchedWalkKey];
                     }
+                } else if (!isLoading && !isGameLoading()) {
+                    // Step failed: Server finished processing (not loading) but position did not change!
+                    // This means we hit a physical obstacle (wall, tree, water).
+                    consecutiveBlockedSteps++;
+                    const nowCollision = Date.now();
+                    blockedWalkKeys[lastDispatchedWalkKey] = nowCollision + 8000;
+                    const normColl = normalizeKey(lastDispatchedWalkKey);
+                    blockedWalkKeys[normColl] = nowCollision + 8000;
+                    const sharedColl = SHARED_COMPONENTS_8[normColl] || [normColl];
+                    sharedColl.forEach(function(sc) {
+                        blockedWalkKeys[sc] = nowCollision + 8000;
+                    });
+                    
+                    // MUST STOP MOMENTUM IMMEDIATELY! Reset required steps so it picks a new direction!
+                    wanderStepsRemaining = 0;
+                    walkStepAcknowledged = true; // Acknowledge the failure so we can evade immediately on this tick
+                    
+                    // Invert diagonal axes on collision
+                    if (lastDispatchedWalkKey === 38 || lastDispatchedWalkKey === 'Up') diagonalVerticalKey = 40;
+                    else if (lastDispatchedWalkKey === 40 || lastDispatchedWalkKey === 'Down') diagonalVerticalKey = 38;
+                    else if (lastDispatchedWalkKey === 37 || lastDispatchedWalkKey === 'Left') diagonalHorizontalKey = 39;
+                    else if (lastDispatchedWalkKey === 39 || lastDispatchedWalkKey === 'Right') diagonalHorizontalKey = 37;
+                    else if (lastDispatchedWalkKey === 'Up-Right') {
+                        if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
+                        else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
+                        else { diagonalVerticalKey = 40; diagonalHorizontalKey = 37; }
+                    } else if (lastDispatchedWalkKey === 'Up-Left') {
+                        if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
+                        else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
+                        else { diagonalVerticalKey = 40; diagonalHorizontalKey = 39; }
+                    } else if (lastDispatchedWalkKey === 'Down-Right') {
+                        if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
+                        else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
+                        else { diagonalVerticalKey = 38; diagonalHorizontalKey = 37; }
+                    } else if (lastDispatchedWalkKey === 'Down-Left') {
+                        if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
+                        else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
+                        else { diagonalVerticalKey = 38; diagonalHorizontalKey = 39; }
+                    }
+
+                    console.log('[PokeFinder] Physical obstacle hit with key ' + lastDispatchedWalkKey + '! Resetting required steps. Consecutive: ' + consecutiveBlockedSteps);
+                    updateStatusUI('Obstacle! Changing dir...', '#ff9800');
+
+                    if (consecutiveBlockedSteps >= 6) {
+                        console.log('[PokeFinder] Trapped in maze! Reloading map to safe spawn...');
+                        consecutiveBlockedSteps = 0;
+                        blockedWalkKeys = {};
+                        location.reload();
+                        return;
+                    }
                 } else {
-                    // Step hasn't completed yet (pos/text unchanged).
-                    // The button might be greyed out right now, but that is purely DelugeRPG's temporary AJAX loading state!
-                    // We must NOT treat this loading state as a wall. We patiently wait for the server.
+                    // Game is genuinely still loading via AJAX. Wait patiently.
                     if (!this.lastDispatchTime) this.lastDispatchTime = Date.now();
                     
-                    // If the server doesn't respond after 5 seconds, clear the lock to retry.
-                    // If it actually was a wall (e.g., you were teleported), our PRE-DISPATCH guard will catch it on the retry.
-                    if (Date.now() - this.lastDispatchTime > 5000) {
-                         console.log('[PokeFinder] Move timed out (5s). Network lag suspected. Retrying...');
+                    if (Date.now() - this.lastDispatchTime > 6000) {
+                         console.log('[PokeFinder] Network timeout (6s). Retrying...');
                          walkStepAcknowledged = true;
                          this.lastDispatchTime = Date.now();
                     }
-                    return; // Crucial: skip firing next key until acknowledged
+                    return; // Skip firing next key until network completes
                 }
             }
             
-            if (isGameLoading()) {
+            if (isLoading || isGameLoading()) {
                 // UI is still fully locked from previous AJAX request, wait for it to un-grey.
                 return;
             }

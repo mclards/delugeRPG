@@ -1067,8 +1067,9 @@ const observer = new MutationObserver(() => {
         const curDexy = getDexyText();
         const posMoved = !!(activeStep.initialPos && curPos && (activeStep.initialPos.x !== curPos.x || activeStep.initialPos.y !== curPos.y));
         const textChanged = !!(curDexy && curDexy !== activeStep.initialText);
+        const isLoading = curDexy && curDexy.indexOf('Searching...') !== -1;
 
-        if (posMoved || textChanged) {
+        if (posMoved) {
             activeStep.resolved = true;
             unconfirmedBlockedCount = 0;
             lastUnconfirmedDir = null;
@@ -1079,6 +1080,20 @@ const observer = new MutationObserver(() => {
             ipcRenderer.sendToHost('move-result', {
                 direction: activeStep.direction,
                 success: true,
+                allBlocked: getBlockedNavDirections()
+            });
+        } else if (textChanged && !isLoading) {
+            // Server responded (text changed, not searching) but position did not move. This is a physical obstacle!
+            activeStep.resolved = true;
+            unconfirmedBlockedCount = 0;
+            lastUnconfirmedDir = null;
+            if (collisionCheckTimer) {
+                clearTimeout(collisionCheckTimer);
+                collisionCheckTimer = null;
+            }
+            ipcRenderer.sendToHost('move-result', {
+                direction: activeStep.direction,
+                blocked: true,
                 allBlocked: getBlockedNavDirections()
             });
         }

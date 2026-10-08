@@ -13,7 +13,7 @@
     "profile": "flagged_network_stealth",
     "walkMode": "wander",
     "targetPreset": "legendaries",
-    "stepsPerDirection": 3,
+    "stepsPerDirection": 5,
     "baseDelay": 2100,
     "jitter": 550,
     "minSafetyFloor": 1700,

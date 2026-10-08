@@ -756,15 +756,15 @@
         const pool = [];
         unblocked.forEach(function(d) {
             if (d === sameDir) {
-                pool.push(d, d, d); // 30% maintain heading
+                for(let i=0; i<25; i++) pool.push(d); // Huge preference (71%) to maintain current heading
             } else if (adjList.indexOf(d) !== -1) {
-                pool.push(d, d, d, d); // 40% gentle 45-deg veer
+                for(let i=0; i<3; i++) pool.push(d); // Minor chance (17%) to gracefully veer 45 degrees
             } else if (perpList.indexOf(d) !== -1) {
-                pool.push(d, d); // 20% 90-deg turn
+                pool.push(d); // Rare chance (5%) for a sharp 90-degree turn
             } else if (d !== opp) {
-                pool.push(d); // 10% wider angle
+                pool.push(d); // Very rare chance for a wider angle
             } else if (unblocked.length === 1) {
-                pool.push(d);
+                pool.push(d); // Only reverse if cornered
             }
         });
 

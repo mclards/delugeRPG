@@ -1039,13 +1039,13 @@ function chooseWanderDirection(currentDir) {
   const pool = [];
   unblocked.forEach(d => {
     if (d === sameDir) {
-      pool.push(d, d, d); // 30% weight: maintain heading
+      for(let i=0; i<25; i++) pool.push(d); // Huge preference (71%) to maintain current heading
     } else if (adjList.includes(d)) {
-      pool.push(d, d, d, d); // 40% weight: gentle 45-deg veer into diagonal or cardinal
+      for(let i=0; i<3; i++) pool.push(d); // Minor chance (17%) to gracefully veer 45 degrees
     } else if (perpList.includes(d)) {
-      pool.push(d, d); // 20% weight: 90-deg turn
+      pool.push(d); // Rare chance (5%) for a sharp 90-degree turn
     } else if (d !== opp) {
-      pool.push(d); // 10% weight: wider angle
+      pool.push(d); // Very rare chance for a wider angle
     } else if (unblocked.length === 1) {
       pool.push(d); // Only reverse if cornered
     }

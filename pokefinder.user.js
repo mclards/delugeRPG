@@ -656,9 +656,9 @@
         const keys = [37, 38, 39, 40]; // 37=Left, 38=Up, 39=Right, 40=Down
         const now = Date.now();
 
-        // Expire old blocked directions
+        // Expire old blocked directions or directions that are visibly unblocked
         for (const k in blockedWalkKeys) {
-            if (now > blockedWalkKeys[k]) delete blockedWalkKeys[k];
+            if (now > blockedWalkKeys[k] || !isNavButtonBlocked(k)) delete blockedWalkKeys[k];
         }
 
         // Active Ping-Pong Loop Breaker (Prevents 2-tile / 3-tile trap oscillations in tight corridors)

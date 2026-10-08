@@ -1451,7 +1451,7 @@ delugeView.addEventListener('ipc-message', (event) => {
       for (const d in data.allBlocked) {
         if (data.allBlocked[d]) {
           blockedDirections[d] = Date.now() + 3000;
-        } else if (blockedDirections[d] && !data.blocked) {
+        } else if (blockedDirections[d]) {
           delete blockedDirections[d];
         }
       }

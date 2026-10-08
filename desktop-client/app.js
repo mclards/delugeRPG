@@ -1175,7 +1175,7 @@ function getNextKey() {
   }
 
   // Mode: Wander with 8-Way Roaming, Corridor Momentum, and Anti-Looping
-  const baseSteps = Math.max(4, config.settings.stepsPerDirection || 1);
+  const compulsorySteps = config.settings.stepsPerDirection || 1;
   const perpList = PERPENDICULARS_8[currentDirectionKey] || ['Up', 'Down'];
   const bothPerpsBlocked = perpList.every(k => isDirectionPhysicallyBlocked(k, now));
   const forwardIsBlocked = isDirectionPhysicallyBlocked(currentDirectionKey, now);
@@ -1183,23 +1183,21 @@ function getNextKey() {
   // If inside a straight corridor (both side walls blocked) and forward is clear:
   // PRESERVE MOMENTUM! Never turn around in the middle of a hallway!
   if (!forwardIsBlocked && bothPerpsBlocked) {
-    wanderStepsLeft = baseSteps;
+    wanderStepsLeft = compulsorySteps;
     return currentDirectionKey;
   }
 
   // If forward is blocked: trigger immediate zero-latency evasion!
   if (forwardIsBlocked) {
     currentDirectionKey = chooseEvadeDirection(currentDirectionKey);
-    const stepsToTake = Math.floor(Math.random() * (baseSteps + 2)) + Math.max(2, baseSteps - 2);
-    wanderStepsLeft = stepsToTake - 1;
+    wanderStepsLeft = compulsorySteps - 1;
     return currentDirectionKey;
   }
 
   // Normal turn condition: steps expired at an open junction or room
   if (wanderStepsLeft <= 0) {
     currentDirectionKey = chooseWanderDirection(currentDirectionKey);
-    const stepsToTake = Math.floor(Math.random() * (baseSteps + 6)) + baseSteps;
-    wanderStepsLeft = stepsToTake - 1;
+    wanderStepsLeft = compulsorySteps - 1;
   } else {
     wanderStepsLeft--;
   }

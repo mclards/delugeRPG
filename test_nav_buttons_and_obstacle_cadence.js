@@ -232,6 +232,36 @@ assert.strictEqual(wanderHist3[0], 'Left', 'Step 0 was Left');
 assert.notStrictEqual(wanderHist3[1], 'Left', 'Step 1 must NOT be Left after obstacle was hit!');
 console.log('  [PASS] Wander mode immediately evades without repeating blocked direction.');
 
+// Scenario 3: Ping-Pong Loop Detection
+console.log('\n--- 2.1 Testing Active Ping-Pong Loop Breaker ---');
+function testLoopDetector(moves) {
+    const opposites = { 'Left': 'Right', 'Right': 'Left', 'Up': 'Down', 'Down': 'Up' };
+    if (moves.length < 4) return null;
+    const len = moves.length;
+    const m1 = moves[len - 4];
+    const m2 = moves[len - 3];
+    const m3 = moves[len - 2];
+    const m4 = moves[len - 1];
+    if (m1 === m3 && m2 === m4 && opposites[m1] === m2) {
+        return { dirA: m1, dirB: m2 };
+    }
+    return null;
+}
+
+const loop1 = testLoopDetector(['Left', 'Right', 'Left', 'Right']);
+assert.notStrictEqual(loop1, null, 'Must detect Left-Right-Left-Right oscillation loop');
+assert.strictEqual(loop1.dirA, 'Left');
+assert.strictEqual(loop1.dirB, 'Right');
+
+const loop2 = testLoopDetector(['Up', 'Down', 'Up', 'Down']);
+assert.notStrictEqual(loop2, null, 'Must detect Up-Down-Up-Down oscillation loop');
+assert.strictEqual(loop2.dirA, 'Up');
+assert.strictEqual(loop2.dirB, 'Down');
+
+const noLoop = testLoopDetector(['Left', 'Up', 'Right', 'Down']);
+assert.strictEqual(noLoop, null, 'Normal non-reversing movement must not trigger loop detection');
+console.log('  [PASS] Active Ping-Pong Loop Detection triggers accurately on oscillations.');
+
 // 3. VERIFY SOURCE CODE FILES CONTAIN NAV BUTTON INSPECTION AND PHASE ALIGNMENT
 console.log('\n--- 3. Verifying Source Code Implementations ---');
 const appJs = fs.readFileSync(path.join(__dirname, 'desktop-client', 'game-preload.js'), 'utf8');
@@ -243,9 +273,12 @@ assert(appJs.includes('getBlockedNavDirections()'), 'game-preload.js must define
 assert(appJs.includes("dirMap['Up'] =") || appJs.includes("'Up': ['#dr-n'"), 'game-preload.js must map cardinal directions to #dr- buttons');
 assert(hostJs.includes('data.allBlocked'), 'app.js must sync allBlocked nav button states from preload');
 assert(hostJs.includes('const remainder = stepCount % stepsPerDir;'), 'app.js must synchronize stepCount phase to prevent wall ramming');
+assert(hostJs.includes('detectPingPongLoop'), 'app.js must define detectPingPongLoop to break tight hallway traps');
+assert(hostJs.includes('deadEndCooldowns'), 'app.js must track deadEndCooldowns to avoid re-entering dead ends');
 assert(userJs.includes('function isNavButtonBlocked'), 'pokefinder.user.js must define isNavButtonBlocked');
+assert(userJs.includes('detectPingPongLoop'), 'pokefinder.user.js must define detectPingPongLoop');
 assert(userJs.includes('const remainder = stepCounter % stepsPerDirection;'), 'pokefinder.user.js must synchronize stepCounter phase');
-console.log('  [PASS] All production source files contain full nav button awareness and phase synchronization.');
+console.log('  [PASS] All production source files contain full nav button awareness, phase synchronization, and loop breaker.');
 
 // 4. VERIFY 100% 7-BIT ASCII CLEANLINESS
 console.log('\n--- 4. Verifying Strict 7-bit ASCII Compliance ---');

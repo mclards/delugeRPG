@@ -886,6 +886,25 @@ function getHardenedHumanDelay() {
 }
 
 // Direction Selection & Obstacle Avoidance
+const recentMoves = [];
+const deadEndCooldowns = {};
+
+function detectPingPongLoop() {
+  if (recentMoves.length < 4) return null;
+  const opposites = { 'Left': 'Right', 'Right': 'Left', 'Up': 'Down', 'Down': 'Up' };
+  const len = recentMoves.length;
+  const m1 = recentMoves[len - 4];
+  const m2 = recentMoves[len - 3];
+  const m3 = recentMoves[len - 2];
+  const m4 = recentMoves[len - 1];
+
+  // Pattern: A -> B -> A -> B where B is opposite of A
+  if (m1 === m3 && m2 === m4 && opposites[m1] === m2) {
+    return { dirA: m1, dirB: m2 };
+  }
+  return null;
+}
+
 function chooseEvadeDirection(blockedDir) {
   const keys = ['Left', 'Up', 'Right', 'Down'];
   const opposites = { 'Left': 'Right', 'Right': 'Left', 'Up': 'Down', 'Down': 'Up' };
@@ -897,20 +916,39 @@ function chooseEvadeDirection(blockedDir) {
   };
 
   const now = Date.now();
-  // Filter out directions currently blocked
-  const unblockedPerp = (perpendiculars[blockedDir] || []).filter(k => !blockedDirections[k] || blockedDirections[k] <= now);
-  if (unblockedPerp.length > 0) {
-    // 90-degree turn into open lane
-    return unblockedPerp[Math.floor(Math.random() * unblockedPerp.length)];
+
+  // Expire old dead ends
+  for (const k in deadEndCooldowns) {
+    if (now > deadEndCooldowns[k]) delete deadEndCooldowns[k];
   }
 
-  // If perpendiculars are blocked, try reversing (180-degree back-out)
+  // 1. Prioritize unblocked perpendicular directions that are NOT recently visited dead ends
+  const perpList = perpendiculars[blockedDir] || [];
+  const unblockedFreshPerp = perpList.filter(k => (!blockedDirections[k] || blockedDirections[k] <= now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
+  if (unblockedFreshPerp.length > 0) {
+    return unblockedFreshPerp[Math.floor(Math.random() * unblockedFreshPerp.length)];
+  }
+
+  // Fallback to any unblocked perpendicular
+  const anyUnblockedPerp = perpList.filter(k => !blockedDirections[k] || blockedDirections[k] <= now);
+  if (anyUnblockedPerp.length > 0) {
+    return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
+  }
+
+  // 2. Reversing (180-degree back-out) ONLY IF perpendiculars are blocked (true dead-end corridor)
   const opp = opposites[blockedDir] || 'Down';
   if (!blockedDirections[opp] || blockedDirections[opp] <= now) {
+    // Mark the dead end so we don't immediately walk right back into it
+    deadEndCooldowns[blockedDir] = now + 10000;
     return opp;
   }
 
-  // If all are blocked or in deep corner, clear old blocks and pick any candidate != blockedDir
+  // 3. Last resort fallback
+  const anyUnblocked = keys.filter(k => k !== blockedDir && (!blockedDirections[k] || blockedDirections[k] <= now));
+  if (anyUnblocked.length > 0) {
+    return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
+  }
+
   const anyOther = keys.filter(k => k !== blockedDir);
   return anyOther[Math.floor(Math.random() * anyOther.length)];
 }
@@ -924,6 +962,25 @@ function getNextKey() {
   // Expire old blocked directions
   for (const k in blockedDirections) {
     if (now > blockedDirections[k]) delete blockedDirections[k];
+  }
+
+  // Active Ping-Pong Loop Breaker (Prevents 2-tile / 3-tile trap oscillations in tight corridors)
+  const loop = detectPingPongLoop();
+  if (loop) {
+    console.log(`[Loop Breaker] Detected ping-pong oscillation between ${loop.dirA} and ${loop.dirB}! Forcing escape...`);
+    blockedDirections[loop.dirA] = now + 6000;
+    blockedDirections[loop.dirB] = now + 6000;
+    recentMoves.length = 0;
+
+    const escapePerps = loop.dirA === 'Left' || loop.dirA === 'Right' ? ['Up', 'Down'] : ['Left', 'Right'];
+    const unblockedEscape = escapePerps.filter(k => !blockedDirections[k] || blockedDirections[k] <= now);
+    if (unblockedEscape.length > 0) {
+      const escapeDir = unblockedEscape[Math.floor(Math.random() * unblockedEscape.length)];
+      currentDirectionKey = escapeDir;
+      wanderStepsLeft = Math.max(3, stepsPerDir);
+      updateStatus(`Escaping choke point (${escapeDir})...`, '#38bdf8');
+      return escapeDir;
+    }
   }
 
   if (mode === 'diagonal') {
@@ -992,9 +1049,21 @@ function getNextKey() {
     return candidate;
   }
 
-  // Mode: Wander with obstacle avoidance - randomized 1 to maxSteps per turn
+  // Mode: Wander with Corridor Momentum & Anti-Ping-Pong
   const maxSteps = config.settings.stepsPerDirection || 1;
-  if (wanderStepsLeft <= 0 || (blockedDirections[currentDirectionKey] && blockedDirections[currentDirectionKey] > now)) {
+  const perpList = (currentDirectionKey === 'Left' || currentDirectionKey === 'Right') ? ['Up', 'Down'] : ['Left', 'Right'];
+  const bothPerpsBlocked = perpList.every(k => blockedDirections[k] && blockedDirections[k] > now);
+  const forwardIsBlocked = !!(blockedDirections[currentDirectionKey] && blockedDirections[currentDirectionKey] > now);
+
+  // If inside a straight corridor (both side walls blocked) and forward is clear:
+  // PRESERVE MOMENTUM! Never turn around in the middle of a hallway!
+  if (!forwardIsBlocked && bothPerpsBlocked) {
+    wanderStepsLeft = maxSteps;
+    return currentDirectionKey;
+  }
+
+  // Normal turn condition: forward is blocked OR steps expired at an open junction
+  if (wanderStepsLeft <= 0 || forwardIsBlocked) {
     currentDirectionKey = chooseEvadeDirection(currentDirectionKey);
     const stepsToTake = maxSteps > 1 ? (Math.floor(Math.random() * maxSteps) + 1) : 1;
     wanderStepsLeft = stepsToTake - 1;
@@ -1027,6 +1096,8 @@ function sendKeyStep(keyName) {
 
   try {
     lastDispatchedDirection = keyName;
+    recentMoves.push(keyName);
+    if (recentMoves.length > 8) recentMoves.shift();
     isStepPending = true;
 
     delugeView.focus();

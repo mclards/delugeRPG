@@ -529,6 +529,25 @@
         return 37;
     }
 
+    const recentMoves = [];
+    const deadEndCooldowns = {};
+
+    function detectPingPongLoop() {
+        if (recentMoves.length < 4) return null;
+        const opposites = { 37: 39, 39: 37, 38: 40, 40: 38 };
+        const len = recentMoves.length;
+        const m1 = recentMoves[len - 4];
+        const m2 = recentMoves[len - 3];
+        const m3 = recentMoves[len - 2];
+        const m4 = recentMoves[len - 1];
+
+        // Pattern: A -> B -> A -> B where B is opposite of A
+        if (m1 === m3 && m2 === m4 && opposites[m1] === m2) {
+            return { keyA: m1, keyB: m2 };
+        }
+        return null;
+    }
+
     function chooseEvadeWalkKey(blockedKey) {
         const keys = [37, 38, 39, 40]; // 37=Left, 38=Up, 39=Right, 40=Down
         const opposites = { 37: 39, 39: 37, 38: 40, 40: 38 };
@@ -540,19 +559,40 @@
         };
 
         const now = Date.now();
-        const unblockedPerp = (perpendiculars[blockedKey] || []).filter(function(k) {
-            return (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) && !isNavButtonBlocked(k);
-        });
 
-        if (unblockedPerp.length > 0) {
-            return unblockedPerp[Math.floor(Math.random() * unblockedPerp.length)];
+        // Expire old dead ends
+        for (const k in deadEndCooldowns) {
+            if (now > deadEndCooldowns[k]) delete deadEndCooldowns[k];
         }
 
+        // 1. Prioritize unblocked perpendicular directions that are NOT recently visited dead ends
+        const perpList = perpendiculars[blockedKey] || [];
+        const unblockedFreshPerp = perpList.filter(function(k) {
+            return (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) &&
+                   !isNavButtonBlocked(k) &&
+                   (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now);
+        });
+
+        if (unblockedFreshPerp.length > 0) {
+            return unblockedFreshPerp[Math.floor(Math.random() * unblockedFreshPerp.length)];
+        }
+
+        // Fallback to any unblocked perpendicular
+        const anyUnblockedPerp = perpList.filter(function(k) {
+            return (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) && !isNavButtonBlocked(k);
+        });
+        if (anyUnblockedPerp.length > 0) {
+            return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
+        }
+
+        // 2. Reversing (180-degree back-out) ONLY IF perpendiculars are blocked (true dead-end corridor)
         const opp = opposites[blockedKey] || 37;
         if ((!blockedWalkKeys[opp] || blockedWalkKeys[opp] <= now) && !isNavButtonBlocked(opp)) {
+            deadEndCooldowns[blockedKey] = now + 10000;
             return opp;
         }
 
+        // 3. Last resort fallback
         const anyOther = keys.filter(function(k) { return k !== blockedKey && !isNavButtonBlocked(k); });
         if (anyOther.length > 0) {
             return anyOther[Math.floor(Math.random() * anyOther.length)];
@@ -567,6 +607,27 @@
         // Expire old blocked directions
         for (const k in blockedWalkKeys) {
             if (now > blockedWalkKeys[k]) delete blockedWalkKeys[k];
+        }
+
+        // Active Ping-Pong Loop Breaker (Prevents 2-tile / 3-tile trap oscillations in tight corridors)
+        const loop = detectPingPongLoop();
+        if (loop) {
+            console.log('[PokeFinder Loop Breaker] Detected oscillation between keys ' + loop.keyA + ' and ' + loop.keyB + '! Forcing escape...');
+            blockedWalkKeys[loop.keyA] = now + 6000;
+            blockedWalkKeys[loop.keyB] = now + 6000;
+            recentMoves.length = 0;
+
+            const escapePerps = (loop.keyA === 37 || loop.keyA === 39) ? [38, 40] : [37, 39];
+            const unblockedEscape = escapePerps.filter(function(k) {
+                return (!blockedWalkKeys[k] || blockedWalkKeys[k] <= now) && !isNavButtonBlocked(k);
+            });
+            if (unblockedEscape.length > 0) {
+                const escapeKey = unblockedEscape[Math.floor(Math.random() * unblockedEscape.length)];
+                currentWanderKey = escapeKey;
+                wanderStepsRemaining = Math.max(3, stepsPerDirection);
+                updateStatusUI('Escaping choke point...', '#38bdf8');
+                return escapeKey;
+            }
         }
 
         if (walkMode === "diagonal") {
@@ -639,7 +700,20 @@
         }
 
         if (walkMode === "wander") {
-            if (wanderStepsRemaining <= 0 || (blockedWalkKeys[currentWanderKey] && blockedWalkKeys[currentWanderKey] > now) || isNavButtonBlocked(currentWanderKey)) {
+            const perpList = (currentWanderKey === 37 || currentWanderKey === 39) ? [38, 40] : [37, 39];
+            const bothPerpsBlocked = perpList.every(function(k) {
+                return (blockedWalkKeys[k] && blockedWalkKeys[k] > now) || isNavButtonBlocked(k);
+            });
+            const forwardIsBlocked = (blockedWalkKeys[currentWanderKey] && blockedWalkKeys[currentWanderKey] > now) || isNavButtonBlocked(currentWanderKey);
+
+            // If inside a straight corridor (both side walls blocked) and forward is clear:
+            // PRESERVE MOMENTUM! Never turn around in the middle of a hallway!
+            if (!forwardIsBlocked && bothPerpsBlocked) {
+                wanderStepsRemaining = stepsPerDirection;
+                return currentWanderKey;
+            }
+
+            if (wanderStepsRemaining <= 0 || forwardIsBlocked) {
                 currentWanderKey = chooseEvadeWalkKey(currentWanderKey);
                 wanderStepsRemaining = stepsPerDirection - 1;
             } else {
@@ -871,6 +945,8 @@
 
             const key = getNextWalkKey();
             lastDispatchedWalkKey = key;
+            recentMoves.push(key);
+            if (recentMoves.length > 8) recentMoves.shift();
             walkStepAcknowledged = false;
             lastDexyContentSnapshot = currentDexyHtml;
             lastPlayerPosSnapshot = curPos;

@@ -190,6 +190,7 @@ const configSyncInterval = setInterval(() => {
 
 let lastFoundTarget = '';
 let lastEvaluatedEncounterSignature = '';
+let unlockNoticeSent = false;
 let isHuntingActive = false;
 let catchStepInterval = null;
 let activeStep = null;
@@ -207,8 +208,13 @@ function scanForTargets() {
     // A. Check for /unlock Honeypot / Captcha FIRST across entire domain
     const path = (window.location.pathname || '').toLowerCase();
     if (path.indexOf('/unlock') !== -1) {
-        ipcRenderer.sendToHost('unlock-detected');
+        if (!unlockNoticeSent) {
+            unlockNoticeSent = true;
+            ipcRenderer.sendToHost('unlock-detected');
+        }
         return;
+    } else {
+        unlockNoticeSent = false;
     }
 
     // 1. STRICT ACTIVE HUNTING GUARD: Only react to screen during an active hunting session!

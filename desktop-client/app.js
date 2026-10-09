@@ -227,6 +227,7 @@ let blockedDirections = {};
 let consecutiveBlockedCount = 0;
 let lastDispatchedDirection = 'Left';
 let fallbackCollisionTimer = null;
+let isUnlockChallengeActive = false;
 
 // Live Outbound Identity State
 let currentNetworkInfo = {
@@ -1589,6 +1590,10 @@ delugeView.addEventListener('did-navigate', (event) => {
   const url = event.url || (delugeView && delugeView.getURL()) || '';
   if (!isMapUrl(url)) {
     autoPauseOutsideMap(url);
+  } else if (isUnlockChallengeActive) {
+    isUnlockChallengeActive = false;
+    backendLog('SecurityChallenge', 'Navigated back to map from /unlock. Captcha completed.');
+    updateStatus('Ready to Hunt (Captcha Solved)', '#10b981');
   }
 });
 
@@ -1596,6 +1601,10 @@ delugeView.addEventListener('did-navigate-in-page', (event) => {
   const url = event.url || (delugeView && delugeView.getURL()) || '';
   if (!isMapUrl(url)) {
     autoPauseOutsideMap(url);
+  } else if (isUnlockChallengeActive) {
+    isUnlockChallengeActive = false;
+    backendLog('SecurityChallenge', 'Navigated back to map from /unlock. Captcha completed.');
+    updateStatus('Ready to Hunt (Captcha Solved)', '#10b981');
   }
 });
 
@@ -1722,10 +1731,23 @@ delugeView.addEventListener('ipc-message', (event) => {
     }
     isRunning = false;
     updateToggleButton();
-    updateStatus('CAPTCHA / UNLOCK REQUIRED!', '#ef4444');
-    playAlarmSound();
+    updateStatus('CAPTCHA DETECTED - Solve manually in window', '#ef4444');
 
-    alert('Security Check Detected (/unlock).\nClient paused. Solve the captcha manually in the window to continue.');
+    if (!isUnlockChallengeActive) {
+      isUnlockChallengeActive = true;
+      playAlarmSound();
+      backendLog('SecurityChallenge', 'Captcha (/unlock) security challenge active. Automated hunting halted for manual solve.');
+      try {
+        new Notification('Security Check Detected', {
+          body: 'DelugeRPG requires a captcha (/unlock). Please solve it manually in the window to proceed.'
+        });
+      } catch (_) {}
+    }
+
+    // Immediately focus webview so the user can click and solve the captcha with zero obstruction
+    if (delugeView) {
+      try { delugeView.focus(); } catch (_) {}
+    }
   }
 
   if (event.channel === 'zoom-in') {

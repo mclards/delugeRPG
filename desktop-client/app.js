@@ -42,6 +42,27 @@ function saveLocalConfig() {
 
 loadLocalConfig();
 
+const LOG_FILE = path.join(__dirname, 'backend_live.log');
+function backendLog(tag, msg) {
+  const ts = new Date().toISOString().substring(11, 23);
+  const detail = (typeof msg === 'object') ? JSON.stringify(msg) : String(msg);
+  const line = `[${ts}] [${tag}] ${detail}\n`;
+  try {
+    fs.appendFileSync(LOG_FILE, line, 'utf8');
+  } catch (_) {}
+  try {
+    if (process && process.stdout && typeof process.stdout.write === 'function') {
+      process.stdout.write(line);
+    }
+  } catch (_) {}
+  console.log(`[${tag}]`, msg);
+}
+
+try {
+  fs.writeFileSync(LOG_FILE, `=== DELUGERPG LIVE SESSION INITIALIZED AT ${new Date().toISOString()} ===\n`, 'utf8');
+} catch (_) {}
+backendLog('HostInit', 'Desktop client host controller loaded');
+
 // UI Elements
 const gameContainer = document.getElementById('gameContainer');
 const delugeView = document.getElementById('delugeView');
@@ -858,8 +879,18 @@ function toggleHunting() {
     isEncounterOnScreen = false;
     isStepPending = false;
     wanderStepsLeft = 0;
+    try {
+      if (delugeView) delugeView.send('request-dom-dump');
+    } catch (_) {}
+    if (isDirectionPhysicallyBlocked(currentDirectionKey)) {
+      const evaded = chooseEvadeDirection(currentDirectionKey);
+      backendLog('HuntingStart', `Initial direction ${currentDirectionKey} is blocked! Evading to ${evaded}`);
+      currentDirectionKey = evaded;
+    }
+    backendLog('HuntingStart', `Automated hunting started: direction=${currentDirectionKey}`);
     scheduleNextStep(200);
   } else {
+    backendLog('HuntingPause', 'Automated hunting paused by user');
     isStepPending = false;
     if (walkTimeout) {
       clearTimeout(walkTimeout);
@@ -1174,17 +1205,22 @@ function getNextKey() {
   // Momentum MUST stop immediately when an obstacle is directly in the path:
   // reset remaining steps counter and immediately switch to a different unobstructed direction.
   if (forwardIsBlocked) {
+    const prev = currentDirectionKey;
     currentDirectionKey = chooseEvadeDirection(currentDirectionKey);
     wanderStepsLeft = compulsorySteps - 1;
+    backendLog('Wander', `Forward ${prev} is blocked! Evaded to ${currentDirectionKey}`);
     return currentDirectionKey;
   }
 
   // Normal turn condition: compulsory steps completed on clear path
   if (wanderStepsLeft <= 0) {
+    const prev = currentDirectionKey;
     currentDirectionKey = chooseWanderDirection(currentDirectionKey);
     wanderStepsLeft = compulsorySteps - 1;
+    backendLog('Wander', `Completed cycle. Turned from ${prev} to ${currentDirectionKey}`);
   } else {
     wanderStepsLeft--;
+    backendLog('Wander', `Continuing ${currentDirectionKey}, stepsLeft=${wanderStepsLeft}`);
   }
 
   return currentDirectionKey;
@@ -1215,6 +1251,7 @@ function sendKeyStep(keyName) {
   if (isDirectionPhysicallyBlocked(keyName, now)) {
     const evaded = chooseEvadeDirection(keyName);
     if (evaded && evaded !== keyName) {
+      backendLog('PreDispatchGuard', `Direction ${keyName} blocked before dispatch! Evading to ${evaded}`);
       keyName = evaded;
       currentDirectionKey = evaded;
       wanderStepsLeft = (config.settings.stepsPerDirection || 1) - 1;
@@ -1226,6 +1263,8 @@ function sendKeyStep(keyName) {
     recentMoves.push(keyName);
     if (recentMoves.length > 8) recentMoves.shift();
     isStepPending = true;
+
+    backendLog('StepDispatch', `Sending key: ${keyName} (patternStepCount=${patternStepCount}, isPending=${isStepPending})`);
 
     const isDiagonal = keyName.indexOf('-') !== -1;
 
@@ -1256,17 +1295,13 @@ function sendKeyStep(keyName) {
     // Fallback collision timer: Safety net if preload doesn't resolve within 1600ms
     if (fallbackCollisionTimer) clearTimeout(fallbackCollisionTimer);
     fallbackCollisionTimer = setTimeout(() => {
-      // If nav button for this direction is currently blocked, treat as collision;
-      // otherwise, if the path is clear, treat as success!
-      if (isDirectionPhysicallyBlocked(keyName)) {
-        handleMoveBlocked(keyName);
-      } else {
-        handleMoveSuccess(keyName);
-      }
+      backendLog('FallbackTimer', `Safety timer expired (1600ms) for direction: ${keyName}, physicallyBlocked=${isDirectionPhysicallyBlocked(keyName)}`);
+      handleMoveBlocked(keyName);
     }, 1600);
 
     patternStepCount++;
   } catch (err) {
+    backendLog('SendKeyStepError', err.message);
     console.error('sendInputEvent error:', err);
   }
 }
@@ -1411,6 +1446,7 @@ function handleMoveBlocked(dir) {
   }
 
   console.log(`[Obstacle Blocked] Collision in direction: ${dir} (consecutive: ${consecutiveBlockedCount})`);
+  backendLog('Collision', `Obstacle blocked in direction: ${dir} (consecutive: ${consecutiveBlockedCount})`);
 
   if (consecutiveBlockedCount >= 6) {
     updateStatus('Stuck in maze! Respawning...', '#ef4444');
@@ -1426,6 +1462,7 @@ function handleMoveBlocked(dir) {
   wanderStepsLeft = (config.settings.stepsPerDirection || 1) - 1;
 
   updateStatus(`Obstacle! Turning (${evadeDir})...`, '#f59e0b');
+  backendLog('Evading', `Turning towards ${evadeDir}`);
 
   if (walkTimeout) clearTimeout(walkTimeout);
   scheduleNextStep(Math.floor(Math.random() * 300) + 550);
@@ -1443,6 +1480,7 @@ function handleMoveSuccess(dir) {
     delete navBlockedStatus[dir];
   }
   stepCount++;
+  backendLog('MoveSuccess', `Step confirmed: ${dir} (total: ${stepCount})`);
   if (stepCounterElem) {
     stepCounterElem.textContent = `Steps: ${stepCount}`;
   }
@@ -1450,10 +1488,12 @@ function handleMoveSuccess(dir) {
 
 // Webview Diagnostics & Logging Forwarder
 delugeView.addEventListener('console-message', (e) => {
+  backendLog('WebviewConsole', e.message);
   console.log('[Webview Console]', e.message);
 });
 
 delugeView.addEventListener('preload-error', (e) => {
+  backendLog('PreloadError', `${e.preloadPath}: ${e.error}`);
   console.error('[Webview Preload Error]', e.preloadPath, e.error);
 });
 
@@ -1481,6 +1521,10 @@ delugeView.addEventListener('will-navigate', (event) => {
 
 // IPC Listener from webview (game-preload.js)
 delugeView.addEventListener('ipc-message', (event) => {
+  if (event.channel === 'debug-dom-dump') {
+    backendLog('DOM_DUMP', event.args[0]);
+  }
+
   if (event.channel === 'preload-ready' || event.channel === 'request-config') {
     delugeView.send('update-config', config.settings);
     syncHuntingState();
@@ -1511,6 +1555,7 @@ delugeView.addEventListener('ipc-message', (event) => {
   }
 
   if (event.channel === 'nav-status') {
+    backendLog('IPC_NAV_STATUS', event.args[0]);
     const data = event.args[0] || {};
     if (data.blocked) {
       for (const d in data.blocked) {
@@ -1520,6 +1565,7 @@ delugeView.addEventListener('ipc-message', (event) => {
   }
 
   if (event.channel === 'move-result') {
+    backendLog('IPC_MOVE_RESULT', event.args[0]);
     const data = event.args[0] || {};
     if (data.allBlocked) {
       for (const d in data.allBlocked) {

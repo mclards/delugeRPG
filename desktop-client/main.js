@@ -171,6 +171,17 @@ if (!gotTheLock) {
   app.on('web-contents-created', (event, contents) => {
     contents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
+    contents.on('console-message', (e, level, message) => {
+      const ts = new Date().toISOString().substring(11, 23);
+      const line = `[${ts}] [WebContents Console] ${message}\n`;
+      try {
+        process.stdout.write(line);
+      } catch (_) {}
+      try {
+        fs.appendFileSync(path.join(__dirname, 'backend_live.log'), line, 'utf8');
+      } catch (_) {}
+    });
+
     contents.on('before-input-event', (inputEvent, input) => {
       if (input.type === 'keyDown' && (input.control || input.meta)) {
         if (input.key === '=' || input.key === '+' || input.code === 'NumpadAdd' || input.code === 'Equal') {

@@ -942,11 +942,12 @@ function checkElementBlocked(el) {
         if (st.cursor === 'not-allowed') return true;
 
         const op = parseFloat(st.opacity);
-        if (!isNaN(op) && op <= 0.65) return true;
+        if (!isNaN(op) && op <= 0.75) return true;
+        if (isGreyColor(st.color) || isGreyColor(st.fill) || isGreyColor(st.backgroundColor)) return true;
         if (st.filter && (st.filter.indexOf('grayscale') !== -1 || st.filter.indexOf('opacity') !== -1)) return true;
     } catch (_) {}
 
-    const img = el.querySelector('img');
+    const img = (el.tagName === 'IMG') ? el : el.querySelector('img');
     if (img) {
         const src = (img.getAttribute('src') || '').toLowerCase();
         if (src.indexOf('disab') !== -1 || src.indexOf('grey') !== -1 || src.indexOf('gray') !== -1 || src.indexOf('off') !== -1) {
@@ -955,17 +956,17 @@ function checkElementBlocked(el) {
         try {
             const imgSt = window.getComputedStyle(img);
             const imgOp = parseFloat(imgSt.opacity);
-            if (!isNaN(imgOp) && imgOp <= 0.65) return true;
+            if (!isNaN(imgOp) && imgOp <= 0.75) return true;
             if (imgSt.filter && imgSt.filter.indexOf('grayscale') !== -1) return true;
         } catch (_) {}
     }
 
-    const svg = el.querySelector('svg, path, polygon');
+    const svg = (el.tagName === 'SVG' || el.tagName === 'PATH' || el.tagName === 'POLYGON') ? el : el.querySelector('svg, path, polygon');
     if (svg) {
         try {
             const svgSt = window.getComputedStyle(svg);
             const svgOp = parseFloat(svgSt.opacity);
-            if (!isNaN(svgOp) && svgOp <= 0.65) return true;
+            if (!isNaN(svgOp) && svgOp <= 0.75) return true;
             const fill = svg.getAttribute('fill') || svgSt.fill;
             if (isGreyColor(fill)) return true;
         } catch (_) {}
@@ -1113,6 +1114,62 @@ const observer = new MutationObserver(() => {
     scanForTargets();
 });
 
+function inspectNavigationDom() {
+    try {
+        const path = (window.location.pathname || '').toLowerCase();
+        if (path.indexOf('/map') === -1) return null;
+
+        const report = {
+            url: window.location.href,
+            playerPos: getPlayerPosition(),
+            dexyText: getDexyText(),
+            blockedSummary: getBlockedNavDirections(),
+            matchedElements: [],
+            dpadSnippet: ''
+        };
+
+        const selectors = [
+            '#dr-n', '#dr-s', '#dr-w', '#dr-e', '#dr-nw', '#dr-ne', '#dr-sw', '#dr-se',
+            '.dr-n', '.dr-s', '.dr-w', '.dr-e', '.dr-nw', '.dr-ne', '.dr-sw', '.dr-se'
+        ];
+        selectors.forEach(sel => {
+            const el = document.querySelector(sel);
+            if (el) {
+                const st = window.getComputedStyle(el);
+                report.matchedElements.push({
+                    selector: sel,
+                    id: el.id,
+                    className: el.className,
+                    disabled: el.disabled || el.getAttribute('disabled') || el.getAttribute('aria-disabled'),
+                    opacity: st.opacity,
+                    color: st.color,
+                    fill: (el.querySelector('svg, path') && window.getComputedStyle(el.querySelector('svg, path')).fill) || '',
+                    display: st.display
+                });
+            }
+        });
+
+        // Search for D-pad container (near checkbox "Keyboard Navigation" or "#map")
+        const allLabels = Array.from(document.querySelectorAll('label, div, span, form, td'));
+        const targetLabel = allLabels.find(l => (l.innerText || l.textContent || '').indexOf('Keyboard Navigation') !== -1);
+        if (targetLabel) {
+            const container = targetLabel.closest('div') || targetLabel.parentElement;
+            if (container && container.parentElement) {
+                report.dpadSnippet = (container.parentElement.innerHTML || '').substring(0, 1500);
+            }
+        }
+
+        ipcRenderer.sendToHost('debug-dom-dump', report);
+        return report;
+    } catch (err) {
+        return { error: err.message };
+    }
+}
+
+ipcRenderer.on('request-dom-dump', () => {
+    inspectNavigationDom();
+});
+
 ipcRenderer.on('step-dispatched', (event, data) => {
     const dir = (data && data.direction) || 'Left';
 
@@ -1145,9 +1202,36 @@ ipcRenderer.on('step-dispatched', (event, data) => {
         resolved: false
     };
 
-    // We rely purely on the DOM MutationObserver for successful moves, 
-    // and the host app's fallback timer for physical wall collisions.
+    // Preload collision evaluation timer (850ms)
+    collisionCheckTimer = setTimeout(() => {
+        if (activeStep && !activeStep.resolved) {
+            const curPos = getPlayerPosition();
+            const curDexy = getDexyText();
+            const posMoved = !!(initialPos && curPos && (initialPos.x !== curPos.x || initialPos.y !== curPos.y));
+            const isLoadingNow = curDexy && curDexy.indexOf('Searching...') !== -1;
+            const navBlockedNow = isNavButtonBlocked(dir);
 
+            if (posMoved) {
+                activeStep.resolved = true;
+                ipcRenderer.sendToHost('move-result', {
+                    direction: dir,
+                    success: true,
+                    allBlocked: getBlockedNavDirections()
+                });
+            } else if (!isLoadingNow) {
+                // Position did not move and server finished
+                if (navBlockedNow || (initialPos && curPos)) {
+                    activeStep.resolved = true;
+                    ipcRenderer.sendToHost('move-result', {
+                        direction: dir,
+                        blocked: true,
+                        navBlocked: navBlockedNow,
+                        allBlocked: getBlockedNavDirections()
+                    });
+                }
+            }
+        }
+    }, 850);
 });
 
 // Guest Context Spacebar Toggle Handler

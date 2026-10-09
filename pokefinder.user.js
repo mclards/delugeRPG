@@ -516,11 +516,12 @@
             if (st.cursor === 'not-allowed') return true;
 
             const op = parseFloat(st.opacity);
-            if (!isNaN(op) && op <= 0.65) return true;
+            if (!isNaN(op) && op <= 0.75) return true;
+            if (isGreyColor(st.color) || isGreyColor(st.fill) || isGreyColor(st.backgroundColor)) return true;
             if (st.filter && (st.filter.indexOf('grayscale') !== -1 || st.filter.indexOf('opacity') !== -1)) return true;
         } catch (_) {}
 
-        const img = el.querySelector('img');
+        const img = (el.tagName === 'IMG') ? el : el.querySelector('img');
         if (img) {
             const src = (img.getAttribute('src') || '').toLowerCase();
             if (src.indexOf('disab') !== -1 || src.indexOf('grey') !== -1 || src.indexOf('gray') !== -1 || src.indexOf('off') !== -1) {
@@ -529,17 +530,17 @@
             try {
                 const imgSt = window.getComputedStyle(img);
                 const imgOp = parseFloat(imgSt.opacity);
-                if (!isNaN(imgOp) && imgOp <= 0.65) return true;
+                if (!isNaN(imgOp) && imgOp <= 0.75) return true;
                 if (imgSt.filter && imgSt.filter.indexOf('grayscale') !== -1) return true;
             } catch (_) {}
         }
 
-        const svg = el.querySelector('svg, path, polygon');
+        const svg = (el.tagName === 'SVG' || el.tagName === 'PATH' || el.tagName === 'POLYGON') ? el : el.querySelector('svg, path, polygon');
         if (svg) {
             try {
                 const svgSt = window.getComputedStyle(svg);
                 const svgOp = parseFloat(svgSt.opacity);
-                if (!isNaN(svgOp) && svgOp <= 0.65) return true;
+                if (!isNaN(svgOp) && svgOp <= 0.75) return true;
                 const fill = svg.getAttribute('fill') || svgSt.fill;
                 if (isGreyColor(fill)) return true;
             } catch (_) {}

@@ -7,7 +7,18 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 
-const CONFIG_PATH = path.join(__dirname, 'config.json');
+let CONFIG_PATH = path.join(__dirname, 'config.json');
+try {
+  const { ipcRenderer } = require('electron');
+  if (ipcRenderer) {
+    const resolvedPath = ipcRenderer.sendSync('get-config-path-sync');
+    if (resolvedPath) {
+      CONFIG_PATH = resolvedPath;
+    }
+  }
+} catch (e) {
+  console.warn('Fallback to local config.json path:', e);
+}
 
 let config = {
   dummyAccount: { username: "PokeDen", password: "sacups2026", autoLogin: false },
@@ -15,7 +26,7 @@ let config = {
   settings: {
     profile: "flagged_network_stealth",
     walkMode: "wander",
-    stepsPerDirection: 1,
+    stepsPerDirection: 5,
     baseDelay: 2100,
     jitter: 550,
     minSafetyFloor: 1700,
@@ -29,20 +40,36 @@ function loadLocalConfig() {
   try {
     const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
     config = JSON.parse(raw);
-  } catch (_) {}
+  } catch (_) {
+    try {
+      const bundled = fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8');
+      config = JSON.parse(bundled);
+    } catch (_) {}
+  }
 }
 
 function saveLocalConfig() {
   try {
+    const dir = path.dirname(CONFIG_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
   } catch (err) {
     console.error('Failed to write config.json:', err);
   }
+
+  try {
+    const { ipcRenderer } = require('electron');
+    if (ipcRenderer) {
+      ipcRenderer.invoke('save-config-json', config).catch(() => {});
+    }
+  } catch (_) {}
 }
 
 loadLocalConfig();
 
-const LOG_FILE = path.join(__dirname, 'backend_live.log');
+const LOG_FILE = path.join(path.dirname(CONFIG_PATH), 'backend_live.log');
 function backendLog(tag, msg) {
   const ts = new Date().toISOString().substring(11, 23);
   const detail = (typeof msg === 'object') ? JSON.stringify(msg) : String(msg);
@@ -588,12 +615,13 @@ function updateTargetUI() {
   if (subParadoxCheckbox) subParadoxCheckbox.checked = paradoxLeg;
 
   if (filterMegasCheckbox) filterMegasCheckbox.checked = isMega;
-  if (filterVariantsCheckbox) filterVariantsCheckbox.checked = isVar;
+  const isVarActive = config.settings && (config.settings.enableVariantFilter !== undefined ? !!config.settings.enableVariantFilter : (config.settings.findAnySpecialVariant !== false));
+  if (filterVariantsCheckbox) filterVariantsCheckbox.checked = isVarActive;
 
   variantIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
-      el.checked = isVar && activeVariants.map(v => v.toLowerCase()).includes(variantMap[id].toLowerCase());
+      el.checked = activeVariants.map(v => v.toLowerCase()).includes(variantMap[id].toLowerCase());
     }
   });
 
@@ -659,10 +687,10 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
   let selectedVars = Object.values(variantMap);
 
   if (presetKey === 'legendaries') {
-    isLeg = true; isMega = false; isVar = false;
+    isLeg = true; isMega = false; isVar = true;
     selectedVars = Object.values(variantMap);
   } else if (presetKey === 'megas') {
-    isLeg = false; isMega = true; isVar = false;
+    isLeg = false; isMega = true; isVar = true;
     selectedVars = Object.values(variantMap);
   } else if (presetKey === 'variants') {
     isLeg = false; isMega = false; isVar = true;
@@ -671,7 +699,7 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
     isLeg = true; isMega = true; isVar = true;
     selectedVars = ['Shiny'];
   } else if (presetKey === 'legend_megas') {
-    isLeg = true; isMega = true; isVar = false;
+    isLeg = true; isMega = true; isVar = true;
     selectedVars = Object.values(variantMap);
   } else if (presetKey === 'all') {
     isLeg = true; isMega = true; isVar = true;
@@ -738,6 +766,7 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
     config.settings.legendaryParadox = isParadox;
     config.settings.findMegasAndGigantamax = isMega;
     config.settings.findAnySpecialVariant = isVar;
+    config.settings.enableVariantFilter = isVar;
     config.settings.selectedVariants = selectedVars;
     saveLocalConfig();
     updateTargetUI();
@@ -2099,6 +2128,7 @@ if (saveTargetsBtn) {
 
     config.settings.findMegasAndGigantamax = isMega;
     config.settings.findAnySpecialVariant = isVar;
+    config.settings.enableVariantFilter = isVar;
     config.settings.selectedVariants = selectedVars;
 
     config.settings.customTargetList = customVal;
@@ -2116,15 +2146,12 @@ if (saveTargetsBtn) {
 
     let preset = 'custom';
     if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'all';
-    else if (isLeg && !isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'legendaries';
-    else if (!isLeg && isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'megas';
+    else if (isLeg && !isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'legendaries';
+    else if (!isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'megas';
     else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) preset = 'shinies';
     else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) preset = 'variants';
-    else if (isLeg && isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'legend_megas';
+    else if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'legend_megas';
 
-    // In species-restricted presets (legendaries, megas, legend_megas), generic wild variants are never enabled
-    const allowGenericVar = (preset === 'all' || preset === 'variants' || preset === 'shinies' || (preset === 'custom' && isVar && !isLeg && !isMega));
-    config.settings.findAnySpecialVariant = allowGenericVar;
     config.settings.targetPreset = preset;
     saveLocalConfig();
     updateTargetUI();

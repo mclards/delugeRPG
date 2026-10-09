@@ -16,7 +16,44 @@ const CLEAN_CHROME_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Apple
 app.userAgentFallback = CLEAN_CHROME_USER_AGENT;
 
 let mainWindow = null;
-const CONFIG_PATH = path.join(__dirname, 'config.json');
+
+// Resolve a writable configuration path across packaged and development environments
+function getResolvedConfigPath() {
+  if (!app.isPackaged) {
+    return path.join(__dirname, 'config.json');
+  }
+
+  // Check if a portable config.json exists next to the executable
+  try {
+    const exeDir = path.dirname(process.execPath);
+    const portableConfig = path.join(exeDir, 'config.json');
+    if (fs.existsSync(portableConfig)) {
+      fs.accessSync(portableConfig, fs.constants.W_OK);
+      return portableConfig;
+    }
+  } catch (_) {}
+
+  // Production packaged / unpacked mode: use app.getPath('userData')
+  const userDataDir = app.getPath('userData');
+  try {
+    if (!fs.existsSync(userDataDir)) {
+      fs.mkdirSync(userDataDir, { recursive: true });
+    }
+  } catch (_) {}
+
+  const userConfigPath = path.join(userDataDir, 'config.json');
+  if (!fs.existsSync(userConfigPath)) {
+    try {
+      const bundled = fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8');
+      fs.writeFileSync(userConfigPath, bundled, 'utf8');
+    } catch (err) {
+      console.error('Failed to seed default config.json to userData:', err);
+    }
+  }
+  return userConfigPath;
+}
+
+const CONFIG_PATH = getResolvedConfigPath();
 
 function loadConfig() {
   try {
@@ -33,11 +70,33 @@ function loadConfig() {
 
 function saveConfig(cfg) {
   try {
+    const dir = path.dirname(CONFIG_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf8');
   } catch (err) {
     console.error('Failed to save config:', err);
   }
 }
+
+// IPC config handlers for renderer synchronization
+ipcMain.on('get-config-path-sync', (event) => {
+  event.returnValue = CONFIG_PATH;
+});
+
+ipcMain.handle('get-config-json', async () => {
+  return loadConfig();
+});
+
+ipcMain.handle('save-config-json', async (event, newConfig) => {
+  try {
+    saveConfig(newConfig);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
 
 function setupSessionHardening(ses, config) {
   // A. Apply Proxy if enabled

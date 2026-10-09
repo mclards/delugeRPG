@@ -502,10 +502,10 @@
         }
 
         const cls = (el.className || '').toString().toLowerCase();
-        if (cls.indexOf('disabled') !== -1 || cls.indexOf('inactive') !== -1 ||
-            cls.indexOf('blocked') !== -1 || cls.indexOf('off') !== -1 ||
-            cls.indexOf('grey') !== -1 || cls.indexOf('gray') !== -1 ||
-            cls.indexOf('dr-dis') !== -1) {
+        if (cls.indexOf('disable') !== -1 || cls.indexOf('m-dis') !== -1 ||
+            cls.indexOf('inactive') !== -1 || cls.indexOf('blocked') !== -1 ||
+            cls.indexOf('off') !== -1 || cls.indexOf('grey') !== -1 ||
+            cls.indexOf('gray') !== -1 || cls.indexOf('dr-dis') !== -1) {
             return true;
         }
 
@@ -750,29 +750,30 @@
             return chooseEvadeWalkKey(normCurrent);
         }
 
-        // Smooth human-like wandering across open maps in cardinal directions
-        const sameDir = normCurrent;
+        // Strictly turn perpendicular when completing required steps!
+        // This ensures the bot always turns after taking the required steps (e.g. 5 steps).
         const perpList = (PERPENDICULARS_8[normCurrent] || ['Up', 'Down']).filter(function(d) {
             return CARDINAL_DIRECTIONS.includes(d);
         });
-        const opp = OPPOSITES_8[normCurrent];
-
-        const pool = [];
-        unblocked.forEach(function(d) {
-            if (d === sameDir) {
-                for (let i = 0; i < 10; i++) pool.push(d); // 40% chance to proceed same direction for another set
-            } else if (perpList.indexOf(d) !== -1) {
-                for (let i = 0; i < 7; i++) pool.push(d); // 56% chance for an unblocked 90-degree turn
-            } else if (d !== opp) {
-                pool.push(d); // 4% chance for wider angle
-            } else if (unblocked.length === 1) {
-                pool.push(d); // Only reverse if cornered
-            }
+        const unblockedPerps = perpList.filter(function(d) {
+            return unblocked.indexOf(d) !== -1;
         });
 
-        if (pool.length > 0) {
-            return pool[Math.floor(Math.random() * pool.length)];
+        if (unblockedPerps.length > 0) {
+            return unblockedPerps[Math.floor(Math.random() * unblockedPerps.length)];
         }
+
+        // Corridor fallback: if both perpendicular sides are walls, continue forward
+        if (unblocked.indexOf(normCurrent) !== -1) {
+            return normCurrent;
+        }
+
+        // Dead-end fallback: reverse
+        const opp = OPPOSITES_8[normCurrent];
+        if (unblocked.indexOf(opp) !== -1) {
+            return opp;
+        }
+
         return unblocked[Math.floor(Math.random() * unblocked.length)];
     }
 
@@ -800,7 +801,7 @@
             if (unblockedEscape.length > 0) {
                 const escapeKey = unblockedEscape[Math.floor(Math.random() * unblockedEscape.length)];
                 currentWanderKey = escapeKey;
-                wanderStepsRemaining = Math.max(3, stepsPerDirection);
+                wanderStepsRemaining = (stepsPerDirection || 1) - 1;
                 updateStatusUI('Escaping choke point...', '#38bdf8');
                 return escapeKey;
             }
@@ -810,7 +811,7 @@
             if (anyEscape.length > 0) {
                 const escapeKey = anyEscape[Math.floor(Math.random() * anyEscape.length)];
                 currentWanderKey = escapeKey;
-                wanderStepsRemaining = Math.max(3, stepsPerDirection);
+                wanderStepsRemaining = (stepsPerDirection || 1) - 1;
                 updateStatusUI('Escaping choke point...', '#38bdf8');
                 return escapeKey;
             }

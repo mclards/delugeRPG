@@ -1053,27 +1053,26 @@ function chooseWanderDirection(currentDir) {
     return chooseEvadeDirection(currentDir);
   }
 
-  // Smooth human-like wandering across open maps in cardinal directions
-  const sameDir = currentDir;
+  // Strictly turn perpendicular when completing required steps!
+  // This ensures the bot always turns after taking the required steps (e.g. 5 steps).
   const perpList = (PERPENDICULARS_8[currentDir] || ['Up', 'Down']).filter(d => CARDINAL_DIRECTIONS.includes(d));
-  const opp = OPPOSITES_8[currentDir];
+  const unblockedPerps = perpList.filter(d => unblocked.includes(d));
 
-  const pool = [];
-  unblocked.forEach(d => {
-    if (d === sameDir) {
-      for (let i = 0; i < 10; i++) pool.push(d); // 40% chance to proceed same direction for another set
-    } else if (perpList.includes(d)) {
-      for (let i = 0; i < 7; i++) pool.push(d); // 56% chance for an unblocked 90-degree turn
-    } else if (d !== opp) {
-      pool.push(d); // 4% chance for wider angle
-    } else if (unblocked.length === 1) {
-      pool.push(d); // Only reverse if cornered
-    }
-  });
-
-  if (pool.length > 0) {
-    return pool[Math.floor(Math.random() * pool.length)];
+  if (unblockedPerps.length > 0) {
+    return unblockedPerps[Math.floor(Math.random() * unblockedPerps.length)];
   }
+
+  // Corridor fallback: if both perpendicular sides are walls, continue forward
+  if (unblocked.includes(currentDir)) {
+    return currentDir;
+  }
+
+  // Dead-end fallback: reverse
+  const opp = OPPOSITES_8[currentDir];
+  if (unblocked.includes(opp)) {
+    return opp;
+  }
+
   return unblocked[Math.floor(Math.random() * unblocked.length)];
 }
 
@@ -1101,7 +1100,7 @@ function getNextKey() {
     if (unblockedEscape.length > 0) {
       const escapeDir = unblockedEscape[Math.floor(Math.random() * unblockedEscape.length)];
       currentDirectionKey = escapeDir;
-      wanderStepsLeft = Math.max(3, stepsPerDir);
+      wanderStepsLeft = stepsPerDir - 1;
       updateStatus(`Escaping choke point (${escapeDir})...`, '#38bdf8');
       return escapeDir;
     }
@@ -1109,7 +1108,7 @@ function getNextKey() {
     if (anyEscape.length > 0) {
       const escapeDir = anyEscape[Math.floor(Math.random() * anyEscape.length)];
       currentDirectionKey = escapeDir;
-      wanderStepsLeft = Math.max(3, stepsPerDir);
+      wanderStepsLeft = stepsPerDir - 1;
       updateStatus(`Escaping choke point (${escapeDir})...`, '#38bdf8');
       return escapeDir;
     }
@@ -1295,8 +1294,13 @@ function sendKeyStep(keyName) {
     // Fallback collision timer: Safety net if preload doesn't resolve within 1600ms
     if (fallbackCollisionTimer) clearTimeout(fallbackCollisionTimer);
     fallbackCollisionTimer = setTimeout(() => {
-      backendLog('FallbackTimer', `Safety timer expired (1600ms) for direction: ${keyName}, physicallyBlocked=${isDirectionPhysicallyBlocked(keyName)}`);
-      handleMoveBlocked(keyName);
+      const isBlocked = isDirectionPhysicallyBlocked(keyName);
+      backendLog('FallbackTimer', `Safety timer expired (1600ms) for direction: ${keyName}, physicallyBlocked=${isBlocked}`);
+      if (isBlocked) {
+        handleMoveBlocked(keyName);
+      } else {
+        handleMoveSuccess(keyName);
+      }
     }, 1600);
 
     patternStepCount++;
@@ -1366,25 +1370,33 @@ function scheduleNextStep(customDelay = null) {
     }
 
     // 1. Long Idle Pause (Simulate alt-tabbing or resting)
-    stepsSinceLastIdlePause++;
-    if (config.settings.enableIdlePauses && stepsSinceLastIdlePause >= nextIdlePauseThreshold) {
-      stepsSinceLastIdlePause = 0;
-      nextIdlePauseThreshold = Math.floor(Math.random() * 40) + 110;
-      const pauseSec = ((14000 + Math.random() * 9000) / 1000).toFixed(1);
-      updateStatus(`Resting (${pauseSec}s)...`, '#e879f9');
-      scheduleNextStep(parseFloat(pauseSec) * 1000);
-      return;
+    // ONLY allowed when wanderStepsLeft <= 0 (strictly at turn boundary, NEVER mid-stride during compulsory steps!)
+    if (config.settings.enableIdlePauses && wanderStepsLeft <= 0) {
+      stepsSinceLastIdlePause++;
+      if (stepsSinceLastIdlePause >= nextIdlePauseThreshold) {
+        stepsSinceLastIdlePause = 0;
+        nextIdlePauseThreshold = Math.floor(Math.random() * 40) + 110;
+        const pauseSec = ((12000 + Math.random() * 6000) / 1000).toFixed(1);
+        updateStatus(`Resting (${pauseSec}s)...`, '#e879f9');
+        backendLog('IdlePause', `Resting for ${pauseSec}s at turn boundary`);
+        scheduleNextStep(parseFloat(pauseSec) * 1000);
+        return;
+      }
     }
 
-    // 2. Micro-Breaks (Simulate glance/distraction)
-    stepsSinceLastMicroBreak++;
-    if (config.settings.enableMicroBreaks && stepsSinceLastMicroBreak >= nextMicroBreakThreshold) {
-      stepsSinceLastMicroBreak = 0;
-      nextMicroBreakThreshold = Math.floor(Math.random() * 15) + 20;
-      const restSec = ((4500 + Math.random() * 4000) / 1000).toFixed(1);
-      updateStatus(`Micro-pause (${restSec}s)`, '#a855f7');
-      scheduleNextStep(parseFloat(restSec) * 1000);
-      return;
+    // 2. Micro-Breaks (Simulate brief glance/distraction)
+    // ONLY allowed when wanderStepsLeft <= 0 (strictly at turn boundary, NEVER mid-stride during compulsory steps!)
+    if (config.settings.enableMicroBreaks && wanderStepsLeft <= 0) {
+      stepsSinceLastMicroBreak++;
+      if (stepsSinceLastMicroBreak >= nextMicroBreakThreshold) {
+        stepsSinceLastMicroBreak = 0;
+        nextMicroBreakThreshold = Math.floor(Math.random() * 15) + 30;
+        const restSec = ((1400 + Math.random() * 800) / 1000).toFixed(1);
+        updateStatus(`Micro-pause (${restSec}s)`, '#a855f7');
+        backendLog('MicroBreak', `Brief glance pause for ${restSec}s at turn boundary`);
+        scheduleNextStep(parseFloat(restSec) * 1000);
+        return;
+      }
     }
 
     // 3. Dispatch Step
@@ -1459,7 +1471,7 @@ function handleMoveBlocked(dir) {
 
   const evadeDir = chooseEvadeDirection(dir);
   currentDirectionKey = evadeDir;
-  wanderStepsLeft = (config.settings.stepsPerDirection || 1) - 1;
+  wanderStepsLeft = config.settings.stepsPerDirection || 1;
 
   updateStatus(`Obstacle! Turning (${evadeDir})...`, '#f59e0b');
   backendLog('Evading', `Turning towards ${evadeDir}`);

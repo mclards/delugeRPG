@@ -928,10 +928,10 @@ function checkElementBlocked(el) {
     }
 
     const cls = (el.className || '').toString().toLowerCase();
-    if (cls.indexOf('disabled') !== -1 || cls.indexOf('inactive') !== -1 ||
-        cls.indexOf('blocked') !== -1 || cls.indexOf('off') !== -1 ||
-        cls.indexOf('grey') !== -1 || cls.indexOf('gray') !== -1 ||
-        cls.indexOf('dr-dis') !== -1) {
+    if (cls.indexOf('disable') !== -1 || cls.indexOf('m-dis') !== -1 ||
+        cls.indexOf('inactive') !== -1 || cls.indexOf('blocked') !== -1 ||
+        cls.indexOf('off') !== -1 || cls.indexOf('grey') !== -1 ||
+        cls.indexOf('gray') !== -1 || cls.indexOf('dr-dis') !== -1) {
         return true;
     }
 
@@ -1219,13 +1219,19 @@ ipcRenderer.on('step-dispatched', (event, data) => {
                     allBlocked: getBlockedNavDirections()
                 });
             } else if (!isLoadingNow) {
-                // Position did not move and server finished
-                if (navBlockedNow || (initialPos && curPos)) {
-                    activeStep.resolved = true;
+                // Preload collision evaluation: check on-screen nav arrow
+                activeStep.resolved = true;
+                if (navBlockedNow) {
                     ipcRenderer.sendToHost('move-result', {
                         direction: dir,
                         blocked: true,
-                        navBlocked: navBlockedNow,
+                        navBlocked: true,
+                        allBlocked: getBlockedNavDirections()
+                    });
+                } else {
+                    ipcRenderer.sendToHost('move-result', {
+                        direction: dir,
+                        success: true,
                         allBlocked: getBlockedNavDirections()
                     });
                 }

@@ -285,12 +285,11 @@
     // Passive, 100% safe DOM position observer for anti-cheat compliance
     function getPlayerPosition() {
         try {
-            const player = document.getElementById('user') ||
+            const player = document.querySelector('#map #user, #map #player, #map .trainer, #map .player, #map img[src*="trainer"], #map img.player') ||
+                           document.getElementById('user') ||
                            document.getElementById('player') ||
                            document.querySelector('.trainer') ||
-                           document.querySelector('.player') ||
-                           document.querySelector('#map img[src*="trainer"]') ||
-                           document.querySelector('#map img.player');
+                           document.querySelector('.player');
             if (player) {
                 const rect = player.getBoundingClientRect();
                 return {
@@ -487,82 +486,89 @@
             const r = parseInt(m[1], 10);
             const g = parseInt(m[2], 10);
             const b = parseInt(m[3], 10);
-            if (r > 60 && g > 60 && b > 60 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30) {
+            // True grey has balanced medium luminance (between 80 and 190). White (255) and black (0) are not grey!
+            if (r >= 80 && r <= 190 && g >= 80 && g <= 190 && b >= 80 && b <= 190 && Math.abs(r - g) < 20 && Math.abs(g - b) < 20) {
                 return true;
             }
         }
         return false;
     }
 
+    function checkElementBlocked(el) {
+        if (!el) return false;
+
+        if (el.disabled || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') {
+            return true;
+        }
+
+        const cls = (el.className || '').toString().toLowerCase();
+        if (cls.indexOf('disabled') !== -1 || cls.indexOf('inactive') !== -1 ||
+            cls.indexOf('blocked') !== -1 || cls.indexOf('off') !== -1 ||
+            cls.indexOf('grey') !== -1 || cls.indexOf('gray') !== -1 ||
+            cls.indexOf('dr-dis') !== -1) {
+            return true;
+        }
+
+        try {
+            const st = window.getComputedStyle(el);
+            if (st.display === 'none' || st.visibility === 'hidden') return true;
+            if (st.pointerEvents === 'none') return true;
+            if (st.cursor === 'not-allowed') return true;
+
+            const op = parseFloat(st.opacity);
+            if (!isNaN(op) && op <= 0.65) return true;
+            if (st.filter && (st.filter.indexOf('grayscale') !== -1 || st.filter.indexOf('opacity') !== -1)) return true;
+        } catch (_) {}
+
+        const img = el.querySelector('img');
+        if (img) {
+            const src = (img.getAttribute('src') || '').toLowerCase();
+            if (src.indexOf('disab') !== -1 || src.indexOf('grey') !== -1 || src.indexOf('gray') !== -1 || src.indexOf('off') !== -1) {
+                return true;
+            }
+            try {
+                const imgSt = window.getComputedStyle(img);
+                const imgOp = parseFloat(imgSt.opacity);
+                if (!isNaN(imgOp) && imgOp <= 0.65) return true;
+                if (imgSt.filter && imgSt.filter.indexOf('grayscale') !== -1) return true;
+            } catch (_) {}
+        }
+
+        const svg = el.querySelector('svg, path, polygon');
+        if (svg) {
+            try {
+                const svgSt = window.getComputedStyle(svg);
+                const svgOp = parseFloat(svgSt.opacity);
+                if (!isNaN(svgOp) && svgOp <= 0.65) return true;
+                const fill = svg.getAttribute('fill') || svgSt.fill;
+                if (isGreyColor(fill)) return true;
+            } catch (_) {}
+        }
+
+        return false;
+    }
+
     function isNavButtonBlocked(keyCode) {
         const keyMap = {
-            38: ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]', '[title*="North" i]', '[title*="Up" i]', '[aria-label*="North" i]', '[aria-label*="Up" i]'],
-            'Up': ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]', '[title*="North" i]', '[title*="Up" i]', '[aria-label*="North" i]', '[aria-label*="Up" i]'],
-            40: ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]', '[title*="South" i]', '[title*="Down" i]', '[aria-label*="South" i]', '[aria-label*="Down" i]'],
-            'Down': ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]', '[title*="South" i]', '[title*="Down" i]', '[aria-label*="South" i]', '[aria-label*="Down" i]'],
-            37: ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]', '[title*="West" i]', '[title*="Left" i]', '[aria-label*="West" i]', '[aria-label*="Left" i]'],
-            'Left': ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]', '[title*="West" i]', '[title*="Left" i]', '[aria-label*="West" i]', '[aria-label*="Left" i]'],
-            39: ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]', '[title*="East" i]', '[title*="Right" i]', '[aria-label*="East" i]', '[aria-label*="Right" i]'],
-            'Right': ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]', '[title*="East" i]', '[title*="Right" i]', '[aria-label*="East" i]', '[aria-label*="Right" i]'],
-            'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]', '[title*="North-West" i]', '[title*="Northwest" i]', '[title*="Up-Left" i]', '[aria-label*="North-West" i]', '[aria-label*="Northwest" i]'],
-            'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]', '[title*="North-East" i]', '[title*="Northeast" i]', '[title*="Up-Right" i]', '[aria-label*="North-East" i]', '[aria-label*="Northeast" i]'],
-            'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]', '[title*="South-West" i]', '[title*="Southwest" i]', '[title*="Down-Left" i]', '[aria-label*="South-West" i]', '[aria-label*="Southwest" i]'],
-            'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]', '[title*="South-East" i]', '[title*="Southeast" i]', '[title*="Down-Right" i]', '[aria-label*="South-East" i]', '[aria-label*="Southeast" i]']
+            38: ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]'],
+            'Up': ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]'],
+            40: ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]'],
+            'Down': ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]'],
+            37: ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]'],
+            'Left': ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]'],
+            39: ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]'],
+            'Right': ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]'],
+            'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]'],
+            'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]'],
+            'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]'],
+            'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]']
         };
-
-        // Trust the DOM strictly for diagonal button states.
 
         const selectors = keyMap[keyCode] || [];
         for (let i = 0; i < selectors.length; i++) {
             const el = document.querySelector(selectors[i]);
-            if (!el) continue;
-
-            if (el.disabled || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') {
-                return true;
-            }
-
-            const cls = (el.className || '').toString().toLowerCase();
-            if (cls.indexOf('disabled') !== -1 || cls.indexOf('inactive') !== -1 ||
-                cls.indexOf('blocked') !== -1 || cls.indexOf('off') !== -1 ||
-                cls.indexOf('grey') !== -1 || cls.indexOf('gray') !== -1 ||
-                cls.indexOf('dr-dis') !== -1) {
-                return true;
-            }
-
-            try {
-                const st = window.getComputedStyle(el);
-                if (st.display === 'none' || st.visibility === 'hidden') return true;
-                if (st.pointerEvents === 'none') return true;
-                if (st.cursor === 'not-allowed') return true;
-
-                const op = parseFloat(st.opacity);
-                if (!isNaN(op) && op < 0.75) return true;
-                if (isGreyColor(st.color) || isGreyColor(st.backgroundColor)) return true;
-            } catch (_) {}
-
-            const img = el.querySelector('img');
-            if (img) {
-                const src = (img.getAttribute('src') || '').toLowerCase();
-                if (src.indexOf('disab') !== -1 || src.indexOf('grey') !== -1 || src.indexOf('gray') !== -1 || src.indexOf('off') !== -1) {
-                    return true;
-                }
-                try {
-                    const imgSt = window.getComputedStyle(img);
-                    const imgOp = parseFloat(imgSt.opacity);
-                    if (!isNaN(imgOp) && imgOp < 0.75) return true;
-                    if (imgSt.filter && imgSt.filter.indexOf('grayscale') !== -1) return true;
-                } catch (_) {}
-            }
-
-            const svg = el.querySelector('svg, path, polygon');
-            if (svg) {
-                try {
-                    const svgSt = window.getComputedStyle(svg);
-                    const svgOp = parseFloat(svgSt.opacity);
-                    if (!isNaN(svgOp) && svgOp < 0.75) return true;
-                    const fill = svg.getAttribute('fill') || svgSt.fill;
-                    if (isGreyColor(fill)) return true;
-                } catch (_) {}
+            if (el) {
+                return checkElementBlocked(el);
             }
         }
         return false;
@@ -577,7 +583,9 @@
     }
 
     function isGameLoading() {
-        // If all 4 cardinal directions are blocked simultaneously, it's a transient AJAX loading state, not a wall.
+        const dexy = document.getElementById('dexy') || document.getElementById('showpoke');
+        const isSearching = dexy && (dexy.innerText || dexy.textContent || '').indexOf('Searching...') !== -1;
+        if (isSearching) return true;
         return isNavButtonBlocked('Up') && isNavButtonBlocked('Down') && isNavButtonBlocked('Left') && isNavButtonBlocked('Right');
     }
 
@@ -679,12 +687,13 @@
         }
 
         const normBlocked = normalizeKey(blockedKey);
-        const excluded = SHARED_COMPONENTS_8[normBlocked] || [normBlocked];
 
-        // 1. Prioritize unblocked perpendicular directions (gliding parallel along obstacle surface)
-        const perpList = PERPENDICULARS_8[normBlocked] || ['Up', 'Down', 'Left', 'Right'];
+        // 1. Prioritize unblocked perpendicular cardinal directions (gliding parallel along obstacle surface)
+        const perpList = (PERPENDICULARS_8[normBlocked] || ['Up', 'Down', 'Left', 'Right']).filter(function(k) {
+            return CARDINAL_DIRECTIONS.includes(k);
+        });
         const unblockedFreshPerp = perpList.filter(function(k) {
-            return !excluded.includes(k) &&
+            return k !== normBlocked &&
                    !isWalkKeyPhysicallyBlocked(k, now) &&
                    (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now);
         });
@@ -695,40 +704,28 @@
 
         // Fallback to any unblocked perpendicular
         const anyUnblockedPerp = perpList.filter(function(k) {
-            return !excluded.includes(k) &&
-                   !isWalkKeyPhysicallyBlocked(k, now);
+            return k !== normBlocked && !isWalkKeyPhysicallyBlocked(k, now);
         });
         if (anyUnblockedPerp.length > 0) {
             return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
         }
 
-        // 2. Check retreating diagonal or cardinal angles (moving away from obstacle surface)
+        // 2. Reversing (180-degree back-out) into opposite direction
         const opp = OPPOSITES_8[normBlocked] || 'Down';
-        const retreatDiagonals = ADJACENT_45_8[opp] || [];
-        const unblockedRetreat = retreatDiagonals.filter(function(k) {
-            return !excluded.includes(k) &&
-                   !isWalkKeyPhysicallyBlocked(k, now) &&
-                   (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now);
-        });
-        if (unblockedRetreat.length > 0) {
-            return unblockedRetreat[Math.floor(Math.random() * unblockedRetreat.length)];
-        }
-
-        // 3. Reversing (180-degree back-out) into opposite direction
-        if (!excluded.includes(opp) && !isWalkKeyPhysicallyBlocked(opp, now)) {
+        if (opp !== normBlocked && !isWalkKeyPhysicallyBlocked(opp, now)) {
             deadEndCooldowns[normBlocked] = now + 10000;
             return opp;
         }
 
-        // 4. Any unblocked direction from all 8 directions
-        const anyUnblocked = ALL_DIRECTIONS_8.filter(function(k) {
-            return !excluded.includes(k) && !isWalkKeyPhysicallyBlocked(k, now);
+        // 3. Any unblocked cardinal direction
+        const anyUnblocked = CARDINAL_DIRECTIONS.filter(function(k) {
+            return k !== normBlocked && !isWalkKeyPhysicallyBlocked(k, now);
         });
         if (anyUnblocked.length > 0) {
             return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
         }
 
-        // 5. Absolute fallback
+        // 4. Absolute fallback
         return opp;
     }
 
@@ -736,13 +733,14 @@
         const now = Date.now();
         const normCurrent = normalizeKey(currentKey);
 
-        const unblocked = ALL_DIRECTIONS_8.filter(function(d) {
+        // Gather unblocked candidates from cardinal directions for reliable grid traversal
+        const unblocked = CARDINAL_DIRECTIONS.filter(function(d) {
             return !isWalkKeyPhysicallyBlocked(d, now) &&
                    (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now);
         });
 
         if (unblocked.length === 0) {
-            const anyUnblocked = ALL_DIRECTIONS_8.filter(function(d) {
+            const anyUnblocked = CARDINAL_DIRECTIONS.filter(function(d) {
                 return !isWalkKeyPhysicallyBlocked(d, now);
             });
             if (anyUnblocked.length > 0) {
@@ -751,19 +749,19 @@
             return chooseEvadeWalkKey(normCurrent);
         }
 
+        // Smooth human-like wandering across open maps in cardinal directions
         const sameDir = normCurrent;
-        const adjList = ADJACENT_45_8[normCurrent] || [];
-        const perpList = PERPENDICULARS_8[normCurrent] || [];
+        const perpList = (PERPENDICULARS_8[normCurrent] || ['Up', 'Down']).filter(function(d) {
+            return CARDINAL_DIRECTIONS.includes(d);
+        });
         const opp = OPPOSITES_8[normCurrent];
 
         const pool = [];
         unblocked.forEach(function(d) {
             if (d === sameDir) {
-                for(let i=0; i<10; i++) pool.push(d); // 40% chance to proceed same direction for another set
-            } else if (adjList.indexOf(d) !== -1) {
-                for(let i=0; i<2; i++) pool.push(d); // 16% chance to veer 45 degrees
+                for (let i = 0; i < 10; i++) pool.push(d); // 40% chance to proceed same direction for another set
             } else if (perpList.indexOf(d) !== -1) {
-                for(let i=0; i<5; i++) pool.push(d); // 40% chance for a sharp 90-degree turn
+                for (let i = 0; i < 7; i++) pool.push(d); // 56% chance for an unblocked 90-degree turn
             } else if (d !== opp) {
                 pool.push(d); // 4% chance for wider angle
             } else if (unblocked.length === 1) {

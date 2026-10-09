@@ -887,12 +887,11 @@ function startCatchSequence() {
 // --- 6. DOM OBSERVERS & EVENT HOOKS ---
 function getPlayerPosition() {
     try {
-        const player = document.getElementById('user') ||
+        const player = document.querySelector('#map #user, #map #player, #map .trainer, #map .player, #map img[src*="trainer"], #map img.player') ||
+                       document.getElementById('user') ||
                        document.getElementById('player') ||
                        document.querySelector('.trainer') ||
-                       document.querySelector('.player') ||
-                       document.querySelector('#map img[src*="trainer"]') ||
-                       document.querySelector('#map img.player');
+                       document.querySelector('.player');
         if (player) {
             const rect = player.getBoundingClientRect();
             return {
@@ -913,79 +912,85 @@ function isGreyColor(c) {
         const r = parseInt(m[1], 10);
         const g = parseInt(m[2], 10);
         const b = parseInt(m[3], 10);
-        if (r > 60 && g > 60 && b > 60 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30) {
+        // True grey has balanced medium luminance (between 80 and 190). White (255) and black (0) are not grey!
+        if (r >= 80 && r <= 190 && g >= 80 && g <= 190 && b >= 80 && b <= 190 && Math.abs(r - g) < 20 && Math.abs(g - b) < 20) {
             return true;
         }
     }
     return false;
 }
 
+function checkElementBlocked(el) {
+    if (!el) return false;
+
+    if (el.disabled || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true' || el.getAttribute('aria-hidden') === 'true') {
+        return true;
+    }
+
+    const cls = (el.className || '').toString().toLowerCase();
+    if (cls.indexOf('disabled') !== -1 || cls.indexOf('inactive') !== -1 ||
+        cls.indexOf('blocked') !== -1 || cls.indexOf('off') !== -1 ||
+        cls.indexOf('grey') !== -1 || cls.indexOf('gray') !== -1 ||
+        cls.indexOf('dr-dis') !== -1) {
+        return true;
+    }
+
+    try {
+        const st = window.getComputedStyle(el);
+        if (st.display === 'none' || st.visibility === 'hidden') return true;
+        if (st.pointerEvents === 'none') return true;
+        if (st.cursor === 'not-allowed') return true;
+
+        const op = parseFloat(st.opacity);
+        if (!isNaN(op) && op <= 0.65) return true;
+        if (st.filter && (st.filter.indexOf('grayscale') !== -1 || st.filter.indexOf('opacity') !== -1)) return true;
+    } catch (_) {}
+
+    const img = el.querySelector('img');
+    if (img) {
+        const src = (img.getAttribute('src') || '').toLowerCase();
+        if (src.indexOf('disab') !== -1 || src.indexOf('grey') !== -1 || src.indexOf('gray') !== -1 || src.indexOf('off') !== -1) {
+            return true;
+        }
+        try {
+            const imgSt = window.getComputedStyle(img);
+            const imgOp = parseFloat(imgSt.opacity);
+            if (!isNaN(imgOp) && imgOp <= 0.65) return true;
+            if (imgSt.filter && imgSt.filter.indexOf('grayscale') !== -1) return true;
+        } catch (_) {}
+    }
+
+    const svg = el.querySelector('svg, path, polygon');
+    if (svg) {
+        try {
+            const svgSt = window.getComputedStyle(svg);
+            const svgOp = parseFloat(svgSt.opacity);
+            if (!isNaN(svgOp) && svgOp <= 0.65) return true;
+            const fill = svg.getAttribute('fill') || svgSt.fill;
+            if (isGreyColor(fill)) return true;
+        } catch (_) {}
+    }
+
+    return false;
+}
+
 function isNavButtonBlocked(dir) {
     const dirMap = {
-        'Up': ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]', '[title*="North" i]', '[title*="Up" i]', '[aria-label*="North" i]', '[aria-label*="Up" i]'],
-        'Down': ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]', '[title*="South" i]', '[title*="Down" i]', '[aria-label*="South" i]', '[aria-label*="Down" i]'],
-        'Left': ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]', '[title*="West" i]', '[title*="Left" i]', '[aria-label*="West" i]', '[aria-label*="Left" i]'],
-        'Right': ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]', '[title*="East" i]', '[title*="Right" i]', '[aria-label*="East" i]', '[aria-label*="Right" i]'],
-        'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]', '[title*="North-West" i]', '[title*="Northwest" i]', '[title*="Up-Left" i]', '[aria-label*="North-West" i]', '[aria-label*="Northwest" i]'],
-        'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]', '[title*="North-East" i]', '[title*="Northeast" i]', '[title*="Up-Right" i]', '[aria-label*="North-East" i]', '[aria-label*="Northeast" i]'],
-        'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]', '[title*="South-West" i]', '[title*="Southwest" i]', '[title*="Down-Left" i]', '[aria-label*="South-West" i]', '[aria-label*="Southwest" i]'],
-        'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]', '[title*="South-East" i]', '[title*="Southeast" i]', '[title*="Down-Right" i]', '[aria-label*="South-East" i]', '[aria-label*="Southeast" i]']
+        'Up': ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]'],
+        'Down': ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]'],
+        'Left': ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]'],
+        'Right': ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]'],
+        'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]'],
+        'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]'],
+        'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]'],
+        'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]']
     };
-
-    // Trust the DOM strictly for diagonal button states.
 
     const selectors = dirMap[dir] || [];
     for (let i = 0; i < selectors.length; i++) {
         const el = document.querySelector(selectors[i]);
-        if (!el) continue;
-
-        if (el.disabled || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true' || el.getAttribute('aria-hidden') === 'true') {
-            return true;
-        }
-
-        const cls = (el.className || '').toString().toLowerCase();
-        if (cls.indexOf('disabled') !== -1 || cls.indexOf('inactive') !== -1 ||
-            cls.indexOf('blocked') !== -1 || cls.indexOf('off') !== -1 ||
-            cls.indexOf('grey') !== -1 || cls.indexOf('gray') !== -1 ||
-            cls.indexOf('dr-dis') !== -1) {
-            return true;
-        }
-
-        try {
-            const st = window.getComputedStyle(el);
-            if (st.display === 'none' || st.visibility === 'hidden') return true;
-            if (st.pointerEvents === 'none') return true;
-            if (st.cursor === 'not-allowed') return true;
-
-            const op = parseFloat(st.opacity);
-            if (!isNaN(op) && op < 0.75) return true;
-            if (isGreyColor(st.color) || isGreyColor(st.backgroundColor)) return true;
-            if (st.filter && (st.filter.indexOf('grayscale') !== -1 || st.filter.indexOf('opacity') !== -1)) return true;
-        } catch (_) {}
-
-        const img = el.querySelector('img');
-        if (img) {
-            const src = (img.getAttribute('src') || '').toLowerCase();
-            if (src.indexOf('disab') !== -1 || src.indexOf('grey') !== -1 || src.indexOf('gray') !== -1 || src.indexOf('off') !== -1) {
-                return true;
-            }
-            try {
-                const imgSt = window.getComputedStyle(img);
-                const imgOp = parseFloat(imgSt.opacity);
-                if (!isNaN(imgOp) && imgOp < 0.75) return true;
-                if (imgSt.filter && imgSt.filter.indexOf('grayscale') !== -1) return true;
-            } catch (_) {}
-        }
-
-        const svg = el.querySelector('svg, path, polygon');
-        if (svg) {
-            try {
-                const svgSt = window.getComputedStyle(svg);
-                const svgOp = parseFloat(svgSt.opacity);
-                if (!isNaN(svgOp) && svgOp < 0.75) return true;
-                const fill = svg.getAttribute('fill') || svgSt.fill;
-                if (isGreyColor(fill)) return true;
-            } catch (_) {}
+        if (el) {
+            return checkElementBlocked(el);
         }
     }
     return false;
@@ -1117,7 +1122,7 @@ ipcRenderer.on('step-dispatched', (event, data) => {
     }
 
     const allBlocked = getBlockedNavDirections();
-    const isGameLoading = allBlocked['Up'] && allBlocked['Down'] && allBlocked['Left'] && allBlocked['Right'];
+    const isGameLoading = (allBlocked['Up'] && allBlocked['Down'] && allBlocked['Left'] && allBlocked['Right']) || (getDexyText().indexOf('Searching...') !== -1);
 
     // Fast path: if the nav arrow on DelugeRPG is ALREADY disabled (and the game is not just loading), report obstacle immediately
     if (isNavButtonBlocked(dir) && !isGameLoading) {

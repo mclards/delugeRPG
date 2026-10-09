@@ -5,11 +5,11 @@ const path = require('path');
 
 console.log('=== RUNNING THOROUGH AUDIT FIXES VERIFICATION SUITE ===');
 
-const appJs = fs.readFileSync('desktop-client/app.js', 'utf8');
-const preloadJs = fs.readFileSync('desktop-client/game-preload.js', 'utf8');
-const mainJs = fs.readFileSync('desktop-client/main.js', 'utf8');
+const appJs = fs.readFileSync('desktop-client/app.js', 'utf8').replace(/\r\n/g, '\n');
+const preloadJs = fs.readFileSync('desktop-client/game-preload.js', 'utf8').replace(/\r\n/g, '\n');
+const mainJs = fs.readFileSync('desktop-client/main.js', 'utf8').replace(/\r\n/g, '\n');
 const configJson = JSON.parse(fs.readFileSync('desktop-client/config.json', 'utf8'));
-const userJs = fs.readFileSync('pokefinder.user.js', 'utf8');
+const userJs = fs.readFileSync('pokefinder.user.js', 'utf8').replace(/\r\n/g, '\n');
 
 // 1. C-1 DEADLOCK FIX VERIFICATION
 console.log('\n--- 1. C-1: Non-Target Wild Encounter Deadlock Fix ---');

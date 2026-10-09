@@ -4,9 +4,9 @@ const fs = require('fs');
 
 console.log('--- TESTING PAUSE ACCURACY & ZERO-FALSE-POSITIVE ENCOUNTER SYSTEM ---');
 
-const preloadJs = fs.readFileSync('desktop-client/game-preload.js', 'utf8');
-const appJs = fs.readFileSync('desktop-client/app.js', 'utf8');
-const userJs = fs.readFileSync('pokefinder.user.js', 'utf8');
+const preloadJs = fs.readFileSync('desktop-client/game-preload.js', 'utf8').replace(/\r\n/g, '\n');
+const appJs = fs.readFileSync('desktop-client/app.js', 'utf8').replace(/\r\n/g, '\n');
+const userJs = fs.readFileSync('pokefinder.user.js', 'utf8').replace(/\r\n/g, '\n');
 
 // 1. Verify game-preload.js gates target matching behind hasCatchUI
 assert(preloadJs.includes('const hasCatchUI = isEncounterOrCatchUIPresent();'), 'game-preload.js must evaluate hasCatchUI');

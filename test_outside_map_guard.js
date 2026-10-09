@@ -8,7 +8,7 @@ const fs = require('fs');
 console.log('--- TESTING OUTSIDE MAP AUTO-PAUSE & CURSOR SAFETY GUARDS ---');
 
 // 1. Verify app.js implementation
-const appJs = fs.readFileSync('desktop-client/app.js', 'utf8');
+const appJs = fs.readFileSync('desktop-client/app.js', 'utf8').replace(/\r\n/g, '\n');
 
 assert(appJs.includes('function isMapUrl(rawUrl)'), 'app.js must define isMapUrl helper');
 assert(appJs.includes('function autoPauseOutsideMap('), 'app.js must define autoPauseOutsideMap helper');
@@ -61,14 +61,14 @@ assert(appJs.includes("if (!isRunning) {\n    const curUrl = delugeView ? deluge
 console.log('  [PASS] toggleHunting prevents starting hunting when outside maps.');
 
 // 5. Verify game-preload.js IPC notifications
-const preloadJs = fs.readFileSync('desktop-client/game-preload.js', 'utf8');
+const preloadJs = fs.readFileSync('desktop-client/game-preload.js', 'utf8').replace(/\r\n/g, '\n');
 assert(preloadJs.includes("ipcRenderer.sendToHost('hunting-auto-pause'"), 'game-preload.js must notify host of auto pause');
 assert(preloadJs.includes("ipcRenderer.sendToHost('guest-input-focused'"), 'game-preload.js must notify host of guest input focus');
 
 console.log('  [PASS] game-preload.js emits hunting-auto-pause and guest-input-focused.');
 
 // 6. Verify pokefinder.user.js guards
-const userJs = fs.readFileSync('pokefinder.user.js', 'utf8');
+const userJs = fs.readFileSync('pokefinder.user.js', 'utf8').replace(/\r\n/g, '\n');
 assert(userJs.includes("if (window.location.pathname.indexOf('/map') === -1) {\n            finderActive = false;\n            updateStatusUI('Paused (Outside Map)', '#ff9800');\n            return;\n        }"), 'pokefinder.user.js resumeMapHunting must guard with pathname');
 assert(userJs.includes("if (window.location.pathname.indexOf('/map') === -1) {\n            finderActive = false;\n            return;\n        }"), 'pokefinder.user.js startAutoWalk must guard with pathname');
 

@@ -977,8 +977,8 @@ function chooseEvadeDirection(blockedDir) {
   // Component conflict exclusion: never evade into a direction sharing the blocked wall component!
   const excluded = SHARED_COMPONENTS_8[blockedDir] || [blockedDir];
 
-  // 1. Prioritize unblocked perpendicular directions (gliding parallel along obstacle surface)
-  const perpList = PERPENDICULARS_8[blockedDir] || ['Up', 'Down', 'Left', 'Right'];
+  // 1. Prioritize unblocked perpendicular cardinal directions (gliding parallel along obstacle surface)
+  const perpList = (PERPENDICULARS_8[blockedDir] || ['Up', 'Down', 'Left', 'Right']).filter(k => CARDINAL_DIRECTIONS.includes(k));
   const unblockedFreshPerp = perpList.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
   if (unblockedFreshPerp.length > 0) {
     return unblockedFreshPerp[Math.floor(Math.random() * unblockedFreshPerp.length)];
@@ -990,27 +990,20 @@ function chooseEvadeDirection(blockedDir) {
     return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
   }
 
-  // 2. Check retreating diagonal or cardinal angles (moving away from obstacle surface)
+  // 2. Reversing (180-degree back-out) into opposite direction
   const opp = OPPOSITES_8[blockedDir] || 'Down';
-  const retreatDiagonals = ADJACENT_45_8[opp] || [];
-  const unblockedRetreat = retreatDiagonals.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
-  if (unblockedRetreat.length > 0) {
-    return unblockedRetreat[Math.floor(Math.random() * unblockedRetreat.length)];
-  }
-
-  // 3. Reversing (180-degree back-out) into opposite direction
   if (!excluded.includes(opp) && !isDirectionPhysicallyBlocked(opp, now)) {
     deadEndCooldowns[blockedDir] = now + 10000;
     return opp;
   }
 
-  // 4. Any unblocked direction from all 8 directions (excluding shared component)
-  const anyUnblocked = ALL_DIRECTIONS_8.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now));
+  // 3. Any unblocked cardinal direction (excluding shared component)
+  const anyUnblocked = CARDINAL_DIRECTIONS.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now));
   if (anyUnblocked.length > 0) {
     return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
   }
 
-  // 5. Absolute fallback if enclosed on 3 sides: pick opposite
+  // 4. Absolute fallback if enclosed on 3 sides: pick opposite
   return opp;
 }
 
@@ -1018,31 +1011,28 @@ function chooseWanderDirection(currentDir) {
   const now = Date.now();
   currentDir = currentDir || 'Right';
 
-  // Gather unblocked candidates from all 8 directions
-  const unblocked = ALL_DIRECTIONS_8.filter(d => !isDirectionPhysicallyBlocked(d, now) && (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now));
+  // Gather unblocked candidates from cardinal directions for reliable grid traversal
+  const unblocked = CARDINAL_DIRECTIONS.filter(d => !isDirectionPhysicallyBlocked(d, now) && (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now));
 
   if (unblocked.length === 0) {
-    const anyUnblocked = ALL_DIRECTIONS_8.filter(d => !isDirectionPhysicallyBlocked(d, now));
+    const anyUnblocked = CARDINAL_DIRECTIONS.filter(d => !isDirectionPhysicallyBlocked(d, now));
     if (anyUnblocked.length > 0) {
       return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
     }
     return chooseEvadeDirection(currentDir);
   }
 
-  // Smooth human-like wandering across open maps in all 8 directions
+  // Smooth human-like wandering across open maps in cardinal directions
   const sameDir = currentDir;
-  const adjList = ADJACENT_45_8[currentDir] || [];
-  const perpList = PERPENDICULARS_8[currentDir] || [];
+  const perpList = (PERPENDICULARS_8[currentDir] || ['Up', 'Down']).filter(d => CARDINAL_DIRECTIONS.includes(d));
   const opp = OPPOSITES_8[currentDir];
 
   const pool = [];
   unblocked.forEach(d => {
     if (d === sameDir) {
-      for(let i=0; i<10; i++) pool.push(d); // 40% chance to proceed same direction for another set
-    } else if (adjList.includes(d)) {
-      for(let i=0; i<2; i++) pool.push(d); // 16% chance to veer 45 degrees
+      for (let i = 0; i < 10; i++) pool.push(d); // 40% chance to proceed same direction for another set
     } else if (perpList.includes(d)) {
-      for(let i=0; i<5; i++) pool.push(d); // 40% chance for a sharp 90-degree turn
+      for (let i = 0; i < 7; i++) pool.push(d); // 56% chance for an unblocked 90-degree turn
     } else if (d !== opp) {
       pool.push(d); // 4% chance for wider angle
     } else if (unblocked.length === 1) {
@@ -1266,8 +1256,13 @@ function sendKeyStep(keyName) {
     // Fallback collision timer: Safety net if preload doesn't resolve within 1600ms
     if (fallbackCollisionTimer) clearTimeout(fallbackCollisionTimer);
     fallbackCollisionTimer = setTimeout(() => {
-      // Unconfirmed timeout after 1600ms: treat as collision, NEVER as success!
-      handleMoveBlocked(keyName);
+      // If nav button for this direction is currently blocked, treat as collision;
+      // otherwise, if the path is clear, treat as success!
+      if (isDirectionPhysicallyBlocked(keyName)) {
+        handleMoveBlocked(keyName);
+      } else {
+        handleMoveSuccess(keyName);
+      }
     }, 1600);
 
     patternStepCount++;

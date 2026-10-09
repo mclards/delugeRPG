@@ -7,7 +7,7 @@ const fs = require('fs');
 console.log('--- TESTING ACTIVE HUNTING SCANNING & BEEP GUARDS ---');
 
 // 1. Verify desktop-client/app.js has isRunning guard in target-found and syncHuntingState
-const appJs = fs.readFileSync('desktop-client/app.js', 'utf8');
+const appJs = fs.readFileSync('desktop-client/app.js', 'utf8').replace(/\r\n/g, '\n');
 
 assert(appJs.includes('function syncHuntingState()'), 'app.js must define syncHuntingState()');
 assert(appJs.includes("delugeView.send('hunting-state-changed', { isHunting: isRunning })"), 'syncHuntingState must emit hunting-state-changed with isHunting');
@@ -16,7 +16,7 @@ assert(appJs.includes("if (!isRunning) {\n      // STRICT SAFETY: Only react to 
 console.log('  [PASS] desktop-client/app.js strictly guards target-found with isRunning.');
 
 // 2. Verify desktop-client/game-preload.js has isHuntingActive state, page check, and selective selectors
-const preloadJs = fs.readFileSync('desktop-client/game-preload.js', 'utf8');
+const preloadJs = fs.readFileSync('desktop-client/game-preload.js', 'utf8').replace(/\r\n/g, '\n');
 
 assert(preloadJs.includes("let isHuntingActive = false;"), 'game-preload.js must track isHuntingActive');
 assert(preloadJs.includes("ipcRenderer.on('hunting-state-changed'"), 'game-preload.js must listen for hunting-state-changed');
@@ -27,7 +27,7 @@ assert(!preloadJs.includes("[id*=\"poke\" i]"), 'game-preload.js must not contai
 console.log('  [PASS] desktop-client/game-preload.js strictly guards against scanning when paused or on team/box pages.');
 
 // 3. Verify pokefinder.user.js has path check and selective selectors
-const userscript = fs.readFileSync('pokefinder.user.js', 'utf8');
+const userscript = fs.readFileSync('pokefinder.user.js', 'utf8').replace(/\r\n/g, '\n');
 
 assert(userscript.includes("path.indexOf('/map') === -1 && path.indexOf('/catch') === -1"), 'pokefinder.user.js extractEncounterText must check for /map or /catch');
 assert(!userscript.includes("[id*=\"poke\" i]"), 'pokefinder.user.js must not contain broad [id*="poke" i] selector');

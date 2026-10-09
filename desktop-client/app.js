@@ -661,6 +661,9 @@ function updateTargetUI() {
   else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) presetKey = 'shinies';
   else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) presetKey = 'variants';
   else if (isLeg && isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'legend_megas';
+  else if (isLeg && !isMega && !isLevel && !hasCustom) presetKey = 'legendaries';
+  else if (!isLeg && isMega && !isLevel && !hasCustom) presetKey = 'megas';
+  else if (isLeg && isMega && !isLevel && !hasCustom) presetKey = 'legend_megas';
 
   const pills = [
     { btn: presetAllBtn, key: 'all' },
@@ -2151,6 +2154,9 @@ if (saveTargetsBtn) {
     else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) preset = 'shinies';
     else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) preset = 'variants';
     else if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'legend_megas';
+    else if (isLeg && !isMega && !isLevel && !hasCustom) preset = 'legendaries';
+    else if (!isLeg && isMega && !isLevel && !hasCustom) preset = 'megas';
+    else if (isLeg && isMega && !isLevel && !hasCustom) preset = 'legend_megas';
 
     config.settings.targetPreset = preset;
     saveLocalConfig();

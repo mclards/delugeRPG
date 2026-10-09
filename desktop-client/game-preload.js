@@ -652,10 +652,23 @@ function scanForTargets() {
     }
 
     // 4. Tier 4: Special Sprite Variants (Generic Wild Pokemon)
-    // Only active when generic variants hunting is enabled (presets: 'all', 'variants', 'shinies', or custom with variants).
-    // In species-restricted presets ('legendaries', 'megas', 'legend_megas'), generic wild Pokemon (e.g. Ghostly Indeedee, Chrome Rattata) are strictly IGNORED!
-    const isSpeciesRestricted = config.targetPreset === 'legendaries' || config.targetPreset === 'megas' || config.targetPreset === 'legend_megas';
-    const allowGenericVariants = findAnyVariant && !isSpeciesRestricted;
+    // Generic wild common Pokemon (e.g. Swablu, Rattata, Bidoof) are ONLY caught if:
+    // - Preset is 'all' (catch all targets + all variants)
+    // - Preset is 'variants' (catch any wild variant)
+    // - Preset is 'shinies' and the encounter is specifically Shiny
+    // - Or custom mode with NO species tiers selected (pure variant hunting)
+    // When species tiers (Legendaries, Megas, or Custom Whitelist) are active, common wild Pokemon are NEVER halted!
+    const hasActiveSpeciesTiers = findLegend || findMegas || (config.customTargetList && config.customTargetList.trim().length > 0);
+    const isSpeciesRestricted = hasActiveSpeciesTiers || config.targetPreset === 'legendaries' || config.targetPreset === 'megas' || config.targetPreset === 'legend_megas';
+
+    let allowGenericVariants = false;
+    if (config.targetPreset === 'all' || config.targetPreset === 'variants') {
+        allowGenericVariants = findAnyVariant;
+    } else if (config.targetPreset === 'shinies') {
+        allowGenericVariants = findAnyVariant && (detectedVariant === 'shiny');
+    } else if (!hasActiveSpeciesTiers) {
+        allowGenericVariants = findAnyVariant;
+    }
 
     if (allowGenericVariants && detectedVariant !== 'normal') {
         if (allowedVariants.includes(detectedVariant)) {

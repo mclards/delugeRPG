@@ -41,11 +41,14 @@ assert(appJs.includes('const isBlocked = isDirectionPhysicallyBlocked(keyName);'
 assert(appJs.includes('if (isBlocked) {\n        handleMoveBlocked(keyName);\n      } else {\n        handleMoveSuccess(keyName);\n      }'), 'fallback timer must confirm move if unblocked');
 console.log('  [PASS] Fallback timer guarantees unblocked moves are confirmed and never turn falsely.');
 
-// --- 3. VERIFY MICRO-PAUSES & IDLE PAUSES ARE BARRED MID-STRIDE ---
-console.log('\n--- 3. Testing Pause Mid-Stride Guard ---');
+// --- 3. VERIFY MICRO-PAUSES & IDLE PAUSES RESET STEP COUNTER AND CHANGE DIRECTION ---
+console.log('\n--- 3. Testing Pause Mid-Stride Guard & Direction Change ---');
 assert(appJs.includes('if (config.settings.enableIdlePauses && wanderStepsLeft <= 0)'), 'Idle pauses must strictly require wanderStepsLeft <= 0');
 assert(appJs.includes('if (config.settings.enableMicroBreaks && wanderStepsLeft <= 0)'), 'Micro breaks must strictly require wanderStepsLeft <= 0');
-console.log('  [PASS] Idle pauses and micro breaks are strictly forbidden from interrupting mid-stride.');
+assert(appJs.includes('wanderStepsLeft = 0;\n        isResumingFromMicroPause = true;'), 'Step counter must be reset during micro-pause');
+assert(appJs.includes('if (isResumingFromMicroPause || isResumingFromIdlePause) {'), 'Must check for pause resumption');
+assert(appJs.includes('currentDirectionKey = chooseWanderDirection(currentDirectionKey);'), 'Must change to other direction after pause');
+console.log('  [PASS] Idle pauses and micro breaks reset step counter and change to new direction upon resume.');
 
 // --- 4. BEHAVIORAL SIMULATION: EXACT 5 STEPS PER TURN WITHOUT RANDOM NUMBERS ---
 console.log('\n--- 4. Testing Exact 5-Step Traversal with Side Walls ---');

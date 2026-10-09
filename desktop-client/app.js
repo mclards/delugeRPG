@@ -174,8 +174,10 @@ let currentZoomFactor = (config.settings && typeof config.settings.zoomFactor ==
 // Pacing & Fatigue State
 let stepsSinceLastMicroBreak = 0;
 let stepsSinceLastIdlePause = 0;
-let nextMicroBreakThreshold = Math.floor(Math.random() * 15) + 20; // 20 to 35 steps
+let nextMicroBreakThreshold = Math.floor(Math.random() * 15) + 30; // 30 to 45 steps
 let nextIdlePauseThreshold = Math.floor(Math.random() * 40) + 110; // 110 to 150 steps
+let isResumingFromMicroPause = false;
+let isResumingFromIdlePause = false;
 let driftAccumulator = 0;
 
 // Direction State
@@ -879,6 +881,8 @@ function toggleHunting() {
     isEncounterOnScreen = false;
     isStepPending = false;
     wanderStepsLeft = 0;
+    isResumingFromMicroPause = false;
+    isResumingFromIdlePause = false;
     try {
       if (delugeView) delugeView.send('request-dom-dump');
     } catch (_) {}
@@ -892,6 +896,8 @@ function toggleHunting() {
   } else {
     backendLog('HuntingPause', 'Automated hunting paused by user');
     isStepPending = false;
+    isResumingFromMicroPause = false;
+    isResumingFromIdlePause = false;
     if (walkTimeout) {
       clearTimeout(walkTimeout);
       walkTimeout = null;
@@ -1369,6 +1375,25 @@ function scheduleNextStep(customDelay = null) {
       searchWaitTicks = 0;
     }
 
+    // 0. Check if resuming from a micro-pause or idle pause
+    // After the pause, change to another direction and start fresh compulsory steps!
+    if (isResumingFromMicroPause || isResumingFromIdlePause) {
+      const wasMicro = isResumingFromMicroPause;
+      isResumingFromMicroPause = false;
+      isResumingFromIdlePause = false;
+
+      const prev = currentDirectionKey;
+      currentDirectionKey = chooseWanderDirection(currentDirectionKey);
+      const compulsorySteps = Math.max(1, config.settings.stepsPerDirection || 1);
+      wanderStepsLeft = compulsorySteps - 1;
+
+      backendLog(wasMicro ? 'MicroBreak' : 'IdlePause', `Resumed after ${wasMicro ? 'micro-pause' : 'idle pause'}: Changed direction from ${prev} to ${currentDirectionKey}, starting fresh ${compulsorySteps} steps`);
+      sendKeyStep(currentDirectionKey);
+      updateStatus(`Hunting (${currentDirectionKey})`, '#10b981');
+      scheduleNextStep();
+      return;
+    }
+
     // 1. Long Idle Pause (Simulate alt-tabbing or resting)
     // ONLY allowed when wanderStepsLeft <= 0 (strictly at turn boundary, NEVER mid-stride during compulsory steps!)
     if (config.settings.enableIdlePauses && wanderStepsLeft <= 0) {
@@ -1376,9 +1401,11 @@ function scheduleNextStep(customDelay = null) {
       if (stepsSinceLastIdlePause >= nextIdlePauseThreshold) {
         stepsSinceLastIdlePause = 0;
         nextIdlePauseThreshold = Math.floor(Math.random() * 40) + 110;
+        wanderStepsLeft = 0;
+        isResumingFromIdlePause = true;
         const pauseSec = ((12000 + Math.random() * 6000) / 1000).toFixed(1);
         updateStatus(`Resting (${pauseSec}s)...`, '#e879f9');
-        backendLog('IdlePause', `Resting for ${pauseSec}s at turn boundary`);
+        backendLog('IdlePause', `Resting for ${pauseSec}s: Step counter reset, will change direction upon resume`);
         scheduleNextStep(parseFloat(pauseSec) * 1000);
         return;
       }
@@ -1391,9 +1418,11 @@ function scheduleNextStep(customDelay = null) {
       if (stepsSinceLastMicroBreak >= nextMicroBreakThreshold) {
         stepsSinceLastMicroBreak = 0;
         nextMicroBreakThreshold = Math.floor(Math.random() * 15) + 30;
+        wanderStepsLeft = 0;
+        isResumingFromMicroPause = true;
         const restSec = ((1400 + Math.random() * 800) / 1000).toFixed(1);
-        updateStatus(`Micro-pause (${restSec}s)`, '#a855f7');
-        backendLog('MicroBreak', `Brief glance pause for ${restSec}s at turn boundary`);
+        updateStatus(`Micro-pause (${restSec}s)...`, '#a855f7');
+        backendLog('MicroBreak', `Micro-pause for ${restSec}s: Step counter reset, will change direction upon resume`);
         scheduleNextStep(parseFloat(restSec) * 1000);
         return;
       }

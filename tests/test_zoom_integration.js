@@ -7,10 +7,11 @@ const assert = require('assert');
 
 console.log('--- TESTING DELUGERPG ZOOM INTEGRATION ---');
 
-const appHtmlPath = path.join(__dirname, 'desktop-client', 'app.html');
-const appJsPath = path.join(__dirname, 'desktop-client', 'app.js');
-const mainJsPath = path.join(__dirname, 'desktop-client', 'main.js');
-const preloadJsPath = path.join(__dirname, 'desktop-client', 'game-preload.js');
+const ROOT_DIR = fs.existsSync(path.join(__dirname, 'desktop-client')) ? __dirname : path.join(__dirname, '..');
+const appHtmlPath = path.join(ROOT_DIR, 'desktop-client', 'app.html');
+const appJsPath = path.join(ROOT_DIR, 'desktop-client', 'app.js');
+const mainJsPath = path.join(ROOT_DIR, 'desktop-client', 'main.js');
+const preloadJsPath = path.join(ROOT_DIR, 'desktop-client', 'game-preload.js');
 
 const appHtml = fs.readFileSync(appHtmlPath, 'utf8');
 const appJs = fs.readFileSync(appJsPath, 'utf8');

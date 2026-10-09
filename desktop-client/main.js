@@ -54,18 +54,69 @@ function getResolvedConfigPath() {
 }
 
 const CONFIG_PATH = getResolvedConfigPath();
+const LOG_FILE = path.join(path.dirname(CONFIG_PATH), 'backend_live.log');
+
+function appendSystemLog(line) {
+  try {
+    const dir = path.dirname(LOG_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (fs.existsSync(LOG_FILE)) {
+      const stats = fs.statSync(LOG_FILE);
+      if (stats.size > 5 * 1024 * 1024) {
+        const raw = fs.readFileSync(LOG_FILE, 'utf8');
+        fs.writeFileSync(LOG_FILE, raw.slice(-500 * 1024), 'utf8');
+      }
+    }
+    fs.appendFileSync(LOG_FILE, line, 'utf8');
+  } catch (_) {}
+}
+
+function deepMerge(target, source) {
+  const output = Object.assign({}, target);
+  if (source && typeof source === 'object') {
+    Object.keys(source).forEach(key => {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        output[key] = deepMerge(target[key] || {}, source[key]);
+      } else {
+        output[key] = source[key];
+      }
+    });
+  }
+  return output;
+}
 
 function loadConfig() {
+  let defaults = {
+    dummyAccount: { username: '', password: '', autoLogin: false },
+    network: { useProxy: false, proxyRules: '', proxyBypass: '<local>' },
+    settings: {
+      profile: 'flagged_network_stealth',
+      walkMode: 'wander',
+      stepsPerDirection: 5,
+      baseDelay: 2100,
+      jitter: 550,
+      minSafetyFloor: 1700,
+      enableMicroBreaks: true,
+      enableIdlePauses: true,
+      soundAlert: true,
+      autoPauseOnTarget: true,
+      avoidDuplicates: true,
+      autoStartOnMap: true
+    }
+  };
   try {
-    const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
-    return JSON.parse(raw);
-  } catch (_) {
-    return {
-      network: { useProxy: false, proxyRules: '', proxyBypass: '<local>' },
-      dummyAccount: { username: '', password: '', autoLogin: false },
-      settings: { profile: 'flagged_network_stealth', baseDelay: 2100, jitter: 550, minSafetyFloor: 1700 }
-    };
-  }
+    const bundled = fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8');
+    defaults = deepMerge(defaults, JSON.parse(bundled));
+  } catch (_) {}
+
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
+      return deepMerge(defaults, JSON.parse(raw));
+    }
+  } catch (_) {}
+
+  return defaults;
 }
 
 function saveConfig(cfg) {
@@ -74,15 +125,25 @@ function saveConfig(cfg) {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf8');
+    const tempPath = CONFIG_PATH + '.tmp';
+    fs.writeFileSync(tempPath, JSON.stringify(cfg, null, 2), 'utf8');
+    fs.renameSync(tempPath, CONFIG_PATH);
   } catch (err) {
-    console.error('Failed to save config:', err);
+    try {
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf8');
+    } catch (fallbackErr) {
+      console.error('Failed to save config:', fallbackErr);
+    }
   }
 }
 
 // IPC config handlers for renderer synchronization
 ipcMain.on('get-config-path-sync', (event) => {
   event.returnValue = CONFIG_PATH;
+});
+
+ipcMain.on('get-log-path-sync', (event) => {
+  event.returnValue = LOG_FILE;
 });
 
 ipcMain.handle('get-config-json', async () => {
@@ -92,6 +153,20 @@ ipcMain.handle('get-config-json', async () => {
 ipcMain.handle('save-config-json', async (event, newConfig) => {
   try {
     saveConfig(newConfig);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('open-log-file', async () => {
+  const { shell } = require('electron');
+  try {
+    if (fs.existsSync(LOG_FILE)) {
+      await shell.openPath(LOG_FILE);
+    } else {
+      await shell.openPath(path.dirname(LOG_FILE));
+    }
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -244,9 +319,7 @@ if (!gotTheLock) {
       try {
         process.stdout.write(line);
       } catch (_) {}
-      try {
-        fs.appendFileSync(path.join(__dirname, 'backend_live.log'), line, 'utf8');
-      } catch (_) {}
+      appendSystemLog(line);
     });
 
     contents.on('before-input-event', (inputEvent, input) => {

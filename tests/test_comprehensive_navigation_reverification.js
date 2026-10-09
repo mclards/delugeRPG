@@ -773,9 +773,10 @@ console.log(`  [PASS] Active 8-way traversal on Charged Chateau #2 (${chateauDia
 // -------------------------------------------------------------
 console.log('\n--- PART 4: Source File Code Integrity Reverification ---');
 
-const appSource = fs.readFileSync(path.join(__dirname, 'desktop-client', 'app.js'), 'utf8');
-const preloadSource = fs.readFileSync(path.join(__dirname, 'desktop-client', 'game-preload.js'), 'utf8');
-const userSource = fs.readFileSync(path.join(__dirname, 'pokefinder.user.js'), 'utf8');
+const ROOT_DIR = fs.existsSync(path.join(__dirname, 'desktop-client')) ? __dirname : path.join(__dirname, '..');
+const appSource = fs.readFileSync(path.join(ROOT_DIR, 'desktop-client', 'app.js'), 'utf8');
+const preloadSource = fs.readFileSync(path.join(ROOT_DIR, 'desktop-client', 'game-preload.js'), 'utf8');
+const userSource = fs.readFileSync(path.join(ROOT_DIR, 'pokefinder.user.js'), 'utf8');
 
 // 1. Check all 8 button selectors in preload
 const requiredPreloadSelectors = ['#dr-n', '#dr-s', '#dr-w', '#dr-e', '#dr-nw', '#dr-ne', '#dr-sw', '#dr-se'];
@@ -799,12 +800,12 @@ console.log('  [PASS] app.js contains all 4 verified IPC event channels.');
 
 // 4. Check 7-bit ASCII compliance across all files
 const filesToCheck = [
-  path.join(__dirname, 'desktop-client', 'app.js'),
-  path.join(__dirname, 'desktop-client', 'game-preload.js'),
-  path.join(__dirname, 'desktop-client', 'main.js'),
-  path.join(__dirname, 'desktop-client', 'targets.js'),
-  path.join(__dirname, 'desktop-client', 'config.json'),
-  path.join(__dirname, 'pokefinder.user.js'),
+  path.join(ROOT_DIR, 'desktop-client', 'app.js'),
+  path.join(ROOT_DIR, 'desktop-client', 'game-preload.js'),
+  path.join(ROOT_DIR, 'desktop-client', 'main.js'),
+  path.join(ROOT_DIR, 'desktop-client', 'targets.js'),
+  path.join(ROOT_DIR, 'desktop-client', 'config.json'),
+  path.join(ROOT_DIR, 'pokefinder.user.js'),
   path.join(__dirname, 'test_nav_buttons_and_obstacle_cadence.js'),
   __filename
 ];

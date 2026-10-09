@@ -153,7 +153,6 @@ const PARADOX = [
 
 // Runtime Configuration synced with host
 let config = {
-    autoCatch: false,
     findLegendaries: true,
     legendaryClassic: true,
     legendaryUltraBeasts: true,
@@ -192,7 +191,6 @@ let lastFoundTarget = '';
 let lastEvaluatedEncounterSignature = '';
 let unlockNoticeSent = false;
 let isHuntingActive = false;
-let catchStepInterval = null;
 let activeStep = null;
 let collisionCheckTimer = null;
 
@@ -202,6 +200,117 @@ ipcRenderer.on('hunting-state-changed', (event, state) => {
         lastFoundTarget = '';
     }
 });
+
+
+// --- MODULE ROOT SCOPE HELPERS ---
+function getEncounterContainer() {
+    try {
+        const direct = document.getElementById('showpoke') ||
+                       document.getElementById('dexy') ||
+                       document.querySelector('.dexy') ||
+                       document.getElementById('catch') ||
+                       document.querySelector('.catch');
+        if (direct) return direct;
+        const catchBtn = document.querySelector('input[type="submit"][id="catch"], input#catch, button#catch, a[href*="/catch/"]');
+        if (catchBtn) {
+            return catchBtn.closest('#showpoke, .dexy, #dexy, form, div') || catchBtn.parentElement;
+        }
+    } catch (_) {}
+    return null;
+}
+
+function extractWildLevel(container) {
+    try {
+        const text = container ? (container.innerText || container.textContent || '') : (document.body ? document.body.textContent || '' : '');
+        const m = text.match(/(?:level|lv|lvl)[\s.:]*(\d+)/i);
+        if (m && m[1]) {
+            const lvl = parseInt(m[1], 10);
+            if (!isNaN(lvl)) return lvl;
+        }
+    } catch (_) {}
+    return null;
+}
+
+function checkEncounterIsDuplicate(container) {
+    if (!container) return false;
+    const rawText = (container.innerText || container.textContent || '').toLowerCase();
+    if (rawText.indexOf('already caught') !== -1 || rawText.indexOf('already in pokedex') !== -1 || rawText.indexOf('already owned') !== -1) {
+        return true;
+    }
+    if (rawText.indexOf('not caught') !== -1 || rawText.indexOf('uncaught') !== -1 || rawText.indexOf('not in pokedex') !== -1 || rawText.indexOf('new pokemon') !== -1) {
+        return false;
+    }
+
+    const imgs = container.querySelectorAll ? container.querySelectorAll('img') : [];
+    let indicatorImg = null;
+    for (let i = 0; i < imgs.length; i++) {
+        const img = imgs[i];
+        const src = (img.src || img.getAttribute('src') || '').toLowerCase();
+        const alt = (img.alt || img.getAttribute('alt') || '').toLowerCase();
+        const title = (img.title || img.getAttribute('title') || '').toLowerCase();
+        const className = (img.className || '').toLowerCase();
+
+        if (src.indexOf('/pokemon/') !== -1 || src.indexOf('/sprites/') !== -1) {
+            if ((img.naturalWidth && img.naturalWidth > 40) || (img.width && img.width > 40)) continue;
+        }
+        if (src.indexOf('/types/') !== -1 || src.indexOf('/type/') !== -1 || alt.indexOf('type') !== -1 || title.indexOf('type') !== -1) {
+            continue;
+        }
+
+        const isBallOrDex = src.indexOf('dball') !== -1 || src.indexOf('pokeball') !== -1 || src.indexOf('ball') !== -1 ||
+                            src.indexOf('caught') !== -1 || src.indexOf('pokedex') !== -1 || src.indexOf('dexball') !== -1 ||
+                            alt.indexOf('caught') !== -1 || title.indexOf('caught') !== -1 ||
+                            alt.indexOf('dex') !== -1 || title.indexOf('dex') !== -1 ||
+                            alt.indexOf('ball') !== -1 || title.indexOf('ball') !== -1 ||
+                            className.indexOf('caught') !== -1 || className.indexOf('ball') !== -1 || className.indexOf('dex') !== -1;
+
+        const isSmallIcon = ((img.naturalWidth && img.naturalWidth <= 32) || (img.width && img.width <= 32));
+        if (isBallOrDex || (isSmallIcon && src.indexOf('/pokemon/') === -1)) {
+            indicatorImg = img;
+            break;
+        }
+    }
+
+    if (!indicatorImg) return false;
+
+    const indSrc = (indicatorImg.src || indicatorImg.getAttribute('src') || '').toLowerCase();
+    const indAlt = (indicatorImg.alt || indicatorImg.getAttribute('alt') || '').toLowerCase();
+    const indTitle = (indicatorImg.title || indicatorImg.getAttribute('title') || '').toLowerCase();
+
+    if (indTitle.indexOf('not caught') !== -1 || indAlt.indexOf('not caught') !== -1 ||
+        indTitle.indexOf('uncaught') !== -1 || indAlt.indexOf('uncaught') !== -1 ||
+        indTitle.indexOf('not owned') !== -1 || indAlt.indexOf('not owned') !== -1) {
+        return false;
+    }
+
+    if (indTitle.indexOf('caught') !== -1 || indAlt.indexOf('caught') !== -1 ||
+        indTitle.indexOf('in pokedex') !== -1 || indAlt.indexOf('in pokedex') !== -1 ||
+        indTitle.indexOf('owned') !== -1 || indAlt.indexOf('owned') !== -1) {
+        return true;
+    }
+
+    if (indSrc.indexOf('grey') !== -1 || indSrc.indexOf('gray') !== -1 || indSrc.indexOf('bw') !== -1 ||
+        indSrc.indexOf('empty') !== -1 || indSrc.indexOf('uncaught') !== -1 || indSrc.indexOf('nocatch') !== -1 ||
+        indSrc.indexOf('off') !== -1) {
+        return false;
+    }
+
+    try {
+        const computed = window.getComputedStyle(indicatorImg);
+        if (computed) {
+            const filter = (computed.filter || '').toLowerCase();
+            const op = parseFloat(computed.opacity);
+            if (filter.indexOf('grayscale(1') !== -1 || filter.indexOf('saturate(0') !== -1 || (!isNaN(op) && op < 0.5)) {
+                return false;
+            }
+        }
+    } catch (_) {}
+
+    if (indSrc.indexOf('dball') !== -1 || indSrc.indexOf('pokeball') !== -1 || indSrc.indexOf('caught') !== -1) {
+        return true;
+    }
+    return false;
+}
 
 // --- 3. TARGET SCANNING ENGINE ---
 function scanForTargets() {
@@ -587,6 +696,17 @@ function scanForTargets() {
         lastEvaluatedEncounterSignature = encounterSig;
         const shortName = encounterBoxText ? encounterBoxText.trim().split('\n')[0].replace(/\s+/g, ' ') : textLower.slice(0, 50);
         console.log('[TargetEngine] Encounter: "' + shortName + '" | Variant: ' + detectedVariant.toUpperCase() + (currentLevel !== null ? (' | Lv: ' + currentLevel) : ''));
+    const encContainer = getEncounterContainer();
+    const isEncounterDuplicate = checkEncounterIsDuplicate(encContainer);
+    const avoidDupesActive = config.avoidDuplicates !== false;
+
+    if (avoidDupesActive && isEncounterDuplicate) {
+        if (isNewEncounter) {
+            console.log('[TargetEngine] DUPLICATE ENCOUNTER: "' + shortName + '" (already owned in Dex). Skipping to preserve hunting flow.');
+        }
+        return;
+    }
+
     }
 
     // Helper: checks whether the encounter's variant is accepted for target species (Tier 1-3)
@@ -728,202 +848,28 @@ function triggerTargetFound(targetName, category) {
     lastFoundTarget = targetName;
     isHuntingActive = false;
 
-    console.log('[PokePreload] TARGET DETECTED:', targetName, '(' + category + ')');
+    
+    const encContainer = getEncounterContainer();
+    const isDupe = checkEncounterIsDuplicate(encContainer);
+    if (config.avoidDuplicates !== false && isDupe) {
+        console.log('[PokePreload] Duplicate target detected during trigger: ' + targetName + ' - skipping.');
+        return;
+    }
 
-    const isAutoCatch = !!config.autoCatch;
+    console.log('[PokePreload] TARGET DETECTED:', targetName, '(' + category + ')' + (isDupe ? ' [DUPLICATE]' : ''));
+
+
+    lastFoundTarget = targetName;
+    isHuntingActive = false;
 
     ipcRenderer.sendToHost('target-found', {
         name: targetName,
         category: category,
-        autoCatch: isAutoCatch
+        isDuplicate: isDupe
     });
-
-    try {
-        sessionStorage.setItem('pokefinder_target', targetName);
-        sessionStorage.removeItem('pokefinder_ball_thrown');
-    } catch (_) {}
-
-    if (isAutoCatch) {
-        const catchBtn = findCatchActionElement() || document.querySelector('input[type="submit"][id="catch"], input#catch, button#catch, input[value*="Catch"], input[value*="Try to Catch"], a#catch, #showpoke a, a[href*="/catch/"]');
-        if (catchBtn) {
-            catchBtn.click();
-        }
-        startCatchSequence();
-    }
 }
 
-// --- 5. SMART CATCH SEQUENCE ---
-function startCatchSequence() {
-    if (catchStepInterval) clearInterval(catchStepInterval);
-    let attempts = 0;
-
-    catchStepInterval = setInterval(function() {
-        attempts++;
-        if (attempts > 80) {
-            clearInterval(catchStepInterval);
-            return;
-        }
-
-        let ballWasThrown = false;
-        try {
-            ballWasThrown = sessionStorage.getItem('pokefinder_ball_thrown') === 'true';
-        } catch (_) {}
-
-        if (ballWasThrown) {
-            const bodyText = (document.body ? document.body.textContent || '' : '').toLowerCase();
-            const isConfirmed = bodyText.indexOf('was caught') !== -1 ||
-                                bodyText.indexOf('captured') !== -1 ||
-                                bodyText.indexOf('you threw a') !== -1;
-
-            const allLinksAndButtons = Array.from(document.querySelectorAll('a, input[type="submit"], input[type="button"], button'));
-            const returnBtn = allLinksAndButtons.find(function(el) {
-                const text = ((el.textContent || '') + ' ' + (el.value || '')).trim().toLowerCase();
-                return text === 'return to map' || text.indexOf('return to map') !== -1;
-            });
-
-            if (isConfirmed || returnBtn) {
-                clearInterval(catchStepInterval);
-                try {
-                    sessionStorage.removeItem('pokefinder_target');
-                    sessionStorage.removeItem('pokefinder_ball_thrown');
-                } catch (_) {}
-
-                if (returnBtn) {
-                    returnBtn.click();
-                } else if (window.location.pathname.indexOf('/map') === -1) {
-                    window.location.href = '/map';
-                }
-
-                setTimeout(() => {
-                    ipcRenderer.sendToHost('resume-hunting');
-                }, 1200);
-                return;
-            }
-        }
-
-        const startBattleBtn = document.querySelector('input[type="submit"][value*="Start Battle"], input[value*="Start Battle"], button[value*="Start Battle"]');
-        if (startBattleBtn && window.getComputedStyle(startBattleBtn).display !== 'none') {
-            startBattleBtn.click();
-            return;
-        }
-
-        let throwBtn = null;
-        const submitButtons = Array.from(document.querySelectorAll('input[type="submit"], input[type="button"], button'));
-        for (let b = 0; b < submitButtons.length; b++) {
-            const btn = submitButtons[b];
-            const btnText = ((btn.value || '') + ' ' + (btn.textContent || '')).trim().toLowerCase();
-            if (btnText.indexOf('throw') !== -1 && btnText.indexOf('ball') !== -1) {
-                throwBtn = btn;
-                break;
-            }
-        }
-        if (!throwBtn) {
-            for (let b = 0; b < submitButtons.length; b++) {
-                const btn = submitButtons[b];
-                const btnText = ((btn.value || '') + ' ' + (btn.textContent || '')).trim().toLowerCase();
-                if (btnText.indexOf('throw') !== -1) {
-                    throwBtn = btn;
-                    break;
-                }
-            }
-        }
-
-        const formScope = throwBtn ? (throwBtn.form || throwBtn.closest('form')) : null;
-        const radioPool = formScope ? Array.from(formScope.querySelectorAll('input[type="radio"]')) : Array.from(document.querySelectorAll('input[type="radio"]'));
-
-        function getRadioDescriptor(radio) {
-            let desc = (radio.value || '') + ' ' + (radio.id || '') + ' ' + (radio.name || '') + ' ';
-            if (radio.labels && radio.labels.length) {
-                for (let l = 0; l < radio.labels.length; l++) {
-                    desc += ' ' + radio.labels[l].textContent;
-                }
-            }
-            if (radio.id) {
-                const forLabel = document.querySelector('label[for="' + radio.id + '"]');
-                if (forLabel) desc += ' ' + forLabel.textContent;
-            }
-            const cell = radio.closest ? radio.closest('td, th, label, li') : null;
-            if (cell && cell.querySelectorAll('input[type="radio"]').length === 1) {
-                desc += ' ' + cell.textContent;
-            } else if (radio.parentElement) {
-                desc += ' ' + radio.parentElement.textContent;
-            }
-            return desc.trim();
-        }
-
-        function isRadioUnavailable(radio, desc) {
-            if (radio.disabled) return true;
-            if (desc.indexOf('(0)') !== -1) return true;
-            const parent = radio.parentElement;
-            if (parent && (parent.querySelector('strike, del, s') || (parent.style && parent.style.textDecoration && parent.style.textDecoration.indexOf('line-through') !== -1))) {
-                return true;
-            }
-            return false;
-        }
-
-        const ballRadios = [];
-        for (let rIdx = 0; rIdx < radioPool.length; rIdx++) {
-            const r = radioPool[rIdx];
-            const desc = getRadioDescriptor(r);
-            const dLower = desc.toLowerCase();
-            if (formScope || dLower.indexOf('ball') !== -1 || dLower.indexOf('master') !== -1 || dLower.indexOf('ultra') !== -1 || dLower.indexOf('great') !== -1 || dLower.indexOf('poke') !== -1) {
-                ballRadios.push({ radio: r, desc: desc, dLower: dLower });
-            }
-        }
-
-        let selectedBall = null;
-
-        for (let i = 0; i < ballRadios.length; i++) {
-            const item = ballRadios[i];
-            if (item.radio.checked && !isRadioUnavailable(item.radio, item.desc)) {
-                selectedBall = item.radio;
-                break;
-            }
-        }
-
-        if (!selectedBall) {
-            const priorities = ['master', 'ultra', 'great', 'poke'];
-            for (let p = 0; p < priorities.length; p++) {
-                const priorityName = priorities[p];
-                for (let i = 0; i < ballRadios.length; i++) {
-                    const item = ballRadios[i];
-                    if (isRadioUnavailable(item.radio, item.desc)) continue;
-                    if (item.dLower.indexOf(priorityName) !== -1) {
-                        selectedBall = item.radio;
-                        selectedBall.click();
-                        selectedBall.checked = true;
-                        selectedBall.dispatchEvent(new Event('change', { bubbles: true }));
-                        break;
-                    }
-                }
-                if (selectedBall) break;
-            }
-        }
-
-        if (!selectedBall) {
-            for (let i = 0; i < ballRadios.length; i++) {
-                const item = ballRadios[i];
-                if (!isRadioUnavailable(item.radio, item.desc)) {
-                    selectedBall = item.radio;
-                    selectedBall.click();
-                    selectedBall.checked = true;
-                    selectedBall.dispatchEvent(new Event('change', { bubbles: true }));
-                    break;
-                }
-            }
-        }
-
-        if (selectedBall && throwBtn && window.getComputedStyle(throwBtn).display !== 'none') {
-            throwBtn.click();
-            try {
-                sessionStorage.setItem('pokefinder_ball_thrown', 'true');
-            } catch (_) {}
-            return;
-        }
-    }, 500);
-}
-
-// --- 6. DOM OBSERVERS & EVENT HOOKS ---
+// --- 5. DOM OBSERVERS & EVENT HOOKS ---
 function getPlayerPosition() {
     try {
         const player = document.querySelector('#map #user, #map #player, #map .trainer, #map .player, #map img[src*="trainer"], #map img.player') ||
@@ -1294,6 +1240,14 @@ window.addEventListener('keydown', (e) => {
 
 // Initialization
 window.addEventListener('DOMContentLoaded', () => {
+    console.log('[PokePreload] DOMContentLoaded on ' + window.location.pathname);
+    const path = (window.location.pathname || '').toLowerCase();
+    if (path.indexOf('/login') !== -1) {
+        const creds = config && config.dummyAccount;
+        if (creds && creds.username && creds.password) {
+            performLoginAutoFill(creds);
+        }
+    }
     scanForTargets();
     const mapEl = document.getElementById('map');
     const dexyEl = document.getElementById('dexy') || document.querySelector('.dexy') || document.getElementById('showpoke');
@@ -1310,14 +1264,6 @@ window.addEventListener('DOMContentLoaded', () => {
             attributes: true,
             attributeFilter: ['class', 'style', 'disabled', 'aria-disabled', 'aria-hidden']
         });
-    }
-
-    let hasTarget = false;
-    try {
-        hasTarget = !!sessionStorage.getItem('pokefinder_target');
-    } catch (_) {}
-    if (hasTarget && config.autoCatch) {
-        startCatchSequence();
     }
 });
 
@@ -1362,23 +1308,52 @@ window.addEventListener('focusout', (e) => {
 console.log('[PokePreload] Initialized successfully in guest context');
 ipcRenderer.sendToHost('preload-ready');
 
-// Auto-fill login helper
-ipcRenderer.on('fill-login', (event, credentials) => {
-    if (window.location.pathname.indexOf('/login') === -1) return;
-    if (!credentials || !credentials.username || !credentials.password) return;
+// Robust Auto-fill login helper
+function performLoginAutoFill(credentials) {
+    if (!credentials || !credentials.username || !credentials.password) return false;
 
-    const userInput = document.querySelector('input[name*="username"], input[id*="username"]');
-    const passInput = document.querySelector('input[name*="password"], input[id*="password"]');
+    // Search for password field
+    const passInput = document.querySelector('input[type="password"], input[name*="password"], input[id*="password"], input[autocomplete="current-password"]');
+    if (!passInput) return false;
+
+    // Search for username / login field
+    let userInput = null;
+    const form = passInput.form || passInput.closest('form');
+    if (form) {
+        userInput = form.querySelector('input[name*="user"], input[id*="user"], input[name*="login"], input[id*="login"], input[type="text"], input[type="email"]');
+    }
+    if (!userInput) {
+        userInput = document.querySelector('input[name*="username"], input[id*="username"], input[name*="user"], input[id*="user"], input[autocomplete="username"], input[name="login"]');
+    }
 
     if (userInput && passInput) {
-        userInput.value = credentials.username;
-        userInput.dispatchEvent(new Event('input', { bubbles: true }));
-        userInput.dispatchEvent(new Event('change', { bubbles: true }));
+        function setNativeValue(el, val) {
+            try {
+                el.focus();
+                const proto = window.HTMLInputElement.prototype;
+                const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+                if (setter) {
+                    setter.call(el, val);
+                } else {
+                    el.value = val;
+                }
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            } catch (_) {
+                el.value = val;
+            }
+        }
 
-        passInput.value = credentials.password;
-        passInput.dispatchEvent(new Event('input', { bubbles: true }));
-        passInput.dispatchEvent(new Event('change', { bubbles: true }));
+        setNativeValue(userInput, credentials.username);
+        setNativeValue(passInput, credentials.password);
+        console.log('[PokePreload] Login credentials auto-filled successfully');
+        return true;
     }
+    return false;
+}
+
+ipcRenderer.on('fill-login', (event, credentials) => {
+    performLoginAutoFill(credentials);
 });
 
 // --- ZOOM SHORTCUT FORWARDERS (Guest Context) ---

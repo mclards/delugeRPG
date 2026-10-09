@@ -354,9 +354,10 @@ console.log('  [PASS] Pre-dispatch zero-collision guard guarantees >= 98% clean 
 
 // 3. VERIFY SOURCE CODE FILES CONTAIN NAV BUTTON INSPECTION AND PHASE ALIGNMENT
 console.log('\n--- 3. Verifying Source Code Implementations ---');
-const appJs = fs.readFileSync(path.join(__dirname, 'desktop-client', 'game-preload.js'), 'utf8');
-const hostJs = fs.readFileSync(path.join(__dirname, 'desktop-client', 'app.js'), 'utf8');
-const userJs = fs.readFileSync(path.join(__dirname, 'pokefinder.user.js'), 'utf8');
+const ROOT_DIR = fs.existsSync(path.join(__dirname, 'desktop-client')) ? __dirname : path.join(__dirname, '..');
+const appJs = fs.readFileSync(path.join(ROOT_DIR, 'desktop-client', 'game-preload.js'), 'utf8');
+const hostJs = fs.readFileSync(path.join(ROOT_DIR, 'desktop-client', 'app.js'), 'utf8');
+const userJs = fs.readFileSync(path.join(ROOT_DIR, 'pokefinder.user.js'), 'utf8');
 
 assert(appJs.includes('isNavButtonBlocked(dir)'), 'game-preload.js must define isNavButtonBlocked');
 assert(appJs.includes('getBlockedNavDirections()'), 'game-preload.js must define getBlockedNavDirections');
@@ -387,8 +388,8 @@ function checkAscii(filePath) {
     console.log(`  [PASS] ${filePath} is 100% 7-bit ASCII clean (${content.length} chars).`);
 }
 
-checkAscii(path.join(__dirname, 'desktop-client', 'game-preload.js'));
-checkAscii(path.join(__dirname, 'desktop-client', 'app.js'));
-checkAscii(path.join(__dirname, 'pokefinder.user.js'));
+checkAscii(path.join(ROOT_DIR, 'desktop-client', 'game-preload.js'));
+checkAscii(path.join(ROOT_DIR, 'desktop-client', 'app.js'));
+checkAscii(path.join(ROOT_DIR, 'pokefinder.user.js'));
 
 console.log('\n=== ALL NAV BUTTON & OBSTACLE CADENCE TESTS PASSED (100%) ===');

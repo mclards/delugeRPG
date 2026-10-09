@@ -181,7 +181,7 @@ Settings are persisted in `desktop-client/config.json`:
 
 ```text
 delugeRPG/
-|-- desktop-client/
+|-- desktop-client/          # Standalone Electron Stealth Client
 |   |-- assets/              # Icons and client artwork
 |   |-- app.html             # Host client UI layout, toolbar, and dark modals
 |   |-- app.js               # Host controller, roaming cadence, and zoom dispatch
@@ -189,26 +189,38 @@ delugeRPG/
 |   |-- main.js              # Electron main process, anti-detection flags, session hardening
 |   |-- targets.js           # Target lists: Legendaries, Megas, Paradox, and Forms
 |   |-- config.json          # Persistent configuration file
-|   \-- package.json         # Electron and build scripts
+|   |-- package.json         # Electron and build scripts
+|   |-- test_client.js       # Client core test suite
+|   \-- test_duplicate_and_catch.js # Duplication avoidance & hardening suite
+|-- docs/                    # Security audits, release notes & reference assets
+|   |-- AUDIT_REPORT.md      # Comprehensive anti-cheat audit report
+|   |-- AUDIT_VERIFICATION.md# Verification report
+|   |-- RELEASE_NOTES.md     # Release history and changelog
+|   |-- reference-targets/   # Target reference images
+|   \-- screenshots/         # Captured encounter screenshots
+|-- tests/                   # 27 automated unit and integration test suites
+|   |-- test_settings_and_legendary_safety.js
+|   |-- test_zoom_integration.js
+|   \-- ...
 |-- pokefinder.user.js       # Standalone Tampermonkey userscript edition
-|-- RELEASE_NOTES.md         # Release history and changelog
-\-- test_*.js                # 26 automated unit and integration test suites
+|-- launch.bat               # Windows quick-launch launcher
+\-- launch_desktop_client.bat# Direct Electron client launcher
 ```
 
 ---
 
 ## Verification & Test Suites
 
-The repository contains 26 comprehensive automated test suites verifying navigation cadence, obstacle evasion, target priority, settings persistence, and 7-bit ASCII compliance:
+The repository contains comprehensive automated test suites verifying navigation cadence, obstacle evasion, target priority, settings persistence, and 7-bit ASCII compliance:
 
 ```bash
-# Run settings and legendary safety tests
-node test_settings_and_legendary_safety.js
+# Run desktop client tests
+node desktop-client/test_duplicate_and_catch.js
+node desktop-client/test_client.js
 
-# Run all test suites
-node test_thorough_fixes.js
-node test_stuck_recovery.js
-node test_target_presets.js
+# Run userscript and movement tests
+node tests/test_settings_and_legendary_safety.js
+node tests/test_zoom_integration.js
 ```
 
 ---

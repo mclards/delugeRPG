@@ -52,7 +52,8 @@
 
     // ----- AUTOMATION TOGGLES -----
     const autoWalkFind = true; // Automatically walk while hunting
-    const autoCatch = false; // Automatically throw Master Ball when a target appears
+    const autoCatch = true; // Automatically throw Master Ball when a target appears
+    let avoidDuplicates = true; // Skip already caught Pokemon (has red Pokeball indicator)
     const doBattle = false; // Auto-battle loop
     const forceBattle = false; // Redirect to battle URL from dashboard (keep false when hunting on map)
     const toggleHotkey = "F2"; // Hotkey to pause/resume finder (F2 avoids DevTools conflict)
@@ -285,11 +286,12 @@
     // Passive, 100% safe DOM position observer for anti-cheat compliance
     function getPlayerPosition() {
         try {
-            const player = document.querySelector('#map #user, #map #player, #map .trainer, #map .player, #map img[src*="trainer"], #map img.player') ||
-                           document.getElementById('user') ||
+            const player = document.getElementById('user') ||
                            document.getElementById('player') ||
                            document.querySelector('.trainer') ||
-                           document.querySelector('.player');
+                           document.querySelector('.player') ||
+                           document.querySelector('#map img[src*="trainer"]') ||
+                           document.querySelector('#map img.player');
             if (player) {
                 const rect = player.getBoundingClientRect();
                 return {
@@ -371,6 +373,9 @@
             '<span style="opacity:0.6;font-size:10px;">[' + toggleHotkey + ']</span>',
             '<button id="pokefinder-target-btn" style="background:#1e293b;border:1px solid #3b82f6;border-radius:4px;color:#93c5fd;font-size:11px;font-weight:bold;padding:2px 8px;cursor:pointer;margin-left:4px;" title="Click or press [' + targetPresetHotkey + '] to switch Targets: ALL -> LEGENDARIES -> MEGAS -> VARIANTS -> LEG+MEGA">',
             'Target: ' + presetLabel + ' [' + targetPresetHotkey + ']',
+            '</button>',
+            '<button id="pokefinder-dupe-btn" style="background:' + (avoidDuplicates ? '#0284c7' : '#334155') + ';border:1px solid #38bdf8;border-radius:4px;color:#ffffff;font-size:11px;font-weight:bold;padding:2px 8px;cursor:pointer;margin-left:4px;" title="Toggle Duplication Avoidance (Skip already caught Pokemon)">',
+            (avoidDuplicates ? '&#128260; Avoid Dupes: ON' : '&#128260; Avoid Dupes: OFF'),
             '</button>'
         ].join(' ');
 
@@ -379,6 +384,16 @@
             targetBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 cycleTargetPreset();
+            });
+        }
+
+        const dupeBtn = document.getElementById('pokefinder-dupe-btn');
+        if (dupeBtn) {
+            dupeBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                avoidDuplicates = !avoidDuplicates;
+                updateStatusUI();
+                console.log('[PokeFinder] Duplication Avoidance: ' + (avoidDuplicates ? 'ON' : 'OFF'));
             });
         }
     }
@@ -395,12 +410,7 @@
         if (targetObserver && document.body) {
             try {
                 targetObserver.disconnect();
-                targetObserver.observe(document.body, {
-                    childList: true,
-                    subtree: true,
-                    attributes: true,
-                    attributeFilter: ['class', 'style', 'disabled', 'aria-disabled', 'aria-hidden']
-                });
+                targetObserver.observe(document.body, { childList: true, subtree: true });
             } catch (_) {}
         }
     }
@@ -423,158 +433,28 @@
         }
     }
 
-    // Helper: dispatch arrow key events and nav button clicks
+    // Helper: dispatch arrow key events to document, window, and body
     function fireKey(keyCode) {
         const keyNames = { 37: 'ArrowLeft', 38: 'ArrowUp', 39: 'ArrowRight', 40: 'ArrowDown' };
-        const keyName = (typeof keyCode === 'number') ? (keyNames[keyCode] || '') : keyCode;
+        const keyName = keyNames[keyCode] || '';
 
-        const dirBtnMap = {
-            38: '#dr-n',
-            40: '#dr-s',
-            37: '#dr-w',
-            39: '#dr-e',
-            'Up': '#dr-n',
-            'Down': '#dr-s',
-            'Left': '#dr-w',
-            'Right': '#dr-e',
-            'Up-Left': '#dr-nw',
-            'Up-Right': '#dr-ne',
-            'Down-Left': '#dr-sw',
-            'Down-Right': '#dr-se'
-        };
+        const evt = new KeyboardEvent('keydown', {
+            key: keyName,
+            code: keyName,
+            keyCode: keyCode,
+            which: keyCode,
+            bubbles: true,
+            cancelable: true
+        });
 
-        const btnSelector = dirBtnMap[keyCode];
-        if (btnSelector) {
-            const btn = document.querySelector(btnSelector);
-            if (btn && !isNavButtonBlocked(keyCode)) {
-                try {
-                    btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
-                    btn.click();
-                    btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-                } catch (_) {
-                    try { btn.click(); } catch (_) {}
-                }
-            }
-        }
-
-        if (typeof keyCode === 'number' || (keyName && keyName.indexOf('Arrow') === 0)) {
-            const codeNum = typeof keyCode === 'number' ? keyCode : (keyCode === 'Left' ? 37 : keyCode === 'Up' ? 38 : keyCode === 'Right' ? 39 : 40);
-            const evt = new KeyboardEvent('keydown', {
-                key: keyName,
-                code: keyName,
-                keyCode: codeNum,
-                which: codeNum,
-                bubbles: true,
-                cancelable: true
-            });
-
-            document.dispatchEvent(evt);
-            window.dispatchEvent(evt);
-            if (document.body) {
-                document.body.dispatchEvent(evt);
-            }
+        document.dispatchEvent(evt);
+        window.dispatchEvent(evt);
+        if (document.body) {
+            document.body.dispatchEvent(evt);
         }
     }
 
     /* ========== SMART WALKING & OBSTACLE AVOIDANCE ENGINE ========== */
-    function isGreyColor(c) {
-        if (!c) return false;
-        const s = (c + '').toLowerCase().trim();
-        if (s === '#808080' || s === '#888' || s === '#999' || s === '#aaa' || s === '#bbb' || s === '#ccc') return true;
-        const m = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-        if (m) {
-            const r = parseInt(m[1], 10);
-            const g = parseInt(m[2], 10);
-            const b = parseInt(m[3], 10);
-            // True grey has balanced medium luminance (between 80 and 190). White (255) and black (0) are not grey!
-            if (r >= 80 && r <= 190 && g >= 80 && g <= 190 && b >= 80 && b <= 190 && Math.abs(r - g) < 20 && Math.abs(g - b) < 20) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function checkElementBlocked(el) {
-        if (!el) return false;
-
-        if (el.disabled || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') {
-            return true;
-        }
-
-        const cls = (el.className || '').toString().toLowerCase();
-        if (cls.indexOf('disable') !== -1 || cls.indexOf('m-dis') !== -1 ||
-            cls.indexOf('inactive') !== -1 || cls.indexOf('blocked') !== -1 ||
-            cls.indexOf('off') !== -1 || cls.indexOf('grey') !== -1 ||
-            cls.indexOf('gray') !== -1 || cls.indexOf('dr-dis') !== -1) {
-            return true;
-        }
-
-        try {
-            const st = window.getComputedStyle(el);
-            if (st.display === 'none' || st.visibility === 'hidden') return true;
-            if (st.pointerEvents === 'none') return true;
-            if (st.cursor === 'not-allowed') return true;
-
-            const op = parseFloat(st.opacity);
-            if (!isNaN(op) && op <= 0.75) return true;
-            if (isGreyColor(st.color) || isGreyColor(st.fill) || isGreyColor(st.backgroundColor)) return true;
-            if (st.filter && (st.filter.indexOf('grayscale') !== -1 || st.filter.indexOf('opacity') !== -1)) return true;
-        } catch (_) {}
-
-        const img = (el.tagName === 'IMG') ? el : el.querySelector('img');
-        if (img) {
-            const src = (img.getAttribute('src') || '').toLowerCase();
-            if (src.indexOf('disab') !== -1 || src.indexOf('grey') !== -1 || src.indexOf('gray') !== -1 || src.indexOf('off') !== -1) {
-                return true;
-            }
-            try {
-                const imgSt = window.getComputedStyle(img);
-                const imgOp = parseFloat(imgSt.opacity);
-                if (!isNaN(imgOp) && imgOp <= 0.75) return true;
-                if (imgSt.filter && imgSt.filter.indexOf('grayscale') !== -1) return true;
-            } catch (_) {}
-        }
-
-        const svg = (el.tagName === 'SVG' || el.tagName === 'PATH' || el.tagName === 'POLYGON') ? el : el.querySelector('svg, path, polygon');
-        if (svg) {
-            try {
-                const svgSt = window.getComputedStyle(svg);
-                const svgOp = parseFloat(svgSt.opacity);
-                if (!isNaN(svgOp) && svgOp <= 0.75) return true;
-                const fill = svg.getAttribute('fill') || svgSt.fill;
-                if (isGreyColor(fill)) return true;
-            } catch (_) {}
-        }
-
-        return false;
-    }
-
-    function isNavButtonBlocked(keyCode) {
-        const keyMap = {
-            38: ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]'],
-            'Up': ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]'],
-            40: ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]'],
-            'Down': ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]'],
-            37: ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]'],
-            'Left': ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]'],
-            39: ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]'],
-            'Right': ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]'],
-            'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]'],
-            'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]'],
-            'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]'],
-            'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]']
-        };
-
-        const selectors = keyMap[keyCode] || [];
-        for (let i = 0; i < selectors.length; i++) {
-            const el = document.querySelector(selectors[i]);
-            if (el) {
-                return checkElementBlocked(el);
-            }
-        }
-        return false;
-    }
-
     function getOppositeKey(k) {
         if (k === 37) return 39; // Left -> Right
         if (k === 39) return 37; // Right -> Left
@@ -583,343 +463,97 @@
         return 37;
     }
 
-    function isGameLoading() {
-        const dexy = document.getElementById('dexy') || document.getElementById('showpoke');
-        const isSearching = dexy && (dexy.innerText || dexy.textContent || '').indexOf('Searching...') !== -1;
-        if (isSearching) return true;
-        return isNavButtonBlocked('Up') && isNavButtonBlocked('Down') && isNavButtonBlocked('Left') && isNavButtonBlocked('Right');
-    }
-
-    const recentMoves = [];
-    const deadEndCooldowns = {};
-
-
-    function detectPingPongLoop() {
-        if (recentMoves.length < 4) return null;
-        const opposites = { 37: 39, 39: 37, 38: 40, 40: 38 };
-        const len = recentMoves.length;
-        const m1 = recentMoves[len - 4];
-        const m2 = recentMoves[len - 3];
-        const m3 = recentMoves[len - 2];
-        const m4 = recentMoves[len - 1];
-
-        // Pattern: A -> B -> A -> B where B is opposite of A
-        if (m1 === m3 && m2 === m4 && opposites[m1] === m2) {
-            return { keyA: m1, keyB: m2 };
-        }
-        return null;
-    }
-
-    const ALL_DIRECTIONS_8 = ['Left', 'Up', 'Right', 'Down', 'Up-Left', 'Up-Right', 'Down-Right', 'Down-Left'];
-    const CARDINAL_DIRECTIONS = ['Left', 'Up', 'Right', 'Down'];
-
-    const OPPOSITES_8 = {
-        'Left': 'Right', 'Right': 'Left', 'Up': 'Down', 'Down': 'Up',
-        'Up-Left': 'Down-Right', 'Down-Right': 'Up-Left', 'Up-Right': 'Down-Left', 'Down-Left': 'Up-Right',
-        37: 39, 39: 37, 38: 40, 40: 38
-    };
-
-    const PERPENDICULARS_8 = {
-        'Left': ['Up', 'Down'], 'Right': ['Up', 'Down'], 'Up': ['Left', 'Right'], 'Down': ['Left', 'Right'],
-        'Up-Left': ['Up-Right', 'Down-Left'], 'Up-Right': ['Up-Left', 'Down-Right'],
-        'Down-Left': ['Up-Left', 'Down-Right'], 'Down-Right': ['Up-Right', 'Down-Left'],
-        37: [38, 40], 39: [38, 40], 38: [37, 39], 40: [37, 39]
-    };
-
-    const ADJACENT_45_8 = {
-        'Up': ['Up-Left', 'Up-Right'],
-        'Up-Right': ['Up', 'Right'],
-        'Right': ['Up-Right', 'Down-Right'],
-        'Down-Right': ['Right', 'Down'],
-        'Down': ['Down-Right', 'Down-Left'],
-        'Down-Left': ['Down', 'Left'],
-        'Left': ['Down-Left', 'Up-Left'],
-        'Up-Left': ['Left', 'Up'],
-        38: ['Up-Left', 'Up-Right'],
-        39: ['Up-Right', 'Down-Right'],
-        40: ['Down-Right', 'Down-Left'],
-        37: ['Down-Left', 'Up-Left']
-    };
-
-    const SHARED_COMPONENTS_8 = {
-        'Up': ['Up', 'Up-Left', 'Up-Right', 38],
-        'Down': ['Down', 'Down-Left', 'Down-Right', 40],
-        'Left': ['Left', 'Up-Left', 'Down-Left', 37],
-        'Right': ['Right', 'Up-Right', 'Down-Right', 39],
-        38: ['Up', 'Up-Left', 'Up-Right', 38],
-        40: ['Down', 'Down-Left', 'Down-Right', 40],
-        37: ['Left', 'Up-Left', 'Down-Left', 37],
-        39: ['Right', 'Up-Right', 'Down-Right', 39],
-        'Up-Left': ['Up-Left', 'Up', 'Left', 38, 37],
-        'Up-Right': ['Up-Right', 'Up', 'Right', 38, 39],
-        'Down-Left': ['Down-Left', 'Down', 'Left', 40, 37],
-        'Down-Right': ['Down-Right', 'Down', 'Right', 40, 39]
-    };
-
-    function normalizeKey(k) {
-        if (k === 37) return 'Left';
-        if (k === 38) return 'Up';
-        if (k === 39) return 'Right';
-        if (k === 40) return 'Down';
-        return k || 'Right';
-    }
-
-    function isWalkKeyPhysicallyBlocked(key, now) {
-        now = now || Date.now();
-        const norm = normalizeKey(key);
-        if ((blockedWalkKeys[key] && blockedWalkKeys[key] > now) ||
-            (blockedWalkKeys[norm] && blockedWalkKeys[norm] > now)) {
-            return true;
-        }
-        if (!isGameLoading() && (isNavButtonBlocked(key) || isNavButtonBlocked(norm))) {
-            return true;
-        }
-        if (norm === 'Up-Left' && (isWalkKeyPhysicallyBlocked('Up', now) || isWalkKeyPhysicallyBlocked('Left', now))) return true;
-        if (norm === 'Up-Right' && (isWalkKeyPhysicallyBlocked('Up', now) || isWalkKeyPhysicallyBlocked('Right', now))) return true;
-        if (norm === 'Down-Left' && (isWalkKeyPhysicallyBlocked('Down', now) || isWalkKeyPhysicallyBlocked('Left', now))) return true;
-        if (norm === 'Down-Right' && (isWalkKeyPhysicallyBlocked('Down', now) || isWalkKeyPhysicallyBlocked('Right', now))) return true;
-        return false;
-    }
-
     function chooseEvadeWalkKey(blockedKey) {
+        const keys = [37, 38, 39, 40]; // 37=Left, 38=Up, 39=Right, 40=Down
+        const opposites = { 37: 39, 39: 37, 38: 40, 40: 38 };
+        const perpendiculars = {
+            37: [38, 40], // Left -> Up, Down
+            39: [38, 40], // Right -> Up, Down
+            38: [37, 39], // Up -> Left, Right
+            40: [37, 39]  // Down -> Left, Right
+        };
+
         const now = Date.now();
-        for (const k in deadEndCooldowns) {
-            if (now > deadEndCooldowns[k]) delete deadEndCooldowns[k];
-        }
-
-        const normBlocked = normalizeKey(blockedKey);
-
-        // 1. Prioritize unblocked perpendicular cardinal directions (gliding parallel along obstacle surface)
-        const perpList = (PERPENDICULARS_8[normBlocked] || ['Up', 'Down', 'Left', 'Right']).filter(function(k) {
-            return CARDINAL_DIRECTIONS.includes(k);
-        });
-        const unblockedFreshPerp = perpList.filter(function(k) {
-            return k !== normBlocked &&
-                   !isWalkKeyPhysicallyBlocked(k, now) &&
-                   (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now);
+        const unblockedPerp = (perpendiculars[blockedKey] || []).filter(function(k) {
+            return !blockedWalkKeys[k] || blockedWalkKeys[k] <= now;
         });
 
-        if (unblockedFreshPerp.length > 0) {
-            return unblockedFreshPerp[Math.floor(Math.random() * unblockedFreshPerp.length)];
+        if (unblockedPerp.length > 0) {
+            return unblockedPerp[Math.floor(Math.random() * unblockedPerp.length)];
         }
 
-        // Fallback to any unblocked perpendicular
-        const anyUnblockedPerp = perpList.filter(function(k) {
-            return k !== normBlocked && !isWalkKeyPhysicallyBlocked(k, now);
-        });
-        if (anyUnblockedPerp.length > 0) {
-            return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
-        }
-
-        // 2. Reversing (180-degree back-out) into opposite direction
-        const opp = OPPOSITES_8[normBlocked] || 'Down';
-        if (opp !== normBlocked && !isWalkKeyPhysicallyBlocked(opp, now)) {
-            deadEndCooldowns[normBlocked] = now + 10000;
+        const opp = opposites[blockedKey] || 37;
+        if (!blockedWalkKeys[opp] || blockedWalkKeys[opp] <= now) {
             return opp;
         }
 
-        // 3. Any unblocked cardinal direction
-        const anyUnblocked = CARDINAL_DIRECTIONS.filter(function(k) {
-            return k !== normBlocked && !isWalkKeyPhysicallyBlocked(k, now);
-        });
-        if (anyUnblocked.length > 0) {
-            return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
-        }
-
-        // 4. Absolute fallback
-        return opp;
-    }
-
-    function chooseWanderWalkKey(currentKey) {
-        const now = Date.now();
-        const normCurrent = normalizeKey(currentKey);
-
-        // Gather unblocked candidates from cardinal directions for reliable grid traversal
-        const unblocked = CARDINAL_DIRECTIONS.filter(function(d) {
-            return !isWalkKeyPhysicallyBlocked(d, now) &&
-                   (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now);
-        });
-
-        if (unblocked.length === 0) {
-            const anyUnblocked = CARDINAL_DIRECTIONS.filter(function(d) {
-                return !isWalkKeyPhysicallyBlocked(d, now);
-            });
-            if (anyUnblocked.length > 0) {
-                return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
-            }
-            return chooseEvadeWalkKey(normCurrent);
-        }
-
-        // Strictly turn perpendicular when completing required steps!
-        // This ensures the bot always turns after taking the required steps (e.g. 5 steps).
-        const perpList = (PERPENDICULARS_8[normCurrent] || ['Up', 'Down']).filter(function(d) {
-            return CARDINAL_DIRECTIONS.includes(d);
-        });
-        const unblockedPerps = perpList.filter(function(d) {
-            return unblocked.indexOf(d) !== -1;
-        });
-
-        if (unblockedPerps.length > 0) {
-            return unblockedPerps[Math.floor(Math.random() * unblockedPerps.length)];
-        }
-
-        // Corridor fallback: if both perpendicular sides are walls, continue forward
-        if (unblocked.indexOf(normCurrent) !== -1) {
-            return normCurrent;
-        }
-
-        // Dead-end fallback: reverse
-        const opp = OPPOSITES_8[normCurrent];
-        if (unblocked.indexOf(opp) !== -1) {
-            return opp;
-        }
-
-        return unblocked[Math.floor(Math.random() * unblocked.length)];
+        const anyOther = keys.filter(function(k) { return k !== blockedKey; });
+        return anyOther[Math.floor(Math.random() * anyOther.length)];
     }
 
     function getNextWalkKey() {
         const keys = [37, 38, 39, 40]; // 37=Left, 38=Up, 39=Right, 40=Down
         const now = Date.now();
 
-        // Expire old blocked directions or directions that are visibly unblocked
+        // Expire old blocked directions
         for (const k in blockedWalkKeys) {
-            if (now > blockedWalkKeys[k] || !isNavButtonBlocked(k)) delete blockedWalkKeys[k];
-        }
-
-        // Active Ping-Pong Loop Breaker (Prevents 2-tile / 3-tile trap oscillations in tight corridors)
-        const loop = detectPingPongLoop();
-        if (loop) {
-            console.log('[PokeFinder Loop Breaker] Detected oscillation between keys ' + loop.keyA + ' and ' + loop.keyB + '! Forcing escape...');
-            blockedWalkKeys[loop.keyA] = now + 6000;
-            blockedWalkKeys[loop.keyB] = now + 6000;
-            recentMoves.length = 0;
-
-            const escapePerps = (loop.keyA === 37 || loop.keyA === 39) ? [38, 40] : [37, 39];
-            const unblockedEscape = escapePerps.filter(function(k) {
-                return !isWalkKeyPhysicallyBlocked(k, now);
-            });
-            if (unblockedEscape.length > 0) {
-                const escapeKey = unblockedEscape[Math.floor(Math.random() * unblockedEscape.length)];
-                currentWanderKey = escapeKey;
-                wanderStepsRemaining = (stepsPerDirection || 1) - 1;
-                updateStatusUI('Escaping choke point...', '#38bdf8');
-                return escapeKey;
-            }
-            const anyEscape = ALL_DIRECTIONS_8.filter(function(k) {
-                return k !== loop.keyA && k !== loop.keyB && !isWalkKeyPhysicallyBlocked(k, now);
-            });
-            if (anyEscape.length > 0) {
-                const escapeKey = anyEscape[Math.floor(Math.random() * anyEscape.length)];
-                currentWanderKey = escapeKey;
-                wanderStepsRemaining = (stepsPerDirection || 1) - 1;
-                updateStatusUI('Escaping choke point...', '#38bdf8');
-                return escapeKey;
-            }
+            if (now > blockedWalkKeys[k]) delete blockedWalkKeys[k];
         }
 
         if (walkMode === "diagonal") {
-            if (isWalkKeyPhysicallyBlocked(diagonalVerticalKey, now)) {
+            if (blockedWalkKeys[diagonalVerticalKey]) {
                 diagonalVerticalKey = diagonalVerticalKey === 38 ? 40 : 38;
             }
-            if (isWalkKeyPhysicallyBlocked(diagonalHorizontalKey, now)) {
+            if (blockedWalkKeys[diagonalHorizontalKey]) {
                 diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
             }
 
-            const vertStr = diagonalVerticalKey === 38 ? 'Up' : 'Down';
-            const horizStr = diagonalHorizontalKey === 39 ? 'Right' : 'Left';
-            let candidate = vertStr + '-' + horizStr;
-
-            if (isWalkKeyPhysicallyBlocked(candidate, now)) {
-                const altV = (vertStr === 'Up' ? 'Down' : 'Up') + '-' + horizStr;
-                if (!isWalkKeyPhysicallyBlocked(altV, now)) {
+            const chosenKey = (stepCounter % 2 === 0) ? diagonalVerticalKey : diagonalHorizontalKey;
+            stepCounter++;
+            if (blockedWalkKeys[chosenKey]) {
+                if (chosenKey === diagonalVerticalKey) {
                     diagonalVerticalKey = diagonalVerticalKey === 38 ? 40 : 38;
-                    candidate = altV;
+                    return diagonalVerticalKey;
                 } else {
-                    const altH = vertStr + '-' + (horizStr === 'Right' ? 'Left' : 'Right');
-                    if (!isWalkKeyPhysicallyBlocked(altH, now)) {
-                        diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
-                        candidate = altH;
-                    } else {
-                        const altBoth = (vertStr === 'Up' ? 'Down' : 'Up') + '-' + (horizStr === 'Right' ? 'Left' : 'Right');
-                        if (!isWalkKeyPhysicallyBlocked(altBoth, now)) {
-                            diagonalVerticalKey = diagonalVerticalKey === 38 ? 40 : 38;
-                            diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
-                            candidate = altBoth;
-                        } else {
-                            candidate = chooseEvadeWalkKey(candidate);
-                        }
-                    }
+                    diagonalHorizontalKey = diagonalHorizontalKey === 39 ? 37 : 39;
+                    return diagonalHorizontalKey;
                 }
             }
-            stepCounter++;
-            return candidate;
+            return chosenKey;
         }
 
         if (walkMode === "line_horizontal") {
-            let isLeft = Math.floor(stepCounter / stepsPerDirection) % 2 === 0;
-            let targetKey = isLeft ? 37 : 39;
-            if (isWalkKeyPhysicallyBlocked(targetKey, now)) {
-                const opp = targetKey === 37 ? 39 : 37;
-                if (!isWalkKeyPhysicallyBlocked(opp, now)) {
-                    const remainder = stepCounter % stepsPerDirection;
-                    if (remainder !== 0) stepCounter += (stepsPerDirection - remainder);
-                    return opp;
-                }
-                return chooseEvadeWalkKey(targetKey);
-            }
+            if (blockedWalkKeys[37] && !blockedWalkKeys[39]) return 39;
+            if (blockedWalkKeys[39] && !blockedWalkKeys[37]) return 37;
+            const isLeft = Math.floor(stepCounter / stepsPerDirection) % 2 === 0;
             stepCounter++;
-            return targetKey;
+            return isLeft ? 37 : 39;
         }
 
         if (walkMode === "line_vertical") {
-            let isUp = Math.floor(stepCounter / stepsPerDirection) % 2 === 0;
-            let targetKey = isUp ? 38 : 40;
-            if (isWalkKeyPhysicallyBlocked(targetKey, now)) {
-                const opp = targetKey === 38 ? 40 : 38;
-                if (!isWalkKeyPhysicallyBlocked(opp, now)) {
-                    const remainder = stepCounter % stepsPerDirection;
-                    if (remainder !== 0) stepCounter += (stepsPerDirection - remainder);
-                    return opp;
-                }
-                return chooseEvadeWalkKey(targetKey);
-            }
+            if (blockedWalkKeys[38] && !blockedWalkKeys[40]) return 40;
+            if (blockedWalkKeys[40] && !blockedWalkKeys[38]) return 38;
+            const isUp = Math.floor(stepCounter / stepsPerDirection) % 2 === 0;
             stepCounter++;
-            return targetKey;
+            return isUp ? 38 : 40;
         }
 
         if (walkMode === "patrol_square") {
             let dirIndex = Math.floor(stepCounter / stepsPerDirection) % 4;
             let candidate = keys[dirIndex];
-            if (isWalkKeyPhysicallyBlocked(candidate, now)) {
+            if (blockedWalkKeys[candidate]) {
                 stepCounter += stepsPerDirection;
                 dirIndex = Math.floor(stepCounter / stepsPerDirection) % 4;
                 candidate = keys[dirIndex];
-                if (isWalkKeyPhysicallyBlocked(candidate, now)) {
-                    return chooseEvadeWalkKey(candidate);
-                }
             }
             stepCounter++;
             return candidate;
         }
 
         if (walkMode === "wander") {
-            const normKey = normalizeKey(currentWanderKey);
-            const compulsorySteps = stepsPerDirection || 1;
-            const forwardIsBlocked = isWalkKeyPhysicallyBlocked(normKey, now) || isWalkKeyPhysicallyBlocked(currentWanderKey, now);
-
-            // If forward is blocked: trigger immediate zero-latency evasion!
-            // Momentum MUST stop immediately when an obstacle is directly in the path:
-            // reset remaining steps counter and immediately switch to a different unobstructed direction.
-            if (forwardIsBlocked) {
-                currentWanderKey = chooseEvadeWalkKey(normKey);
-                wanderStepsRemaining = compulsorySteps - 1;
-                return currentWanderKey;
-            }
-
-            // Normal turn condition: compulsory steps completed on clear path
-            if (wanderStepsRemaining <= 0) {
-                currentWanderKey = chooseWanderWalkKey(normKey);
-                wanderStepsRemaining = compulsorySteps - 1;
+            if (wanderStepsRemaining <= 0 || blockedWalkKeys[currentWanderKey]) {
+                currentWanderKey = chooseEvadeWalkKey(currentWanderKey);
+                wanderStepsRemaining = stepsPerDirection - 1;
             } else {
                 wanderStepsRemaining--;
             }
@@ -1102,7 +736,8 @@
             const posChanged = !!(curPos && lastPlayerPosSnapshot && (curPos.x !== lastPlayerPosSnapshot.x || curPos.y !== lastPlayerPosSnapshot.y));
             const textChanged = (currentDexyHtml !== lastDexyContentSnapshot);
 
-            if (lastDispatchedWalkKey !== null && !walkStepAcknowledged) {
+            // Check if last step was acknowledged by DelugeRPG
+            if (lastDispatchedWalkKey !== null) {
                 if (posChanged || textChanged) {
                     // Step was successful!
                     walkStepAcknowledged = true;
@@ -1110,95 +745,38 @@
                     if (blockedWalkKeys[lastDispatchedWalkKey]) {
                         delete blockedWalkKeys[lastDispatchedWalkKey];
                     }
-                    const normSuccess = normalizeKey(lastDispatchedWalkKey);
-                    if (blockedWalkKeys[normSuccess]) {
-                        delete blockedWalkKeys[normSuccess];
-                    }
-                } else if (!isLoading && !isGameLoading() && isNavButtonBlocked(lastDispatchedWalkKey)) {
-                    // Step failed: Server finished processing (not loading) but position did not change!
-                    // This means we hit a physical obstacle (wall, tree, water).
-                    consecutiveBlockedSteps++;
-                    const nowCollision = Date.now();
-                    blockedWalkKeys[lastDispatchedWalkKey] = nowCollision + 8000;
-                    const normColl = normalizeKey(lastDispatchedWalkKey);
-                    blockedWalkKeys[normColl] = nowCollision + 8000;
-                    const sharedColl = SHARED_COMPONENTS_8[normColl] || [normColl];
-                    sharedColl.forEach(function(sc) {
-                        blockedWalkKeys[sc] = nowCollision + 8000;
-                    });
-                    
-                    // MUST STOP MOMENTUM IMMEDIATELY! Reset required steps so it picks a new direction!
-                    wanderStepsRemaining = 0;
-                    walkStepAcknowledged = true; // Acknowledge the failure so we can evade immediately on this tick
-                    
-                    // Invert diagonal axes on collision
-                    if (lastDispatchedWalkKey === 38 || lastDispatchedWalkKey === 'Up') diagonalVerticalKey = 40;
-                    else if (lastDispatchedWalkKey === 40 || lastDispatchedWalkKey === 'Down') diagonalVerticalKey = 38;
-                    else if (lastDispatchedWalkKey === 37 || lastDispatchedWalkKey === 'Left') diagonalHorizontalKey = 39;
-                    else if (lastDispatchedWalkKey === 39 || lastDispatchedWalkKey === 'Right') diagonalHorizontalKey = 37;
-                    else if (lastDispatchedWalkKey === 'Up-Right') {
-                        if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
-                        else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
-                        else { diagonalVerticalKey = 40; diagonalHorizontalKey = 37; }
-                    } else if (lastDispatchedWalkKey === 'Up-Left') {
-                        if (isNavButtonBlocked(38)) diagonalVerticalKey = 40;
-                        else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
-                        else { diagonalVerticalKey = 40; diagonalHorizontalKey = 39; }
-                    } else if (lastDispatchedWalkKey === 'Down-Right') {
-                        if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
-                        else if (isNavButtonBlocked(39)) diagonalHorizontalKey = 37;
-                        else { diagonalVerticalKey = 38; diagonalHorizontalKey = 37; }
-                    } else if (lastDispatchedWalkKey === 'Down-Left') {
-                        if (isNavButtonBlocked(40)) diagonalVerticalKey = 38;
-                        else if (isNavButtonBlocked(37)) diagonalHorizontalKey = 39;
-                        else { diagonalVerticalKey = 38; diagonalHorizontalKey = 39; }
-                    }
+                } else if (!walkStepAcknowledged) {
+                    // Only flag collision if position is actively tracked or text confirmed
+                    if (curPos && lastPlayerPosSnapshot) {
+                        consecutiveBlockedSteps++;
+                        blockedWalkKeys[lastDispatchedWalkKey] = Date.now() + 8000;
+                        wanderStepsRemaining = 0;
 
-                    console.log('[PokeFinder] Physical obstacle hit with key ' + lastDispatchedWalkKey + '! Resetting required steps. Consecutive: ' + consecutiveBlockedSteps);
-                    updateStatusUI('Obstacle! Changing dir...', '#ff9800');
+                        // Invert diagonal axes on collision
+                        if (lastDispatchedWalkKey === 38) diagonalVerticalKey = 40;
+                        else if (lastDispatchedWalkKey === 40) diagonalVerticalKey = 38;
+                        else if (lastDispatchedWalkKey === 37) diagonalHorizontalKey = 39;
+                        else if (lastDispatchedWalkKey === 39) diagonalHorizontalKey = 37;
 
-                    if (consecutiveBlockedSteps >= 6) {
-                        console.log('[PokeFinder] Trapped in maze! Reloading map to safe spawn...');
-                        consecutiveBlockedSteps = 0;
-                        blockedWalkKeys = {};
-                        location.reload();
-                        return;
+                        console.log('[PokeFinder] Collision detected with key ' + lastDispatchedWalkKey + '! Consecutive: ' + consecutiveBlockedSteps);
+                        updateStatusUI('Obstacle! Evading...', '#ff9800');
+
+                        if (consecutiveBlockedSteps >= 6) {
+                            console.log('[PokeFinder] Trapped in maze! Reloading map to safe spawn...');
+                            consecutiveBlockedSteps = 0;
+                            blockedWalkKeys = {};
+                            location.reload();
+                            return;
+                        }
+                    } else {
+                        // Without position confirmation, don't falsely claim obstacle
+                        walkStepAcknowledged = true;
                     }
-                } else {
-                    // Game is genuinely still loading via AJAX. Wait patiently.
-                    if (!this.lastDispatchTime) this.lastDispatchTime = Date.now();
-                    
-                    if (Date.now() - this.lastDispatchTime > 6000) {
-                         console.log('[PokeFinder] Network timeout (6s). Retrying...');
-                         walkStepAcknowledged = true;
-                         this.lastDispatchTime = Date.now();
-                    }
-                    return; // Skip firing next key until network completes
-                }
-            }
-            
-            if (isLoading || isGameLoading()) {
-                // UI is still fully locked from previous AJAX request, wait for it to un-grey.
-                return;
-            }
-
-            this.lastDispatchTime = Date.now();
-
-            let key = getNextWalkKey();
-            const nowTime = Date.now();
-            // Pre-dispatch Zero-Collision Guard: avoid bumping known blocked direction
-            if (isWalkKeyPhysicallyBlocked(key, nowTime)) {
-                const evaded = chooseEvadeWalkKey(key);
-                if (evaded && evaded !== key) {
-                    key = evaded;
-                    currentWanderKey = evaded;
-                    wanderStepsRemaining = (stepsPerDirection || 1) - 1;
                 }
             }
 
+            const key = getNextWalkKey();
             lastDispatchedWalkKey = key;
-            recentMoves.push(key);
-            if (recentMoves.length > 8) recentMoves.shift();
             walkStepAcknowledged = false;
             lastDexyContentSnapshot = currentDexyHtml;
             lastPlayerPosSnapshot = curPos;
@@ -1208,9 +786,156 @@
         }, isDoneLoadingFreq);
     }
 
+    /* ========== HUMAN-LIKE INTERACTION & DUPLICATE DETECTION ========== */
+    function dispatchHumanClick(element) {
+        if (!element) return;
+        try {
+            const rect = element.getBoundingClientRect();
+            const clientX = rect.left + (rect.width * (0.35 + Math.random() * 0.3));
+            const clientY = rect.top + (rect.height * (0.35 + Math.random() * 0.3));
+            const opts = {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+                clientX: Math.round(clientX),
+                clientY: Math.round(clientY)
+            };
+
+            element.dispatchEvent(new PointerEvent('pointerover', opts));
+            element.dispatchEvent(new MouseEvent('mouseover', opts));
+            element.dispatchEvent(new PointerEvent('pointerenter', opts));
+            element.dispatchEvent(new MouseEvent('mouseenter', opts));
+            element.dispatchEvent(new PointerEvent('pointerdown', opts));
+            element.dispatchEvent(new MouseEvent('mousedown', opts));
+
+            const pressDuration = Math.floor(Math.random() * 65) + 75;
+            setTimeout(() => {
+                try {
+                    element.dispatchEvent(new PointerEvent('pointerup', opts));
+                    element.dispatchEvent(new MouseEvent('mouseup', opts));
+                    element.dispatchEvent(new MouseEvent('click', opts));
+                    if (typeof element.click === 'function') {
+                        element.click();
+                    }
+                } catch (_) {}
+            }, pressDuration);
+        } catch (_) {
+            if (typeof element.click === 'function') {
+                element.click();
+            }
+        }
+    }
+
+    function checkEncounterIsDuplicate(container) {
+        if (!container) {
+            container = document.getElementById('showpoke') ||
+                        document.querySelector('.showpoke') ||
+                        document.getElementById('showpoke-name') ||
+                        document.getElementById('dexy') ||
+                        document.querySelector('.dexy');
+        }
+        if (!container) return false;
+
+        const rawText = (container.innerText || container.textContent || '').toLowerCase();
+        if (rawText.indexOf('already caught') !== -1 || rawText.indexOf('already in pokedex') !== -1 || rawText.indexOf('already owned') !== -1) {
+            return true;
+        }
+        if (rawText.indexOf('not caught') !== -1 || rawText.indexOf('uncaught') !== -1 || rawText.indexOf('not in pokedex') !== -1 || rawText.indexOf('new pokemon') !== -1) {
+            return false;
+        }
+
+        const imgs = Array.from(container.querySelectorAll('img'));
+        let indicatorImg = null;
+
+        for (let i = 0; i < imgs.length; i++) {
+            const img = imgs[i];
+            const src = (img.src || '').toLowerCase();
+            const alt = (img.alt || '').toLowerCase();
+            const title = (img.title || '').toLowerCase();
+            const className = (img.className || '').toLowerCase();
+
+            if (src.indexOf('/pokemon/') !== -1 || src.indexOf('/sprites/') !== -1 || (src.indexOf('/dex/') !== -1 && (src.indexOf('front') !== -1 || src.indexOf('back') !== -1))) {
+                if (img.naturalWidth > 40 || img.naturalHeight > 40 || img.width > 40 || img.height > 40) {
+                    continue;
+                }
+            }
+
+            if (src.indexOf('/types/') !== -1 || src.indexOf('/type/') !== -1 || alt.indexOf('type') !== -1 || title.indexOf('type') !== -1) {
+                continue;
+            }
+
+            const isBallOrDex = src.indexOf('dball') !== -1 || src.indexOf('pokeball') !== -1 || src.indexOf('ball') !== -1 ||
+                                src.indexOf('caught') !== -1 || src.indexOf('pokedex') !== -1 || src.indexOf('dexball') !== -1 ||
+                                alt.indexOf('caught') !== -1 || title.indexOf('caught') !== -1 ||
+                                alt.indexOf('dex') !== -1 || title.indexOf('dex') !== -1 ||
+                                alt.indexOf('ball') !== -1 || title.indexOf('ball') !== -1 ||
+                                className.indexOf('caught') !== -1 || className.indexOf('ball') !== -1 || className.indexOf('dex') !== -1;
+
+            const isSmallIcon = (img.naturalWidth > 0 && img.naturalWidth <= 32) || (img.width > 0 && img.width <= 32);
+
+            if (isBallOrDex || (isSmallIcon && src.indexOf('/pokemon/') === -1)) {
+                indicatorImg = img;
+                break;
+            }
+        }
+
+        if (!indicatorImg) return false;
+
+        const indSrc = (indicatorImg.src || '').toLowerCase();
+        const indAlt = (indicatorImg.alt || '').toLowerCase();
+        const indTitle = (indicatorImg.title || '').toLowerCase();
+
+        if (indTitle.indexOf('not caught') !== -1 || indAlt.indexOf('not caught') !== -1 ||
+            indTitle.indexOf('uncaught') !== -1 || indAlt.indexOf('uncaught') !== -1 ||
+            indTitle.indexOf('not owned') !== -1 || indAlt.indexOf('not owned') !== -1 ||
+            indTitle.indexOf('missing') !== -1 || indAlt.indexOf('missing') !== -1) {
+            return false;
+        }
+
+        if (indTitle.indexOf('caught') !== -1 || indAlt.indexOf('caught') !== -1 ||
+            indTitle.indexOf('in pokedex') !== -1 || indAlt.indexOf('in pokedex') !== -1 ||
+            indTitle.indexOf('owned') !== -1 || indAlt.indexOf('owned') !== -1 ||
+            indTitle.indexOf('registered') !== -1 || indAlt.indexOf('registered') !== -1) {
+            return true;
+        }
+
+        if (indSrc.indexOf('grey') !== -1 || indSrc.indexOf('gray') !== -1 || indSrc.indexOf('bw') !== -1 ||
+            indSrc.indexOf('empty') !== -1 || indSrc.indexOf('uncaught') !== -1 || indSrc.indexOf('nocatch') !== -1 ||
+            indSrc.indexOf('off') !== -1 || indSrc.indexOf('dball_off') !== -1 || indSrc.indexOf('dball_grey') !== -1 ||
+            indSrc.indexOf('dball_gray') !== -1 || indSrc.indexOf('dball_bw') !== -1) {
+            return false;
+        }
+
+        try {
+            const computed = window.getComputedStyle(indicatorImg);
+            const filter = (computed.filter || '').toLowerCase();
+            const opacity = parseFloat(computed.opacity);
+
+            if (filter.indexOf('grayscale(1') !== -1 || filter.indexOf('grayscale(100%') !== -1 ||
+                filter.indexOf('saturate(0') !== -1 || filter.indexOf('saturate(0%') !== -1 ||
+                filter.indexOf('opacity(0.') !== -1 || (!isNaN(opacity) && opacity < 0.5)) {
+                return false;
+            }
+        } catch (_) {}
+
+        if (indSrc.indexOf('dball') !== -1 || indSrc.indexOf('pokeball') !== -1 || indSrc.indexOf('caught') !== -1) {
+            return true;
+        }
+
+        return false;
+    }
+
     /* ========== CATCH SEQUENCE ========== */
     function triggerTargetFound(targetName) {
         if (!finderActive) return;
+        if (avoidDuplicates) {
+            const activeBox = getEncounterContainer();
+            if (checkEncounterIsDuplicate(activeBox)) {
+                updateStatusUI('Skipping duplicate: ' + targetName, '#9e9e9e');
+                return;
+            }
+        }
+
         finderActive = false;
 
         if (walkInterval) clearInterval(walkInterval);
@@ -1230,11 +955,14 @@
         } catch (_) {}
 
         if (autoCatch) {
-            const catchBtn = findCatchActionElement() || document.querySelector('input[type="submit"][id="catch"], input#catch, button#catch, input[value*="Catch"], input[value*="Try to Catch"], a#catch, #showpoke a, a[href*="/catch/"]');
-            if (catchBtn) {
-                catchBtn.click();
-            }
-            startCatchSequence();
+            const reactionDelay = Math.floor(Math.random() * 600) + 850;
+            setTimeout(() => {
+                const catchBtn = findCatchActionElement() || document.querySelector('input[type="submit"][id="catch"], input#catch, button#catch, input[value*="Catch" i], input[value*="Try to Catch" i], a#catch, #showpoke a, a[href*="/catch/"]');
+                if (catchBtn) {
+                    dispatchHumanClick(catchBtn);
+                }
+                startCatchSequence();
+            }, reactionDelay);
         } else {
             alert('Target Pokemon found: ' + targetName + '!\nFinder paused.');
         }
@@ -1265,26 +993,28 @@
     function startCatchSequence() {
         if (catchStepInterval) clearInterval(catchStepInterval);
         let attempts = 0;
+        let isActing = false;
 
         catchStepInterval = setInterval(function() {
             attempts++;
-            if (attempts > 80) { // Stop after 40 seconds
+            if (attempts > 90) {
                 clearInterval(catchStepInterval);
                 return;
             }
+            if (isActing) return;
 
-            const ballWasThrown = sessionStorage.getItem('pokefinder_ball_thrown') === 'true';
+            let ballWasThrown = false;
+            try {
+                ballWasThrown = sessionStorage.getItem('pokefinder_ball_thrown') === 'true';
+            } catch (_) {}
 
-            // STEP 1: ONLY check for Return to Map AFTER a ball was actually thrown!
-            // (Prevents prematurely clicking navbar map links before the battle starts)
             if (ballWasThrown) {
                 const bodyText = (document.body ? document.body.textContent || '' : '').toLowerCase();
                 const isConfirmed = bodyText.indexOf('was caught') !== -1 ||
                                     bodyText.indexOf('captured') !== -1 ||
+                                    bodyText.indexOf('sent to your box') !== -1 ||
                                     bodyText.indexOf('you threw a') !== -1;
 
-                // STRICT MATCH: Only match elements whose visible text is explicitly "Return to Map"
-                // NEVER match general navigation links like <a href="/map">Maps</a>!
                 const allLinksAndButtons = Array.from(document.querySelectorAll('a, input[type="submit"], input[type="button"], button'));
                 const returnBtn = allLinksAndButtons.find(function(el) {
                     const text = ((el.textContent || '') + ' ' + (el.value || '')).trim().toLowerCase();
@@ -1292,6 +1022,7 @@
                 });
 
                 if (isConfirmed || returnBtn) {
+                    isActing = true;
                     clearInterval(catchStepInterval);
                     try {
                         sessionStorage.removeItem('pokefinder_target');
@@ -1301,25 +1032,31 @@
                     updateStatusUI('Caught! Returning...', '#00e676');
                     console.log('[PokeFinder] Catch confirmed! Returning to map...');
 
-                    if (returnBtn) {
-                        returnBtn.click();
-                    } else if (window.location.pathname.indexOf('/map') === -1) {
-                        window.location.href = '/map';
-                    } else {
-                        resumeMapHunting();
-                    }
+                    const returnDelay = Math.floor(Math.random() * 700) + 1100;
+                    setTimeout(() => {
+                        if (returnBtn) {
+                            dispatchHumanClick(returnBtn);
+                        } else if (window.location.pathname.indexOf('/map') === -1) {
+                            window.location.href = '/map';
+                        } else {
+                            resumeMapHunting();
+                        }
+                    }, returnDelay);
                     return;
                 }
             }
 
-            // STEP 2: Click "Start Battle" if present
-            const startBattleBtn = document.querySelector('input[type="submit"][value*="Start Battle"], input[value*="Start Battle"], button[value*="Start Battle"]');
+            const startBattleBtn = document.querySelector('input[type="submit"][value*="Start Battle" i], input[value*="Start Battle" i], button[value*="Start Battle" i]');
             if (startBattleBtn && window.getComputedStyle(startBattleBtn).display !== 'none') {
-                startBattleBtn.click();
+                isActing = true;
+                const delay = Math.floor(Math.random() * 350) + 500;
+                setTimeout(() => {
+                    dispatchHumanClick(startBattleBtn);
+                    isActing = false;
+                }, delay);
                 return;
             }
 
-            // STEP 3: Smart Pokeball Selection (Fallback & User Manual Choice Preservation)
             let throwBtn = null;
             const submitButtons = Array.from(document.querySelectorAll('input[type="submit"], input[type="button"], button'));
             for (let b = 0; b < submitButtons.length; b++) {
@@ -1341,7 +1078,6 @@
                 }
             }
 
-            // Scope radio search to throw form or pokeballs container
             const formScope = throwBtn ? (throwBtn.form || throwBtn.closest('form')) : null;
             const radioPool = formScope ? Array.from(formScope.querySelectorAll('input[type="radio"]')) : Array.from(document.querySelectorAll('input[type="radio"]'));
 
@@ -1375,79 +1111,108 @@
                 return false;
             }
 
-            // Filter relevant pokeball radios
-            const ballRadios = [];
+            let masterRadio = null;
+            let masterUnavailable = false;
+            let ultraRadio = null;
+            let ultraUnavailable = false;
+
             for (let rIdx = 0; rIdx < radioPool.length; rIdx++) {
                 const r = radioPool[rIdx];
                 const desc = getRadioDescriptor(r);
                 const dLower = desc.toLowerCase();
-                if (formScope || dLower.indexOf('ball') !== -1 || dLower.indexOf('master') !== -1 || dLower.indexOf('ultra') !== -1 || dLower.indexOf('great') !== -1 || dLower.indexOf('poke') !== -1) {
-                    ballRadios.push({ radio: r, desc: desc, dLower: dLower });
+                if (dLower.indexOf('master') !== -1 || (r.value && r.value.toLowerCase().indexOf('master') !== -1)) {
+                    masterRadio = r;
+                    masterUnavailable = isRadioUnavailable(r, desc);
+                } else if (dLower.indexOf('ultra') !== -1 || (r.value && r.value.toLowerCase().indexOf('ultra') !== -1)) {
+                    ultraRadio = r;
+                    ultraUnavailable = isRadioUnavailable(r, desc);
                 }
             }
 
-            let selectedBall = null;
-            let selectedBallDesc = '';
+            // Determine target level
+            let targetLevel = null;
+            const storedTarget = sessionStorage.getItem('pokefinder_target') || '';
+            const lvlMatch = storedTarget.match(/\(Lv\s*(\d+)\)/i);
+            if (lvlMatch) {
+                targetLevel = parseInt(lvlMatch[1], 10);
+            }
+            if (targetLevel === null && document.body) {
+                const bodyText = document.body.innerText || '';
+                const bMatch = bodyText.match(/(?:level|lvl)[^0-9\r\n]{0,8}(\d{1,3})\b/i);
+                if (bMatch) targetLevel = parseInt(bMatch[1], 10);
+            }
 
-            // 1. Check if user already has a valid ball checked (DO NOT UNCLICK!)
-            for (let i = 0; i < ballRadios.length; i++) {
-                const item = ballRadios[i];
-                if (item.radio.checked && !isRadioUnavailable(item.radio, item.desc)) {
-                    selectedBall = item.radio;
-                    selectedBallDesc = item.desc;
-                    break;
+            const ultraMaxLevel = 25;
+            const isLowLevel = (targetLevel !== null && targetLevel <= ultraMaxLevel);
+
+            let chosenRadio = null;
+            let chosenBallName = '';
+
+            if (isLowLevel) {
+                if (ultraRadio && !ultraUnavailable) {
+                    chosenRadio = ultraRadio;
+                    chosenBallName = 'Ultra Ball (Low-level target: Lv ' + targetLevel + ')';
+                } else if (masterRadio && !masterUnavailable) {
+                    chosenRadio = masterRadio;
+                    chosenBallName = 'Master Ball (Ultra Ball out of stock)';
+                }
+            } else {
+                if (masterRadio && !masterUnavailable) {
+                    chosenRadio = masterRadio;
+                    chosenBallName = 'Master Ball (Guaranteed capture)';
+                } else if (ultraRadio && !ultraUnavailable) {
+                    chosenRadio = ultraRadio;
+                    chosenBallName = 'Ultra Ball (Master Ball out of stock)';
                 }
             }
 
-            // 2. Fallback in priority order: Master -> Ultra -> Great -> Poke
-            if (!selectedBall) {
-                const priorities = ['master', 'ultra', 'great', 'poke'];
-                for (let p = 0; p < priorities.length; p++) {
-                    const priorityName = priorities[p];
-                    for (let i = 0; i < ballRadios.length; i++) {
-                        const item = ballRadios[i];
-                        if (isRadioUnavailable(item.radio, item.desc)) continue;
-                        if (item.dLower.indexOf(priorityName) !== -1) {
-                            selectedBall = item.radio;
-                            selectedBallDesc = item.desc;
-                            selectedBall.click();
-                            selectedBall.checked = true;
-                            selectedBall.dispatchEvent(new Event('change', { bubbles: true }));
-                            break;
+            if (throwBtn && radioPool.length > 0) {
+                if (!chosenRadio) {
+                    clearInterval(catchStepInterval);
+                    console.warn('[PokeFinder] Desired Pokeball out of stock! Halting catch sequence.');
+                    updateStatusUI('Pokeballs Out of Stock! Paused', '#f44336');
+                    alert('Pokeballs Out of Stock!\nAuto-catch halted to protect your encounter.\nPlease buy Master or Ultra Balls before continuing.');
+                    return;
+                }
+
+                console.log('[PokeFinder] Selected: ' + chosenBallName);
+
+                if (!chosenRadio.checked) {
+                    isActing = true;
+                    const selectDelay = Math.floor(Math.random() * 300) + 450;
+                    setTimeout(() => {
+                        dispatchHumanClick(chosenRadio);
+                        chosenRadio.checked = true;
+                        chosenRadio.dispatchEvent(new Event('change', { bubbles: true }));
+
+                        const throwDelay = Math.floor(Math.random() * 400) + 550;
+                        setTimeout(() => {
+                            if (throwBtn && window.getComputedStyle(throwBtn).display !== 'none') {
+                                console.log('[PokeFinder] Throwing ' + chosenBallName + '!');
+                                dispatchHumanClick(throwBtn);
+                                try {
+                                    sessionStorage.setItem('pokefinder_ball_thrown', 'true');
+                                } catch (_) {}
+                            }
+                            isActing = false;
+                        }, throwDelay);
+                    }, selectDelay);
+                    return;
+                } else {
+                    isActing = true;
+                    const throwDelay = Math.floor(Math.random() * 350) + 500;
+                    setTimeout(() => {
+                        if (throwBtn && window.getComputedStyle(throwBtn).display !== 'none') {
+                            console.log('[PokeFinder] Throwing ' + chosenBallName + '!');
+                            dispatchHumanClick(throwBtn);
+                            try {
+                                sessionStorage.setItem('pokefinder_ball_thrown', 'true');
+                            } catch (_) {}
                         }
-                    }
-                    if (selectedBall) break;
+                        isActing = false;
+                    }, throwDelay);
+                    return;
                 }
-            }
-
-            // 3. Fallback: pick any ball with count > 0
-            if (!selectedBall) {
-                for (let i = 0; i < ballRadios.length; i++) {
-                    const item = ballRadios[i];
-                    if (!isRadioUnavailable(item.radio, item.desc)) {
-                        selectedBall = item.radio;
-                        selectedBallDesc = item.desc;
-                        selectedBall.click();
-                        selectedBall.checked = true;
-                        selectedBall.dispatchEvent(new Event('change', { bubbles: true }));
-                        break;
-                    }
-                }
-            }
-
-            // STEP 4: Throw Pokeball
-            if (selectedBall && throwBtn && window.getComputedStyle(throwBtn).display !== 'none') {
-                throwBtn.click();
-                try {
-                    sessionStorage.setItem('pokefinder_ball_thrown', 'true');
-                } catch (_) {}
-                let name = 'Target';
-                try {
-                    name = sessionStorage.getItem('pokefinder_target') || 'Target';
-                } catch (_) {}
-                updateStatusUI('Throwing ball at ' + name + '...', '#2196f3');
-                console.log('[PokeFinder] Threw ball at ' + name + '!');
-                return;
             }
         }, 500);
     }
@@ -1555,13 +1320,24 @@
 
         if (pageText.indexOf("searching...") !== -1) return;
 
+        function handleMatchedTarget(targetName) {
+            if (avoidDuplicates) {
+                const activeBox = getEncounterContainer();
+                if (checkEncounterIsDuplicate(activeBox)) {
+                    updateStatusUI('Skipping duplicate: ' + targetName, '#9e9e9e');
+                    return; // Do NOT pause! Continue walking!
+                }
+            }
+            triggerTargetFound(targetName);
+        }
+
         // 1. Check for ANY Special Sprite Variant (Chrome, Retro, Shadow, Ghostly, Metallic, Dark, Shiny, etc.)
         if (currentFindVariants) {
             for (let i = 0; i < SPECIAL_VARIANTS.length; i++) {
                 const mod = SPECIAL_VARIANTS[i];
                 const match = pageText.match(new RegExp('\\b' + mod + '[- ]+([a-z0-9\\-\':]+)', 'i'));
                 if (match) {
-                    triggerTargetFound(mod.toUpperCase() + ' ' + match[1]);
+                    handleMatchedTarget(mod.toUpperCase() + ' ' + match[1]);
                     return;
                 }
             }
@@ -1577,7 +1353,7 @@
                     if (form.toLowerCase() === 'ultra' && formMatch[1].toLowerCase().startsWith('ball')) {
                         continue;
                     }
-                    triggerTargetFound(form.toUpperCase() + ' ' + formMatch[1]);
+                    handleMatchedTarget(form.toUpperCase() + ' ' + formMatch[1]);
                     return;
                 }
             }
@@ -1586,7 +1362,7 @@
             for (let mg = 0; mg < MEGA_CAPABLE_LOWER.length; mg++) {
                 const megaTarget = MEGA_CAPABLE_LOWER[mg];
                 if (pageText.indexOf(megaTarget) !== -1) {
-                    triggerTargetFound('Mega Line: ' + MEGA_CAPABLE_BASE[mg]);
+                    handleMatchedTarget('Mega Line: ' + MEGA_CAPABLE_BASE[mg]);
                     return;
                 }
             }
@@ -1597,7 +1373,7 @@
             for (let k = 0; k < LEGENDARY_BASE_LOWER.length; k++) {
                 const leg = LEGENDARY_BASE_LOWER[k];
                 if (pageText.indexOf(leg) !== -1) {
-                    triggerTargetFound('Legendary: ' + LEGENDARY_BASE[k]);
+                    handleMatchedTarget('Legendary: ' + LEGENDARY_BASE[k]);
                     return;
                 }
             }
@@ -1609,12 +1385,12 @@
             const currentLevel = parseInt(levelMatch[1], 10);
 
             if (findLevels && levelsToFind.map(Number).indexOf(currentLevel) !== -1) {
-                triggerTargetFound('Level ' + currentLevel + ' Pokemon');
+                handleMatchedTarget('Level ' + currentLevel + ' Pokemon');
                 return;
             }
 
             if (findLevelsAndUp && currentLevel >= levelsAndUpToFind) {
-                triggerTargetFound('Level ' + currentLevel + '+ Pokemon');
+                handleMatchedTarget('Level ' + currentLevel + '+ Pokemon');
                 return;
             }
         }

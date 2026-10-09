@@ -19,14 +19,14 @@ assert(TARGETS.specialForms.includes('g-max'), 'Must contain g-max in specialFor
 console.log(`[PASS] Target Database: ${TARGETS.legendaries.length} Legendaries/Mythicals/Paradox, ${TARGETS.megas.length} Mega lines loaded.`);
 
 // 2. Verify config.json for Hardened Network & Profile
-const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
+const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
 assert(config.dummyAccount, 'Must have dummyAccount config');
 assert(config.network, 'Must have network proxy config block');
 assert(typeof config.network.useProxy === 'boolean', 'network.useProxy must be boolean');
 assert(config.settings, 'Must have settings config');
 assert(config.settings.baseDelay >= 2000, 'Hardened baseDelay must be >= 2000ms for flagged network profile');
 assert(config.settings.minSafetyFloor >= 1700, 'Hardened minSafetyFloor must be >= 1700ms');
-assert(typeof config.settings.autoCatch === 'boolean', 'settings.autoCatch must be boolean');
+assert(typeof config.settings.avoidDuplicates === 'boolean', 'settings.avoidDuplicates must be boolean');
 assert(typeof config.settings.findLegendaries === 'boolean', 'settings.findLegendaries must be boolean');
 assert(typeof config.settings.findMegasAndGigantamax === 'boolean', 'settings.findMegasAndGigantamax must be boolean');
 assert(typeof config.settings.findAnySpecialVariant === 'boolean', 'settings.findAnySpecialVariant must be boolean');
@@ -59,7 +59,7 @@ console.log(`[PASS] Hardened Gaussian delay generator: 1000 trials passed with a
 // 4. Verify 100% clean ASCII across all client files
 const files = ['main.js', 'app.js', 'game-preload.js', 'targets.js', 'config.json', 'package.json', 'app.html', 'test_client.js'];
 for (const file of files) {
-  const content = fs.readFileSync(file, 'utf8');
+  const content = fs.readFileSync(path.join(__dirname, file), 'utf8');
   for (let i = 0; i < content.length; i++) {
     if (content.charCodeAt(i) > 127) {
       throw new Error(`Non-ASCII character found in ${file} at index ${i}`);

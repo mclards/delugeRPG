@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DelugeRPG Desktop Client [Hardened]</title>
-  <link rel="icon" type="image/x-icon" href="assets/icon.ico">
   <style>
     * {
       box-sizing: border-box;
@@ -74,15 +73,6 @@
       display: flex;
       align-items: center;
       gap: 8px;
-    }
-    .brand-logo {
-      width: 24px;
-      height: 24px;
-      border-radius: 6px;
-      object-fit: cover;
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.45);
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      flex-shrink: 0;
     }
     .icon-pokeball {
       width: 20px;
@@ -495,7 +485,7 @@
       position: absolute;
       top: calc(100% + 8px);
       right: 0;
-      width: 210px;
+      width: 235px;
       background: #161f33;
       border: 1px solid #334155;
       border-radius: 10px;
@@ -563,6 +553,23 @@
     .dropdown-label {
       flex: 1;
       white-space: nowrap;
+    }
+    .dropdown-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.3px;
+    }
+    .dropdown-badge-on {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+    .dropdown-badge-off {
+      background: rgba(148, 163, 184, 0.15);
+      color: #94a3b8;
+      border: 1px solid rgba(148, 163, 184, 0.25);
     }
     .dropdown-divider {
       height: 1px;
@@ -850,11 +857,6 @@
       color: #ffffff;
       background: #273549;
     }
-    .variant-chip:has(input:checked) {
-      border-color: #38bdf8;
-      background: rgba(56, 189, 248, 0.12);
-      color: #ffffff;
-    }
     .variant-chip input {
       margin: 0;
       width: 13px;
@@ -1009,7 +1011,7 @@
     <!-- Left Section: Branding Logo -->
     <div class="nav-section nav-left">
       <div class="brand-cluster">
-        <img src="assets/logo.png" class="brand-logo" alt="DelugeRPG" title="DelugeRPG Stealth Engine" />
+        <div class="icon-pokeball" title="DelugeRPG Stealth Engine"></div>
         <div class="title-badge">
           <span class="app-name">DelugeRPG</span>
           <span class="app-sub">Stealth Client</span>
@@ -1039,8 +1041,6 @@
 
       <!-- Quick Action Toggles Cluster -->
       <div class="action-cluster">
-        <button id="targetModalBtn" class="btn btn-accent" title="Target Pokemon Filters &amp; Presets">&#127919; Targets</button>
-        <button id="autoCatchBtn" class="btn btn-icon" title="Toggle Auto-Catch (Master Ball throwing)">&#9733;</button>
         <button id="soundBtn" class="btn btn-icon btn-accent" title="Toggle Audio Chime Alert">&#128266;</button>
       </div>
 
@@ -1060,6 +1060,23 @@
       <div class="nav-menu-wrapper">
         <button id="navMenuBtn" class="btn btn-icon" title="Tools &amp; Settings Menu">&#9776;</button>
         <div id="navDropdown" class="nav-dropdown hidden">
+          <div class="nav-dropdown-header">Targeting &amp; Detection</div>
+          <button id="targetModalBtn" class="dropdown-item" title="Configure Target Pokemon Filters &amp; Presets">
+            <span class="dropdown-icon">&#127919;</span>
+            <span class="dropdown-label">Target Pokemon Filters</span>
+          </button>
+          <button id="avoidDupesBtn" class="dropdown-item dropdown-toggle-item" title="Duplication Avoidance: Never pause or alert on already caught Pokemon">
+            <span class="dropdown-icon">&#128260;</span>
+            <span class="dropdown-label">Avoid Duplicates</span>
+            <span id="avoidDupesBadge" class="dropdown-badge dropdown-badge-on">ON</span>
+          </button>
+          <button id="autoStartMapBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Start Hunting: Automatically begin walking whenever the game map is loaded">
+            <span class="dropdown-icon">&#9654;</span>
+            <span class="dropdown-label">Auto-Start on Maps</span>
+            <span id="autoStartMapBadge" class="dropdown-badge dropdown-badge-on">ON</span>
+          </button>
+          <div class="dropdown-divider"></div>
+
           <div class="nav-dropdown-header">Walking Movement Mode</div>
           <div style="padding: 2px 8px 4px 8px;">
             <select id="walkModeSelect" style="width: 100%; height: 28px; background:#0f172a; border-color:#334155; font-size:11px;" title="Select Walking Movement Pattern">
@@ -1071,8 +1088,8 @@
             </select>
           </div>
           <div style="padding: 2px 8px 6px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-            <label for="stepsPerDirInput" style="font-size: 11px; color: #94a3b8; font-weight: 600;">Required Step after each turn:</label>
-            <input type="number" id="stepsPerDirInput" class="clean-num-input" min="1" max="50" value="3" title="Compulsory number of steps to take in a direction before turning" style="width: 52px; height: 26px;">
+            <label for="stepsPerDirInput" style="font-size: 11px; color: #94a3b8; font-weight: 600;">Max steps per turn:</label>
+            <input type="number" id="stepsPerDirInput" class="clean-num-input" min="1" max="50" value="3" title="Maximum number of steps before changing direction (randomized 1 to max)" style="width: 52px; height: 26px;">
           </div>
           <div class="dropdown-divider"></div>
 
@@ -1084,6 +1101,10 @@
           <button id="networkBtn" class="dropdown-item" title="Configure proxy routing">
             <span class="dropdown-icon">&#127760;</span>
             <span class="dropdown-label">Proxy Configuration</span>
+          </button>
+          <button id="openLogsBtn" class="dropdown-item" title="Open live diagnostic log file in default text viewer">
+            <span class="dropdown-icon">&#128196;</span>
+            <span class="dropdown-label">Open System Logs</span>
           </button>
           <div class="dropdown-divider"></div>
           <button id="refreshBtn" class="dropdown-item" title="Reload game map">
@@ -1119,12 +1140,25 @@
     <!-- Segmented Navigation Tabs -->
     <div class="modal-tab-bar">
       <button type="button" class="modal-tab-btn active" data-tab="tabSpecies">&#127919; 1. Pokemon Tiers</button>
-      <button type="button" class="modal-tab-btn" data-tab="tabVariants" id="tabVariantsBtn">&#10024; 2. Sprite Variants (10)</button>
+      <button type="button" class="modal-tab-btn" data-tab="tabVariants">&#10024; 2. Sprite Variants (10)</button>
       <button type="button" class="modal-tab-btn" data-tab="tabCustom">&#128683; 3. Blacklist Only</button>
     </div>
 
     <!-- TAB 1: POKEMON TIERS (FROM COMMON TO RAREST) -->
     <div id="tabSpecies" class="modal-tab-content active">
+
+      <!-- Duplication Avoidance (Skip Already Caught Pokemon) -->
+      <div class="filter-card">
+        <label class="filter-card-row">
+          <input type="checkbox" id="avoidDuplicatesCheck" checked>
+          <div class="filter-card-text">
+            <div class="filter-title">&#128260; Duplication Avoidance (Skip Already Owned)</div>
+            <div class="filter-sub">Do not pause or catch if the Pokemon is already registered in your Pokedex (has red Pokeball indicator)</div>
+          </div>
+        </label>
+      </div>
+
+
 
       <!-- Tier 1: Common / Custom Whitelist Targets -->
       <div class="filter-card">
@@ -1221,7 +1255,7 @@
           </div>
         </div>
         <div id="subVariantsWrap" class="variant-grid">
-          <label class="variant-chip"><input type="checkbox" id="varNormal" checked><span>Normal</span></label>
+          <label class="variant-chip" style="border-color: #38bdf8;"><input type="checkbox" id="varNormal" checked><span style="color:#38bdf8;font-weight:700;">Normal</span></label>
           <label class="variant-chip"><input type="checkbox" id="varShiny" checked><span>Shiny</span></label>
           <label class="variant-chip"><input type="checkbox" id="varChrome" checked><span>Chrome</span></label>
           <label class="variant-chip"><input type="checkbox" id="varRetro" checked><span>Retro</span></label>

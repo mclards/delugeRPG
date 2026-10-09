@@ -7,6 +7,20 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 
+function deepMerge(target, source) {
+  const output = Object.assign({}, target);
+  if (source && typeof source === 'object') {
+    Object.keys(source).forEach(key => {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        output[key] = deepMerge(target[key] || {}, source[key]);
+      } else {
+        output[key] = source[key];
+      }
+    });
+  }
+  return output;
+}
+
 let CONFIG_PATH = path.join(__dirname, 'config.json');
 try {
   const { ipcRenderer } = require('electron');
@@ -32,19 +46,42 @@ let config = {
     minSafetyFloor: 1700,
     enableMicroBreaks: true,
     enableIdlePauses: true,
-    soundAlert: true
+    soundAlert: true,
+    autoPauseOnTarget: true,
+    avoidDuplicates: true,
+    autoStartOnMap: true
   }
 };
 
 function loadLocalConfig() {
+  let defaults = {
+    dummyAccount: { username: "PokeDen", password: "sacups2026", autoLogin: false },
+    network: { useProxy: false, proxyRules: "", proxyBypass: "<local>" },
+    settings: {
+      profile: "flagged_network_stealth",
+      walkMode: "wander",
+      stepsPerDirection: 5,
+      baseDelay: 2100,
+      jitter: 550,
+      minSafetyFloor: 1700,
+      enableMicroBreaks: true,
+      enableIdlePauses: true,
+      soundAlert: true,
+      autoPauseOnTarget: true,
+      avoidDuplicates: true,
+      autoStartOnMap: true
+    }
+  };
+  try {
+    const bundled = fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8');
+    defaults = deepMerge(defaults, JSON.parse(bundled));
+  } catch (_) {}
+
   try {
     const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
-    config = JSON.parse(raw);
+    config = deepMerge(defaults, JSON.parse(raw));
   } catch (_) {
-    try {
-      const bundled = fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8');
-      config = JSON.parse(bundled);
-    } catch (_) {}
+    config = defaults;
   }
 }
 
@@ -54,9 +91,15 @@ function saveLocalConfig() {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+    const tempPath = CONFIG_PATH + '.tmp';
+    fs.writeFileSync(tempPath, JSON.stringify(config, null, 2), 'utf8');
+    fs.renameSync(tempPath, CONFIG_PATH);
   } catch (err) {
-    console.error('Failed to write config.json:', err);
+    try {
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+    } catch (fallbackErr) {
+      console.error('Failed to write config.json:', fallbackErr);
+    }
   }
 
   try {
@@ -75,6 +118,15 @@ function backendLog(tag, msg) {
   const detail = (typeof msg === 'object') ? JSON.stringify(msg) : String(msg);
   const line = `[${ts}] [${tag}] ${detail}\n`;
   try {
+    const dir = path.dirname(LOG_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (fs.existsSync(LOG_FILE)) {
+      const stats = fs.statSync(LOG_FILE);
+      if (stats.size > 5 * 1024 * 1024) {
+        const raw = fs.readFileSync(LOG_FILE, 'utf8');
+        fs.writeFileSync(LOG_FILE, raw.slice(-500 * 1024), 'utf8');
+      }
+    }
     fs.appendFileSync(LOG_FILE, line, 'utf8');
   } catch (_) {}
   try {
@@ -86,7 +138,9 @@ function backendLog(tag, msg) {
 }
 
 try {
-  fs.writeFileSync(LOG_FILE, `=== DELUGERPG LIVE SESSION INITIALIZED AT ${new Date().toISOString()} ===\n`, 'utf8');
+  const dir = path.dirname(LOG_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.appendFileSync(LOG_FILE, `\n=== DELUGERPG LIVE SESSION INITIALIZED AT ${new Date().toISOString()} ===\n`, 'utf8');
 } catch (_) {}
 backendLog('HostInit', 'Desktop client host controller loaded');
 
@@ -106,7 +160,11 @@ const zoomResetBtn = document.getElementById('zoomResetBtn');
 const zoomInBtn = document.getElementById('zoomInBtn');
 const soundBtn = document.getElementById('soundBtn');
 const targetModalBtn = document.getElementById('targetModalBtn');
-const autoCatchBtn = document.getElementById('autoCatchBtn');
+const avoidDupesBtn = document.getElementById('avoidDupesBtn');
+const avoidDupesBadge = document.getElementById('avoidDupesBadge');
+const autoStartMapBtn = document.getElementById('autoStartMapBtn');
+const autoStartMapBadge = document.getElementById('autoStartMapBadge');
+const openLogsBtn = document.getElementById('openLogsBtn');
 const wipeBtn = document.getElementById('wipeBtn');
 const networkBtn = document.getElementById('networkBtn');
 const networkBadge = document.getElementById('networkBadge');
@@ -122,6 +180,7 @@ const targetModal = document.getElementById('targetModal');
 const closeTargetBtn = document.getElementById('closeTargetBtn');
 const cancelTargetBtn = document.getElementById('cancelTargetBtn');
 const saveTargetsBtn = document.getElementById('saveTargetsBtn');
+const avoidDuplicatesCheck = document.getElementById('avoidDuplicatesCheck');
 const filterLegendariesCheckbox = document.getElementById('filterLegendariesCheckbox');
 const subClassicLegCheckbox = document.getElementById('subClassicLegCheckbox');
 const subUltraBeastsCheckbox = document.getElementById('subUltraBeastsCheckbox');
@@ -485,12 +544,35 @@ function detectNetworkIdentity(callback) {
   });
 }
 
-function updateAutoCatchUI() {
-  const isAuto = !!(config.settings && config.settings.autoCatch);
-  autoCatchBtn.innerHTML = '&#9733;';
-  autoCatchBtn.title = isAuto ? 'Auto-Catch: ON (Throws Master Ball automatically)' : 'Auto-Catch: OFF (Safe mode)';
-  autoCatchBtn.className = isAuto ? 'btn btn-icon btn-active' : 'btn btn-icon';
+function updateAvoidDupesUI() {
+  const isAvoid = config.settings && config.settings.avoidDuplicates !== false;
+  if (avoidDupesBadge) {
+    avoidDupesBadge.textContent = isAvoid ? 'ON' : 'OFF';
+    avoidDupesBadge.className = isAvoid ? 'dropdown-badge dropdown-badge-on' : 'dropdown-badge dropdown-badge-off';
+  }
+  if (avoidDupesBtn) {
+    avoidDupesBtn.title = isAvoid
+      ? 'Duplication Avoidance: ON (Never pause or alert on already caught Pokemon)'
+      : 'Duplication Avoidance: OFF (Alert/pause on all targets, including duplicates)';
+  }
+  if (avoidDuplicatesCheck) {
+    avoidDuplicatesCheck.checked = isAvoid;
+  }
 }
+
+function updateAutoStartMapUI() {
+  const isAuto = config.settings && config.settings.autoStartOnMap !== false;
+  if (autoStartMapBadge) {
+    autoStartMapBadge.textContent = isAuto ? 'ON' : 'OFF';
+    autoStartMapBadge.className = isAuto ? 'dropdown-badge dropdown-badge-on' : 'dropdown-badge dropdown-badge-off';
+  }
+  if (autoStartMapBtn) {
+    autoStartMapBtn.title = isAuto
+      ? 'Auto-Start on Maps: ON (Begins hunting immediately when map is opened)'
+      : 'Auto-Start on Maps: OFF (Stays paused until manual start)';
+  }
+}
+
 
 function updateSoundUI() {
   soundBtn.innerHTML = soundEnabled ? '&#128266;' : '&#128263;';
@@ -650,6 +732,10 @@ function updateTargetUI() {
   if (levelModeSelect) levelModeSelect.value = levelMode;
   if (levelValueInput) levelValueInput.value = levelVal;
   if (levelScopeSelect) levelScopeSelect.value = levelScope;
+  if (avoidDuplicatesCheck) {
+    avoidDuplicatesCheck.checked = (config.settings && config.settings.avoidDuplicates !== false);
+  }
+  updateAvoidDupesUI();
 
   if (targetSummaryText) {
     targetSummaryText.textContent = calculateTargetSummary(
@@ -803,9 +889,9 @@ if (stepsPerDirInput) {
 }
 updateToggleButton();
 updateNetworkBadgeUI();
-updateAutoCatchUI();
 updateSoundUI();
 updateTargetUI();
+updateAutoStartMapUI();
 updateZoomUI();
 
 // Detect Live Network Identity (Real Public IP & ISP) on Startup
@@ -1588,27 +1674,38 @@ delugeView.addEventListener('preload-error', (e) => {
   console.error('[Webview Preload Error]', e.preloadPath, e.error);
 });
 
-// Navigation Safety: Auto-pause hunting when navigating outside maps
-delugeView.addEventListener('did-navigate', (event) => {
-  const url = event.url || (delugeView && delugeView.getURL()) || '';
+// Navigation Safety: Auto-pause outside maps, Auto-start when map is opened
+function handleMapNavigation(url) {
   if (!isMapUrl(url)) {
     autoPauseOutsideMap(url);
-  } else if (isUnlockChallengeActive) {
-    isUnlockChallengeActive = false;
-    backendLog('SecurityChallenge', 'Navigated back to map from /unlock. Captcha completed.');
-    updateStatus('Ready to Hunt (Captcha Solved)', '#10b981');
+  } else {
+    isEncounterOnScreen = false;
+    if (isUnlockChallengeActive) {
+      isUnlockChallengeActive = false;
+      backendLog('SecurityChallenge', 'Navigated back to map from /unlock. Captcha completed.');
+      updateStatus('Ready to Hunt (Captcha Solved)', '#10b981');
+    }
+    // Auto-start hunting whenever map is opened if enabled!
+    const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
+    if (!isRunning && shouldAutoStart) {
+      backendLog('AutoStart', 'Map opened. Auto-starting hunting session.');
+      isRunning = true;
+      isStepPending = false;
+      updateToggleButton();
+      syncHuntingState();
+      scheduleNextStep(1000);
+    }
   }
+}
+
+delugeView.addEventListener('did-navigate', (event) => {
+  const url = event.url || (delugeView && delugeView.getURL()) || '';
+  handleMapNavigation(url);
 });
 
 delugeView.addEventListener('did-navigate-in-page', (event) => {
   const url = event.url || (delugeView && delugeView.getURL()) || '';
-  if (!isMapUrl(url)) {
-    autoPauseOutsideMap(url);
-  } else if (isUnlockChallengeActive) {
-    isUnlockChallengeActive = false;
-    backendLog('SecurityChallenge', 'Navigated back to map from /unlock. Captcha completed.');
-    updateStatus('Ready to Hunt (Captcha Solved)', '#10b981');
-  }
+  handleMapNavigation(url);
 });
 
 delugeView.addEventListener('will-navigate', (event) => {
@@ -1691,8 +1788,11 @@ delugeView.addEventListener('ipc-message', (event) => {
 
     const data = event.args[0] || {};
     const name = data.name || 'Rare Pokemon';
-    const isAuto = !!data.autoCatch;
-    backendLog('TargetHalt', `TARGET HALT: ${name} (Category: ${data.category || 'Target'}, AutoCatch: ${isAuto})`);
+    if (config.settings && config.settings.avoidDuplicates !== false && data.isDuplicate) {
+      backendLog('TargetDuplicate', `Skipping duplicate target encounter: ${name}`);
+      return;
+    }
+    backendLog('TargetHalt', `TARGET HALT: ${name} (Category: ${data.category || 'Target'})`);
 
     // Halt movement immediately
     if (walkTimeout) {
@@ -1703,27 +1803,15 @@ delugeView.addEventListener('ipc-message', (event) => {
     isEncounterOnScreen = true;
     updateToggleButton();
 
-    if (isAuto) {
-      updateStatus(`FOUND: ${name}! (Auto-Catching...)`, '#22c55e');
-    } else {
-      updateStatus(`FOUND: ${name}!`, '#22c55e');
-    }
+    updateStatus(`FOUND: ${name}!`, '#22c55e');
 
     // Play alert sounds
     playSound(880, 0.8);
     setTimeout(() => playSound(1100, 0.8), 300);
 
     new Notification('Target Pokemon Found!', {
-      body: `${name} has appeared on the map! ${isAuto ? 'Throwing ball automatically...' : 'Ready for capture.'}`
+      body: `${name} has appeared on the map! Ready for capture.`
     });
-  }
-
-  if (event.channel === 'resume-hunting') {
-    isEncounterOnScreen = false;
-    isRunning = true;
-    updateToggleButton();
-    updateStatus('Caught! Resuming Hunt...', '#10b981');
-    scheduleNextStep(1200);
   }
 
   if (event.channel === 'unlock-detected') {
@@ -1766,11 +1854,22 @@ delugeView.addEventListener('ipc-message', (event) => {
 
 // Sync config and auto-fill login on page load if enabled
 delugeView.addEventListener('dom-ready', () => {
+  syncHuntingState();
   applyZoom(currentZoomFactor);
   delugeView.send('update-config', config.settings);
   syncHuntingState();
-  if (config.dummyAccount && config.dummyAccount.autoLogin) {
+  if (config.dummyAccount && (config.dummyAccount.username || config.dummyAccount.autoLogin)) {
     delugeView.send('fill-login', config.dummyAccount);
+  }
+  const curUrl = (delugeView && delugeView.getURL()) || '';
+  const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
+  if (isMapUrl(curUrl) && !isRunning && !isEncounterOnScreen && shouldAutoStart) {
+    backendLog('AutoStart', 'Map loaded on startup. Auto-starting hunting session.');
+    isRunning = true;
+    isStepPending = false;
+    updateToggleButton();
+    syncHuntingState();
+    scheduleNextStep(1200);
   }
 });
 
@@ -2138,6 +2237,9 @@ if (clearBlacklistBtn) {
 
 if (saveTargetsBtn) {
   saveTargetsBtn.addEventListener('click', () => {
+    const isAvoid = avoidDuplicatesCheck ? avoidDuplicatesCheck.checked : true;
+    config.settings.avoidDuplicates = isAvoid;
+
     const isLeg = filterLegendariesCheckbox ? filterLegendariesCheckbox.checked : false;
     const classicLeg = subClassicLegCheckbox ? subClassicLegCheckbox.checked : true;
     const ubLeg = subUltraBeastsCheckbox ? subUltraBeastsCheckbox.checked : true;
@@ -2230,8 +2332,8 @@ if (navMenuBtn && navDropdown) {
     }
   });
 
-  // Auto-close dropdown when any option inside is clicked
-  navDropdown.querySelectorAll('.dropdown-item').forEach(item => {
+  // Auto-close dropdown when any option inside is clicked (excluding toggle items that maintain state)
+  navDropdown.querySelectorAll('.dropdown-item:not(.dropdown-toggle-item)').forEach(item => {
     item.addEventListener('click', () => {
       navDropdown.classList.add('hidden');
       navMenuBtn.classList.remove('btn-accent');
@@ -2239,12 +2341,49 @@ if (navMenuBtn && navDropdown) {
   });
 }
 
-autoCatchBtn.addEventListener('click', () => {
-  config.settings.autoCatch = !config.settings.autoCatch;
-  saveLocalConfig();
-  updateAutoCatchUI();
-  delugeView.send('update-config', config.settings);
-});
+if (avoidDupesBtn) {
+  avoidDupesBtn.addEventListener('click', () => {
+    if (!config.settings) config.settings = {};
+    config.settings.avoidDuplicates = !(config.settings.avoidDuplicates !== false);
+    saveLocalConfig();
+    updateAvoidDupesUI();
+    delugeView.send('update-config', config.settings);
+    updateStatus('Avoid Dupes: ' + (config.settings.avoidDuplicates ? 'ON' : 'OFF'), '#10b981');
+  });
+}
+
+if (avoidDuplicatesCheck) {
+  avoidDuplicatesCheck.addEventListener('change', () => {
+    if (!config.settings) config.settings = {};
+    config.settings.avoidDuplicates = avoidDuplicatesCheck.checked;
+    saveLocalConfig();
+    updateAvoidDupesUI();
+    delugeView.send('update-config', config.settings);
+  });
+}
+
+if (autoStartMapBtn) {
+  autoStartMapBtn.addEventListener('click', () => {
+    if (!config.settings) config.settings = {};
+    config.settings.autoStartOnMap = !(config.settings.autoStartOnMap !== false);
+    saveLocalConfig();
+    updateAutoStartMapUI();
+    updateStatus('Auto-Start on Maps: ' + (config.settings.autoStartOnMap ? 'ON' : 'OFF'), '#10b981');
+  });
+}
+
+if (openLogsBtn) {
+  openLogsBtn.addEventListener('click', () => {
+    const { ipcRenderer } = require('electron');
+    if (ipcRenderer) {
+      ipcRenderer.invoke('open-log-file').catch(err => {
+        console.error('Failed to open log file:', err);
+      });
+    }
+  });
+}
+
+
 
 refreshBtn.addEventListener('click', () => {
   delugeView.reload();
@@ -2344,12 +2483,21 @@ if (cancelAccBtn) cancelAccBtn.addEventListener('click', closeAllModals);
 
 fillLoginBtn.addEventListener('click', () => {
   const creds = { username: accUser.value.trim(), password: accPass.value.trim() };
+  if (!config.dummyAccount) config.dummyAccount = {};
   config.dummyAccount.username = creds.username;
   config.dummyAccount.password = creds.password;
   saveLocalConfig();
 
-  delugeView.send('fill-login', creds);
   closeAllModals();
+
+  const curUrl = (delugeView && delugeView.getURL()) || '';
+  if (curUrl.toLowerCase().indexOf('/login') === -1) {
+    updateStatus('Navigating to Login & Filling...', '#38bdf8');
+    delugeView.src = 'https://www.delugerpg.com/login';
+  } else {
+    delugeView.send('fill-login', creds);
+    updateStatus('Credentials Auto-Filled', '#10b981');
+  }
 });
 
 // Global shortcut from main process

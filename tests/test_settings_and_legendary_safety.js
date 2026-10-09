@@ -11,9 +11,11 @@ const path = require('path');
 
 console.log('=== RUNNING SETTINGS PERSISTENCE & LEGENDARY SAFETY SUITE ===\n');
 
+const ROOT_DIR = fs.existsSync(path.join(__dirname, 'desktop-client')) ? __dirname : path.join(__dirname, '..');
+
 // 1. Verify app.js preset listeners call applyTargetPreset with saveImmediately = true
 console.log('--- 1. Testing app.js Preset Listener Persistence ---');
-const appJs = fs.readFileSync(path.join(__dirname, 'desktop-client', 'app.js'), 'utf8');
+const appJs = fs.readFileSync(path.join(ROOT_DIR, 'desktop-client', 'app.js'), 'utf8');
 
 assert(appJs.includes("applyTargetPreset('all', true)"), 'presetAllBtn must saveImmediately: true');
 assert(appJs.includes("applyTargetPreset('legendaries', true)"), 'presetLegBtn must saveImmediately: true');
@@ -26,7 +28,7 @@ console.log('  [PASS] All 6 preset pills configured to immediately persist setti
 
 // 2. Verify config.json default settings
 console.log('\n--- 2. Testing config.json Settings Integrity ---');
-const configJson = JSON.parse(fs.readFileSync(path.join(__dirname, 'desktop-client', 'config.json'), 'utf8'));
+const configJson = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'desktop-client', 'config.json'), 'utf8'));
 
 assert.strictEqual(configJson.settings.findLegendaries, true, 'findLegendaries must be true');
 assert.strictEqual(configJson.settings.legendaryClassic, true, 'legendaryClassic must be true');
@@ -40,8 +42,8 @@ console.log('  [PASS] config.json settings are valid, respected, and properly co
 
 // 3. Verify game-preload.js target matching logic
 console.log('\n--- 3. Testing game-preload.js Legendary Respect Logic ---');
-const preloadJs = fs.readFileSync(path.join(__dirname, 'desktop-client', 'game-preload.js'), 'utf8');
-const TARGETS = require('./desktop-client/targets');
+const preloadJs = fs.readFileSync(path.join(ROOT_DIR, 'desktop-client', 'game-preload.js'), 'utf8');
+const TARGETS = require(path.join(ROOT_DIR, 'desktop-client', 'targets'));
 
 // Simulate the exact target scanning function from game-preload.js
 function simulateScanForTargets(encounterText, config) {
@@ -233,7 +235,7 @@ const filesToCheck = [
 ];
 
 for (const relPath of filesToCheck) {
-    const fullPath = path.join(__dirname, relPath);
+    const fullPath = path.join(ROOT_DIR, relPath);
     const content = fs.readFileSync(fullPath, 'utf8');
     for (let i = 0; i < content.length; i++) {
         const code = content.charCodeAt(i);

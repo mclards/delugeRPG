@@ -3,7 +3,10 @@
 
 const { app, BrowserWindow, session } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const assert = require('assert');
+
+const ROOT_DIR = fs.existsSync(path.join(__dirname, 'desktop-client')) ? __dirname : path.join(__dirname, '..');
 
 console.log('=================================================================');
 console.log('   FORENSIC AUDIT: DESKTOP CLIENT SAFETY & ANTI-CHEAT ANALYSIS   ');
@@ -19,7 +22,7 @@ app.whenReady().then(async () => {
         height: 800,
         webPreferences: {
             partition: 'persist:delugerpg',
-            preload: path.join(__dirname, 'desktop-client', 'game-preload.js'),
+            preload: path.join(ROOT_DIR, 'desktop-client', 'game-preload.js'),
             contextIsolation: false
         }
     });

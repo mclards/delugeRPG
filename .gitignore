@@ -2,6 +2,5 @@ node_modules/
 *.log
 .DS_Store
 Thumbs.db
-stable_version_be9ea4b/
 desktop-client/dist/
 

@@ -189,8 +189,11 @@ const accUser = document.getElementById('accUser');
 const accPass = document.getElementById('accPass');
 const fillLoginBtn = document.getElementById('fillLoginBtn');
 const closeAccBtn = document.getElementById('closeAccBtn');
-const cancelAccBtn = document.getElementById('cancelAccBtn');
 const modalBackdrop = document.getElementById('modalBackdrop');
+const wipeModal = document.getElementById('wipeModal');
+const closeWipeBtn = document.getElementById('closeWipeBtn');
+const cancelWipeBtn = document.getElementById('cancelWipeBtn');
+const confirmWipeBtn = document.getElementById('confirmWipeBtn');
 
 // State
 let isRunning = false;
@@ -1633,8 +1636,8 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'guest-input-focused') {
     isGuestInputFocused = !!(event.args[0]);
-    if (isGuestInputFocused && delugeView) {
-      try { delugeView.focus(); } catch (_) {}
+    if (isGuestInputFocused) {
+      ipcRenderer.send('restore-window-focus');
     }
   }
 
@@ -1791,7 +1794,7 @@ function showModal(modalEl) {
   document.body.classList.add('modal-open');
   window.focus();
 
-  [targetModal, networkModal, accountModal].forEach(m => {
+  [targetModal, networkModal, accountModal, wipeModal].forEach(m => {
     if (m) m.style.display = 'none';
   });
   if (modalEl) {
@@ -1802,18 +1805,20 @@ function showModal(modalEl) {
 
 function closeAllModals() {
   document.body.classList.remove('modal-open');
-  [targetModal, networkModal, accountModal].forEach(m => {
+  [targetModal, networkModal, accountModal, wipeModal].forEach(m => {
     if (m) m.style.display = 'none';
   });
   if (modalBackdrop) modalBackdrop.classList.remove('active');
   if (delugeView) {
     delugeView.style.pointerEvents = 'auto';
-    try { delugeView.focus(); } catch (_) {}
+    if (!isGuestInputFocused) {
+      try { delugeView.focus(); } catch (_) {}
+    }
   }
 }
 
 // Stop click bubbling on modals so clicks never reach backdrop or outside handlers
-[targetModal, networkModal, accountModal].forEach(m => {
+[targetModal, networkModal, accountModal, wipeModal].forEach(m => {
   if (m) {
     m.addEventListener('click', (e) => e.stopPropagation());
     m.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -1841,15 +1846,10 @@ function setupInputFocusHandlers() {
 }
 setupInputFocusHandlers();
 
-// Ensure delugeView receives host focus whenever user interacts with game area
+// Ensure delugeView receives host focus whenever user interacts with game area (without disrupting guest inputs)
 if (gameContainer) {
-  gameContainer.addEventListener('pointerdown', () => {
-    if (delugeView) {
-      try { delugeView.focus(); } catch (_) {}
-    }
-  });
-  gameContainer.addEventListener('click', () => {
-    if (delugeView) {
+  gameContainer.addEventListener('pointerdown', (e) => {
+    if (e.target !== delugeView && !isGuestInputFocused && delugeView) {
       try { delugeView.focus(); } catch (_) {}
     }
   });
@@ -1857,10 +1857,9 @@ if (gameContainer) {
 
 if (delugeView) {
   delugeView.addEventListener('pointerdown', () => {
-    try { delugeView.focus(); } catch (_) {}
-  });
-  delugeView.addEventListener('click', () => {
-    try { delugeView.focus(); } catch (_) {}
+    if (!isGuestInputFocused) {
+      try { delugeView.focus(); } catch (_) {}
+    }
   });
 }
 
@@ -2251,31 +2250,34 @@ refreshBtn.addEventListener('click', () => {
   delugeView.reload();
 });
 
-// Clean Slate / Wipe Session Storage
-wipeBtn.addEventListener('click', async () => {
-  const confirmWipe = confirm(
-    'Wipe all cookies, cache, and site data?\n\n' +
-    'This removes all lingering tokens from previously banned accounts so you start completely fresh.'
-  );
+// Clean Slate / Wipe Session Storage (In-DOM confirmation to prevent Windows focus loss)
+function openWipeModal() {
+  if (wipeModal) showModal(wipeModal);
+}
 
-  if (!confirmWipe) return;
+if (wipeBtn) wipeBtn.addEventListener('click', openWipeModal);
+if (closeWipeBtn) closeWipeBtn.addEventListener('click', closeAllModals);
+if (cancelWipeBtn) cancelWipeBtn.addEventListener('click', closeAllModals);
 
-  if (isRunning) {
-    isRunning = false;
-    updateToggleButton();
-  }
+if (confirmWipeBtn) {
+  confirmWipeBtn.addEventListener('click', async () => {
+    closeAllModals();
+    if (isRunning) {
+      isRunning = false;
+      updateToggleButton();
+    }
 
-  updateStatus('Wiping Session Data...', '#ef4444');
-  const res = await ipcRenderer.invoke('clear-session-data');
+    updateStatus('Wiping Session Data...', '#ef4444');
+    const res = await ipcRenderer.invoke('clear-session-data');
 
-  if (res && res.success) {
-    alert('Session successfully wiped!\n\nAll cookies, cache, and local storage have been deleted. Loading fresh login page.');
-    delugeView.src = 'https://www.delugerpg.com/login';
-    updateStatus('Session Wiped: Clean Slate', '#10b981');
-  } else {
-    alert('Error wiping session data: ' + ((res && res.error) || 'Unknown error'));
-  }
-});
+    if (res && res.success) {
+      delugeView.src = 'https://www.delugerpg.com/login';
+      updateStatus('Session Wiped: Clean Slate', '#10b981');
+    } else {
+      updateStatus('Wipe Failed: ' + ((res && res.error) || 'Unknown error'), '#ef4444');
+    }
+  });
+}
 
 // Proxy / Network Modal Management
 function openNetworkModal() {
@@ -2321,11 +2323,10 @@ saveProxyBtn.addEventListener('click', async () => {
   updateNetworkBadgeUI();
 
   if (res && res.success) {
-    alert(proxyCfg.useProxy ? 'Proxy successfully configured! Reloading game view.' : 'Proxy disabled. Switched to direct network.');
     delugeView.reload();
-    updateStatus('Proxy Applied', '#10b981');
+    updateStatus(proxyCfg.useProxy ? 'Proxy Applied & Reloaded' : 'Direct Network Applied', '#10b981');
   } else {
-    alert('Error applying proxy: ' + ((res && res.error) || 'Unknown'));
+    updateStatus('Proxy Error: ' + ((res && res.error) || 'Unknown'), '#ef4444');
   }
 });
 

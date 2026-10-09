@@ -223,6 +223,11 @@ if (!gotTheLock) {
     } catch (err) {
       return { success: false, error: err.message };
     }
+  // IPC Handler: Restore native OS window focus for keyboard input reliability
+  ipcMain.on('restore-window-focus', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.focus();
+    }
   });
 
   createWindow();

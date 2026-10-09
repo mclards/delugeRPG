@@ -1336,6 +1336,22 @@
     </div>
   </div>
 
+  <!-- 4. CLEAN SLATE / WIPE CONFIRMATION MODAL -->
+  <div id="wipeModal" class="modal-box" style="width: 380px;">
+    <div class="modal-header-row">
+      <div class="modal-title" style="color:#ef4444;">&#9888; Clean Slate / Wipe Data</div>
+      <button id="closeWipeBtn" class="modal-close-icon" title="Close">&#10005;</button>
+    </div>
+    <div class="modal-desc">
+      Wipe all cookies, cache, and site data?<br><br>
+      This removes all lingering tokens from previously banned accounts so you start completely fresh.
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+      <button id="cancelWipeBtn" class="btn" style="width:80px;">Cancel</button>
+      <button id="confirmWipeBtn" class="btn btn-danger" style="background:#dc2626; color:#ffffff; width:140px;">Wipe &amp; Reload</button>
+    </div>
+  </div>
+
   <!-- MAIN DELUGERPG GAME CONTAINER -->
   <div id="gameContainer">
     <webview

@@ -10,7 +10,7 @@
   "build": {
     "electronVersion": "39.0.0",
     "appId": "com.antigravity.delugerpg.client",
-    "productName": "DelugeRPG Nano Client",
+    "productName": "DelugeRPG Stealth Client",
     "win": {
       "target": [
         {
@@ -33,7 +33,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "DelugeRPG Nano Client"
+      "shortcutName": "DelugeRPG Stealth Client"
     },
     "files": [
       "main.js",

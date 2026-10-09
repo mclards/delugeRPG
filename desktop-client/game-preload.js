@@ -189,6 +189,7 @@ const configSyncInterval = setInterval(() => {
 }, 500);
 
 let lastFoundTarget = '';
+let lastEvaluatedEncounterSignature = '';
 let isHuntingActive = false;
 let catchStepInterval = null;
 let activeStep = null;
@@ -446,6 +447,7 @@ function scanForTargets() {
 
     // CRITICAL PAUSE ACCURACY: If map is searching or NO wild encounter is on screen, NEVER evaluate target matching!
     if (isSearching || !hasCatchUI) {
+        lastEvaluatedEncounterSignature = '';
         return;
     }
 
@@ -573,6 +575,14 @@ function scanForTargets() {
         ? config.selectedVariants.map(v => v.toLowerCase())
         : ['normal', ...VARIANTS.map(v => v.toLowerCase())];
 
+    const encounterSig = textLower.slice(0, 100);
+    const isNewEncounter = (encounterSig !== lastEvaluatedEncounterSignature);
+    if (isNewEncounter) {
+        lastEvaluatedEncounterSignature = encounterSig;
+        const shortName = encounterBoxText ? encounterBoxText.trim().split('\n')[0].replace(/\s+/g, ' ') : textLower.slice(0, 50);
+        console.log('[TargetEngine] Encounter: "' + shortName + '" | Variant: ' + detectedVariant.toUpperCase() + (currentLevel !== null ? (' | Lv: ' + currentLevel) : ''));
+    }
+
     // Helper: checks whether the encounter's variant is accepted for target species (Tier 1-3)
     // When variant filtering is active (enableVariantFilter / findAnySpecialVariant):
     // - If the user unchecks 'Normal' in Tab 2, normal encounters (even Legendaries) MUST be ignored!
@@ -652,6 +662,8 @@ function scanForTargets() {
                     const foundName = varPrefix + TARGETS.legendaries[k] + lvlSuffix;
                     triggerTargetFound(foundName, isParadox ? 'Paradox Pokemon' : (isUB ? 'Ultra Beast' : 'Rare/Legendary'));
                     return;
+                } else if (isNewEncounter) {
+                    console.log('[TargetEngine] IGNORED: ' + TARGETS.legendaries[k] + ' matched species tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked in Tab 2');
                 }
             }
         }
@@ -687,6 +699,8 @@ function scanForTargets() {
             triggerTargetFound(foundName, 'Special Variant');
             return;
         }
+    } else if (isNewEncounter && detectedVariant !== 'normal' && hasActiveSpeciesTiers) {
+        console.log('[TargetEngine] IGNORED: Wild ' + detectedVariant.toUpperCase() + ' encounter skipped (Species-restricted hunting active)');
     }
 
     // 5. Tier 5: Fallback Level Filter (If user explicitly selected Scope: All Wild Encounters, or no categories selected)

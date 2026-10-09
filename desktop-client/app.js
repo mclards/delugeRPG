@@ -935,6 +935,8 @@ function toggleHunting() {
       backendLog('HuntingStart', `Initial direction ${currentDirectionKey} is blocked! Evading to ${evaded}`);
       currentDirectionKey = evaded;
     }
+    const activeVars = (config.settings && config.settings.selectedVariants) || [];
+    backendLog('FilterConfig', `Preset: ${(config.settings && config.settings.targetPreset) || 'default'}, Legendaries: ${config.settings.findLegendaries !== false}, Megas: ${config.settings.findMegasAndGigantamax !== false}, Active Variants (${activeVars.length}): [${activeVars.join(', ')}]`);
     backendLog('HuntingStart', `Automated hunting started: direction=${currentDirectionKey}`);
     scheduleNextStep(200);
   } else {
@@ -1678,6 +1680,7 @@ delugeView.addEventListener('ipc-message', (event) => {
     const data = event.args[0] || {};
     const name = data.name || 'Rare Pokemon';
     const isAuto = !!data.autoCatch;
+    backendLog('TargetHalt', `TARGET HALT: ${name} (Category: ${data.category || 'Target'}, AutoCatch: ${isAuto})`);
 
     // Halt movement immediately
     if (walkTimeout) {

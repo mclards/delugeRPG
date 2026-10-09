@@ -78,7 +78,8 @@ function createWindow() {
     height: 860,
     minWidth: 960,
     minHeight: 640,
-    title: 'DelugeRPG Client [Hardened]',
+    title: 'DelugeRPG Nano Banana Client [Hardened]',
+    icon: path.join(__dirname, 'assets', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     backgroundColor: '#111418',
     webPreferences: {
       webviewTag: true,

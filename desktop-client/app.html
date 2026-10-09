@@ -850,6 +850,11 @@
       color: #ffffff;
       background: #273549;
     }
+    .variant-chip:has(input:checked) {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      color: #ffffff;
+    }
     .variant-chip input {
       margin: 0;
       width: 13px;
@@ -1114,7 +1119,7 @@
     <!-- Segmented Navigation Tabs -->
     <div class="modal-tab-bar">
       <button type="button" class="modal-tab-btn active" data-tab="tabSpecies">&#127919; 1. Pokemon Tiers</button>
-      <button type="button" class="modal-tab-btn" data-tab="tabVariants">&#10024; 2. Sprite Variants (10)</button>
+      <button type="button" class="modal-tab-btn" data-tab="tabVariants" id="tabVariantsBtn">&#10024; 2. Sprite Variants (10)</button>
       <button type="button" class="modal-tab-btn" data-tab="tabCustom">&#128683; 3. Blacklist Only</button>
     </div>
 
@@ -1216,7 +1221,7 @@
           </div>
         </div>
         <div id="subVariantsWrap" class="variant-grid">
-          <label class="variant-chip" style="border-color: #38bdf8;"><input type="checkbox" id="varNormal" checked><span style="color:#38bdf8;font-weight:700;">Normal</span></label>
+          <label class="variant-chip"><input type="checkbox" id="varNormal" checked><span>Normal</span></label>
           <label class="variant-chip"><input type="checkbox" id="varShiny" checked><span>Shiny</span></label>
           <label class="variant-chip"><input type="checkbox" id="varChrome" checked><span>Chrome</span></label>
           <label class="variant-chip"><input type="checkbox" id="varRetro" checked><span>Retro</span></label>

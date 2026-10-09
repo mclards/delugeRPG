@@ -574,8 +574,14 @@ function scanForTargets() {
         : ['normal', ...VARIANTS.map(v => v.toLowerCase())];
 
     // Helper: checks whether the encounter's variant is accepted for target species (Tier 1-3)
-    // Priority Target Invariant: Wild Legendaries, Megas, and custom targets are always accepted regardless of variant filter
+    // When variant filtering is active (enableVariantFilter / findAnySpecialVariant):
+    // - If the user unchecks 'Normal' in Tab 2, normal encounters (even Legendaries) MUST be ignored!
+    // - Only checked variant forms (e.g. Shiny, Shadow, Chrome, etc.) will trigger capture.
     function isVariantAcceptedForSpecies() {
+        const isFilterActive = (config.enableVariantFilter !== false) && (config.findAnySpecialVariant !== false);
+        if (isFilterActive && allowedVariants.length > 0) {
+            return allowedVariants.includes(detectedVariant);
+        }
         return true;
     }
 

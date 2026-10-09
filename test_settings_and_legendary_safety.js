@@ -71,6 +71,10 @@ function simulateScanForTargets(encounterText, config) {
         : ['normal', ...VARIANTS.map(v => v.toLowerCase())];
 
     function isVariantAcceptedForSpecies() {
+        const isFilterActive = (config.enableVariantFilter !== false) && (config.findAnySpecialVariant !== false);
+        if (isFilterActive && allowedVariants.length > 0) {
+            return allowedVariants.includes(detectedVariant);
+        }
         return true;
     }
 
@@ -111,7 +115,17 @@ function simulateScanForTargets(encounterText, config) {
     }
 
     // Tier 4: Generic special variants
-    if (findAnyVariant && detectedVariant !== 'normal') {
+    const hasActiveSpeciesTiers = findLegend || findMegas || (config.customTargetList && config.customTargetList.trim().length > 0);
+    let allowGenericVariants = false;
+    if (config.targetPreset === 'all' || config.targetPreset === 'variants') {
+        allowGenericVariants = findAnyVariant;
+    } else if (config.targetPreset === 'shinies') {
+        allowGenericVariants = findAnyVariant && (detectedVariant === 'shiny');
+    } else if (!hasActiveSpeciesTiers) {
+        allowGenericVariants = findAnyVariant;
+    }
+
+    if (allowGenericVariants && detectedVariant !== 'normal') {
         if (allowedVariants.includes(detectedVariant)) {
             return { halted: true, name: detectedVariant.toUpperCase(), tier: 'variant' };
         }
@@ -120,7 +134,7 @@ function simulateScanForTargets(encounterText, config) {
     return { halted: false };
 }
 
-// TEST A: Legendaries Preset - must catch Normal Rayquaza, Shiny Mewtwo, Lugia
+// TEST A: Legendaries Preset with Normal Checked - must catch Normal Rayquaza, Shiny Mewtwo
 const legendPresetConfig = {
     findLegendaries: true,
     findMegasAndGigantamax: false,
@@ -129,7 +143,7 @@ const legendPresetConfig = {
     selectedVariants: ['Normal', 'Shiny', 'Chrome']
 };
 let res = simulateScanForTargets('Wild Rayquaza appeared! Level 50', legendPresetConfig);
-assert.strictEqual(res.halted, true, 'Normal Rayquaza MUST halt the bot');
+assert.strictEqual(res.halted, true, 'Normal Rayquaza MUST halt when Normal is checked');
 assert.strictEqual(res.tier, 'legendary');
 
 res = simulateScanForTargets('Wild Shiny Mewtwo appeared! Level 70', legendPresetConfig);
@@ -148,27 +162,30 @@ res = simulateScanForTargets('Wild Chrome Rattata appeared! Level 10', legendPre
 assert.strictEqual(res.halted, false, 'Chrome Rattata must NOT halt in legendaries preset');
 
 // TEST B: Shinies Preset - selectedVariants has ONLY ['Shiny'], NO 'Normal'
-// CRITICAL: Normal Rayquaza MUST STILL HALT THE BOT!
+// CRITICAL: Normal Rayquaza MUST BE IGNORED, but Shiny Rayquaza MUST HALT!
 const shiniesOnlyPresetConfig = {
     findLegendaries: true,
     findMegasAndGigantamax: false,
     findAnySpecialVariant: true,
+    targetPreset: 'shinies',
     selectedVariants: ['Shiny'] // Normal is NOT in selectedVariants!
 };
 
 res = simulateScanForTargets('Wild Rayquaza appeared! Level 50', shiniesOnlyPresetConfig);
-assert.strictEqual(res.halted, true, 'Normal Rayquaza MUST halt even when Shinies Only is active!');
+assert.strictEqual(res.halted, false, 'Normal Rayquaza MUST be ignored when Normal is unchecked in Shinies mode');
+
+res = simulateScanForTargets('Wild Shiny Rayquaza appeared! Level 50', shiniesOnlyPresetConfig);
+assert.strictEqual(res.halted, true, 'Shiny Rayquaza MUST halt the bot in Shinies mode');
+assert.strictEqual(res.tier, 'legendary');
+
+res = simulateScanForTargets('Wild Shiny Lugia appeared! Level 70', shiniesOnlyPresetConfig);
+assert.strictEqual(res.halted, true, 'Shiny Lugia MUST halt in Shinies mode');
 assert.strictEqual(res.tier, 'legendary');
 
 res = simulateScanForTargets('Wild Lugia appeared! Level 70', shiniesOnlyPresetConfig);
-assert.strictEqual(res.halted, true, 'Normal Lugia MUST halt even when Shinies Only is active!');
-assert.strictEqual(res.tier, 'legendary');
+assert.strictEqual(res.halted, false, 'Normal Lugia MUST be ignored in Shinies mode');
 
-res = simulateScanForTargets('Wild Arceus appeared! Level 100', shiniesOnlyPresetConfig);
-assert.strictEqual(res.halted, true, 'Normal Arceus MUST halt even when Shinies Only is active!');
-assert.strictEqual(res.tier, 'legendary');
-
-// Generic wild pokemon: Shiny Rattata halts, Normal Rattata does NOT halt
+// Generic wild pokemon: Shiny Rattata halts in Shinies preset, Normal Rattata does NOT halt
 res = simulateScanForTargets('Wild Shiny Rattata appeared! Level 5', shiniesOnlyPresetConfig);
 assert.strictEqual(res.halted, true, 'Shiny Rattata MUST halt');
 assert.strictEqual(res.tier, 'variant');
@@ -176,7 +193,35 @@ assert.strictEqual(res.tier, 'variant');
 res = simulateScanForTargets('Wild Rattata appeared! Level 5', shiniesOnlyPresetConfig);
 assert.strictEqual(res.halted, false, 'Normal Rattata must NOT halt');
 
-console.log('  [PASS] Wild Legendaries are 100% respected and never skipped regardless of variant filters.');
+// TEST C: Exact User Scenario - Tab 1: Legendaries, Tab 2: Normal UNCHECKED, 9 Special Variants Checked
+const legendVariantsOnlyConfig = {
+    findLegendaries: true,
+    findMegasAndGigantamax: false,
+    findAnySpecialVariant: true,
+    enableVariantFilter: true,
+    targetPreset: 'legendaries',
+    selectedVariants: ['Shiny', 'Chrome', 'Retro', 'Metallic', 'Shadow', 'Ghostly', 'Dark', 'Mirage', 'Negative']
+};
+
+res = simulateScanForTargets('Wild Rayquaza appeared! Level 50', legendVariantsOnlyConfig);
+assert.strictEqual(res.halted, false, 'Normal Rayquaza MUST be ignored when user unchecks Normal!');
+
+res = simulateScanForTargets('Wild Shadow Rayquaza appeared! Level 50', legendVariantsOnlyConfig);
+assert.strictEqual(res.halted, true, 'Shadow Rayquaza MUST halt the bot!');
+assert.strictEqual(res.tier, 'legendary');
+
+res = simulateScanForTargets('Wild Chrome Mewtwo appeared! Level 70', legendVariantsOnlyConfig);
+assert.strictEqual(res.halted, true, 'Chrome Mewtwo MUST halt the bot!');
+assert.strictEqual(res.tier, 'legendary');
+
+res = simulateScanForTargets('Wild Mewtwo appeared! Level 70', legendVariantsOnlyConfig);
+assert.strictEqual(res.halted, false, 'Normal Mewtwo MUST be ignored when user unchecks Normal!');
+
+// Non-legendary common Pokemon (e.g. Shadow Swablu) MUST be ignored when hunting Legendaries!
+res = simulateScanForTargets('Wild Shadow Swablu appeared! Level 3', legendVariantsOnlyConfig);
+assert.strictEqual(res.halted, false, 'Shadow Swablu MUST be ignored when species tier (Legendaries) is active!');
+
+console.log('  [PASS] Target variant filtering strictly obeys checked variants: Normal ignored when unchecked, special variants halted.');
 
 // 4. Strict 7-bit ASCII Check across all modified files
 console.log('\n--- 4. Strict 7-bit ASCII Verification ---');

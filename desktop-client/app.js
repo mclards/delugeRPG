@@ -147,6 +147,14 @@ const presetMegaBtn = document.getElementById('presetMegaBtn');
 const presetVarBtn = document.getElementById('presetVarBtn');
 const presetShinyBtn = document.getElementById('presetShinyBtn');
 const presetLegMegaBtn = document.getElementById('presetLegMegaBtn');
+const tabVariantsBtn = document.getElementById('tabVariantsBtn');
+
+function updateVariantTabCount(count) {
+  const el = tabVariantsBtn || document.querySelector('[data-tab="tabVariants"]');
+  if (el) {
+    el.innerHTML = '&#10024; 2. Sprite Variants (' + (typeof count === 'number' ? count : 10) + ')';
+  }
+}
 
 const variantIds = [
   'varNormal', 'varShiny', 'varChrome', 'varRetro', 'varMetallic',
@@ -625,6 +633,8 @@ function updateTargetUI() {
     }
   });
 
+  updateVariantTabCount(activeVariants.length);
+
   if (customTargetInput) customTargetInput.value = (config.settings && config.settings.customTargetList) || '';
   if (blacklistInput) blacklistInput.value = (config.settings && config.settings.blacklistList) || '';
 
@@ -723,6 +733,8 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
       el.checked = selectedVars.includes(variantMap[id]);
     }
   });
+
+  updateVariantTabCount(selectedVars.length);
 
   const isLevel = filterLevelCheckbox ? filterLevelCheckbox.checked : false;
   const levelMode = levelModeSelect ? levelModeSelect.value : 'min';
@@ -1978,6 +1990,8 @@ function refreshModalSummary() {
       selectedVars.push(variantMap[id]);
     }
   });
+
+  updateVariantTabCount(selectedVars.length);
 
   const customTargets = (customTargetInput && customTargetInput.value)
     ? customTargetInput.value.split(',').map(s => s.trim()).filter(Boolean)

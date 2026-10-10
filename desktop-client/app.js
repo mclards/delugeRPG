@@ -204,6 +204,7 @@ const loginHelperBtn = document.getElementById('loginHelperBtn');
 const refreshBtn = document.getElementById('refreshBtn');
 const navMenuBtn = document.getElementById('navMenuBtn');
 const navDropdown = document.getElementById('navDropdown');
+const navVersionBadge = document.getElementById('navVersionBadge');
 
 // Modals - Target Filter Elements
 const targetModal = document.getElementById('targetModal');
@@ -690,8 +691,19 @@ function updateHideAdsUI() {
   }
   if (hideAdsBtn) {
     hideAdsBtn.title = isHide
-      ? 'Cosmetic Ad Hide (Option B): ON (Banners collapsed; 1-click Skip preserved)'
-      : 'Cosmetic Ad Hide (Option B): OFF (Show ad banners normally)';
+      ? 'Cosmetic Ad Hiding: ON (Banners collapsed; 1-click Skip preserved)'
+      : 'Cosmetic Ad Hiding: OFF (Show ad banners normally)';
+  }
+}
+
+function updateVersionUI() {
+  if (navVersionBadge) {
+    let appVer = '1.1.6';
+    try {
+      const pkg = require('./package.json');
+      if (pkg && pkg.version) appVer = pkg.version;
+    } catch (_) {}
+    navVersionBadge.textContent = 'v' + appVer;
   }
 }
 
@@ -1015,6 +1027,7 @@ updateSoundUI();
 updateTargetUI();
 updateAutoStartMapUI();
 updateHideAdsUI();
+updateVersionUI();
 updateZoomUI();
 
 // Detect Live Network Identity (Real Public IP & ISP) on Startup
@@ -2676,8 +2689,8 @@ if (hideAdsBtn) {
     saveLocalConfig();
     updateHideAdsUI();
     delugeView.send('update-config', config.settings);
-    updateStatus('Option B (Hide Ads): ' + (config.settings.hideAdsCosmetically ? 'ON' : 'OFF'), '#10b981');
-    backendLog('Settings', `Option B cosmetic ad hiding set to ${config.settings.hideAdsCosmetically}`);
+    updateStatus('Hide Ads: ' + (config.settings.hideAdsCosmetically ? 'ON' : 'OFF'), '#10b981');
+    backendLog('Settings', `Cosmetic ad hiding set to ${config.settings.hideAdsCosmetically}`);
   });
 }
 

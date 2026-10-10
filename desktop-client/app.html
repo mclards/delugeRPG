@@ -576,6 +576,31 @@
       background: #1f2937;
       margin: 4px 0;
     }
+    .nav-version-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px 4px 10px;
+      user-select: none;
+    }
+    .nav-version-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #64748b;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .nav-version-badge {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 4px;
+      padding: 1px 6px;
+      letter-spacing: 0.3px;
+    }
 
     /* --- GAME CONTAINER --- */
     #gameContainer {
@@ -1087,9 +1112,9 @@
               <option value="10">10 sec</option>
             </select>
           </div>
-          <button id="hideAdsBtn" class="dropdown-item dropdown-toggle-item" title="Cosmetic Ad Hide (Option B): Visually collapse ad banners while letting scripts run to keep 1-click Skip enabled">
+          <button id="hideAdsBtn" class="dropdown-item dropdown-toggle-item" title="Cosmetic Ad Hiding: Visually collapse ad banners while letting scripts run safely">
             <span class="dropdown-icon">&#128065;</span>
-            <span class="dropdown-label">Hide Ads (Option B)</span>
+            <span class="dropdown-label">Hide Ads</span>
             <span id="hideAdsBadge" class="dropdown-badge dropdown-badge-on">ON</span>
           </button>
           <div class="dropdown-divider"></div>
@@ -1132,6 +1157,11 @@
             <span class="dropdown-icon">&#128465;</span>
             <span class="dropdown-label">Wipe Session &amp; Identity</span>
           </button>
+          <div class="dropdown-divider"></div>
+          <div id="navVersionFooter" class="nav-version-footer">
+            <span class="nav-version-label">DelugeRPG Client</span>
+            <span id="navVersionBadge" class="nav-version-badge">v1.1.6</span>
+          </div>
         </div>
       </div>
     </div>

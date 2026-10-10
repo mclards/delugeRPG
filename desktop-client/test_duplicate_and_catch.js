@@ -495,11 +495,13 @@ assert.strictEqual(appHtml.includes('ultraBallMaxLevelInput'), false, 'app.html 
 assert.strictEqual(appHtml.includes('avoidDupesBtn'), true, 'app.html must retain avoidDupesBtn');
 assert.strictEqual(appHtml.includes('autoStartMapBtn'), true, 'app.html must contain autoStartMapBtn');
 assert.strictEqual(appHtml.includes('autoStartDelaySelect'), true, 'app.html must contain autoStartDelaySelect');
-assert.strictEqual(appHtml.includes('hideAdsBtn'), true, 'app.html must contain hideAdsBtn (Option B)');
-assert.strictEqual(appHtml.includes('hideAdsBadge'), true, 'app.html must contain hideAdsBadge (Option B)');
+assert.strictEqual(appHtml.includes('hideAdsBtn'), true, 'app.html must contain hideAdsBtn');
+assert.strictEqual(appHtml.includes('hideAdsBadge'), true, 'app.html must contain hideAdsBadge');
+assert.strictEqual(appHtml.includes('navVersionFooter'), true, 'app.html must contain navVersionFooter');
+assert.strictEqual(appHtml.includes('navVersionBadge'), true, 'app.html must contain navVersionBadge');
 assert.strictEqual(appHtml.includes('openLogsBtn'), true, 'app.html must contain openLogsBtn');
 assert.strictEqual(appHtml.includes('avoidDuplicatesCheck'), true, 'app.html must retain avoidDuplicatesCheck');
-console.log('[PASS] app.html verified: autoCatch removed, autoStartMapBtn, hideAdsBtn, and openLogsBtn active.');
+console.log('[PASS] app.html verified: autoCatch removed, autoStartMapBtn, hideAdsBtn, navVersionBadge, and openLogsBtn active.');
 
 const appJs = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 assert.strictEqual(appJs.includes('autoCatchBtn'), false, 'app.js must not contain autoCatchBtn');
@@ -511,13 +513,15 @@ assert.strictEqual(appJs.includes('triggerDelayedAutoStart'), true, 'app.js must
 assert.strictEqual(appJs.includes('cancelPendingAutoStart'), true, 'app.js must contain cancelPendingAutoStart');
 assert.strictEqual(appJs.includes('autoStartMapBtn'), true, 'app.js must contain autoStartMapBtn');
 assert.strictEqual(appJs.includes('autoStartDelaySelect'), true, 'app.js must contain autoStartDelaySelect');
-assert.strictEqual(appJs.includes('hideAdsBtn'), true, 'app.js must contain hideAdsBtn (Option B)');
-assert.strictEqual(appJs.includes('updateHideAdsUI'), true, 'app.js must contain updateHideAdsUI (Option B)');
+assert.strictEqual(appJs.includes('hideAdsBtn'), true, 'app.js must contain hideAdsBtn');
+assert.strictEqual(appJs.includes('updateHideAdsUI'), true, 'app.js must contain updateHideAdsUI');
+assert.strictEqual(appJs.includes('navVersionBadge'), true, 'app.js must track navVersionBadge');
+assert.strictEqual(appJs.includes('updateVersionUI'), true, 'app.js must contain updateVersionUI');
 assert.strictEqual(appJs.includes('guestReportsMap'), true, 'app.js must track guestReportsMap');
 assert.strictEqual(appJs.includes('isCurrentPageMap'), true, 'app.js must provide isCurrentPageMap');
 assert.strictEqual(appJs.includes("channel === 'map-presence'"), true, 'app.js must listen for map-presence IPC');
 assert.strictEqual(appJs.includes('did-navigate-in-page'), true, 'app.js must listen for did-navigate-in-page');
-console.log('[PASS] app.js verified: Zero auto-catch residue, handleMapNavigation, triggerDelayedAutoStart, guestReportsMap, and hideAdsBtn active.');
+console.log('[PASS] app.js verified: Zero auto-catch residue, handleMapNavigation, triggerDelayedAutoStart, guestReportsMap, hideAdsBtn, and navVersionBadge active.');
 
 const preloadJs = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
 assert.strictEqual(preloadJs.includes('startCatchSequence'), false, 'game-preload.js must not contain startCatchSequence');

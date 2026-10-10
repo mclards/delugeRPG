@@ -54,6 +54,7 @@
     const autoWalkFind = true; // Automatically walk while hunting
     const autoCatch = true; // Automatically throw Master Ball when a target appears
     let avoidDuplicates = true; // Skip already caught Pokemon (has red Pokeball indicator)
+    let hideAdsCosmetically = true; // Option B: Visually collapse ad banners while letting scripts run to keep 1-click Skip enabled
     const doBattle = false; // Auto-battle loop
     const forceBattle = false; // Redirect to battle URL from dashboard (keep false when hunting on map)
     const toggleHotkey = "F2"; // Hotkey to pause/resume finder (F2 avoids DevTools conflict)
@@ -324,6 +325,77 @@
 
     let lastStatusText = 'Active (' + walkMode + ')';
     let lastStatusColor = '#4caf50';
+
+    // --- OPTION B: COSMETIC AD HIDING ---
+    // Satisfies DelugeRPG script verification over network while visually collapsing banners
+    const COSMETIC_AD_STYLE_ID = 'pokefinder-cosmetic-ad-hide';
+    const COSMETIC_AD_CSS = [
+        '/* DelugeRPG Option B: Cosmetic Ad Hiding (Preserves 1-click Skip button while collapsing banners) */',
+        'div[id^="div-gpt-ad"],',
+        'div[id*="-gpt-ad-"],',
+        'div[id^="google_ads_iframe"],',
+        'div[id*="google_ads_iframe"],',
+        'ins.adsbygoogle,',
+        'iframe[id^="google_ads_iframe"],',
+        'iframe[id*="google_ads_iframe"],',
+        'iframe[src*="doubleclick.net"],',
+        'iframe[src*="googlesyndication.com"],',
+        'iframe[src*="googleads"],',
+        '.advertisement,',
+        '.ad-slot,',
+        '.ad-container,',
+        '.ad-wrapper,',
+        '.ad-banner,',
+        '.ad-leaderboard,',
+        '.ad_unit,',
+        '.ad-unit,',
+        'div[id="top-ad"],',
+        'div[id="bottom-ad"],',
+        'div[id="side-ad"],',
+        'div[id="header-ad"],',
+        'div[id="footer-ad"],',
+        'div[class*="ad-leaderboard"],',
+        'div[class*="ad-banner"],',
+        'div[class*="ad-container"],',
+        'div[class*="ad-wrapper"],',
+        'div[class*="ad_unit"],',
+        'div[class*="ad-unit"] {',
+        '    display: none !important;',
+        '    visibility: hidden !important;',
+        '    height: 0 !important;',
+        '    min-height: 0 !important;',
+        '    max-height: 0 !important;',
+        '    margin: 0 !important;',
+        '    padding: 0 !important;',
+        '    opacity: 0 !important;',
+        '    pointer-events: none !important;',
+        '    overflow: hidden !important;',
+        '}'
+    ].join('\n');
+
+    function applyCosmeticAdHiding() {
+        try {
+            let styleEl = document.getElementById(COSMETIC_AD_STYLE_ID);
+            if (hideAdsCosmetically) {
+                if (!styleEl) {
+                    styleEl = document.createElement('style');
+                    styleEl.id = COSMETIC_AD_STYLE_ID;
+                    styleEl.type = 'text/css';
+                    styleEl.textContent = COSMETIC_AD_CSS;
+                    const parent = document.head || document.documentElement || document.body;
+                    if (parent) {
+                        parent.appendChild(styleEl);
+                    }
+                }
+            } else {
+                if (styleEl && styleEl.parentNode) {
+                    styleEl.parentNode.removeChild(styleEl);
+                }
+            }
+        } catch (_) {}
+    }
+
+    applyCosmeticAdHiding();
 
     function createStatusUI() {
         if (!document.body || document.getElementById('pokefinder-hud')) return;
@@ -1716,6 +1788,7 @@
 
     /* ========== INITIALIZATION ========== */
     function init() {
+        applyCosmeticAdHiding();
         tryAutoLogin();
         redirectToBattle();
 

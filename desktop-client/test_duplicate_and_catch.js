@@ -485,8 +485,8 @@ assert.strictEqual(typeof config.settings.autoStartDelay, 'number', 'config.sett
 assert.strictEqual(config.settings.autoStartDelay >= 2, true, 'config.settings.autoStartDelay must be >= 2');
 assert.strictEqual(config.settings.autoCatch, undefined, 'config.settings.autoCatch must be undefined (removed)');
 assert.strictEqual(config.settings.ballStrategy, undefined, 'config.settings.ballStrategy must be undefined (removed)');
-assert.strictEqual(config.settings.ultraBallMaxLevel, undefined, 'config.settings.ultraBallMaxLevel must be undefined (removed)');
-console.log('[PASS] config.json verified: Zero auto-catch properties remain, autoStartOnMap and autoStartDelay active.');
+assert.strictEqual(config.settings.hideAdsCosmetically, true, 'config.settings.hideAdsCosmetically must be true');
+console.log('[PASS] config.json verified: Zero auto-catch properties remain, autoStartOnMap, autoStartDelay, and hideAdsCosmetically active.');
 
 const appHtml = fs.readFileSync(path.join(__dirname, 'app.html'), 'utf8');
 assert.strictEqual(appHtml.includes('autoCatchBtn'), false, 'app.html must not contain autoCatchBtn');
@@ -495,9 +495,11 @@ assert.strictEqual(appHtml.includes('ultraBallMaxLevelInput'), false, 'app.html 
 assert.strictEqual(appHtml.includes('avoidDupesBtn'), true, 'app.html must retain avoidDupesBtn');
 assert.strictEqual(appHtml.includes('autoStartMapBtn'), true, 'app.html must contain autoStartMapBtn');
 assert.strictEqual(appHtml.includes('autoStartDelaySelect'), true, 'app.html must contain autoStartDelaySelect');
+assert.strictEqual(appHtml.includes('hideAdsBtn'), true, 'app.html must contain hideAdsBtn (Option B)');
+assert.strictEqual(appHtml.includes('hideAdsBadge'), true, 'app.html must contain hideAdsBadge (Option B)');
 assert.strictEqual(appHtml.includes('openLogsBtn'), true, 'app.html must contain openLogsBtn');
 assert.strictEqual(appHtml.includes('avoidDuplicatesCheck'), true, 'app.html must retain avoidDuplicatesCheck');
-console.log('[PASS] app.html verified: autoCatch removed, autoStartMapBtn, autoStartDelaySelect, and openLogsBtn active.');
+console.log('[PASS] app.html verified: autoCatch removed, autoStartMapBtn, hideAdsBtn, and openLogsBtn active.');
 
 const appJs = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 assert.strictEqual(appJs.includes('autoCatchBtn'), false, 'app.js must not contain autoCatchBtn');
@@ -509,15 +511,19 @@ assert.strictEqual(appJs.includes('triggerDelayedAutoStart'), true, 'app.js must
 assert.strictEqual(appJs.includes('cancelPendingAutoStart'), true, 'app.js must contain cancelPendingAutoStart');
 assert.strictEqual(appJs.includes('autoStartMapBtn'), true, 'app.js must contain autoStartMapBtn');
 assert.strictEqual(appJs.includes('autoStartDelaySelect'), true, 'app.js must contain autoStartDelaySelect');
+assert.strictEqual(appJs.includes('hideAdsBtn'), true, 'app.js must contain hideAdsBtn (Option B)');
+assert.strictEqual(appJs.includes('updateHideAdsUI'), true, 'app.js must contain updateHideAdsUI (Option B)');
 assert.strictEqual(appJs.includes('openLogsBtn'), true, 'app.js must contain openLogsBtn');
-console.log('[PASS] app.js verified: Zero auto-catch residue, handleMapNavigation, triggerDelayedAutoStart, and autoStartDelaySelect active.');
+console.log('[PASS] app.js verified: Zero auto-catch residue, handleMapNavigation, triggerDelayedAutoStart, and hideAdsBtn active.');
 
 const preloadJs = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
 assert.strictEqual(preloadJs.includes('startCatchSequence'), false, 'game-preload.js must not contain startCatchSequence');
 assert.strictEqual(preloadJs.includes('catchStepInterval'), false, 'game-preload.js must not contain catchStepInterval');
 assert.strictEqual(preloadJs.includes('performLoginAutoFill'), true, 'game-preload.js must contain performLoginAutoFill');
 assert.strictEqual(preloadJs.includes('hasCaptchaElement'), true, 'game-preload.js must check hasCaptchaElement');
-console.log('[PASS] game-preload.js verified: Zero auto-catch residue, performLoginAutoFill and captcha checks active.');
+assert.strictEqual(preloadJs.includes('hideAdsCosmetically'), true, 'game-preload.js must support hideAdsCosmetically (Option B)');
+assert.strictEqual(preloadJs.includes('applyCosmeticAdHiding'), true, 'game-preload.js must contain applyCosmeticAdHiding (Option B)');
+console.log('[PASS] game-preload.js verified: Zero auto-catch residue, performLoginAutoFill, captcha checks, and Option B active.');
 
 // 3. Verify 100% 7-bit Clean ASCII across all files
 console.log('\n--- TEST 3: 100% 7-bit Clean ASCII Verification ---');

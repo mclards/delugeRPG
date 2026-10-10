@@ -192,6 +192,8 @@ const autoStartMapBtn = document.getElementById('autoStartMapBtn');
 const autoStartMapBadge = document.getElementById('autoStartMapBadge');
 const autoStartDelayRow = document.getElementById('autoStartDelayRow');
 const autoStartDelaySelect = document.getElementById('autoStartDelaySelect');
+const hideAdsBtn = document.getElementById('hideAdsBtn');
+const hideAdsBadge = document.getElementById('hideAdsBadge');
 const openLogsBtn = document.getElementById('openLogsBtn');
 const wipeBtn = document.getElementById('wipeBtn');
 const networkBtn = document.getElementById('networkBtn');
@@ -679,6 +681,19 @@ function updateAutoStartMapUI() {
   }
 }
 
+function updateHideAdsUI() {
+  const isHide = config.settings && config.settings.hideAdsCosmetically !== false;
+  if (hideAdsBadge) {
+    hideAdsBadge.textContent = isHide ? 'ON' : 'OFF';
+    hideAdsBadge.className = isHide ? 'dropdown-badge dropdown-badge-on' : 'dropdown-badge dropdown-badge-off';
+  }
+  if (hideAdsBtn) {
+    hideAdsBtn.title = isHide
+      ? 'Cosmetic Ad Hide (Option B): ON (Banners collapsed; 1-click Skip preserved)'
+      : 'Cosmetic Ad Hide (Option B): OFF (Show ad banners normally)';
+  }
+}
+
 
 function updateSoundUI() {
   soundBtn.innerHTML = soundEnabled ? '&#128266;' : '&#128263;';
@@ -998,6 +1013,7 @@ updateNetworkBadgeUI();
 updateSoundUI();
 updateTargetUI();
 updateAutoStartMapUI();
+updateHideAdsUI();
 updateZoomUI();
 
 // Detect Live Network Identity (Real Public IP & ISP) on Startup
@@ -2595,6 +2611,18 @@ if (autoStartDelaySelect) {
     updateAutoStartMapUI();
     updateStatus(`Auto-Start Delay: ${val}s (Captcha Safety)`, '#10b981');
     backendLog('Settings', `Auto-start map safety delay updated to ${val}s`);
+  });
+}
+
+if (hideAdsBtn) {
+  hideAdsBtn.addEventListener('click', () => {
+    if (!config.settings) config.settings = {};
+    config.settings.hideAdsCosmetically = !(config.settings.hideAdsCosmetically !== false);
+    saveLocalConfig();
+    updateHideAdsUI();
+    delugeView.send('update-config', config.settings);
+    updateStatus('Option B (Hide Ads): ' + (config.settings.hideAdsCosmetically ? 'ON' : 'OFF'), '#10b981');
+    backendLog('Settings', `Option B cosmetic ad hiding set to ${config.settings.hideAdsCosmetically}`);
   });
 }
 

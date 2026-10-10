@@ -165,8 +165,82 @@ let config = {
     enableLevelFilter: false,
     levelFilterMode: 'min',
     levelFilterValue: 50,
-    levelFilterScope: 'targets'
+    levelFilterScope: 'targets',
+    hideAdsCosmetically: true
 };
+
+// --- OPTION B: COSMETIC AD HIDING ---
+// Satisfies DelugeRPG script verification over network while visually collapsing banners
+const COSMETIC_AD_STYLE_ID = 'stealth-cosmetic-ad-hide';
+const COSMETIC_AD_CSS = [
+    '/* DelugeRPG Option B: Cosmetic Ad Hiding (Preserves 1-click Skip button while collapsing banners) */',
+    'div[id^="div-gpt-ad"],',
+    'div[id*="-gpt-ad-"],',
+    'div[id^="google_ads_iframe"],',
+    'div[id*="google_ads_iframe"],',
+    'ins.adsbygoogle,',
+    'iframe[id^="google_ads_iframe"],',
+    'iframe[id*="google_ads_iframe"],',
+    'iframe[src*="doubleclick.net"],',
+    'iframe[src*="googlesyndication.com"],',
+    'iframe[src*="googleads"],',
+    '.advertisement,',
+    '.ad-slot,',
+    '.ad-container,',
+    '.ad-wrapper,',
+    '.ad-banner,',
+    '.ad-leaderboard,',
+    '.ad_unit,',
+    '.ad-unit,',
+    'div[id="top-ad"],',
+    'div[id="bottom-ad"],',
+    'div[id="side-ad"],',
+    'div[id="header-ad"],',
+    'div[id="footer-ad"],',
+    'div[class*="ad-leaderboard"],',
+    'div[class*="ad-banner"],',
+    'div[class*="ad-container"],',
+    'div[class*="ad-wrapper"],',
+    'div[class*="ad_unit"],',
+    'div[class*="ad-unit"] {',
+    '    display: none !important;',
+    '    visibility: hidden !important;',
+    '    height: 0 !important;',
+    '    min-height: 0 !important;',
+    '    max-height: 0 !important;',
+    '    margin: 0 !important;',
+    '    padding: 0 !important;',
+    '    opacity: 0 !important;',
+    '    pointer-events: none !important;',
+    '    overflow: hidden !important;',
+    '}'
+].join('\n');
+
+function applyCosmeticAdHiding() {
+    try {
+        const shouldHide = config.hideAdsCosmetically !== false;
+        let styleEl = document.getElementById(COSMETIC_AD_STYLE_ID);
+        if (shouldHide) {
+            if (!styleEl) {
+                styleEl = document.createElement('style');
+                styleEl.id = COSMETIC_AD_STYLE_ID;
+                styleEl.type = 'text/css';
+                styleEl.textContent = COSMETIC_AD_CSS;
+                const parent = document.head || document.documentElement || document.body;
+                if (parent) {
+                    parent.appendChild(styleEl);
+                }
+            }
+        } else {
+            if (styleEl && styleEl.parentNode) {
+                styleEl.parentNode.removeChild(styleEl);
+            }
+        }
+    } catch (_) {}
+}
+
+// Initial application of Option B
+applyCosmeticAdHiding();
 
 let configSynced = false;
 let lastSyncedConfigStr = '';
@@ -174,6 +248,7 @@ ipcRenderer.on('update-config', (event, newSettings) => {
     if (newSettings) {
         config = Object.assign({}, config, newSettings);
         configSynced = true;
+        applyCosmeticAdHiding();
         const currentStr = JSON.stringify(config);
         if (currentStr !== lastSyncedConfigStr) {
             lastSyncedConfigStr = currentStr;
@@ -1613,6 +1688,7 @@ window.addEventListener('keydown', (e) => {
 // Initialization
 window.addEventListener('DOMContentLoaded', () => {
     console.log('[PokePreload] DOMContentLoaded on ' + window.location.pathname);
+    applyCosmeticAdHiding();
     const path = (window.location.pathname || '').toLowerCase();
     if (path.indexOf('/login') !== -1) {
         const creds = config && config.dummyAccount;

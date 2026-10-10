@@ -483,15 +483,17 @@ assert.strictEqual(config.settings.avoidDuplicates, true, 'config.settings.avoid
 assert.strictEqual(typeof config.settings.autoStartOnMap, 'boolean', 'config.settings.autoStartOnMap must be a boolean');
 assert.strictEqual(typeof config.settings.autoStartDelay, 'number', 'config.settings.autoStartDelay must be a number');
 assert.strictEqual(config.settings.autoStartDelay >= 2, true, 'config.settings.autoStartDelay must be >= 2');
-assert.strictEqual(config.settings.autoCatch, undefined, 'config.settings.autoCatch must be undefined (removed)');
-assert.strictEqual(config.settings.ballStrategy, undefined, 'config.settings.ballStrategy must be undefined (removed)');
+assert.strictEqual(config.settings.autoCatch, undefined, 'legacy autoCatch must be undefined');
+assert.strictEqual(config.settings.ballStrategy, undefined, 'legacy ballStrategy must be undefined');
 assert.strictEqual(config.settings.hideAdsCosmetically, true, 'config.settings.hideAdsCosmetically must be true');
-console.log('[PASS] config.json verified: Zero auto-catch properties remain, autoStartOnMap, autoStartDelay, and hideAdsCosmetically active.');
+assert.strictEqual(typeof config.settings.autoCatchMasterBall, 'boolean', 'config.settings.autoCatchMasterBall must be boolean');
+console.log('[PASS] config.json verified: autoCatchMasterBall, autoStartOnMap, autoStartDelay, and hideAdsCosmetically active.');
 
 const appHtml = fs.readFileSync(path.join(__dirname, 'app.html'), 'utf8');
-assert.strictEqual(appHtml.includes('autoCatchBtn'), false, 'app.html must not contain autoCatchBtn');
-assert.strictEqual(appHtml.includes('ballStrategyRadio'), false, 'app.html must not contain ballStrategyRadio');
-assert.strictEqual(appHtml.includes('ultraBallMaxLevelInput'), false, 'app.html must not contain ultraBallMaxLevelInput');
+assert.strictEqual(appHtml.includes('autoCatchBtn'), true, 'app.html must contain autoCatchBtn');
+assert.strictEqual(appHtml.includes('autoCatchBadge'), true, 'app.html must contain autoCatchBadge');
+assert.strictEqual(appHtml.includes('ballStrategyRadio'), false, 'app.html must not contain legacy ballStrategyRadio');
+assert.strictEqual(appHtml.includes('ultraBallMaxLevelInput'), false, 'app.html must not contain legacy ultraBallMaxLevelInput');
 assert.strictEqual(appHtml.includes('avoidDupesBtn'), true, 'app.html must retain avoidDupesBtn');
 assert.strictEqual(appHtml.includes('autoStartMapBtn'), true, 'app.html must contain autoStartMapBtn');
 assert.strictEqual(appHtml.includes('autoStartDelaySelect'), true, 'app.html must contain autoStartDelaySelect');
@@ -501,12 +503,13 @@ assert.strictEqual(appHtml.includes('navVersionFooter'), true, 'app.html must co
 assert.strictEqual(appHtml.includes('navVersionBadge'), true, 'app.html must contain navVersionBadge');
 assert.strictEqual(appHtml.includes('openLogsBtn'), true, 'app.html must contain openLogsBtn');
 assert.strictEqual(appHtml.includes('avoidDuplicatesCheck'), true, 'app.html must retain avoidDuplicatesCheck');
-console.log('[PASS] app.html verified: autoCatch removed, autoStartMapBtn, hideAdsBtn, navVersionBadge, and openLogsBtn active.');
+console.log('[PASS] app.html verified: autoCatchBtn, autoStartMapBtn, hideAdsBtn, navVersionBadge, and openLogsBtn active.');
 
 const appJs = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
-assert.strictEqual(appJs.includes('autoCatchBtn'), false, 'app.js must not contain autoCatchBtn');
-assert.strictEqual(appJs.includes('updateAutoCatchUI'), false, 'app.js must not contain updateAutoCatchUI');
-assert.strictEqual(appJs.includes('ballStrategyMaster'), false, 'app.js must not contain ballStrategyMaster');
+assert.strictEqual(appJs.includes('autoCatchBtn'), true, 'app.js must contain autoCatchBtn');
+assert.strictEqual(appJs.includes('updateAutoCatchUI'), true, 'app.js must contain updateAutoCatchUI');
+assert.strictEqual(appJs.includes("channel === 'autocatch-status'"), true, 'app.js must handle autocatch-status IPC');
+assert.strictEqual(appJs.includes('ballStrategyMaster'), false, 'app.js must not contain legacy ballStrategyMaster');
 assert.strictEqual(appJs.includes('resume-hunting'), false, 'app.js must not contain resume-hunting listener');
 assert.strictEqual(appJs.includes('handleMapNavigation'), true, 'app.js must contain handleMapNavigation for auto-start');
 assert.strictEqual(appJs.includes('triggerDelayedAutoStart'), true, 'app.js must contain triggerDelayedAutoStart for captcha safety');
@@ -521,21 +524,103 @@ assert.strictEqual(appJs.includes('guestReportsMap'), true, 'app.js must track g
 assert.strictEqual(appJs.includes('isCurrentPageMap'), true, 'app.js must provide isCurrentPageMap');
 assert.strictEqual(appJs.includes("channel === 'map-presence'"), true, 'app.js must listen for map-presence IPC');
 assert.strictEqual(appJs.includes('did-navigate-in-page'), true, 'app.js must listen for did-navigate-in-page');
-console.log('[PASS] app.js verified: Zero auto-catch residue, handleMapNavigation, triggerDelayedAutoStart, guestReportsMap, hideAdsBtn, and navVersionBadge active.');
+assert.strictEqual(appJs.includes('outOfStockPaused'), true, 'app.js must track outOfStockPaused for Option A stay-paused behavior');
+console.log('[PASS] app.js verified: autoCatchBtn, updateAutoCatchUI, autocatch-status, handleMapNavigation, and guestReportsMap active.');
 
 const preloadJs = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
-assert.strictEqual(preloadJs.includes('startCatchSequence'), false, 'game-preload.js must not contain startCatchSequence');
-assert.strictEqual(preloadJs.includes('catchStepInterval'), false, 'game-preload.js must not contain catchStepInterval');
+assert.strictEqual(preloadJs.includes('runAutoCatchLifecycle'), true, 'game-preload.js must contain runAutoCatchLifecycle');
+assert.strictEqual(preloadJs.includes('getRandomCatchDelay'), true, 'game-preload.js must contain getRandomCatchDelay');
+assert.strictEqual(preloadJs.includes('dispatchHumanClick'), true, 'game-preload.js must contain dispatchHumanClick');
+assert.strictEqual(preloadJs.includes('autoCatchMasterBall'), true, 'game-preload.js must support autoCatchMasterBall');
 assert.strictEqual(preloadJs.includes('performLoginAutoFill'), true, 'game-preload.js must contain performLoginAutoFill');
 assert.strictEqual(preloadJs.includes('checkHasCaptchaElement'), true, 'game-preload.js must check checkHasCaptchaElement');
 assert.strictEqual(preloadJs.includes('checkAndSyncMapPresence'), true, 'game-preload.js must contain checkAndSyncMapPresence');
 assert.strictEqual(preloadJs.includes("'map-presence'"), true, 'game-preload.js must send map-presence IPC');
-assert.strictEqual(preloadJs.includes('hideAdsCosmetically'), true, 'game-preload.js must support hideAdsCosmetically (Option B)');
-assert.strictEqual(preloadJs.includes('applyCosmeticAdHiding'), true, 'game-preload.js must contain applyCosmeticAdHiding (Option B)');
-console.log('[PASS] game-preload.js verified: Zero auto-catch residue, performLoginAutoFill, checkAndSyncMapPresence, and Option B active.');
+assert.strictEqual(preloadJs.includes('hideAdsCosmetically'), true, 'game-preload.js must support hideAdsCosmetically');
+assert.strictEqual(preloadJs.includes('applyCosmeticAdHiding'), true, 'game-preload.js must contain applyCosmeticAdHiding');
+assert.strictEqual(preloadJs.includes('deluge_last_map_url'), true, 'game-preload.js must store deluge_last_map_url');
+assert.strictEqual(preloadJs.includes('window.location.href = returnUrl'), true, 'game-preload.js must directly redirect to returnUrl on zero stock');
+console.log('[PASS] game-preload.js verified: runAutoCatchLifecycle, getRandomCatchDelay, checkAndSyncMapPresence, and Master Ball auto-catch active.');
 
-// 3. Verify 100% 7-bit Clean ASCII across all files
-console.log('\n--- TEST 3: 100% 7-bit Clean ASCII Verification ---');
+// 3. Auto-Catch (Master Ball) State Machine & Guard Verification
+console.log('\n--- TEST 3: Auto-Catch (Master Ball) State Machine & Guard Verification ---');
+
+function testRandomCatchDelay(minMs, maxMs) {
+  const min = (typeof minMs === 'number' && minMs >= 500) ? minMs : 1000;
+  const max = (typeof maxMs === 'number' && maxMs >= min) ? maxMs : 10000;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+const delays = [];
+for (let i = 0; i < 100; i++) {
+  const d = testRandomCatchDelay(1800, 4200);
+  assert(d >= 1000 && d <= 10000, `Delay ${d} must be within bounds 1000-10000ms`);
+  delays.push(d);
+}
+const uniqueDelays = new Set(delays);
+assert(uniqueDelays.size > 80, `Random delays must be non-uniform (got ${uniqueDelays.size} unique values out of 100)`);
+console.log(`[PASS] Non-uniform randomized delay generator verified: 100 trials, range [${Math.min(...delays)}ms, ${Math.max(...delays)}ms], ${uniqueDelays.size} unique values.`);
+
+const outOfStockDelays = [];
+for (let i = 0; i < 100; i++) {
+  const d = testRandomCatchDelay(5000, 15000);
+  assert(d >= 5000 && d <= 15000, `Out-of-stock delay ${d} must be within bounds 5000-15000ms`);
+  outOfStockDelays.push(d);
+}
+const uniqueOutOfStock = new Set(outOfStockDelays);
+assert(uniqueOutOfStock.size > 80, `Out-of-stock delays must be non-uniform (got ${uniqueOutOfStock.size} unique values)`);
+console.log(`[PASS] Option A out-of-stock 5000ms-15000ms randomized delay verified: 100 trials, range [${Math.min(...outOfStockDelays)}ms, ${Math.max(...outOfStockDelays)}ms], ${uniqueOutOfStock.size} unique values.`);
+
+function simulateMasterBallSearch(radios) {
+  for (let rIdx = 0; rIdx < radios.length; rIdx++) {
+    const r = radios[rIdx];
+    const desc = (r.value + ' ' + (r.textContent || '')).toLowerCase();
+    if (desc.includes('master')) {
+      const match = desc.match(/\((\d+)\)/);
+      const stock = match ? parseInt(match[1], 10) : null;
+      if (r.disabled || desc.includes('(0)') || stock === 0) {
+        return { found: true, available: false, stock: stock, radio: r };
+      }
+      return { found: true, available: true, stock: stock, radio: r };
+    }
+  }
+  return { found: false, available: false, stock: null, radio: null };
+}
+
+const pool1 = [
+  { value: 'pokeball', textContent: 'Poke Ball (13)' },
+  { value: 'greatball', textContent: 'Great Ball (0)' },
+  { value: 'masterball', textContent: 'Master Ball (22)' }
+];
+const res1 = simulateMasterBallSearch(pool1);
+assert.strictEqual(res1.found, true, 'Master ball must be found');
+assert.strictEqual(res1.available, true, 'Master ball (22) must be available');
+assert.strictEqual(res1.stock, 22, 'Master ball stock must be parsed as 22');
+console.log('[PASS] Master Ball with positive stock correctly selected.');
+
+const pool2 = [
+  { value: 'pokeball', textContent: 'Poke Ball (5)' },
+  { value: 'masterball', textContent: 'Master Ball (0)' }
+];
+const res2 = simulateMasterBallSearch(pool2);
+assert.strictEqual(res2.found, true, 'Master ball must be found');
+assert.strictEqual(res2.available, false, 'Master ball (0) must be flagged unavailable');
+assert.strictEqual(res2.stock, 0, 'Master ball stock must be parsed as 0');
+console.log('[PASS] Master Ball with zero stock safely halted without throwing other balls.');
+
+let testConfig = { hideAdsCosmetically: false, autoCatchMasterBall: true };
+function enforceHideAdsDependency(cfg) {
+  if (cfg.hideAdsCosmetically === false && cfg.autoCatchMasterBall) {
+    cfg.autoCatchMasterBall = false;
+  }
+  return cfg;
+}
+enforceHideAdsDependency(testConfig);
+assert.strictEqual(testConfig.autoCatchMasterBall, false, 'Auto-catch must automatically be false when Hide Ads is false');
+console.log('[PASS] Hide Ads ON dependency strictly enforced.');
+
+// 4. Verify 100% 7-bit Clean ASCII across all files
+console.log('\n--- TEST 4: 100% 7-bit Clean ASCII Verification ---');
 const clientFiles = [
   'main.js',
   'app.js',

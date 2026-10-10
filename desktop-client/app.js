@@ -49,7 +49,9 @@ let config = {
     soundAlert: true,
     autoPauseOnTarget: true,
     avoidDuplicates: true,
-    autoStartOnMap: true
+    autoStartOnMap: true,
+    hideAdsCosmetically: true,
+    autoCatchMasterBall: false
   }
 };
 
@@ -70,7 +72,9 @@ function loadLocalConfig() {
       autoPauseOnTarget: true,
       avoidDuplicates: true,
       autoStartOnMap: true,
-      autoStartDelay: 5
+      autoStartDelay: 5,
+      hideAdsCosmetically: true,
+      autoCatchMasterBall: false
     }
   };
   try {
@@ -194,6 +198,8 @@ const autoStartDelayRow = document.getElementById('autoStartDelayRow');
 const autoStartDelaySelect = document.getElementById('autoStartDelaySelect');
 const hideAdsBtn = document.getElementById('hideAdsBtn');
 const hideAdsBadge = document.getElementById('hideAdsBadge');
+const autoCatchBtn = document.getElementById('autoCatchBtn');
+const autoCatchBadge = document.getElementById('autoCatchBadge');
 const openLogsBtn = document.getElementById('openLogsBtn');
 const wipeBtn = document.getElementById('wipeBtn');
 const networkBtn = document.getElementById('networkBtn');
@@ -305,6 +311,8 @@ let currentZoomFactor = (config.settings && typeof config.settings.zoomFactor ==
 let autoStartTimer = null;
 let autoStartCountdownTimer = null;
 let autoStartRemainingSeconds = 0;
+let wasHuntingBeforeAutoCatch = false;
+let outOfStockPaused = false;
 
 // Pacing & Fatigue State
 let stepsSinceLastMicroBreak = 0;
@@ -685,6 +693,10 @@ function updateAutoStartMapUI() {
 
 function updateHideAdsUI() {
   const isHide = config.settings && config.settings.hideAdsCosmetically !== false;
+  if (!isHide && config.settings && config.settings.autoCatchMasterBall) {
+    config.settings.autoCatchMasterBall = false;
+    saveLocalConfig();
+  }
   if (hideAdsBadge) {
     hideAdsBadge.textContent = isHide ? 'ON' : 'OFF';
     hideAdsBadge.className = isHide ? 'dropdown-badge dropdown-badge-on' : 'dropdown-badge dropdown-badge-off';
@@ -696,9 +708,34 @@ function updateHideAdsUI() {
   }
 }
 
+function updateAutoCatchUI() {
+  const isHideAds = config.settings && config.settings.hideAdsCosmetically !== false;
+  let isCatch = config.settings && config.settings.autoCatchMasterBall === true;
+  if (!isHideAds && isCatch) {
+    isCatch = false;
+    if (config.settings) config.settings.autoCatchMasterBall = false;
+    saveLocalConfig();
+  }
+  if (autoCatchBadge) {
+    autoCatchBadge.textContent = isCatch ? 'ON' : 'OFF';
+    autoCatchBadge.className = isCatch ? 'dropdown-badge dropdown-badge-on' : 'dropdown-badge dropdown-badge-off';
+  }
+  if (autoCatchBtn) {
+    if (!isHideAds) {
+      autoCatchBtn.title = 'Auto-Catch (Master Ball): Disabled (Turn "Hide Ads" ON first to enable)';
+      autoCatchBtn.style.opacity = '0.55';
+    } else {
+      autoCatchBtn.style.opacity = '1';
+      autoCatchBtn.title = isCatch
+        ? 'Auto-Catch (Master Ball): ON (Will automatically catch target Pokemon via Master Ball)'
+        : 'Auto-Catch (Master Ball): OFF (Click to enable auto-catching targets via Master Ball)';
+    }
+  }
+}
+
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.1.6';
+    let appVer = '1.1.7';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -1027,6 +1064,7 @@ updateSoundUI();
 updateTargetUI();
 updateAutoStartMapUI();
 updateHideAdsUI();
+updateAutoCatchUI();
 updateVersionUI();
 updateZoomUI();
 
@@ -1111,10 +1149,10 @@ function autoPauseOutsideMap(source = '') {
       walkTimeout = null;
     }
     updateToggleButton();
-    updateStatus('Auto-Paused (Outside Map)', '#f59e0b');
+    updateStatus('Paused (Outside Map)', '#f59e0b');
     syncHuntingState();
   } else if (!isCurrentPageMap()) {
-    updateStatus('Auto-Paused (Outside Map)', '#f59e0b');
+    updateStatus('Paused (Outside Map)', '#f59e0b');
   }
 }
 
@@ -1157,6 +1195,7 @@ function toggleHunting() {
   if (autoStartRemainingSeconds > 0) {
     cancelPendingAutoStart('Manual pause during auto-start countdown');
     userManuallyPaused = true;
+    wasHuntingBeforeAutoCatch = false;
     isRunning = false;
     updateToggleButton();
     updateStatus('Auto-Start Cancelled (Paused)', '#f59e0b');
@@ -1176,6 +1215,7 @@ function toggleHunting() {
   isRunning = !isRunning;
   if (isRunning) {
     userManuallyPaused = false;
+    outOfStockPaused = false;
     isEncounterOnScreen = false;
     isStepPending = false;
     stepPendingTicks = 0;
@@ -1197,6 +1237,7 @@ function toggleHunting() {
     scheduleNextStep(500);
   } else {
     userManuallyPaused = true;
+    wasHuntingBeforeAutoCatch = false;
     cancelPendingAutoStart('Hunting paused by user');
     backendLog('HuntingPause', 'Automated hunting paused by user');
     isStepPending = false;
@@ -1881,7 +1922,7 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
   autoStartRemainingSeconds = delaySec;
 
   backendLog('AutoStart', `${sourceReason}. Pending auto-start scheduled in ${delaySec}s to allow map scripts and security checks to settle.`);
-  updateStatus(`Map loaded. Auto-starting in ${autoStartRemainingSeconds}s...`, '#f59e0b');
+  updateStatus(`Auto-Start in ${autoStartRemainingSeconds}s...`, '#f59e0b');
   if (btnText && !isRunning) btnText.textContent = `Auto (${autoStartRemainingSeconds}s)`;
 
   autoStartCountdownTimer = setInterval(() => {
@@ -1892,7 +1933,7 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
         updateToggleButton();
         return;
       }
-      updateStatus(`Map loaded. Auto-starting in ${autoStartRemainingSeconds}s...`, '#f59e0b');
+      updateStatus(`Auto-Start in ${autoStartRemainingSeconds}s...`, '#f59e0b');
       if (btnText && !isRunning) btnText.textContent = `Auto (${autoStartRemainingSeconds}s)`;
     }
   }, 1000);
@@ -1939,17 +1980,20 @@ function handleMapNavigation(url) {
   } else {
     // Clear "Outside Map" warning if on map
     if (!isRunning && statusText && statusText.textContent && statusText.textContent.includes('Outside Map')) {
-      updateStatus('Paused', '#f59e0b');
+      updateStatus(outOfStockPaused ? 'Paused (0 Master Balls - Restock)' : 'Paused', outOfStockPaused ? '#ef4444' : '#f59e0b');
+    } else if (!isRunning && outOfStockPaused) {
+      updateStatus('Paused (0 Master Balls - Restock)', '#ef4444');
     }
     if (isUnlockChallengeActive) {
       isUnlockChallengeActive = false;
       backendLog('SecurityChallenge', 'Navigated back to map from /unlock. Captcha completed.');
       updateStatus('Ready to Hunt (Captcha Solved)', '#10b981');
     }
-    // Auto-start hunting whenever map is opened if enabled, unless user manually paused!
-    const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
+    // Auto-start hunting whenever map is opened if enabled or resuming after auto-catch, unless user manually paused!
+    const shouldAutoStart = (config.settings && config.settings.autoStartOnMap !== false) || wasHuntingBeforeAutoCatch;
     if (!isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
       if (!autoStartTimer) {
+        wasHuntingBeforeAutoCatch = false;
         triggerDelayedAutoStart('Map opened');
       }
     }
@@ -2055,16 +2099,19 @@ delugeView.addEventListener('ipc-message', (event) => {
     } else {
       // Clear "Outside Map" warning if on map
       if (!isRunning && statusText && statusText.textContent && statusText.textContent.includes('Outside Map')) {
-        updateStatus('Paused', '#f59e0b');
+        updateStatus(outOfStockPaused ? 'Paused (0 Master Balls - Restock)' : 'Paused', outOfStockPaused ? '#ef4444' : '#f59e0b');
+      } else if (!isRunning && outOfStockPaused) {
+        updateStatus('Paused (0 Master Balls - Restock)', '#ef4444');
       }
 
       if (prevEncounter && !isEncounterOnScreen) {
         backendLog('Encounter', 'Target / wild encounter resolved. Returned to clean map view.');
       }
 
-      const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
+      const shouldAutoStart = (config.settings && config.settings.autoStartOnMap !== false) || wasHuntingBeforeAutoCatch;
       if (!isRunning && !userManuallyPaused && !isEncounterOnScreen && !isUnlockChallengeActive && shouldAutoStart) {
         if (!autoStartTimer) {
+          wasHuntingBeforeAutoCatch = false;
           triggerDelayedAutoStart('Map presence confirmed by guest');
         }
       }
@@ -2096,6 +2143,7 @@ delugeView.addEventListener('ipc-message', (event) => {
     // CRITICAL: Encounter pause is NOT a manual user pause!
     // userManuallyPaused stays false so client can auto-start once encounter is caught!
     userManuallyPaused = false;
+    wasHuntingBeforeAutoCatch = true;
     isEncounterOnScreen = true;
     updateToggleButton();
 
@@ -2108,6 +2156,52 @@ delugeView.addEventListener('ipc-message', (event) => {
     new Notification('Target Pokemon Found!', {
       body: `${name} has appeared on the map! Ready for capture.`
     });
+  }
+
+  if (event.channel === 'autocatch-status') {
+    const data = event.args[0] || {};
+    const step = data.step || '';
+    const delaySec = data.delay ? (data.delay / 1000).toFixed(1) : '';
+
+    if (step === 'clicking-try-catch') {
+      const name = data.target || 'Target Pokemon';
+      updateStatus(`Auto-Catch: Try Catch (${delaySec}s)...`, '#38bdf8');
+      backendLog('AutoCatch', `Target encounter: ${name}. Waiting ${data.delay}ms to click Try to Catch It.`);
+    } else if (step === 'starting-battle') {
+      updateStatus(`Auto-Catch: Battle Start (${delaySec}s)...`, '#38bdf8');
+      backendLog('AutoCatch', `Battle screen reached. Waiting ${data.delay}ms to click Start Battle.`);
+    } else if (step === 'selecting-master-ball') {
+      const stockStr = (typeof data.stock === 'number') ? ` (Stock: ${data.stock})` : '';
+      updateStatus(`Auto-Catch: Select Ball (${delaySec}s)...`, '#eab308');
+      backendLog('AutoCatch', `Selecting Master Ball${stockStr}. Waiting ${data.delay}ms.`);
+    } else if (step === 'throwing-master-ball') {
+      const stockStr = (typeof data.stock === 'number') ? ` (Stock: ${data.stock})` : '';
+      updateStatus(`Auto-Catch: Throw Ball (${delaySec}s)...`, '#eab308');
+      backendLog('AutoCatch', `Throwing Master Ball${stockStr}. Waiting ${data.delay}ms.`);
+    } else if (step === 'returning-to-map') {
+      updateStatus(`Auto-Catch: Return Map (${delaySec}s)...`, '#22c55e');
+      backendLog('AutoCatch', `Catch confirmed! Waiting ${data.delay}ms to click Return to Map.`);
+    } else if (step === 'completed') {
+      const name = data.target || 'Target Pokemon';
+      const remainingStr = (typeof data.stockRemaining === 'number') ? ` (Remaining Stock: ${data.stockRemaining})` : '';
+      updateStatus(`Caught: ${name}! Resuming...`, '#22c55e');
+      backendLog('AutoCatch', `${name} successfully captured via Master Ball${remainingStr}.`);
+      userManuallyPaused = false;
+      wasHuntingBeforeAutoCatch = true;
+    } else if (step === 'out-of-stock') {
+      const delaySec = data.delay ? (data.delay / 1000).toFixed(1) : '10.0';
+      updateStatus(`Master Ball (0)! Returning (${delaySec}s)...`, '#ef4444');
+      backendLog('AutoCatch', `Master Ball out of stock. Redirecting directly to previous map in ${data.delay || 10000}ms.`);
+      playAlarmSound();
+      outOfStockPaused = true;
+      userManuallyPaused = true;
+      wasHuntingBeforeAutoCatch = false;
+      try {
+        new Notification('Master Ball Out of Stock!', {
+          body: `0 Master Balls available. Redirecting back to previous map in ${delaySec}s. Hunting will remain paused.`
+        });
+      } catch (_) {}
+    }
   }
 
   if (event.channel === 'unlock-detected') {
@@ -2685,12 +2779,37 @@ if (autoStartDelaySelect) {
 if (hideAdsBtn) {
   hideAdsBtn.addEventListener('click', () => {
     if (!config.settings) config.settings = {};
-    config.settings.hideAdsCosmetically = !(config.settings.hideAdsCosmetically !== false);
+    const willHide = !(config.settings.hideAdsCosmetically !== false);
+    config.settings.hideAdsCosmetically = willHide;
+    if (!willHide && config.settings.autoCatchMasterBall) {
+      config.settings.autoCatchMasterBall = false;
+      backendLog('Settings', 'Auto-Catch disabled automatically because Hide Ads was turned OFF.');
+    }
     saveLocalConfig();
     updateHideAdsUI();
+    updateAutoCatchUI();
     delugeView.send('update-config', config.settings);
-    updateStatus('Hide Ads: ' + (config.settings.hideAdsCosmetically ? 'ON' : 'OFF'), '#10b981');
-    backendLog('Settings', `Cosmetic ad hiding set to ${config.settings.hideAdsCosmetically}`);
+    updateStatus('Hide Ads: ' + (willHide ? 'ON' : 'OFF'), '#10b981');
+    backendLog('Settings', `Cosmetic ad hiding set to ${willHide}`);
+  });
+}
+
+if (autoCatchBtn) {
+  autoCatchBtn.addEventListener('click', () => {
+    if (!config.settings) config.settings = {};
+    const isHideAds = config.settings.hideAdsCosmetically !== false;
+    if (!isHideAds) {
+      playAlarmSound();
+      updateStatus('Auto-Catch requires Hide Ads to be ON first!', '#ef4444');
+      backendLog('Settings', 'Cannot enable Auto-Catch: Hide Ads is OFF.');
+      return;
+    }
+    config.settings.autoCatchMasterBall = !(config.settings.autoCatchMasterBall === true);
+    saveLocalConfig();
+    updateAutoCatchUI();
+    delugeView.send('update-config', config.settings);
+    updateStatus('Auto-Catch (Master Ball): ' + (config.settings.autoCatchMasterBall ? 'ON' : 'OFF'), '#10b981');
+    backendLog('Settings', `Auto-Catch (Master Ball) set to ${config.settings.autoCatchMasterBall}`);
   });
 }
 

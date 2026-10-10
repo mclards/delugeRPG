@@ -298,9 +298,9 @@
       justify-content: center;
       gap: 8px;
       height: 28px;
-      width: 300px;
-      min-width: 300px;
-      max-width: 300px;
+      width: 360px;
+      min-width: 320px;
+      max-width: 420px;
       padding: 0 14px;
       border-radius: 9999px;
       font-size: 11px;
@@ -325,7 +325,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       text-align: center;
-      max-width: 255px;
+      max-width: 375px;
     }
     .counter {
       height: 28px;
@@ -1117,6 +1117,11 @@
             <span class="dropdown-label">Hide Ads</span>
             <span id="hideAdsBadge" class="dropdown-badge dropdown-badge-on">ON</span>
           </button>
+          <button id="autoCatchBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Catch (Master Ball): Automatically catch detected target Pokemon using Master Ball (Requires Hide Ads ON)">
+            <span class="dropdown-icon">&#128080;</span>
+            <span class="dropdown-label">Auto-Catch (Master Ball)</span>
+            <span id="autoCatchBadge" class="dropdown-badge dropdown-badge-off">OFF</span>
+          </button>
           <div class="dropdown-divider"></div>
 
           <div class="nav-dropdown-header">Walking Movement Mode</div>
@@ -1160,7 +1165,7 @@
           <div class="dropdown-divider"></div>
           <div id="navVersionFooter" class="nav-version-footer">
             <span class="nav-version-label">DelugeRPG Client</span>
-            <span id="navVersionBadge" class="nav-version-badge">v1.1.6</span>
+            <span id="navVersionBadge" class="nav-version-badge">v1.1.7</span>
           </div>
         </div>
       </div>

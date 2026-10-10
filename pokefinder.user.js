@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DelugeRPG: Pokefinder
 // @namespace    https://greasyfork.org/users/789978-anxarden
-// @version      v4.5
+// @version      v4.6
 // @description  Elite DelugeRPG Pokefinder with auto-resume after catching, wide-area walking patterns (no 1-tile spinning), comprehensive legendary list, special variant catcher, and zero linter warnings.
 // @author       Anxarden
 // @match        https://*.delugerpg.com/*
@@ -1181,6 +1181,12 @@
     }
 
     /* ========== CATCH SEQUENCE ========== */
+    function getRandomCatchDelay(minMs = 1000, maxMs = 10000) {
+        const min = (typeof minMs === 'number' && minMs >= 1000) ? minMs : 1000;
+        const max = (typeof maxMs === 'number' && maxMs <= 10000 && maxMs >= min) ? maxMs : 10000;
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
     function triggerTargetFound(targetName) {
         if (!finderActive) return;
         if (avoidDuplicates) {
@@ -1210,7 +1216,7 @@
         } catch (_) {}
 
         if (autoCatch) {
-            const reactionDelay = Math.floor(Math.random() * 600) + 850;
+            const reactionDelay = getRandomCatchDelay(1000, 10000);
             setTimeout(() => {
                 const catchBtn = findCatchActionElement() || document.querySelector('input[type="submit"][id="catch"], input#catch, button#catch, input[value*="Catch" i], input[value*="Try to Catch" i], a#catch, #showpoke a, a[href*="/catch/"]');
                 if (catchBtn) {
@@ -1229,6 +1235,9 @@
             updateStatusUI('Paused (Outside Map)', '#ff9800');
             return;
         }
+        try {
+            sessionStorage.setItem('pokefinder_last_map_url', window.location.href);
+        } catch (_) {}
         finderActive = true;
         try {
             sessionStorage.removeItem('pokefinder_target');
@@ -1287,7 +1296,7 @@
                     updateStatusUI('Caught! Returning...', '#00e676');
                     console.log('[PokeFinder] Catch confirmed! Returning to map...');
 
-                    const returnDelay = Math.floor(Math.random() * 700) + 1100;
+                    const returnDelay = getRandomCatchDelay(1000, 10000);
                     setTimeout(() => {
                         if (returnBtn) {
                             dispatchHumanClick(returnBtn);
@@ -1304,7 +1313,7 @@
             const startBattleBtn = document.querySelector('input[type="submit"][value*="Start Battle" i], input[value*="Start Battle" i], button[value*="Start Battle" i]');
             if (startBattleBtn && window.getComputedStyle(startBattleBtn).display !== 'none') {
                 isActing = true;
-                const delay = Math.floor(Math.random() * 350) + 500;
+                const delay = getRandomCatchDelay(1000, 10000);
                 setTimeout(() => {
                     dispatchHumanClick(startBattleBtn);
                     isActing = false;
@@ -1368,6 +1377,7 @@
 
             let masterRadio = null;
             let masterUnavailable = false;
+            let masterStock = null;
             let ultraRadio = null;
             let ultraUnavailable = false;
 
@@ -1377,7 +1387,11 @@
                 const dLower = desc.toLowerCase();
                 if (dLower.indexOf('master') !== -1 || (r.value && r.value.toLowerCase().indexOf('master') !== -1)) {
                     masterRadio = r;
-                    masterUnavailable = isRadioUnavailable(r, desc);
+                    const stockMatch = desc.match(/master\s*ball[^\d(]*\((\d+)\)/i) || desc.match(/\((\d+)\)/);
+                    if (stockMatch) {
+                        masterStock = parseInt(stockMatch[1], 10);
+                    }
+                    masterUnavailable = isRadioUnavailable(r, desc) || masterStock === 0;
                 } else if (dLower.indexOf('ultra') !== -1 || (r.value && r.value.toLowerCase().indexOf('ultra') !== -1)) {
                     ultraRadio = r;
                     ultraUnavailable = isRadioUnavailable(r, desc);
@@ -1397,36 +1411,36 @@
                 if (bMatch) targetLevel = parseInt(bMatch[1], 10);
             }
 
-            const ultraMaxLevel = 25;
-            const isLowLevel = (targetLevel !== null && targetLevel <= ultraMaxLevel);
-
             let chosenRadio = null;
             let chosenBallName = '';
 
-            if (isLowLevel) {
-                if (ultraRadio && !ultraUnavailable) {
-                    chosenRadio = ultraRadio;
-                    chosenBallName = 'Ultra Ball (Low-level target: Lv ' + targetLevel + ')';
-                } else if (masterRadio && !masterUnavailable) {
-                    chosenRadio = masterRadio;
-                    chosenBallName = 'Master Ball (Ultra Ball out of stock)';
-                }
-            } else {
-                if (masterRadio && !masterUnavailable) {
-                    chosenRadio = masterRadio;
-                    chosenBallName = 'Master Ball (Guaranteed capture)';
-                } else if (ultraRadio && !ultraUnavailable) {
-                    chosenRadio = ultraRadio;
-                    chosenBallName = 'Ultra Ball (Master Ball out of stock)';
-                }
+            // Auto-Catch: Master Ball alone
+            if (masterRadio && !masterUnavailable) {
+                chosenRadio = masterRadio;
+                const stockText = (typeof masterStock === 'number') ? ' (Stock: ' + masterStock + ')' : '';
+                chosenBallName = 'Master Ball' + stockText + ' (Guaranteed capture)';
             }
 
             if (throwBtn && radioPool.length > 0) {
                 if (!chosenRadio) {
                     clearInterval(catchStepInterval);
-                    console.warn('[PokeFinder] Desired Pokeball out of stock! Halting catch sequence.');
-                    updateStatusUI('Pokeballs Out of Stock! Paused', '#f44336');
-                    alert('Pokeballs Out of Stock!\nAuto-catch halted to protect your encounter.\nPlease buy Master or Ultra Balls before continuing.');
+                    isActing = true;
+                    finderActive = false; // Option A: Stay paused
+                    const outOfStockDelay = getRandomCatchDelay(5000, 15000);
+                    const delaySec = (outOfStockDelay / 1000).toFixed(1);
+                    console.warn('[PokeFinder] Master Ball out of stock! Redirecting directly to previous map in ' + outOfStockDelay + 'ms.');
+                    updateStatusUI('Master Ball (0)! Returning (' + delaySec + 's)...', '#f44336');
+                    playBeep();
+
+                    setTimeout(function() {
+                        let returnUrl = '/map';
+                        try {
+                            returnUrl = sessionStorage.getItem('pokefinder_last_map_url') || '/map';
+                        } catch (_) {}
+
+                        // In Wild Battle there is no "Return to Map" button; directly redirect
+                        window.location.href = returnUrl;
+                    }, outOfStockDelay);
                     return;
                 }
 
@@ -1434,13 +1448,13 @@
 
                 if (!chosenRadio.checked) {
                     isActing = true;
-                    const selectDelay = Math.floor(Math.random() * 300) + 450;
+                    const selectDelay = getRandomCatchDelay(1000, 10000);
                     setTimeout(() => {
                         dispatchHumanClick(chosenRadio);
                         chosenRadio.checked = true;
                         chosenRadio.dispatchEvent(new Event('change', { bubbles: true }));
 
-                        const throwDelay = Math.floor(Math.random() * 400) + 550;
+                        const throwDelay = getRandomCatchDelay(1000, 10000);
                         setTimeout(() => {
                             if (throwBtn && window.getComputedStyle(throwBtn).display !== 'none') {
                                 console.log('[PokeFinder] Throwing ' + chosenBallName + '!');
@@ -1455,7 +1469,7 @@
                     return;
                 } else {
                     isActing = true;
-                    const throwDelay = Math.floor(Math.random() * 350) + 500;
+                    const throwDelay = getRandomCatchDelay(1000, 10000);
                     setTimeout(() => {
                         if (throwBtn && window.getComputedStyle(throwBtn).display !== 'none') {
                             console.log('[PokeFinder] Throwing ' + chosenBallName + '!');

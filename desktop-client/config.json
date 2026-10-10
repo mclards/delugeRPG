@@ -23,6 +23,8 @@
     "avoidDuplicates": true,
     "autoStartOnMap": true,
     "autoStartDelay": 5,
+    "hideAdsCosmetically": true,
+    "autoCatchMasterBall": true,
     "targetPreset": "legendaries",
     "findLegendaries": true,
     "findMegasAndGigantamax": false,
@@ -30,7 +32,7 @@
     "enableLevelFilter": false,
     "levelFilterMode": "min",
     "levelFilterValue": 12,
-    "zoomFactor": 0.8,
+    "zoomFactor": 0.7,
     "levelFilterScope": "targets",
     "legendaryClassic": true,
     "legendaryUltraBeasts": true,
@@ -48,7 +50,6 @@
       "Negative"
     ],
     "customTargetList": "",
-    "blacklistList": "",
-    "hideAdsCosmetically": true
+    "blacklistList": ""
   }
 }

@@ -283,6 +283,23 @@ ipcRenderer.on('hunting-state-changed', (event, state) => {
 
 
 // --- MODULE ROOT SCOPE HELPERS ---
+function getRandomCatchDelay(minMs = 1000, maxMs = 10000) {
+    const min = (typeof minMs === 'number' && minMs >= 500) ? minMs : 1000;
+    const max = (typeof maxMs === 'number' && maxMs >= min) ? maxMs : 10000;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function dispatchHumanClick(el) {
+    if (!el) return;
+    try {
+        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+        el.click();
+        el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+    } catch (_) {
+        try { el.click(); } catch (_) {}
+    }
+}
+
 function findCatchActionElement() {
     try {
         // 1. Direct submit inputs, buttons, or links with catch id, name, or action
@@ -849,6 +866,11 @@ function checkAndSyncMapPresence() {
         const hasMapElement = !!(document.getElementById('map') || document.getElementById('mapcanvas') || document.querySelector('.trainer') || document.getElementById('user'));
         const hasDpad = !!document.getElementById('dpad');
         const isMapPage = (path.indexOf('/map') !== -1) || (hasMapElement && hasDpad);
+        if (isMapPage) {
+            try {
+                sessionStorage.setItem('deluge_last_map_url', window.location.href);
+            } catch (_) {}
+        }
         const hasCatchUI = !!findCatchActionElement();
         const hasCaptcha = checkHasCaptchaElement();
 
@@ -1324,6 +1346,28 @@ function triggerTargetFound(targetName, category) {
         category: category,
         isDuplicate: isDupe
     });
+
+    if (config.autoCatchMasterBall && config.hideAdsCosmetically !== false) {
+        try {
+            sessionStorage.setItem('deluge_autocatch_active', 'true');
+            sessionStorage.setItem('deluge_autocatch_target', targetName);
+            sessionStorage.removeItem('deluge_autocatch_thrown');
+        } catch (_) {}
+
+        const catchDelay = getRandomCatchDelay(1000, 10000);
+        ipcRenderer.sendToHost('autocatch-status', {
+            step: 'clicking-try-catch',
+            target: targetName,
+            delay: catchDelay
+        });
+
+        setTimeout(() => {
+            const catchBtn = findCatchActionElement();
+            if (catchBtn) {
+                dispatchHumanClick(catchBtn);
+            }
+        }, catchDelay);
+    }
 }
 
 // --- 5. DOM OBSERVERS & EVENT HOOKS ---
@@ -1857,4 +1901,258 @@ window.addEventListener('wheel', (e) => {
         }
     }
 }, { capture: true, passive: false });
+
+// --- AUTO-CATCH (MASTER BALL) LIFECYCLE ENGINE ---
+let autoCatchStepInProgress = false;
+
+function runAutoCatchLifecycle() {
+    let isCatchActive = false;
+    try {
+        isCatchActive = sessionStorage.getItem('deluge_autocatch_active') === 'true';
+    } catch (_) {}
+
+    if (!isCatchActive) return;
+
+    // Strict safety constraint: Hide Ads must be active
+    if (config.hideAdsCosmetically === false) {
+        try { sessionStorage.removeItem('deluge_autocatch_active'); } catch (_) {}
+        return;
+    }
+
+    if (autoCatchStepInProgress) return;
+
+    // A. Check for Screen 4: Post-Catch Outcome ("Return to Map")
+    let ballWasThrown = false;
+    try {
+        ballWasThrown = sessionStorage.getItem('deluge_autocatch_thrown') === 'true';
+    } catch (_) {}
+
+    const allLinksAndButtons = Array.from(document.querySelectorAll('a, input[type="submit"], input[type="button"], button'));
+    const returnBtn = allLinksAndButtons.find(el => {
+        const text = ((el.textContent || '') + ' ' + (el.value || '')).trim().toLowerCase();
+        return text === 'return to map' || text.indexOf('return to map') !== -1;
+    });
+
+    const bodyText = (document.body ? document.body.textContent || '' : '').toLowerCase();
+    const isCatchConfirmed = bodyText.indexOf('was caught') !== -1 ||
+                             bodyText.indexOf('was captured') !== -1 ||
+                             bodyText.indexOf('sent to your box') !== -1 ||
+                             bodyText.indexOf('you threw a') !== -1;
+
+    if (returnBtn && (ballWasThrown || isCatchConfirmed)) {
+        autoCatchStepInProgress = true;
+        let targetName = 'Target Pokemon';
+        let remainingStock = null;
+        try {
+            targetName = sessionStorage.getItem('deluge_autocatch_target') || 'Target Pokemon';
+            const rawStock = sessionStorage.getItem('deluge_autocatch_stock');
+            if (rawStock !== null) {
+                const s = parseInt(rawStock, 10);
+                if (!isNaN(s) && s > 0) remainingStock = s - 1;
+            }
+            sessionStorage.removeItem('deluge_autocatch_active');
+            sessionStorage.removeItem('deluge_autocatch_thrown');
+            sessionStorage.removeItem('deluge_autocatch_target');
+            sessionStorage.removeItem('deluge_autocatch_stock');
+        } catch (_) {}
+
+        const returnDelay = getRandomCatchDelay(1000, 10000);
+        ipcRenderer.sendToHost('autocatch-status', {
+            step: 'returning-to-map',
+            target: targetName,
+            delay: returnDelay
+        });
+
+        setTimeout(() => {
+            ipcRenderer.sendToHost('autocatch-status', {
+                step: 'completed',
+                target: targetName,
+                stockRemaining: remainingStock
+            });
+            dispatchHumanClick(returnBtn);
+            autoCatchStepInProgress = false;
+        }, returnDelay);
+        return;
+    }
+
+    // B. Check for Screen 2: Battle Preparation ("Start Battle")
+    let startBattleBtn = document.querySelector('input[type="submit"][value*="Start Battle" i], input[value*="Start Battle" i], button[value*="Start Battle" i]');
+    if (!startBattleBtn) {
+        for (let i = 0; i < allLinksAndButtons.length; i++) {
+            const c = allLinksAndButtons[i];
+            const cTxt = ((c.value || '') + ' ' + (c.textContent || '')).trim().toLowerCase();
+            if (cTxt.indexOf('start battle') !== -1) {
+                startBattleBtn = c;
+                break;
+            }
+        }
+    }
+
+    if (startBattleBtn) {
+        try {
+            const st = window.getComputedStyle(startBattleBtn);
+            if (st.display !== 'none' && st.visibility !== 'hidden') {
+                autoCatchStepInProgress = true;
+                const startDelay = getRandomCatchDelay(1000, 10000);
+                ipcRenderer.sendToHost('autocatch-status', {
+                    step: 'starting-battle',
+                    delay: startDelay
+                });
+                setTimeout(() => {
+                    dispatchHumanClick(startBattleBtn);
+                    autoCatchStepInProgress = false;
+                }, startDelay);
+                return;
+            }
+        } catch (_) {}
+    }
+
+    // C. Check for Screen 3: Battle Screen (Master Ball Selection & Throw)
+    let throwBtn = null;
+    const submitButtons = Array.from(document.querySelectorAll('input[type="submit"], input[type="button"], button'));
+    for (let b = 0; b < submitButtons.length; b++) {
+        const btn = submitButtons[b];
+        const btnText = ((btn.value || '') + ' ' + (btn.textContent || '')).trim().toLowerCase();
+        if (btnText.indexOf('throw') !== -1 && (btnText.indexOf('ball') !== -1 || btnText.indexOf('master') !== -1)) {
+            throwBtn = btn;
+            break;
+        }
+    }
+    if (!throwBtn) {
+        for (let b = 0; b < submitButtons.length; b++) {
+            const btn = submitButtons[b];
+            const btnText = ((btn.value || '') + ' ' + (btn.textContent || '')).trim().toLowerCase();
+            if (btnText.indexOf('throw') !== -1) {
+                throwBtn = btn;
+                break;
+            }
+        }
+    }
+
+    const formScope = throwBtn ? (throwBtn.form || throwBtn.closest('form')) : null;
+    const radioPool = formScope ? Array.from(formScope.querySelectorAll('input[type="radio"]')) : Array.from(document.querySelectorAll('input[type="radio"]'));
+
+    if (throwBtn && radioPool.length > 0) {
+        let masterRadio = null;
+        let isMasterUnavailable = false;
+        let masterStock = null;
+
+        for (let rIdx = 0; rIdx < radioPool.length; rIdx++) {
+            const r = radioPool[rIdx];
+            let desc = (r.value || '') + ' ' + (r.id || '') + ' ' + (r.name || '') + ' ';
+            if (r.parentElement) desc += ' ' + r.parentElement.textContent;
+            if (r.labels && r.labels.length) {
+                for (let l = 0; l < r.labels.length; l++) desc += ' ' + r.labels[l].textContent;
+            }
+            if (r.id) {
+                const forLabel = document.querySelector('label[for="' + r.id + '"]');
+                if (forLabel) desc += ' ' + forLabel.textContent;
+            }
+            const dLower = desc.toLowerCase();
+            if (dLower.indexOf('master') !== -1 || (r.value && r.value.toLowerCase().indexOf('master') !== -1)) {
+                masterRadio = r;
+                const stockMatch = desc.match(/master\s*ball[^\d(]*\((\d+)\)/i) || desc.match(/\((\d+)\)/);
+                if (stockMatch) {
+                    masterStock = parseInt(stockMatch[1], 10);
+                }
+                if (r.disabled || dLower.indexOf('(0)') !== -1 || masterStock === 0) {
+                    isMasterUnavailable = true;
+                }
+                const parent = r.parentElement;
+                if (parent && (parent.querySelector('strike, del, s') || (parent.style && parent.style.textDecoration && parent.style.textDecoration.indexOf('line-through') !== -1))) {
+                    isMasterUnavailable = true;
+                }
+                break;
+            }
+        }
+
+        if (!masterRadio || isMasterUnavailable) {
+            autoCatchStepInProgress = true;
+            try {
+                sessionStorage.removeItem('deluge_autocatch_active');
+                sessionStorage.setItem('deluge_autocatch_out_of_stock', 'true');
+            } catch (_) {}
+            const outOfStockDelay = getRandomCatchDelay(5000, 15000);
+            ipcRenderer.sendToHost('autocatch-status', {
+                step: 'out-of-stock',
+                delay: outOfStockDelay
+            });
+            console.warn('[AutoCatch] Master Ball out of stock or unavailable! Redirecting directly to previous map in ' + outOfStockDelay + 'ms.');
+
+            setTimeout(() => {
+                let returnUrl = '/map';
+                try {
+                    returnUrl = sessionStorage.getItem('deluge_last_map_url') || '/map';
+                } catch (_) {}
+
+                window.location.href = returnUrl;
+                autoCatchStepInProgress = false;
+            }, outOfStockDelay);
+            return;
+        }
+
+        autoCatchStepInProgress = true;
+        if (typeof masterStock === 'number') {
+            try { sessionStorage.setItem('deluge_autocatch_stock', String(masterStock)); } catch (_) {}
+        }
+
+        if (!masterRadio.checked) {
+            const selectDelay = getRandomCatchDelay(1000, 10000);
+            ipcRenderer.sendToHost('autocatch-status', {
+                step: 'selecting-master-ball',
+                delay: selectDelay,
+                stock: masterStock
+            });
+
+            setTimeout(() => {
+                dispatchHumanClick(masterRadio);
+                masterRadio.checked = true;
+                masterRadio.dispatchEvent(new Event('change', { bubbles: true }));
+
+                const throwDelay = getRandomCatchDelay(1000, 10000);
+                ipcRenderer.sendToHost('autocatch-status', {
+                    step: 'throwing-master-ball',
+                    delay: throwDelay,
+                    stock: masterStock
+                });
+
+                setTimeout(() => {
+                    const activeThrowBtn = document.querySelector('input[type="submit"][value*="Throw" i], button[value*="Throw" i], input[value*="Throw" i]') || throwBtn;
+                    if (activeThrowBtn) {
+                        try { sessionStorage.setItem('deluge_autocatch_thrown', 'true'); } catch (_) {}
+                        dispatchHumanClick(activeThrowBtn);
+                    }
+                    autoCatchStepInProgress = false;
+                }, throwDelay);
+            }, selectDelay);
+            return;
+        } else {
+            const throwDelay = getRandomCatchDelay(1000, 10000);
+            ipcRenderer.sendToHost('autocatch-status', {
+                step: 'throwing-master-ball',
+                delay: throwDelay,
+                stock: masterStock
+            });
+
+            setTimeout(() => {
+                const activeThrowBtn = document.querySelector('input[type="submit"][value*="Throw" i], button[value*="Throw" i], input[value*="Throw" i]') || throwBtn;
+                if (activeThrowBtn) {
+                    try { sessionStorage.setItem('deluge_autocatch_thrown', 'true'); } catch (_) {}
+                    dispatchHumanClick(activeThrowBtn);
+                }
+                autoCatchStepInProgress = false;
+            }, throwDelay);
+            return;
+        }
+    }
+}
+
+// Attach Auto-Catch listeners
+setInterval(runAutoCatchLifecycle, 400);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runAutoCatchLifecycle);
+} else {
+    runAutoCatchLifecycle();
+}
+window.addEventListener('load', runAutoCatchLifecycle);
 

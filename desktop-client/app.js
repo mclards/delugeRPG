@@ -179,6 +179,7 @@ const walkModeSelect = document.getElementById('walkModeSelect');
 const stepsPerDirInput = document.getElementById('stepsPerDirInput');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
+const statusChip = document.getElementById('statusChip');
 const stepCounterElem = document.getElementById('stepCounter');
 const zoomOutBtn = document.getElementById('zoomOutBtn');
 const zoomResetBtn = document.getElementById('zoomResetBtn');
@@ -275,6 +276,7 @@ const accUser = document.getElementById('accUser');
 const accPass = document.getElementById('accPass');
 const fillLoginBtn = document.getElementById('fillLoginBtn');
 const closeAccBtn = document.getElementById('closeAccBtn');
+const cancelAccBtn = document.getElementById('cancelAccBtn');
 const modalBackdrop = document.getElementById('modalBackdrop');
 const wipeModal = document.getElementById('wipeModal');
 const closeWipeBtn = document.getElementById('closeWipeBtn');
@@ -290,10 +292,15 @@ let soundEnabled = config.settings.soundAlert !== false;
 let mapIsSearching = false;
 let isEncounterOnScreen = false;
 let isStepPending = false;
+let stepPendingTicks = 0;
+let userManuallyPaused = false;
 let isGuestInputFocused = false;
 let currentZoomFactor = (config.settings && typeof config.settings.zoomFactor === 'number')
   ? config.settings.zoomFactor
   : 1.0;
+let autoStartTimer = null;
+let autoStartCountdownTimer = null;
+let autoStartRemainingSeconds = 0;
 
 // Pacing & Fatigue State
 let stepsSinceLastMicroBreak = 0;
@@ -442,82 +449,146 @@ function applyNetworkInfo(info, callback) {
 }
 
 function queryIpWhoIs(callback) {
-  const req = https.get('https://ipwho.is/', { timeout: 4500 }, (res) => {
+  let done = false;
+  let timer = null;
+  const finish = (err, data) => {
+    if (done) return;
+    done = true;
+    if (timer) clearTimeout(timer);
+    callback(err, data);
+  };
+  timer = setTimeout(() => {
+    try { req.destroy(); } catch (_) {}
+    finish(new Error('Timeout'));
+  }, 3500);
+
+  const req = https.get('https://ipwho.is/', { timeout: 3500 }, (res) => {
     let raw = '';
     res.on('data', chunk => raw += chunk);
     res.on('end', () => {
       try {
-        if (res.statusCode !== 200) return callback(new Error('HTTP ' + res.statusCode));
+        if (res.statusCode !== 200) return finish(new Error('HTTP ' + res.statusCode));
         const json = JSON.parse(raw);
-        if (!json.success || !json.ip) return callback(new Error('ipwho.is unsuccessful'));
+        if (!json.success || !json.ip) return finish(new Error('ipwho.is unsuccessful'));
         const org = (json.connection && json.connection.org) || '';
         const ispRaw = (json.connection && json.connection.isp) || '';
         const asn = (json.connection && json.connection.asn) ? ('AS' + json.connection.asn) : '';
-        callback(null, parseNetworkDetails(json.ip, org, ispRaw, asn, ''));
+        finish(null, parseNetworkDetails(json.ip, org, ispRaw, asn, ''));
       } catch (e) {
-        callback(e);
+        finish(e);
       }
     });
   });
-  req.on('timeout', () => { req.destroy(); callback(new Error('Timeout')); });
-  req.on('error', (err) => callback(err));
+  req.on('timeout', () => {
+    try { req.destroy(); } catch (_) {}
+    finish(new Error('Timeout'));
+  });
+  req.on('error', (err) => finish(err));
 }
 
 function queryIpApi(callback) {
-  const req = http.get('http://ip-api.com/json', { timeout: 4500 }, (res) => {
+  let done = false;
+  let timer = null;
+  const finish = (err, data) => {
+    if (done) return;
+    done = true;
+    if (timer) clearTimeout(timer);
+    callback(err, data);
+  };
+  timer = setTimeout(() => {
+    try { req.destroy(); } catch (_) {}
+    finish(new Error('Timeout'));
+  }, 3500);
+
+  const req = http.get('http://ip-api.com/json', { timeout: 3500 }, (res) => {
     let raw = '';
     res.on('data', chunk => raw += chunk);
     res.on('end', () => {
       try {
-        if (res.statusCode !== 200) return callback(new Error('HTTP ' + res.statusCode));
+        if (res.statusCode !== 200) return finish(new Error('HTTP ' + res.statusCode));
         const json = JSON.parse(raw);
-        if (json.status !== 'success' || !json.query) return callback(new Error('ip-api unsuccessful'));
-        callback(null, parseNetworkDetails(json.query, json.org || '', json.isp || '', json.as || '', ''));
+        if (json.status !== 'success' || !json.query) return finish(new Error('ip-api unsuccessful'));
+        finish(null, parseNetworkDetails(json.query, json.org || '', json.isp || '', json.as || '', ''));
       } catch (e) {
-        callback(e);
+        finish(e);
       }
     });
   });
-  req.on('timeout', () => { req.destroy(); callback(new Error('Timeout')); });
-  req.on('error', (err) => callback(err));
+  req.on('timeout', () => {
+    try { req.destroy(); } catch (_) {}
+    finish(new Error('Timeout'));
+  });
+  req.on('error', (err) => finish(err));
 }
 
 function queryIpInfo(callback) {
-  const req = https.get('https://ipinfo.io/json', { timeout: 4500 }, (res) => {
+  let done = false;
+  let timer = null;
+  const finish = (err, data) => {
+    if (done) return;
+    done = true;
+    if (timer) clearTimeout(timer);
+    callback(err, data);
+  };
+  timer = setTimeout(() => {
+    try { req.destroy(); } catch (_) {}
+    finish(new Error('Timeout'));
+  }, 3500);
+
+  const req = https.get('https://ipinfo.io/json', { timeout: 3500 }, (res) => {
     let raw = '';
     res.on('data', chunk => raw += chunk);
     res.on('end', () => {
       try {
-        if (res.statusCode !== 200) return callback(new Error('HTTP ' + res.statusCode));
+        if (res.statusCode !== 200) return finish(new Error('HTTP ' + res.statusCode));
         const json = JSON.parse(raw);
-        if (!json.ip) return callback(new Error('ipinfo no ip'));
-        callback(null, parseNetworkDetails(json.ip, json.org || '', '', '', json.hostname || ''));
+        if (!json.ip) return finish(new Error('ipinfo no ip'));
+        finish(null, parseNetworkDetails(json.ip, json.org || '', '', '', json.hostname || ''));
       } catch (e) {
-        callback(e);
+        finish(e);
       }
     });
   });
-  req.on('timeout', () => { req.destroy(); callback(new Error('Timeout')); });
-  req.on('error', (err) => callback(err));
+  req.on('timeout', () => {
+    try { req.destroy(); } catch (_) {}
+    finish(new Error('Timeout'));
+  });
+  req.on('error', (err) => finish(err));
 }
 
 function queryIpify(callback) {
-  const req = https.get('https://api.ipify.org?format=json', { timeout: 4500 }, (res) => {
+  let done = false;
+  let timer = null;
+  const finish = (err, data) => {
+    if (done) return;
+    done = true;
+    if (timer) clearTimeout(timer);
+    callback(err, data);
+  };
+  timer = setTimeout(() => {
+    try { req.destroy(); } catch (_) {}
+    finish(new Error('Timeout'));
+  }, 3500);
+
+  const req = https.get('https://api.ipify.org?format=json', { timeout: 3500 }, (res) => {
     let raw = '';
     res.on('data', chunk => raw += chunk);
     res.on('end', () => {
       try {
-        if (res.statusCode !== 200) return callback(new Error('HTTP ' + res.statusCode));
+        if (res.statusCode !== 200) return finish(new Error('HTTP ' + res.statusCode));
         const json = JSON.parse(raw);
-        if (!json.ip) return callback(new Error('ipify no ip'));
-        callback(null, parseNetworkDetails(json.ip, '', '', '', ''));
+        if (!json.ip) return finish(new Error('ipify no ip'));
+        finish(null, parseNetworkDetails(json.ip, '', '', '', ''));
       } catch (e) {
-        callback(e);
+        finish(e);
       }
     });
   });
-  req.on('timeout', () => { req.destroy(); callback(new Error('Timeout')); });
-  req.on('error', (err) => callback(err));
+  req.on('timeout', () => {
+    try { req.destroy(); } catch (_) {}
+    finish(new Error('Timeout'));
+  });
+  req.on('error', (err) => finish(err));
 }
 
 function detectNetworkIdentity(callback) {
@@ -995,6 +1066,7 @@ function isMapUrl(rawUrl) {
 
 function autoPauseOutsideMap(source = '') {
   cancelPendingAutoStart('Navigated outside map');
+  userManuallyPaused = false;
   if (isRunning) {
     console.log('[Auto-Pause] Hunting auto-paused because client navigated outside map:', source);
     isRunning = false;
@@ -1028,14 +1100,31 @@ function updateToggleButton() {
     toggleBtn.className = 'btn btn-toggle-main btn-paused';
     toggleBtn.title = 'Start Automated Hunting [Space / F2]';
     btnIcon.innerHTML = '&#9654;';
-    if (btnText) btnText.textContent = 'Paused';
-    updateStatus('Paused', '#f59e0b');
+    if (btnText) {
+      if (autoStartRemainingSeconds > 0) {
+        btnText.textContent = `Auto (${autoStartRemainingSeconds}s)`;
+      } else {
+        btnText.textContent = 'Paused';
+      }
+    }
+    if (autoStartRemainingSeconds <= 0) {
+      updateStatus('Paused', '#f59e0b');
+    }
   }
   syncHuntingState();
 }
 
 function toggleHunting() {
-  cancelPendingAutoStart('Hunting toggled by user');
+  // If an auto-start countdown is currently in progress, clicking the toggle aborts auto-start and enforces a manual pause!
+  if (autoStartRemainingSeconds > 0) {
+    cancelPendingAutoStart('Manual pause during auto-start countdown');
+    userManuallyPaused = true;
+    isRunning = false;
+    updateToggleButton();
+    updateStatus('Auto-Start Cancelled (Paused)', '#f59e0b');
+    return;
+  }
+
   if (!isRunning) {
     const curUrl = delugeView ? delugeView.getURL() : '';
     if (curUrl && !isMapUrl(curUrl)) {
@@ -1046,11 +1135,13 @@ function toggleHunting() {
       return;
     }
   }
+
   isRunning = !isRunning;
-  updateToggleButton();
   if (isRunning) {
+    userManuallyPaused = false;
     isEncounterOnScreen = false;
     isStepPending = false;
+    stepPendingTicks = 0;
     wanderStepsLeft = 0;
     isResumingFromMicroPause = false;
     isResumingFromIdlePause = false;
@@ -1065,16 +1156,21 @@ function toggleHunting() {
     const activeVars = (config.settings && config.settings.selectedVariants) || [];
     backendLog('FilterConfig', `Preset: ${(config.settings && config.settings.targetPreset) || 'default'}, Legendaries: ${config.settings.findLegendaries !== false}, Megas: ${config.settings.findMegasAndGigantamax !== false}, Active Variants (${activeVars.length}): [${activeVars.join(', ')}]`);
     backendLog('HuntingStart', `Automated hunting started: direction=${currentDirectionKey}`);
-    scheduleNextStep(200);
+    updateToggleButton();
+    scheduleNextStep(500);
   } else {
+    userManuallyPaused = true;
+    cancelPendingAutoStart('Hunting paused by user');
     backendLog('HuntingPause', 'Automated hunting paused by user');
     isStepPending = false;
+    stepPendingTicks = 0;
     isResumingFromMicroPause = false;
     isResumingFromIdlePause = false;
     if (walkTimeout) {
       clearTimeout(walkTimeout);
       walkTimeout = null;
     }
+    updateToggleButton();
   }
 }
 
@@ -1444,21 +1540,8 @@ function sendKeyStep(keyName) {
 
     backendLog('StepDispatch', `Sending key: ${keyName} (patternStepCount=${patternStepCount}, isPending=${isStepPending})`);
 
-    const isDiagonal = keyName.indexOf('-') !== -1;
-
-    if (isDiagonal) {
-      // Direct nav button click on DelugeRPG D-Pad (#dr-nw, #dr-ne, #dr-sw, #dr-se)
-      delugeView.send('click-nav-button', { direction: keyName });
-    } else {
-      // Cardinal direction: Physical keyboard event + nav button click fallback
-      delugeView.focus();
-      delugeView.sendInputEvent({ type: 'keyDown', keyCode: keyName });
-      const dwell = Math.floor(Math.random() * 40) + 75;
-      setTimeout(() => {
-        delugeView.sendInputEvent({ type: 'keyUp', keyCode: keyName });
-      }, dwell);
-      delugeView.send('click-nav-button', { direction: keyName });
-    }
+    // Atomic movement dispatch: exactly ONE action per step (prevents double-dispatch and encounter skipping)
+    delugeView.send('click-nav-button', { direction: keyName });
 
     // Subtle human mouse micro-motion to satisfy Deluge m_x telemetry
     if (Math.random() < 0.35) {
@@ -1470,17 +1553,17 @@ function sendKeyStep(keyName) {
     // Notify guest webview preload of dispatched step
     delugeView.send('step-dispatched', { direction: keyName, time: Date.now() });
 
-    // Fallback collision timer: Safety net if preload doesn't resolve within 1600ms
+    // Fallback collision timer: Safety net if preload doesn't resolve within 2600ms
     if (fallbackCollisionTimer) clearTimeout(fallbackCollisionTimer);
     fallbackCollisionTimer = setTimeout(() => {
       const isBlocked = isDirectionPhysicallyBlocked(keyName);
-      backendLog('FallbackTimer', `Safety timer expired (1600ms) for direction: ${keyName}, physicallyBlocked=${isBlocked}`);
+      backendLog('FallbackTimer', `Safety timer expired (2600ms) for direction: ${keyName}, physicallyBlocked=${isBlocked}`);
       if (isBlocked) {
         handleMoveBlocked(keyName);
       } else {
         handleMoveSuccess(keyName);
       }
-    }, 1600);
+    }, 2600);
 
     patternStepCount++;
   } catch (err) {
@@ -1514,9 +1597,19 @@ function scheduleNextStep(customDelay = null) {
     if (!isRunning) return;
 
     if (isStepPending) {
-      // Step in flight: wait 250ms and re-check before dispatching next step
-      scheduleNextStep(250);
-      return;
+      stepPendingTicks++;
+      if (stepPendingTicks >= 8) {
+        // Safety recovery: if a guest move-result was dropped or delayed >2s, reset and continue
+        backendLog('StepPendingRecovery', 'isStepPending timeout (2000ms); recovering pending step.');
+        isStepPending = false;
+        stepPendingTicks = 0;
+      } else {
+        // Step in flight: wait 250ms and re-check before dispatching next step
+        scheduleNextStep(250);
+        return;
+      }
+    } else {
+      stepPendingTicks = 0;
     }
 
     try {
@@ -1563,7 +1656,6 @@ function scheduleNextStep(customDelay = null) {
       backendLog(wasMicro ? 'MicroBreak' : 'IdlePause', `Resumed after ${wasMicro ? 'micro-pause' : 'idle pause'}: Changed direction from ${prev} to ${currentDirectionKey}, starting fresh ${compulsorySteps} steps`);
       sendKeyStep(currentDirectionKey);
       updateStatus(`Hunting (${currentDirectionKey})`, '#10b981');
-      scheduleNextStep();
       return;
     }
 
@@ -1601,11 +1693,10 @@ function scheduleNextStep(customDelay = null) {
       }
     }
 
-    // 3. Dispatch Step
+    // 3. Dispatch Step (Pacing is driven by move-result confirmation in handleMoveSuccess)
     const key = getNextKey();
     sendKeyStep(key);
     updateStatus(`Hunting (${key})`, '#10b981');
-    scheduleNextStep();
   }, delay);
 }
 
@@ -1698,6 +1789,11 @@ function handleMoveSuccess(dir) {
   if (stepCounterElem) {
     stepCounterElem.textContent = `Steps: ${stepCount}`;
   }
+
+  // Schedule next step only after previous step confirmed and new encounter has rendered on screen
+  if (isRunning) {
+    scheduleNextStep(getHardenedHumanDelay());
+  }
 }
 
 // Webview Diagnostics & Logging Forwarder
@@ -1712,10 +1808,6 @@ delugeView.addEventListener('preload-error', (e) => {
 });
 
 // Navigation Safety: Auto-pause outside maps, Auto-start when map is opened with safety delay
-let autoStartTimer = null;
-let autoStartCountdownTimer = null;
-let autoStartRemainingSeconds = 0;
-
 function cancelPendingAutoStart(reason = '') {
   if (autoStartTimer) {
     clearTimeout(autoStartTimer);
@@ -1739,6 +1831,7 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
   const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
   if (!shouldAutoStart) return;
   if (isRunning) return;
+  if (userManuallyPaused) return;
   if (isEncounterOnScreen) return;
   if (isUnlockChallengeActive) {
     backendLog('AutoStart', 'Skipping auto-start: captcha challenge active.');
@@ -1753,16 +1846,19 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
 
   backendLog('AutoStart', `${sourceReason}. Pending auto-start scheduled in ${delaySec}s to allow map scripts and security checks to settle.`);
   updateStatus(`Map loaded. Auto-starting in ${autoStartRemainingSeconds}s...`, '#f59e0b');
+  if (btnText && !isRunning) btnText.textContent = `Auto (${autoStartRemainingSeconds}s)`;
 
   autoStartCountdownTimer = setInterval(() => {
     autoStartRemainingSeconds--;
     if (autoStartRemainingSeconds > 0) {
       const activeUrl = (delugeView && delugeView.getURL()) || '';
-      if (!isMapUrl(activeUrl) || isUnlockChallengeActive || isEncounterOnScreen || isRunning) {
+      if (!isMapUrl(activeUrl) || isUnlockChallengeActive || isEncounterOnScreen || isRunning || userManuallyPaused) {
         cancelPendingAutoStart('Conditions changed during countdown');
+        updateToggleButton();
         return;
       }
       updateStatus(`Map loaded. Auto-starting in ${autoStartRemainingSeconds}s...`, '#f59e0b');
+      if (btnText && !isRunning) btnText.textContent = `Auto (${autoStartRemainingSeconds}s)`;
     }
   }, 1000);
 
@@ -1783,10 +1879,16 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
       return;
     }
     if (isRunning) return;
+    if (userManuallyPaused) {
+      backendLog('AutoStart', 'Aborted auto-start: user manually paused.');
+      return;
+    }
 
     backendLog('AutoStart', `Security delay (${delaySec}s) elapsed without captcha. Auto-starting hunting session.`);
     isRunning = true;
+    userManuallyPaused = false;
     isStepPending = false;
+    stepPendingTicks = 0;
     updateToggleButton();
     syncHuntingState();
     updateStatus('Hunting Active (Auto-Started)', '#22c55e');
@@ -1797,28 +1899,23 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
 function handleMapNavigation(url) {
   if (!isMapUrl(url)) {
     cancelPendingAutoStart('Navigated outside map');
+    userManuallyPaused = false;
     autoPauseOutsideMap(url);
   } else {
-    isEncounterOnScreen = false;
     if (isUnlockChallengeActive) {
       isUnlockChallengeActive = false;
       backendLog('SecurityChallenge', 'Navigated back to map from /unlock. Captcha completed.');
       updateStatus('Ready to Hunt (Captcha Solved)', '#10b981');
     }
-    // Auto-start hunting whenever map is opened if enabled!
+    // Auto-start hunting whenever map is opened if enabled, unless user manually paused!
     const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
-    if (!isRunning && shouldAutoStart) {
+    if (!isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
       triggerDelayedAutoStart('Map opened');
     }
   }
 }
 
 delugeView.addEventListener('did-navigate', (event) => {
-  const url = event.url || (delugeView && delugeView.getURL()) || '';
-  handleMapNavigation(url);
-});
-
-delugeView.addEventListener('did-navigate-in-page', (event) => {
   const url = event.url || (delugeView && delugeView.getURL()) || '';
   handleMapNavigation(url);
 });
@@ -1916,6 +2013,7 @@ delugeView.addEventListener('ipc-message', (event) => {
       walkTimeout = null;
     }
     isRunning = false;
+    userManuallyPaused = true;
     isEncounterOnScreen = true;
     updateToggleButton();
 
@@ -1980,7 +2078,7 @@ delugeView.addEventListener('dom-ready', () => {
   }
   const curUrl = (delugeView && delugeView.getURL()) || '';
   const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
-  if (isMapUrl(curUrl) && !isRunning && !isEncounterOnScreen && shouldAutoStart) {
+  if (isMapUrl(curUrl) && !isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
     triggerDelayedAutoStart('Map loaded on startup');
   }
 });
@@ -2027,6 +2125,7 @@ function closeAllModals() {
     }
   }
 }
+closeAllModals();
 
 // Stop click bubbling on modals so clicks never reach backdrop or outside handlers
 [targetModal, networkModal, accountModal, wipeModal].forEach(m => {

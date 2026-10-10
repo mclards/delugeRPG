@@ -828,78 +828,175 @@
 
     function checkEncounterIsDuplicate(container) {
         if (!container) {
-            container = document.getElementById('showpoke') ||
-                        document.querySelector('.showpoke') ||
-                        document.getElementById('showpoke-name') ||
-                        document.getElementById('dexy') ||
-                        document.querySelector('.dexy');
+            container = getEncounterContainer();
         }
-        if (!container) return false;
 
-        const rawText = (container.innerText || container.textContent || '').toLowerCase();
-        if (rawText.indexOf('already caught') !== -1 || rawText.indexOf('already in pokedex') !== -1 || rawText.indexOf('already owned') !== -1) {
-            return true;
-        }
-        if (rawText.indexOf('not caught') !== -1 || rawText.indexOf('uncaught') !== -1 || rawText.indexOf('not in pokedex') !== -1 || rawText.indexOf('new pokemon') !== -1) {
+        // 1. Check text content for explicit caught/uncaught status
+        const checkText = container ? (container.innerText || container.textContent || '') : '';
+        const rawText = checkText.toLowerCase();
+
+        // 1A. Explicit UNCAUGHT text
+        if (rawText.indexOf("don't have this pokemon") !== -1 ||
+            rawText.indexOf("dont have this pokemon") !== -1 ||
+            rawText.indexOf("do not have this pokemon") !== -1 ||
+            rawText.indexOf("not in your box") !== -1 ||
+            rawText.indexOf('not caught') !== -1 ||
+            rawText.indexOf('uncaught') !== -1 ||
+            rawText.indexOf('not in pokedex') !== -1 ||
+            rawText.indexOf('new pokemon') !== -1) {
             return false;
         }
 
-        const imgs = Array.from(container.querySelectorAll('img'));
+        // 1B. Explicit CAUGHT / DUPLICATE text
+        if (rawText.indexOf('you have this pokemon in your box') !== -1 ||
+            rawText.indexOf('already in your box') !== -1 ||
+            rawText.indexOf('already caught') !== -1 ||
+            rawText.indexOf('already in pokedex') !== -1 ||
+            rawText.indexOf('already owned') !== -1 ||
+            rawText.indexOf('pokedex: caught') !== -1 ||
+            rawText.indexOf('dex: caught') !== -1) {
+            return true;
+        }
+
+        // 2. Aggregate all candidate encounter containers
+        const candidateBoxes = [];
+        if (container) candidateBoxes.push(container);
+        const domBoxes = [
+            document.getElementById('showpoke'),
+            document.querySelector('.showpoke'),
+            document.getElementById('showpoke-name'),
+            document.querySelector('.showpoke-name'),
+            document.querySelector('.catch-form'),
+            document.getElementById('show-pokemon'),
+            document.querySelector('.show-pokemon'),
+            document.getElementById('dexy'),
+            document.querySelector('.dexy'),
+            document.querySelector('[class*="encounter" i]'),
+            document.querySelector('[id*="encounter" i]'),
+            document.querySelector('form[action*="catch"]'),
+            document.querySelector('form[action*="battle"]')
+        ];
+        for (let b = 0; b < domBoxes.length; b++) {
+            if (domBoxes[b] && candidateBoxes.indexOf(domBoxes[b]) === -1) {
+                candidateBoxes.push(domBoxes[b]);
+            }
+        }
+
+        // 3. Scan candidate containers for any explicit tooltip/attribute text on links or elements
+        for (let r = 0; r < candidateBoxes.length; r++) {
+            const root = candidateBoxes[r];
+            if (!root) continue;
+            const elementsWithTitle = root.querySelectorAll ? root.querySelectorAll('[title], [alt], [data-original-title], [aria-label]') : [];
+            for (let t = 0; t < elementsWithTitle.length; t++) {
+                const el = elementsWithTitle[t];
+                if (el.closest && el.closest('#map, #userpokeballs, .userpokeballs, #myteam, .user-avatar, .bag, #inventory')) {
+                    continue;
+                }
+                const titleStr = [
+                    el.getAttribute('title') || '',
+                    el.getAttribute('alt') || '',
+                    el.getAttribute('data-original-title') || '',
+                    el.getAttribute('aria-label') || ''
+                ].join(' ').toLowerCase();
+
+                if (titleStr.indexOf("don't have") !== -1 || titleStr.indexOf("dont have") !== -1 ||
+                    titleStr.indexOf("do not have") !== -1 || titleStr.indexOf("not in your box") !== -1 ||
+                    titleStr.indexOf("not in pokedex") !== -1 || titleStr.indexOf("not caught") !== -1 ||
+                    titleStr.indexOf("uncaught") !== -1) {
+                    return false;
+                }
+
+                if (titleStr.indexOf("you have this pokemon in your box") !== -1 ||
+                    titleStr.indexOf("already in your box") !== -1 ||
+                    titleStr.indexOf("already caught") !== -1 ||
+                    titleStr.indexOf("already owned") !== -1 ||
+                    titleStr.indexOf("you have this pokemon") !== -1 ||
+                    titleStr.indexOf("in your box") !== -1) {
+                    return true;
+                }
+            }
+        }
+
         let indicatorImg = null;
 
-        for (let i = 0; i < imgs.length; i++) {
-            const img = imgs[i];
-            const src = (img.src || '').toLowerCase();
-            const alt = (img.alt || '').toLowerCase();
-            const title = (img.title || '').toLowerCase();
-            const className = (img.className || '').toLowerCase();
+        for (let r = 0; r < candidateBoxes.length; r++) {
+            const root = candidateBoxes[r];
+            const imgs = root.querySelectorAll ? root.querySelectorAll('img') : [];
 
-            if (src.indexOf('/pokemon/') !== -1 || src.indexOf('/sprites/') !== -1 || (src.indexOf('/dex/') !== -1 && (src.indexOf('front') !== -1 || src.indexOf('back') !== -1))) {
-                if (img.naturalWidth > 40 || img.naturalHeight > 40 || img.width > 40 || img.height > 40) {
+            for (let i = 0; i < imgs.length; i++) {
+                const img = imgs[i];
+
+                if (img.closest && img.closest('#map, #userpokeballs, .userpokeballs, #myteam, .user-avatar, .site-header, .page-header, body > header, nav, footer, .bag, #inventory')) {
                     continue;
+                }
+
+                const src = (img.src || '').toLowerCase();
+                const alt = (img.alt || '').toLowerCase();
+                const title = (img.title || '').toLowerCase();
+                const className = (img.className || '').toLowerCase();
+
+                if (src.indexOf('/pokemon/') !== -1 || src.indexOf('/sprites/') !== -1 || (src.indexOf('/dex/') !== -1 && (src.indexOf('front') !== -1 || src.indexOf('back') !== -1))) {
+                    if (img.naturalWidth > 40 || img.naturalHeight > 40 || img.width > 40 || img.height > 40) {
+                        continue;
+                    }
+                }
+
+                if (src.indexOf('/types/') !== -1 || src.indexOf('/type/') !== -1 || alt.indexOf('type') !== -1 || title.indexOf('type') !== -1) {
+                    continue;
+                }
+
+                const isBallOrDex = src.indexOf('dball') !== -1 || src.indexOf('pokeball') !== -1 || src.indexOf('ball') !== -1 ||
+                                    src.indexOf('caught') !== -1 || src.indexOf('pokedex') !== -1 || src.indexOf('dexball') !== -1 ||
+                                    alt.indexOf('caught') !== -1 || title.indexOf('caught') !== -1 ||
+                                    alt.indexOf('dex') !== -1 || title.indexOf('dex') !== -1 ||
+                                    alt.indexOf('ball') !== -1 || title.indexOf('ball') !== -1 ||
+                                    className.indexOf('caught') !== -1 || className.indexOf('ball') !== -1 || className.indexOf('dex') !== -1;
+
+                const isSmallIcon = (img.naturalWidth > 0 && img.naturalWidth <= 32) || (img.width > 0 && img.width <= 32);
+
+                if (isBallOrDex || (isSmallIcon && src.indexOf('/pokemon/') === -1)) {
+                    indicatorImg = img;
+                    break;
                 }
             }
 
-            if (src.indexOf('/types/') !== -1 || src.indexOf('/type/') !== -1 || alt.indexOf('type') !== -1 || title.indexOf('type') !== -1) {
-                continue;
-            }
-
-            const isBallOrDex = src.indexOf('dball') !== -1 || src.indexOf('pokeball') !== -1 || src.indexOf('ball') !== -1 ||
-                                src.indexOf('caught') !== -1 || src.indexOf('pokedex') !== -1 || src.indexOf('dexball') !== -1 ||
-                                alt.indexOf('caught') !== -1 || title.indexOf('caught') !== -1 ||
-                                alt.indexOf('dex') !== -1 || title.indexOf('dex') !== -1 ||
-                                alt.indexOf('ball') !== -1 || title.indexOf('ball') !== -1 ||
-                                className.indexOf('caught') !== -1 || className.indexOf('ball') !== -1 || className.indexOf('dex') !== -1;
-
-            const isSmallIcon = (img.naturalWidth > 0 && img.naturalWidth <= 32) || (img.width > 0 && img.width <= 32);
-
-            if (isBallOrDex || (isSmallIcon && src.indexOf('/pokemon/') === -1)) {
-                indicatorImg = img;
-                break;
-            }
+            if (indicatorImg) break;
         }
 
         if (!indicatorImg) return false;
 
         const indSrc = (indicatorImg.src || '').toLowerCase();
-        const indAlt = (indicatorImg.alt || '').toLowerCase();
-        const indTitle = (indicatorImg.title || '').toLowerCase();
         const indClass = (indicatorImg.className || '').toLowerCase();
 
-        // 1. Explicit UNCAUGHT text in title or alt (HIGHEST PRIORITY)
-        // DelugeRPG exact text: "you don't have this pokemon in your box."
+        // Check attributes on indicator element, its parent element, and enclosing link
+        const parentEl = indicatorImg.parentElement;
+        const linkEl = indicatorImg.closest ? indicatorImg.closest('a, span, div') : null;
+        const allIndicatorTexts = [
+            indicatorImg.title || '',
+            indicatorImg.getAttribute('title') || '',
+            indicatorImg.alt || '',
+            indicatorImg.getAttribute('alt') || '',
+            indicatorImg.getAttribute('data-original-title') || '',
+            indicatorImg.getAttribute('aria-label') || '',
+            parentEl ? (parentEl.title || parentEl.getAttribute('title') || '') : '',
+            parentEl ? (parentEl.getAttribute('data-original-title') || '') : '',
+            linkEl ? (linkEl.title || linkEl.getAttribute('title') || '') : '',
+            linkEl ? (linkEl.getAttribute('data-original-title') || '') : ''
+        ].join(' ').toLowerCase();
+
+        // 1. Explicit UNCAUGHT text in attributes (HIGHEST PRIORITY)
         const isUncaughtByText =
-            indTitle.indexOf("don't have") !== -1 || indAlt.indexOf("don't have") !== -1 ||
-            indTitle.indexOf("dont have") !== -1 || indAlt.indexOf("dont have") !== -1 ||
-            indTitle.indexOf("do not have") !== -1 || indAlt.indexOf("do not have") !== -1 ||
-            indTitle.indexOf("not in your box") !== -1 || indAlt.indexOf("not in your box") !== -1 ||
-            indTitle.indexOf("not in pokedex") !== -1 || indAlt.indexOf("not in pokedex") !== -1 ||
-            indTitle.indexOf("not caught") !== -1 || indAlt.indexOf("not caught") !== -1 ||
-            indTitle.indexOf("uncaught") !== -1 || indAlt.indexOf("uncaught") !== -1 ||
-            indTitle.indexOf("not owned") !== -1 || indAlt.indexOf("not owned") !== -1 ||
-            indTitle.indexOf("unowned") !== -1 || indAlt.indexOf("unowned") !== -1 ||
-            indTitle.indexOf("missing") !== -1 || indAlt.indexOf("missing") !== -1 ||
-            indTitle.indexOf("new pokemon") !== -1 || indAlt.indexOf("new pokemon") !== -1;
+            allIndicatorTexts.indexOf("don't have") !== -1 ||
+            allIndicatorTexts.indexOf("dont have") !== -1 ||
+            allIndicatorTexts.indexOf("do not have") !== -1 ||
+            allIndicatorTexts.indexOf("not in your box") !== -1 ||
+            allIndicatorTexts.indexOf("not in pokedex") !== -1 ||
+            allIndicatorTexts.indexOf("not caught") !== -1 ||
+            allIndicatorTexts.indexOf("uncaught") !== -1 ||
+            allIndicatorTexts.indexOf("not owned") !== -1 ||
+            allIndicatorTexts.indexOf("unowned") !== -1 ||
+            allIndicatorTexts.indexOf("missing") !== -1 ||
+            allIndicatorTexts.indexOf("new pokemon") !== -1;
 
         if (isUncaughtByText) {
             return false;
@@ -913,13 +1010,14 @@
             indSrc.indexOf('-n.gif') !== -1 || indSrc.indexOf('_n.gif') !== -1 ||
             indSrc.indexOf('-no.png') !== -1 || indSrc.indexOf('_no.png') !== -1 ||
             indSrc.indexOf('-off.png') !== -1 || indSrc.indexOf('_off.png') !== -1 ||
+            indSrc.indexOf('dball_off') !== -1 || indSrc.indexOf('dball-off') !== -1 ||
+            indSrc.indexOf('dball_grey') !== -1 || indSrc.indexOf('dball_gray') !== -1 ||
+            indSrc.indexOf('dball_bw') !== -1 ||
             indSrc.indexOf('grey') !== -1 || indSrc.indexOf('gray') !== -1 ||
             indSrc.indexOf('bw') !== -1 || indSrc.indexOf('blackwhite') !== -1 ||
             indSrc.indexOf('empty') !== -1 || indSrc.indexOf('uncaught') !== -1 ||
-            indSrc.indexOf('nocatch') !== -1 || indSrc.indexOf('off') !== -1 ||
-            indSrc.indexOf('not_caught') !== -1 || indSrc.indexOf('0.png') !== -1 ||
-            indSrc.indexOf('dball_off') !== -1 || indSrc.indexOf('dball_grey') !== -1 ||
-            indSrc.indexOf('dball_gray') !== -1 || indSrc.indexOf('dball_bw') !== -1;
+            indSrc.indexOf('nocatch') !== -1 || indSrc.indexOf('not_caught') !== -1 ||
+            indSrc.indexOf('0.png') !== -1;
 
         if (isUncaughtBySrc) {
             return false;
@@ -931,7 +1029,8 @@
             indClass.indexOf('uncaught') !== -1 || indClass.indexOf('not-caught') !== -1 ||
             indClass.indexOf('dont-have') !== -1 || indClass.indexOf('unowned') !== -1 ||
             indClass.indexOf('bw') !== -1 || indClass.indexOf('disabled') !== -1 ||
-            indClass.indexOf('desaturated') !== -1 || indClass.indexOf('off') !== -1;
+            indClass.indexOf('desaturated') !== -1 ||
+            (indClass.indexOf('off') !== -1 && indClass.indexOf('official') === -1);
 
         if (isUncaughtByClass) {
             return false;
@@ -948,18 +1047,18 @@
             }
         } catch (_) {}
 
-        // 5. Explicit CAUGHT / DUPLICATE text in title or alt
+        // 5. Explicit CAUGHT / DUPLICATE text in attributes
         const isCaughtByText =
-            indTitle.indexOf('you have this pokemon in your box') !== -1 || indAlt.indexOf('you have this pokemon in your box') !== -1 ||
-            indTitle.indexOf('you have this pokemon') !== -1 || indAlt.indexOf('you have this pokemon') !== -1 ||
-            indTitle.indexOf('in your box') !== -1 || indAlt.indexOf('in your box') !== -1 ||
-            indTitle.indexOf('already caught') !== -1 || indAlt.indexOf('already caught') !== -1 ||
-            indTitle.indexOf('already in pokedex') !== -1 || indAlt.indexOf('already in pokedex') !== -1 ||
-            indTitle.indexOf('already owned') !== -1 || indAlt.indexOf('already owned') !== -1 ||
-            indTitle.indexOf('in pokedex') !== -1 || indAlt.indexOf('in pokedex') !== -1 ||
-            indTitle.indexOf('caught') !== -1 || indAlt.indexOf('caught') !== -1 ||
-            indTitle.indexOf('owned') !== -1 || indAlt.indexOf('owned') !== -1 ||
-            indTitle.indexOf('registered') !== -1 || indAlt.indexOf('registered') !== -1;
+            allIndicatorTexts.indexOf('you have this pokemon in your box') !== -1 ||
+            allIndicatorTexts.indexOf('you have this pokemon') !== -1 ||
+            allIndicatorTexts.indexOf('in your box') !== -1 ||
+            allIndicatorTexts.indexOf('already caught') !== -1 ||
+            allIndicatorTexts.indexOf('already in pokedex') !== -1 ||
+            allIndicatorTexts.indexOf('already owned') !== -1 ||
+            allIndicatorTexts.indexOf('in pokedex') !== -1 ||
+            allIndicatorTexts.indexOf('caught') !== -1 ||
+            allIndicatorTexts.indexOf('owned') !== -1 ||
+            allIndicatorTexts.indexOf('registered') !== -1;
 
         if (isCaughtByText) {
             return true;
@@ -967,7 +1066,9 @@
 
         // 6. Explicit CAUGHT / COLORED ball filename without -n or uncaught markers
         const isStandardCaughtBall =
-            (indSrc.indexOf('ball') !== -1 ||
+            (indSrc.indexOf('pokeball') !== -1 ||
+             indSrc.indexOf('dball') !== -1 ||
+             indSrc.indexOf('ball') !== -1 ||
              indSrc.indexOf('caught') !== -1 ||
              indSrc.indexOf('pokedex') !== -1) &&
             !isUncaughtBySrc;
@@ -976,7 +1077,34 @@
             return true;
         }
 
-        // 7. Safe default: Never assume duplicate
+        // 7. Offscreen Canvas Pixel Sampling (Fallback to verify red dome color)
+        try {
+            if (indicatorImg.tagName === 'IMG' && indicatorImg.complete && indicatorImg.naturalWidth > 0) {
+                const canvas = document.createElement('canvas');
+                const cw = indicatorImg.naturalWidth || 16;
+                const ch = indicatorImg.naturalHeight || 16;
+                canvas.width = cw;
+                canvas.height = ch;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(indicatorImg, 0, 0, cw, ch);
+                const imgData = ctx.getImageData(0, 0, cw, Math.max(1, Math.floor(ch * 0.6))).data;
+                let redPixels = 0;
+                for (let p = 0; p < imgData.length; p += 4) {
+                    const r = imgData[p];
+                    const g = imgData[p + 1];
+                    const b = imgData[p + 2];
+                    const a = imgData[p + 3];
+                    if (a > 120 && r > 140 && (r - g) > 40 && (r - b) > 40) {
+                        redPixels++;
+                    }
+                }
+                if (redPixels >= 3) {
+                    return true;
+                }
+            }
+        } catch (_) {}
+
+        // 8. Safe default: Never assume duplicate
         return false;
     }
 
@@ -1386,6 +1514,18 @@
             triggerTargetFound(targetName);
         }
 
+        function extractEncounterSpeciesName() {
+            const m = pageText.match(/(?:a wild\s+)?([a-z0-9\-\'\s\(\):]+?)\s+appeared/i);
+            if (m && m[1]) {
+                const raw = m[1].trim();
+                const lines = raw.split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+                let name = lines.length > 0 ? lines[lines.length - 1] : raw;
+                name = name.replace(/^a\s+wild\s+/i, '').trim();
+                return name;
+            }
+            return '';
+        }
+
         // 1. Check for ANY Special Sprite Variant (Chrome, Retro, Shadow, Ghostly, Metallic, Dark, Shiny, etc.)
         if (currentFindVariants) {
             for (let i = 0; i < SPECIAL_VARIANTS.length; i++) {
@@ -1400,7 +1540,15 @@
 
         // 2. Check for Mega Evolutions, Gigantamax, Primal & Ultra forms
         if (currentFindMegas) {
-            // A. Form prefix match (e.g., "Mega Charizard", "Gigantamax Pikachu")
+            // A. Category Header Banner check: "MEGA EVOLUTION" or "MEGA POKEMON"
+            const hasMegaBanner = /\bmega\s*(?:evolution|pok[e\u00e9]mon)\b/i.test(pageText);
+            if (hasMegaBanner) {
+                const spec = extractEncounterSpeciesName();
+                handleMatchedTarget('Mega: ' + (spec ? spec.toUpperCase() : 'Pokemon'));
+                return;
+            }
+
+            // B. Form prefix match (e.g., "Mega Charizard", "Gigantamax Pikachu")
             for (let j = 0; j < SPECIAL_FORMS.length; j++) {
                 const form = SPECIAL_FORMS[j];
                 const formMatch = pageText.match(new RegExp('\\b' + form + '[- ]+([a-z0-9\\-\':]+)', 'i'));
@@ -1413,7 +1561,7 @@
                 }
             }
 
-            // B. Full evolutionary families capable of Mega Evolution (Base, Middle, Final)
+            // C. Full evolutionary families capable of Mega Evolution (Base, Middle, Final)
             for (let mg = 0; mg < MEGA_CAPABLE_LOWER.length; mg++) {
                 const megaTarget = MEGA_CAPABLE_LOWER[mg];
                 if (pageText.indexOf(megaTarget) !== -1) {
@@ -1423,8 +1571,30 @@
             }
         }
 
-        // 3. Check Legendaries & Mythicals (Gen 1 to Gen 9)
+        // 3. Check Legendaries, Ultra Beasts, Paradox & Mythicals (Gen 1 to Gen 9)
         if (currentFindLegendaries) {
+            // 3A. Category Header Banner: Ultra Beasts (e.g. ULTRABEAST)
+            if (pageText.indexOf('ultrabeast') !== -1 || /\bultra\s*beasts?\b/i.test(pageText)) {
+                const spec = extractEncounterSpeciesName();
+                handleMatchedTarget('Ultra Beast: ' + (spec ? spec.toUpperCase() : 'Pokemon'));
+                return;
+            }
+
+            // 3B. Category Header Banner: Paradox Pokemon (e.g. PARADOX POKEMON / PARADOX)
+            if (pageText.indexOf('paradox') !== -1 || /\bparadox\s*pok[e\u00e9]mon\b/i.test(pageText)) {
+                const spec = extractEncounterSpeciesName();
+                handleMatchedTarget('Paradox: ' + (spec ? spec.toUpperCase() : 'Pokemon'));
+                return;
+            }
+
+            // 3C. Category Header Banner: Rare & Legendary Pokemon (e.g. LEGENDARY POKEMON / LEGENDARY)
+            if (pageText.indexOf('legendary') !== -1 || /\blegendary\s*pok[e\u00e9]mon\b/i.test(pageText)) {
+                const spec = extractEncounterSpeciesName();
+                handleMatchedTarget('Legendary: ' + (spec ? spec.toUpperCase() : 'Pokemon'));
+                return;
+            }
+
+            // 3D. Comprehensive Species List Fallback (Gen 1 to Gen 9)
             for (let k = 0; k < LEGENDARY_BASE_LOWER.length; k++) {
                 const leg = LEGENDARY_BASE_LOWER[k];
                 if (pageText.indexOf(leg) !== -1) {

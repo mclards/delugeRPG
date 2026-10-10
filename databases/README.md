@@ -8,3 +8,4 @@ This directory contains the verified reference databases for DelugeRPG moves, sk
 - `trainers_database.json`: Comprehensive database of 126 Pokemon across all DelugeRPG Gym Leaders, Elite Four, Champions, and computer trainers, including 4-move rosters, base power, damage ratings, and variant traits.
 - `build_skills_database.js`: Source compiler script that merges the DelugeRPG Attack Guide wiki with Pokemon Showdown data.
 - `build_complete_trainers_database.js`: Source compiler script that validates trainer rosters and cross-references move data.
+

@@ -87,11 +87,25 @@ function createMockEncounterElement(options = {}) {
 function mockCheckDuplicate(container, computedFilter = '', opacity = 1.0) {
   if (!container) return false;
   const rawText = (container.innerText || container.textContent || '').toLowerCase();
-  if (rawText.indexOf('already caught') !== -1 || rawText.indexOf('already in pokedex') !== -1 || rawText.indexOf('already owned') !== -1 || rawText.indexOf('pokedex: caught') !== -1) {
-    return true;
-  }
-  if (rawText.indexOf('not caught') !== -1 || rawText.indexOf('uncaught') !== -1 || rawText.indexOf('not in pokedex') !== -1 || rawText.indexOf('new pokemon') !== -1) {
+  if (rawText.indexOf("don't have this pokemon") !== -1 ||
+      rawText.indexOf("dont have this pokemon") !== -1 ||
+      rawText.indexOf("do not have this pokemon") !== -1 ||
+      rawText.indexOf("not in your box") !== -1 ||
+      rawText.indexOf('not caught') !== -1 ||
+      rawText.indexOf('uncaught') !== -1 ||
+      rawText.indexOf('not in pokedex') !== -1 ||
+      rawText.indexOf('new pokemon') !== -1) {
     return false;
+  }
+
+  if (rawText.indexOf('you have this pokemon in your box') !== -1 ||
+      rawText.indexOf('already in your box') !== -1 ||
+      rawText.indexOf('already caught') !== -1 ||
+      rawText.indexOf('already in pokedex') !== -1 ||
+      rawText.indexOf('already owned') !== -1 ||
+      rawText.indexOf('pokedex: caught') !== -1 ||
+      rawText.indexOf('dex: caught') !== -1) {
+    return true;
   }
 
   const imgs = container.querySelectorAll ? container.querySelectorAll('img') : [];
@@ -130,7 +144,7 @@ function mockCheckDuplicate(container, computedFilter = '', opacity = 1.0) {
       continue;
     }
 
-    const isBallOrDex = src.indexOf('dball') !== -1 || src.indexOf('pokeball') !== -1 ||
+    const isBallOrDex = src.indexOf('pokeball') !== -1 || src.indexOf('dball') !== -1 ||
                         src.indexOf('poke-ball') !== -1 || src.indexOf('poke_ball') !== -1 ||
                         src.indexOf('dexball') !== -1 || src.indexOf('ball') !== -1 ||
                         src.indexOf('caught') !== -1 || src.indexOf('pokedex') !== -1 ||
@@ -159,35 +173,57 @@ function mockCheckDuplicate(container, computedFilter = '', opacity = 1.0) {
   const indTitle = (indicatorImg.title || '').toLowerCase();
   const indClass = (indicatorImg.className || '').toLowerCase();
 
-  if (indTitle.indexOf('not caught') !== -1 || indAlt.indexOf('not caught') !== -1 ||
-      indTitle.indexOf('uncaught') !== -1 || indAlt.indexOf('uncaught') !== -1 ||
-      indTitle.indexOf('not owned') !== -1 || indAlt.indexOf('not owned') !== -1 ||
-      indTitle.indexOf('unowned') !== -1 || indAlt.indexOf('unowned') !== -1) {
+  // 1. Explicit UNCAUGHT text in title or alt (DelugeRPG exact: "you don't have this pokemon in your box.")
+  const isUncaughtByText =
+    indTitle.indexOf("don't have") !== -1 || indAlt.indexOf("don't have") !== -1 ||
+    indTitle.indexOf("dont have") !== -1 || indAlt.indexOf("dont have") !== -1 ||
+    indTitle.indexOf("do not have") !== -1 || indAlt.indexOf("do not have") !== -1 ||
+    indTitle.indexOf("not in your box") !== -1 || indAlt.indexOf("not in your box") !== -1 ||
+    indTitle.indexOf("not in pokedex") !== -1 || indAlt.indexOf("not in pokedex") !== -1 ||
+    indTitle.indexOf("not caught") !== -1 || indAlt.indexOf("not caught") !== -1 ||
+    indTitle.indexOf("uncaught") !== -1 || indAlt.indexOf("uncaught") !== -1 ||
+    indTitle.indexOf("not owned") !== -1 || indAlt.indexOf("not owned") !== -1 ||
+    indTitle.indexOf("unowned") !== -1 || indAlt.indexOf("unowned") !== -1 ||
+    indTitle.indexOf("missing") !== -1 || indAlt.indexOf("missing") !== -1 ||
+    indTitle.indexOf("new pokemon") !== -1 || indAlt.indexOf("new pokemon") !== -1;
+
+  if (isUncaughtByText) {
     return false;
   }
 
-  if (indTitle.indexOf('already caught') !== -1 || indAlt.indexOf('already caught') !== -1 ||
-      indTitle.indexOf('caught') !== -1 || indAlt.indexOf('caught') !== -1 ||
-      indTitle.indexOf('in pokedex') !== -1 || indAlt.indexOf('in pokedex') !== -1 ||
-      indTitle.indexOf('owned') !== -1 || indAlt.indexOf('owned') !== -1) {
-    return true;
-  }
+  // 2. Explicit UNCAUGHT filename patterns (DelugeRPG exact: pokeball-n.png)
+  const isUncaughtBySrc =
+    indSrc.indexOf('pokeball-n') !== -1 ||
+    indSrc.indexOf('dball-n') !== -1 ||
+    indSrc.indexOf('-n.png') !== -1 || indSrc.indexOf('_n.png') !== -1 ||
+    indSrc.indexOf('-n.gif') !== -1 || indSrc.indexOf('_n.gif') !== -1 ||
+    indSrc.indexOf('-no.png') !== -1 || indSrc.indexOf('_no.png') !== -1 ||
+    indSrc.indexOf('-off.png') !== -1 || indSrc.indexOf('_off.png') !== -1 ||
+    indSrc.indexOf('grey') !== -1 || indSrc.indexOf('gray') !== -1 ||
+    indSrc.indexOf('bw') !== -1 || indSrc.indexOf('blackwhite') !== -1 ||
+    indSrc.indexOf('empty') !== -1 || indSrc.indexOf('uncaught') !== -1 ||
+    indSrc.indexOf('nocatch') !== -1 || indSrc.indexOf('off') !== -1 ||
+    indSrc.indexOf('not_caught') !== -1 || indSrc.indexOf('0.png') !== -1 ||
+    indSrc.indexOf('dball_off') !== -1 || indSrc.indexOf('dball_grey') !== -1 ||
+    indSrc.indexOf('dball_gray') !== -1 || indSrc.indexOf('dball_bw') !== -1;
 
-  if (indSrc.indexOf('grey') !== -1 || indSrc.indexOf('gray') !== -1 ||
-      indSrc.indexOf('bw') !== -1 || indSrc.indexOf('blackwhite') !== -1 ||
-      indSrc.indexOf('empty') !== -1 || indSrc.indexOf('uncaught') !== -1 ||
-      indSrc.indexOf('nocatch') !== -1 || indSrc.indexOf('off') !== -1 ||
-      indSrc.indexOf('not_caught') !== -1 || indSrc.indexOf('0.png') !== -1) {
+  if (isUncaughtBySrc) {
     return false;
   }
 
-  if (indClass.indexOf('grey') !== -1 || indClass.indexOf('gray') !== -1 ||
-      indClass.indexOf('uncaught') !== -1 || indClass.indexOf('not-caught') !== -1 ||
-      indClass.indexOf('bw') !== -1 || indClass.indexOf('disabled') !== -1 ||
-      indClass.indexOf('desaturated') !== -1) {
+  // 3. Explicit UNCAUGHT CSS classes
+  const isUncaughtByClass =
+    indClass.indexOf('grey') !== -1 || indClass.indexOf('gray') !== -1 ||
+    indClass.indexOf('uncaught') !== -1 || indClass.indexOf('not-caught') !== -1 ||
+    indClass.indexOf('dont-have') !== -1 || indClass.indexOf('unowned') !== -1 ||
+    indClass.indexOf('bw') !== -1 || indClass.indexOf('disabled') !== -1 ||
+    indClass.indexOf('desaturated') !== -1 || indClass.indexOf('off') !== -1;
+
+  if (isUncaughtByClass) {
     return false;
   }
 
+  // 4. Computed / Inline CSS Filter & Opacity
   const effectiveFilter = computedFilter || (indicatorImg.style && indicatorImg.style.filter ? indicatorImg.style.filter.toLowerCase() : '');
   const effectiveOpacity = (indicatorImg.style && indicatorImg.style.opacity !== undefined) ? indicatorImg.style.opacity : opacity;
 
@@ -195,7 +231,36 @@ function mockCheckDuplicate(container, computedFilter = '', opacity = 1.0) {
     return false;
   }
 
-  return true;
+  // 5. Explicit CAUGHT / DUPLICATE text (DelugeRPG exact: "you have this pokemon in your box.")
+  const isCaughtByText =
+    indTitle.indexOf('you have this pokemon in your box') !== -1 || indAlt.indexOf('you have this pokemon in your box') !== -1 ||
+    indTitle.indexOf('you have this pokemon') !== -1 || indAlt.indexOf('you have this pokemon') !== -1 ||
+    indTitle.indexOf('in your box') !== -1 || indAlt.indexOf('in your box') !== -1 ||
+    indTitle.indexOf('already caught') !== -1 || indAlt.indexOf('already caught') !== -1 ||
+    indTitle.indexOf('already in pokedex') !== -1 || indAlt.indexOf('already in pokedex') !== -1 ||
+    indTitle.indexOf('already owned') !== -1 || indAlt.indexOf('already owned') !== -1 ||
+    indTitle.indexOf('in pokedex') !== -1 || indAlt.indexOf('in pokedex') !== -1 ||
+    indTitle.indexOf('caught') !== -1 || indAlt.indexOf('caught') !== -1 ||
+    indTitle.indexOf('owned') !== -1 || indAlt.indexOf('owned') !== -1 ||
+    indTitle.indexOf('registered') !== -1 || indAlt.indexOf('registered') !== -1;
+
+  if (isCaughtByText) {
+    return true;
+  }
+
+  // 6. Explicit CAUGHT / COLORED ball filename without -n or uncaught markers
+  const isStandardCaughtBall =
+    (indSrc.indexOf('ball') !== -1 ||
+     indSrc.indexOf('caught') !== -1 ||
+     indSrc.indexOf('pokedex') !== -1) &&
+    !isUncaughtBySrc;
+
+  if (isStandardCaughtBall) {
+    return true;
+  }
+
+  // 7. Safe Default: Never assume duplicate
+  return false;
 }
 
 // Scenario 1A: Encounter with Red Pokeball (Already Caught in Dex)
@@ -292,6 +357,32 @@ function mockCheckDuplicate(container, computedFilter = '', opacity = 1.0) {
   const isDupe = mockCheckDuplicate(container, 'saturate(0%)');
   assert.strictEqual(isDupe, false, 'Pokeball with saturate(0%) must be detected as NOT DUPLICATE (greyed out)');
   console.log('[PASS] Scenario 1H: saturate(0%) filter correctly identified as NOT DUPLICATE');
+}
+
+// Scenario 1I: EXACT DelugeRPG Production Uncaught: Shadow Ogerpon with pokeball-n.png
+{
+  const container = createMockEncounterElement({
+    text: 'Legendary Pokemon\nShadow Ogerpon (Wellspring Mask) Appeared!\nLevel: 67 HP: 268\nGrass Water\nTry to Catch It',
+    star: { src: 'https://i.dstatic.com/images/star.png' },
+    sprite: 'https://i.dstatic.com/pokemon/shadow/ogerpon-wellspring.png',
+    indicator: { src: 'https://i.dstatic.com/images/pokeball-n.png', title: "you don't have this pokemon in your box.", width: 16, height: 16 },
+    typeBadge: { src: 'https://i.dstatic.com/images/types/grass.png' }
+  });
+  const isDupe = mockCheckDuplicate(container, 'none', 1.0);
+  assert.strictEqual(isDupe, false, 'Shadow Ogerpon with pokeball-n.png MUST be detected as NOT DUPLICATE');
+  console.log('[PASS] Scenario 1I: Shadow Ogerpon production encounter correctly identified as NOT DUPLICATE');
+}
+
+// Scenario 1J: Inconclusive icon (Default to NOT DUPLICATE for safety)
+{
+  const container = createMockEncounterElement({
+    text: 'Legendary Pokemon\nA wild Rayquaza appeared!\nLevel: 70\nTry to Catch It',
+    sprite: 'https://i.dstatic.com/pokemon/regular/rayquaza.png',
+    indicator: { src: 'https://i.dstatic.com/images/unknown_icon.png', title: '', width: 16, height: 16 }
+  });
+  const isDupe = mockCheckDuplicate(container, 'none', 1.0);
+  assert.strictEqual(isDupe, false, 'Inconclusive icon MUST safely default to NOT DUPLICATE');
+  console.log('[PASS] Scenario 1J: Inconclusive icon correctly defaulted to NOT DUPLICATE');
 }
 
 // 2. Verify Zero Residue on Auto-Catch Removals

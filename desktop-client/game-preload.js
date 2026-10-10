@@ -376,11 +376,27 @@ function checkEncounterIsDuplicate(container) {
             container = getEncounterContainer();
         }
 
-        // 1. Text checks for explicit caught status
-        const checkText = container ? (container.innerText || container.textContent || '') : (document.body ? document.body.textContent || '' : '');
+        // 1. Text checks for explicit caught/uncaught status
+        const checkText = container ? (container.innerText || container.textContent || '') : '';
         const rawText = checkText.toLowerCase();
 
-        if (rawText.indexOf('already caught') !== -1 ||
+        // 1A. Explicit UNCAUGHT text
+        if (rawText.indexOf("don't have this pokemon") !== -1 ||
+            rawText.indexOf("dont have this pokemon") !== -1 ||
+            rawText.indexOf("do not have this pokemon") !== -1 ||
+            rawText.indexOf("not in your box") !== -1 ||
+            rawText.indexOf('not caught') !== -1 ||
+            rawText.indexOf('uncaught') !== -1 ||
+            rawText.indexOf('not in pokedex') !== -1 ||
+            rawText.indexOf('new pokemon') !== -1) {
+            console.log('[PokePreload] Duplicate check: matched explicit uncaught text');
+            return false;
+        }
+
+        // 1B. Explicit CAUGHT / DUPLICATE text
+        if (rawText.indexOf('you have this pokemon in your box') !== -1 ||
+            rawText.indexOf('already in your box') !== -1 ||
+            rawText.indexOf('already caught') !== -1 ||
             rawText.indexOf('already in pokedex') !== -1 ||
             rawText.indexOf('already owned') !== -1 ||
             rawText.indexOf('pokedex: caught') !== -1 ||
@@ -389,32 +405,35 @@ function checkEncounterIsDuplicate(container) {
             return true;
         }
 
-        if (rawText.indexOf('not caught') !== -1 ||
-            rawText.indexOf('uncaught') !== -1 ||
-            rawText.indexOf('not in pokedex') !== -1 ||
-            rawText.indexOf('new pokemon') !== -1) {
-            console.log('[PokePreload] Duplicate check: matched explicit uncaught text');
-            return false;
+        // 2. Scan candidate encounter boxes for PokeBall / Pokedex indicator element
+        const candidateBoxes = [];
+        if (container) candidateBoxes.push(container);
+        const domBoxes = [
+            document.getElementById('showpoke'),
+            document.querySelector('.showpoke'),
+            document.getElementById('showpoke-name'),
+            document.querySelector('.catch-form'),
+            document.getElementById('show-pokemon'),
+            document.getElementById('dexy'),
+            document.querySelector('.dexy')
+        ];
+        for (let b = 0; b < domBoxes.length; b++) {
+            if (domBoxes[b] && candidateBoxes.indexOf(domBoxes[b]) === -1) {
+                candidateBoxes.push(domBoxes[b]);
+            }
         }
 
-        // 2. Scan candidate elements for PokeBall / Pokedex caught indicators
-        // We look inside container first, and fallback to document if container was too narrow
-        const roots = [];
-        if (container) roots.push(container);
-        if (document.body && roots.indexOf(document.body) === -1) roots.push(document.body);
-
         let indicatorElement = null;
-        let isIndicatorFound = false;
 
-        for (let r = 0; r < roots.length; r++) {
-            const root = roots[r];
+        for (let r = 0; r < candidateBoxes.length; r++) {
+            const root = candidateBoxes[r];
             const imgs = root.querySelectorAll ? root.querySelectorAll('img') : [];
 
             for (let i = 0; i < imgs.length; i++) {
                 const img = imgs[i];
 
                 // Exclude elements inside map, inventory pokeballs, my team, or header
-                if (img.closest && img.closest('#map, #userpokeballs, .userpokeballs, #myteam, .user-avatar, header, nav, footer, .bag')) {
+                if (img.closest && img.closest('#map, #userpokeballs, .userpokeballs, #myteam, .user-avatar, header, nav, footer, .bag, #inventory')) {
                     continue;
                 }
 
@@ -449,7 +468,7 @@ function checkEncounterIsDuplicate(container) {
                     continue;
                 }
 
-                // Exclude favorite / star icons (e.g. star icon in top-left of encounter card)
+                // Exclude favorite / star icons
                 if (src.indexOf('star') !== -1 || alt.indexOf('star') !== -1 || title.indexOf('star') !== -1 ||
                     src.indexOf('fav') !== -1 || className.indexOf('star') !== -1) {
                     continue;
@@ -460,8 +479,13 @@ function checkEncounterIsDuplicate(container) {
                     continue;
                 }
 
+                // Exclude weather / form symbols in top right
+                if (src.indexOf('weather') !== -1 || alt.indexOf('weather') !== -1 || title.indexOf('weather') !== -1) {
+                    continue;
+                }
+
                 // Check for ball / dex indicator
-                const isBallOrDex = src.indexOf('dball') !== -1 || src.indexOf('pokeball') !== -1 ||
+                const isBallOrDex = src.indexOf('pokeball') !== -1 || src.indexOf('dball') !== -1 ||
                                     src.indexOf('poke-ball') !== -1 || src.indexOf('poke_ball') !== -1 ||
                                     src.indexOf('dexball') !== -1 || src.indexOf('ball') !== -1 ||
                                     src.indexOf('caught') !== -1 || src.indexOf('pokedex') !== -1 ||
@@ -470,23 +494,23 @@ function checkEncounterIsDuplicate(container) {
                                     alt.indexOf('pokedex') !== -1 || title.indexOf('pokedex') !== -1 ||
                                     alt.indexOf('dex') !== -1 || title.indexOf('dex') !== -1 ||
                                     alt.indexOf('ball') !== -1 || title.indexOf('ball') !== -1 ||
+                                    alt.indexOf('box') !== -1 || title.indexOf('box') !== -1 ||
                                     className.indexOf('caught') !== -1 || className.indexOf('dball') !== -1 ||
                                     className.indexOf('pokedex') !== -1 || className.indexOf('dex') !== -1 ||
                                     className.indexOf('ball') !== -1;
 
-                // Also check if this is a small icon inside the encounter card (between sprite and name)
+                // Small icon located between sprite and name
                 const isSmallCardIcon = container && container.contains(img) &&
                                         ((img.naturalWidth && img.naturalWidth <= 32) || (img.width && img.width <= 32)) &&
                                         !isWildSprite && !isTypeBadge;
 
                 if (isBallOrDex || isSmallCardIcon) {
                     indicatorElement = img;
-                    isIndicatorFound = true;
                     break;
                 }
             }
 
-            if (isIndicatorFound) break;
+            if (indicatorElement) break;
         }
 
         // 3. If no image found, check for SVG or styled indicator elements
@@ -494,12 +518,11 @@ function checkEncounterIsDuplicate(container) {
             const svgOrDiv = container.querySelector('svg, .caught, .dball, .pokedex-ball, .dex-indicator, [data-caught]');
             if (svgOrDiv) {
                 indicatorElement = svgOrDiv;
-                isIndicatorFound = true;
             }
         }
 
         if (!indicatorElement) {
-            // No PokeBall indicator found anywhere in encounter card
+            // No PokeBall indicator found anywhere in encounter card -> NOT DUPLICATE (Safe)
             return false;
         }
 
@@ -509,44 +532,61 @@ function checkEncounterIsDuplicate(container) {
         const indTitle = (indicatorElement.title || indicatorElement.getAttribute('title') || '').toLowerCase();
         const indClass = (indicatorElement.className || '').toLowerCase();
 
-        // A. Explicit uncaught text attributes
-        if (indTitle.indexOf('not caught') !== -1 || indAlt.indexOf('not caught') !== -1 ||
-            indTitle.indexOf('uncaught') !== -1 || indAlt.indexOf('uncaught') !== -1 ||
-            indTitle.indexOf('not owned') !== -1 || indAlt.indexOf('not owned') !== -1 ||
-            indTitle.indexOf('unowned') !== -1 || indAlt.indexOf('unowned') !== -1) {
-            console.log('[PokePreload] Indicator uncaught via title/alt: "' + (indTitle || indAlt) + '"');
+        // A. Explicit UNCAUGHT text in title or alt (HIGHEST PRIORITY)
+        // DelugeRPG exact text: "you don't have this pokemon in your box."
+        const isUncaughtByText =
+            indTitle.indexOf("don't have") !== -1 || indAlt.indexOf("don't have") !== -1 ||
+            indTitle.indexOf("dont have") !== -1 || indAlt.indexOf("dont have") !== -1 ||
+            indTitle.indexOf("do not have") !== -1 || indAlt.indexOf("do not have") !== -1 ||
+            indTitle.indexOf("not in your box") !== -1 || indAlt.indexOf("not in your box") !== -1 ||
+            indTitle.indexOf("not in pokedex") !== -1 || indAlt.indexOf("not in pokedex") !== -1 ||
+            indTitle.indexOf("not caught") !== -1 || indAlt.indexOf("not caught") !== -1 ||
+            indTitle.indexOf("uncaught") !== -1 || indAlt.indexOf("uncaught") !== -1 ||
+            indTitle.indexOf("not owned") !== -1 || indAlt.indexOf("not owned") !== -1 ||
+            indTitle.indexOf("unowned") !== -1 || indAlt.indexOf("unowned") !== -1 ||
+            indTitle.indexOf("missing") !== -1 || indAlt.indexOf("missing") !== -1 ||
+            indTitle.indexOf("new pokemon") !== -1 || indAlt.indexOf("new pokemon") !== -1;
+
+        if (isUncaughtByText) {
+            console.log('[PokePreload] Indicator UNCAUGHT confirmed via title/alt: "' + (indTitle || indAlt) + '"');
             return false;
         }
 
-        // B. Explicit caught text attributes
-        if (indTitle.indexOf('already caught') !== -1 || indAlt.indexOf('already caught') !== -1 ||
-            indTitle.indexOf('caught') !== -1 || indAlt.indexOf('caught') !== -1 ||
-            indTitle.indexOf('in pokedex') !== -1 || indAlt.indexOf('in pokedex') !== -1 ||
-            indTitle.indexOf('owned') !== -1 || indAlt.indexOf('owned') !== -1) {
-            console.log('[PokePreload] Indicator duplicate via title/alt: "' + (indTitle || indAlt) + '"');
-            return true;
-        }
-
-        // C. Greyed-out file naming patterns
-        if (indSrc.indexOf('grey') !== -1 || indSrc.indexOf('gray') !== -1 ||
+        // B. Explicit UNCAUGHT filename patterns (DelugeRPG exact uncaught asset: pokeball-n.png)
+        const isUncaughtBySrc =
+            indSrc.indexOf('pokeball-n') !== -1 ||
+            indSrc.indexOf('dball-n') !== -1 ||
+            indSrc.indexOf('-n.png') !== -1 || indSrc.indexOf('_n.png') !== -1 ||
+            indSrc.indexOf('-n.gif') !== -1 || indSrc.indexOf('_n.gif') !== -1 ||
+            indSrc.indexOf('-no.png') !== -1 || indSrc.indexOf('_no.png') !== -1 ||
+            indSrc.indexOf('-off.png') !== -1 || indSrc.indexOf('_off.png') !== -1 ||
+            indSrc.indexOf('grey') !== -1 || indSrc.indexOf('gray') !== -1 ||
             indSrc.indexOf('bw') !== -1 || indSrc.indexOf('blackwhite') !== -1 ||
             indSrc.indexOf('empty') !== -1 || indSrc.indexOf('uncaught') !== -1 ||
             indSrc.indexOf('nocatch') !== -1 || indSrc.indexOf('off') !== -1 ||
-            indSrc.indexOf('not_caught') !== -1 || indSrc.indexOf('0.png') !== -1) {
-            console.log('[PokePreload] Indicator uncaught via grey/uncaught filename: ' + indSrc);
+            indSrc.indexOf('not_caught') !== -1 || indSrc.indexOf('0.png') !== -1 ||
+            indSrc.indexOf('dball_off') !== -1 || indSrc.indexOf('dball_grey') !== -1 ||
+            indSrc.indexOf('dball_gray') !== -1 || indSrc.indexOf('dball_bw') !== -1;
+
+        if (isUncaughtBySrc) {
+            console.log('[PokePreload] Indicator UNCAUGHT confirmed via filename pattern: ' + indSrc);
             return false;
         }
 
-        // D. Greyed-out CSS class names
-        if (indClass.indexOf('grey') !== -1 || indClass.indexOf('gray') !== -1 ||
+        // C. Explicit UNCAUGHT CSS class names
+        const isUncaughtByClass =
+            indClass.indexOf('grey') !== -1 || indClass.indexOf('gray') !== -1 ||
             indClass.indexOf('uncaught') !== -1 || indClass.indexOf('not-caught') !== -1 ||
+            indClass.indexOf('dont-have') !== -1 || indClass.indexOf('unowned') !== -1 ||
             indClass.indexOf('bw') !== -1 || indClass.indexOf('disabled') !== -1 ||
-            indClass.indexOf('desaturated') !== -1) {
-            console.log('[PokePreload] Indicator uncaught via grey CSS class: ' + indClass);
+            indClass.indexOf('desaturated') !== -1 || indClass.indexOf('off') !== -1;
+
+        if (isUncaughtByClass) {
+            console.log('[PokePreload] Indicator UNCAUGHT confirmed via CSS class: ' + indClass);
             return false;
         }
 
-        // E. Computed / Inline CSS Filter & Opacity
+        // D. Computed / Inline CSS Filter & Opacity
         let filterVal = '';
         let opacityVal = 1.0;
         try {
@@ -560,7 +600,6 @@ function checkEncounterIsDuplicate(container) {
             }
         } catch (_) {}
 
-        // Fallback to inline style if computed not available
         if (!filterVal && indicatorElement.style && indicatorElement.style.filter) {
             filterVal = indicatorElement.style.filter.toLowerCase();
         }
@@ -569,15 +608,46 @@ function checkEncounterIsDuplicate(container) {
             if (!isNaN(op)) opacityVal = op;
         }
 
-        // Grayscale / desaturated or low opacity means GREYED OUT (NOT CAUGHT)
         if (filterVal.indexOf('grayscale') !== -1 || filterVal.indexOf('saturate(0') !== -1 || opacityVal < 0.5) {
-            console.log('[PokePreload] Indicator uncaught via CSS (filter: ' + filterVal + ', opacity: ' + opacityVal + ')');
+            console.log('[PokePreload] Indicator UNCAUGHT confirmed via CSS filter/opacity (filter: ' + filterVal + ', opacity: ' + opacityVal + ')');
             return false;
         }
 
-        // F. The PokeBall icon is present, NOT greyed out, has full color and opacity -> IT IS CAUGHT!
-        console.log('[PokePreload] Indicator DUPLICATE CONFIRMED (colored PokeBall icon: src=' + indSrc + ', title=' + indTitle + ', opacity=' + opacityVal + ')');
-        return true;
+        // E. Explicit CAUGHT / DUPLICATE text in title or alt
+        // DelugeRPG exact text: "you have this pokemon in your box."
+        const isCaughtByText =
+            indTitle.indexOf('you have this pokemon in your box') !== -1 || indAlt.indexOf('you have this pokemon in your box') !== -1 ||
+            indTitle.indexOf('you have this pokemon') !== -1 || indAlt.indexOf('you have this pokemon') !== -1 ||
+            indTitle.indexOf('in your box') !== -1 || indAlt.indexOf('in your box') !== -1 ||
+            indTitle.indexOf('already caught') !== -1 || indAlt.indexOf('already caught') !== -1 ||
+            indTitle.indexOf('already in pokedex') !== -1 || indAlt.indexOf('already in pokedex') !== -1 ||
+            indTitle.indexOf('already owned') !== -1 || indAlt.indexOf('already owned') !== -1 ||
+            indTitle.indexOf('in pokedex') !== -1 || indAlt.indexOf('in pokedex') !== -1 ||
+            indTitle.indexOf('caught') !== -1 || indAlt.indexOf('caught') !== -1 ||
+            indTitle.indexOf('owned') !== -1 || indAlt.indexOf('owned') !== -1 ||
+            indTitle.indexOf('registered') !== -1 || indAlt.indexOf('registered') !== -1;
+
+        if (isCaughtByText) {
+            console.log('[PokePreload] Indicator DUPLICATE CONFIRMED via title/alt: "' + (indTitle || indAlt) + '"');
+            return true;
+        }
+
+        // F. Explicit CAUGHT / COLORED ball filename without -n or uncaught markers
+        const isStandardCaughtBall =
+            (indSrc.indexOf('ball') !== -1 ||
+             indSrc.indexOf('caught') !== -1 ||
+             indSrc.indexOf('pokedex') !== -1) &&
+            !isUncaughtBySrc;
+
+        if (isStandardCaughtBall) {
+            console.log('[PokePreload] Indicator DUPLICATE CONFIRMED via colored PokeBall icon: src=' + indSrc);
+            return true;
+        }
+
+        // G. CRITICAL FAIL-SAFE: If status cannot be definitively confirmed as a duplicate,
+        // NEVER assume duplicate! Default to false so targets are NEVER accidentally skipped!
+        console.log('[PokePreload] Indicator status inconclusive (src=' + indSrc + ', title=' + indTitle + ') - defaulting to NOT duplicate for safety.');
+        return false;
     } catch (err) {
         console.warn('[PokePreload] Error in checkEncounterIsDuplicate:', err);
         return false;

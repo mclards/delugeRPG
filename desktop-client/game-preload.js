@@ -203,147 +203,15 @@ ipcRenderer.on('hunting-state-changed', (event, state) => {
 
 
 // --- MODULE ROOT SCOPE HELPERS ---
-function getEncounterContainer() {
+function findCatchActionElement() {
     try {
-        const direct = document.getElementById('showpoke') ||
-                       document.getElementById('dexy') ||
-                       document.querySelector('.dexy') ||
-                       document.getElementById('catch') ||
-                       document.querySelector('.catch');
-        if (direct) return direct;
-        const catchBtn = document.querySelector('input[type="submit"][id="catch"], input#catch, button#catch, a[href*="/catch/"]');
-        if (catchBtn) {
-            return catchBtn.closest('#showpoke, .dexy, #dexy, form, div') || catchBtn.parentElement;
-        }
-    } catch (_) {}
-    return null;
-}
-
-function extractWildLevel(container) {
-    try {
-        const text = container ? (container.innerText || container.textContent || '') : (document.body ? document.body.textContent || '' : '');
-        const m = text.match(/(?:level|lv|lvl)[\s.:]*(\d+)/i);
-        if (m && m[1]) {
-            const lvl = parseInt(m[1], 10);
-            if (!isNaN(lvl)) return lvl;
-        }
-    } catch (_) {}
-    return null;
-}
-
-function checkEncounterIsDuplicate(container) {
-    if (!container) return false;
-    const rawText = (container.innerText || container.textContent || '').toLowerCase();
-    if (rawText.indexOf('already caught') !== -1 || rawText.indexOf('already in pokedex') !== -1 || rawText.indexOf('already owned') !== -1) {
-        return true;
-    }
-    if (rawText.indexOf('not caught') !== -1 || rawText.indexOf('uncaught') !== -1 || rawText.indexOf('not in pokedex') !== -1 || rawText.indexOf('new pokemon') !== -1) {
-        return false;
-    }
-
-    const imgs = container.querySelectorAll ? container.querySelectorAll('img') : [];
-    let indicatorImg = null;
-    for (let i = 0; i < imgs.length; i++) {
-        const img = imgs[i];
-        const src = (img.src || img.getAttribute('src') || '').toLowerCase();
-        const alt = (img.alt || img.getAttribute('alt') || '').toLowerCase();
-        const title = (img.title || img.getAttribute('title') || '').toLowerCase();
-        const className = (img.className || '').toLowerCase();
-
-        if (src.indexOf('/pokemon/') !== -1 || src.indexOf('/sprites/') !== -1) {
-            if ((img.naturalWidth && img.naturalWidth > 40) || (img.width && img.width > 40)) continue;
-        }
-        if (src.indexOf('/types/') !== -1 || src.indexOf('/type/') !== -1 || alt.indexOf('type') !== -1 || title.indexOf('type') !== -1) {
-            continue;
-        }
-
-        const isBallOrDex = src.indexOf('dball') !== -1 || src.indexOf('pokeball') !== -1 || src.indexOf('ball') !== -1 ||
-                            src.indexOf('caught') !== -1 || src.indexOf('pokedex') !== -1 || src.indexOf('dexball') !== -1 ||
-                            alt.indexOf('caught') !== -1 || title.indexOf('caught') !== -1 ||
-                            alt.indexOf('dex') !== -1 || title.indexOf('dex') !== -1 ||
-                            alt.indexOf('ball') !== -1 || title.indexOf('ball') !== -1 ||
-                            className.indexOf('caught') !== -1 || className.indexOf('ball') !== -1 || className.indexOf('dex') !== -1;
-
-        const isSmallIcon = ((img.naturalWidth && img.naturalWidth <= 32) || (img.width && img.width <= 32));
-        if (isBallOrDex || (isSmallIcon && src.indexOf('/pokemon/') === -1)) {
-            indicatorImg = img;
-            break;
-        }
-    }
-
-    if (!indicatorImg) return false;
-
-    const indSrc = (indicatorImg.src || indicatorImg.getAttribute('src') || '').toLowerCase();
-    const indAlt = (indicatorImg.alt || indicatorImg.getAttribute('alt') || '').toLowerCase();
-    const indTitle = (indicatorImg.title || indicatorImg.getAttribute('title') || '').toLowerCase();
-
-    if (indTitle.indexOf('not caught') !== -1 || indAlt.indexOf('not caught') !== -1 ||
-        indTitle.indexOf('uncaught') !== -1 || indAlt.indexOf('uncaught') !== -1 ||
-        indTitle.indexOf('not owned') !== -1 || indAlt.indexOf('not owned') !== -1) {
-        return false;
-    }
-
-    if (indTitle.indexOf('caught') !== -1 || indAlt.indexOf('caught') !== -1 ||
-        indTitle.indexOf('in pokedex') !== -1 || indAlt.indexOf('in pokedex') !== -1 ||
-        indTitle.indexOf('owned') !== -1 || indAlt.indexOf('owned') !== -1) {
-        return true;
-    }
-
-    if (indSrc.indexOf('grey') !== -1 || indSrc.indexOf('gray') !== -1 || indSrc.indexOf('bw') !== -1 ||
-        indSrc.indexOf('empty') !== -1 || indSrc.indexOf('uncaught') !== -1 || indSrc.indexOf('nocatch') !== -1 ||
-        indSrc.indexOf('off') !== -1) {
-        return false;
-    }
-
-    try {
-        const computed = window.getComputedStyle(indicatorImg);
-        if (computed) {
-            const filter = (computed.filter || '').toLowerCase();
-            const op = parseFloat(computed.opacity);
-            if (filter.indexOf('grayscale(1') !== -1 || filter.indexOf('saturate(0') !== -1 || (!isNaN(op) && op < 0.5)) {
-                return false;
-            }
-        }
-    } catch (_) {}
-
-    if (indSrc.indexOf('dball') !== -1 || indSrc.indexOf('pokeball') !== -1 || indSrc.indexOf('caught') !== -1) {
-        return true;
-    }
-    return false;
-}
-
-// --- 3. TARGET SCANNING ENGINE ---
-function scanForTargets() {
-    // A. Check for /unlock Honeypot / Captcha FIRST across entire domain
-    const path = (window.location.pathname || '').toLowerCase();
-    if (path.indexOf('/unlock') !== -1) {
-        if (!unlockNoticeSent) {
-            unlockNoticeSent = true;
-            ipcRenderer.sendToHost('unlock-detected');
-        }
-        return;
-    } else {
-        unlockNoticeSent = false;
-    }
-
-    // 1. STRICT ACTIVE HUNTING GUARD: Only react to screen during an active hunting session!
-    if (!isHuntingActive) {
-        return;
-    }
-
-    // 2. STRICT PAGE GUARD: Only scan on map or catch page (never on team, box, or trade pages)
-    const isHuntingPage = path.indexOf('/map') !== -1 || path.indexOf('/catch') !== -1;
-    if (!isHuntingPage) {
-        return;
-    }
-
-    // Helper to find the active catch or battle action element (Anchor, Button, or Submit Input)
-    function findCatchActionElement() {
-        // 1. Direct submit inputs, buttons, or links with catch id
+        // 1. Direct submit inputs, buttons, or links with catch id, name, or action
         const directBtn = document.querySelector(
             'input[type="submit"]#catch, input#catch, button#catch, a#catch, ' +
+            'input[name="catch"], button[name="catch"], ' +
             'input[type="submit"][value*="Catch" i], button[value*="Catch" i], ' +
-            'form[action*="catch"] input[type="submit"], form[action*="catch"] button'
+            'form[action*="catch"] input[type="submit"], form[action*="catch"] button, ' +
+            'form[action*="catch"] a, a[href*="/catch"]'
         );
         if (directBtn) {
             try {
@@ -352,7 +220,7 @@ function scanForTargets() {
             } catch (_) { return directBtn; }
         }
 
-        // 2. Scan all candidate interactive elements (anchors, buttons, submit inputs)
+        // 2. Scan all candidate interactive elements
         const candidates = document.querySelectorAll('a, button, input[type="button"], input[type="submit"], [role="button"], .btn');
         for (let i = 0; i < candidates.length; i++) {
             const el = candidates[i];
@@ -365,37 +233,59 @@ function scanForTargets() {
             const val = (el.value || '').trim().toLowerCase();
             const href = (el.getAttribute('href') || '').toLowerCase();
             const id = (el.id || '').toLowerCase();
+            const name = (el.name || '').toLowerCase();
 
-            // Match "Try to Catch It", "Try to Catch", "Catch It", "Start Battle", exact "Catch"
             if (text.indexOf('try to catch') !== -1 || val.indexOf('try to catch') !== -1 ||
                 text.indexOf('catch it') !== -1 || val.indexOf('catch it') !== -1 ||
                 text === 'catch' || val === 'catch' ||
+                name === 'catch' || id === 'catch' ||
                 text.indexOf('start battle') !== -1 || val.indexOf('start battle') !== -1 ||
                 text.indexOf('throw pokeball') !== -1 || val.indexOf('throw pokeball') !== -1) {
                 return el;
             }
 
-            // Match href containing /catch, catch.php, catch?
             if (href && (href.indexOf('/catch') !== -1 || href.indexOf('catch.php') !== -1 || href.indexOf('catch?') !== -1)) {
                 return el;
             }
 
-            // Match ID
             if (id === 'catch' || id === 'catch-btn' || id === 'btn-catch') {
                 return el;
             }
         }
-        return null;
-    }
+    } catch (_) {}
+    return null;
+}
 
-    // Helper to locate enclosing wild encounter container
-    function getEncounterContainer() {
+function getEncounterContainer() {
+    try {
+        // A. If catch button exists, walk up to find the enclosing encounter card
         const catchBtn = findCatchActionElement();
         if (catchBtn) {
-            const parent = catchBtn.closest('#showpoke, .showpoke, #showpoke-name, #dexy, .dexy, .catch-form, form, [class*="encounter" i], [id*="encounter" i], .card, .panel, .box, div') || catchBtn.parentElement;
-            if (parent) return parent;
+            let curr = catchBtn.parentElement;
+            let candidateBox = null;
+            while (curr && curr !== document.body) {
+                const cText = (curr.innerText || curr.textContent || '').toLowerCase();
+                const hasAppeared = cText.indexOf('appeared') !== -1 || cText.indexOf('wild') !== -1;
+                const hasSprite = curr.querySelector && curr.querySelector('img[src*="/pokemon/"], img[src*="/sprites/"], img[src*="/dex/"], img[src*="/regular/"], img[src*="/shiny/"], img[src*="/retro/"], img[src*="/chrome/"], img[src*="/metallic/"], img[src*="/shadow/"], img[src*="/ghostly/"], img[src*="/dark/"], img[src*="/mirage/"], img[src*="/negative/"], img[src*="delugerpg"]');
+                if (hasAppeared && hasSprite) {
+                    return curr;
+                }
+                if (hasSprite && !candidateBox) {
+                    candidateBox = curr;
+                }
+                const cId = (curr.id || '').toLowerCase();
+                const cCls = (curr.className || '').toLowerCase();
+                if (cId.indexOf('showpoke') !== -1 || cCls.indexOf('showpoke') !== -1 ||
+                    cId.indexOf('dexy') !== -1 || cCls.indexOf('dexy') !== -1 ||
+                    cId.indexOf('encounter') !== -1 || cCls.indexOf('encounter') !== -1) {
+                    return curr;
+                }
+                curr = curr.parentElement;
+            }
+            if (candidateBox) return candidateBox;
         }
 
+        // B. Check direct candidate container IDs and classes
         const candidateContainers = [
             document.getElementById('showpoke'),
             document.querySelector('.showpoke'),
@@ -427,51 +317,19 @@ function scanForTargets() {
                 continue;
             }
 
-            // Check for wild Pokemon sprite across all DelugeRPG image CDNs
             const pokeImg = box.querySelector('img[src*="/pokemon/"], img[src*="/sprites/"], img[src*="/dex/"], img[src*="/regular/"], img[src*="/shiny/"], img[src*="/retro/"], img[src*="/chrome/"], img[src*="/metallic/"], img[src*="/shadow/"], img[src*="/ghostly/"], img[src*="/dark/"], img[src*="/mirage/"], img[src*="/negative/"], img[src*="delugerpg"]');
             if (pokeImg) {
                 return box;
             }
 
-            // Check for inner catch/battle buttons or links
-            const innerElements = box.querySelectorAll('a, button, input');
-            for (let e = 0; e < innerElements.length; e++) {
-                const inner = innerElements[e];
-                const innerText = ((inner.textContent || '') + ' ' + (inner.value || '') + ' ' + (inner.getAttribute('href') || '')).toLowerCase();
-                if (innerText.indexOf('catch') !== -1 || innerText.indexOf('battle') !== -1) {
-                    return box;
-                }
-            }
-
-            // If the box contains any known Legendary or Mega, confirm encounter immediately!
-            if (findLegend) {
-                for (let k = 0; k < LEGENDARY_LOWER.length; k++) {
-                    if (normText.indexOf(LEGENDARY_LOWER[k]) !== -1) {
-                        return box;
-                    }
-                }
-            }
-            if (findMegas) {
-                for (let m = 0; m < MEGAS_LOWER.length; m++) {
-                    if (normText.indexOf(MEGAS_LOWER[m]) !== -1) {
-                        return box;
-                    }
-                }
-            }
-
-            // Confirm encounter keywords
             if (normText.indexOf('appeared') !== -1 ||
                 normText.indexOf('wild') !== -1 ||
-                normText.indexOf('level') !== -1 ||
-                normText.indexOf('lvl') !== -1 ||
-                normText.indexOf('catch') !== -1 ||
-                normText.indexOf('battle') !== -1 ||
                 normText.indexOf('hp:') !== -1) {
                 return box;
             }
         }
 
-        // Generic search for any element containing "appeared!" (e.g. "Yveltal Appeared!")
+        // C. Generic search for any element containing "appeared!"
         const allCandidates = document.querySelectorAll('div, section, article, p, h2, h3, h4, h5, span');
         for (let i = 0; i < allCandidates.length; i++) {
             const el = allCandidates[i];
@@ -484,23 +342,274 @@ function scanForTargets() {
                 return el.closest('div, section, form') || el;
             }
         }
+    } catch (_) {}
+    return null;
+}
 
-        return null;
-    }
-
-    // B. Check if wild encounter or catch UI is present
-    function isEncounterOrCatchUIPresent() {
+function isEncounterOrCatchUIPresent() {
+    try {
         if (findCatchActionElement() !== null) {
             return true;
         }
+        if (getEncounterContainer() !== null) {
+            return true;
+        }
+    } catch (_) {}
+    return false;
+}
 
-        const container = getEncounterContainer();
-        if (container !== null) {
+function extractWildLevel(container) {
+    try {
+        const text = container ? (container.innerText || container.textContent || '') : (document.body ? document.body.textContent || '' : '');
+        const m = text.match(/(?:level|lv|lvl)[\s.:]*(\d+)/i);
+        if (m && m[1]) {
+            const lvl = parseInt(m[1], 10);
+            if (!isNaN(lvl)) return lvl;
+        }
+    } catch (_) {}
+    return null;
+}
+
+function checkEncounterIsDuplicate(container) {
+    try {
+        if (!container) {
+            container = getEncounterContainer();
+        }
+
+        // 1. Text checks for explicit caught status
+        const checkText = container ? (container.innerText || container.textContent || '') : (document.body ? document.body.textContent || '' : '');
+        const rawText = checkText.toLowerCase();
+
+        if (rawText.indexOf('already caught') !== -1 ||
+            rawText.indexOf('already in pokedex') !== -1 ||
+            rawText.indexOf('already owned') !== -1 ||
+            rawText.indexOf('pokedex: caught') !== -1 ||
+            rawText.indexOf('dex: caught') !== -1) {
+            console.log('[PokePreload] Duplicate check: matched explicit duplicate text');
             return true;
         }
 
+        if (rawText.indexOf('not caught') !== -1 ||
+            rawText.indexOf('uncaught') !== -1 ||
+            rawText.indexOf('not in pokedex') !== -1 ||
+            rawText.indexOf('new pokemon') !== -1) {
+            console.log('[PokePreload] Duplicate check: matched explicit uncaught text');
+            return false;
+        }
+
+        // 2. Scan candidate elements for PokeBall / Pokedex caught indicators
+        // We look inside container first, and fallback to document if container was too narrow
+        const roots = [];
+        if (container) roots.push(container);
+        if (document.body && roots.indexOf(document.body) === -1) roots.push(document.body);
+
+        let indicatorElement = null;
+        let isIndicatorFound = false;
+
+        for (let r = 0; r < roots.length; r++) {
+            const root = roots[r];
+            const imgs = root.querySelectorAll ? root.querySelectorAll('img') : [];
+
+            for (let i = 0; i < imgs.length; i++) {
+                const img = imgs[i];
+
+                // Exclude elements inside map, inventory pokeballs, my team, or header
+                if (img.closest && img.closest('#map, #userpokeballs, .userpokeballs, #myteam, .user-avatar, header, nav, footer, .bag')) {
+                    continue;
+                }
+
+                const src = (img.src || img.getAttribute('src') || '').toLowerCase();
+                const alt = (img.alt || img.getAttribute('alt') || '').toLowerCase();
+                const title = (img.title || img.getAttribute('title') || '').toLowerCase();
+                const className = (img.className || '').toLowerCase();
+
+                // Exclude the Pokemon encounter sprite itself
+                const isWildSprite = src.indexOf('/pokemon/') !== -1 || src.indexOf('/sprites/') !== -1 ||
+                                     src.indexOf('/regular/') !== -1 || src.indexOf('/shiny/') !== -1 ||
+                                     src.indexOf('/retro/') !== -1 || src.indexOf('/chrome/') !== -1 ||
+                                     src.indexOf('/metallic/') !== -1 || src.indexOf('/shadow/') !== -1 ||
+                                     src.indexOf('/ghostly/') !== -1 || src.indexOf('/dark/') !== -1 ||
+                                     src.indexOf('/mirage/') !== -1 || src.indexOf('/negative/') !== -1;
+                if (isWildSprite) {
+                    if ((img.naturalWidth && img.naturalWidth > 40) || (img.width && img.width > 40)) {
+                        continue;
+                    }
+                    if (className.indexOf('sprite') !== -1 || className.indexOf('poke') !== -1) {
+                        continue;
+                    }
+                }
+
+                // Exclude type badges (e.g. psychic.png, /types/psychic.png, alt="Psychic")
+                const isTypeBadge = src.indexOf('/types/') !== -1 || src.indexOf('/type/') !== -1 ||
+                                    src.indexOf('type_') !== -1 || src.indexOf('type-') !== -1 ||
+                                    alt.indexOf('type') !== -1 || title.indexOf('type') !== -1 ||
+                                    className.indexOf('type') !== -1 ||
+                                    src.match(/\/(?:normal|fire|water|grass|electric|ice|fighting|poison|ground|flying|psychic|bug|rock|ghost|dragon|steel|dark|fairy)\.(?:png|gif|jpe?g)/i);
+                if (isTypeBadge) {
+                    continue;
+                }
+
+                // Exclude favorite / star icons (e.g. star icon in top-left of encounter card)
+                if (src.indexOf('star') !== -1 || alt.indexOf('star') !== -1 || title.indexOf('star') !== -1 ||
+                    src.indexOf('fav') !== -1 || className.indexOf('star') !== -1) {
+                    continue;
+                }
+
+                // Exclude navigation arrows and icons
+                if (src.indexOf('arrow') !== -1 || alt.indexOf('arrow') !== -1 || title.indexOf('arrow') !== -1) {
+                    continue;
+                }
+
+                // Check for ball / dex indicator
+                const isBallOrDex = src.indexOf('dball') !== -1 || src.indexOf('pokeball') !== -1 ||
+                                    src.indexOf('poke-ball') !== -1 || src.indexOf('poke_ball') !== -1 ||
+                                    src.indexOf('dexball') !== -1 || src.indexOf('ball') !== -1 ||
+                                    src.indexOf('caught') !== -1 || src.indexOf('pokedex') !== -1 ||
+                                    src.indexOf('dex') !== -1 ||
+                                    alt.indexOf('caught') !== -1 || title.indexOf('caught') !== -1 ||
+                                    alt.indexOf('pokedex') !== -1 || title.indexOf('pokedex') !== -1 ||
+                                    alt.indexOf('dex') !== -1 || title.indexOf('dex') !== -1 ||
+                                    alt.indexOf('ball') !== -1 || title.indexOf('ball') !== -1 ||
+                                    className.indexOf('caught') !== -1 || className.indexOf('dball') !== -1 ||
+                                    className.indexOf('pokedex') !== -1 || className.indexOf('dex') !== -1 ||
+                                    className.indexOf('ball') !== -1;
+
+                // Also check if this is a small icon inside the encounter card (between sprite and name)
+                const isSmallCardIcon = container && container.contains(img) &&
+                                        ((img.naturalWidth && img.naturalWidth <= 32) || (img.width && img.width <= 32)) &&
+                                        !isWildSprite && !isTypeBadge;
+
+                if (isBallOrDex || isSmallCardIcon) {
+                    indicatorElement = img;
+                    isIndicatorFound = true;
+                    break;
+                }
+            }
+
+            if (isIndicatorFound) break;
+        }
+
+        // 3. If no image found, check for SVG or styled indicator elements
+        if (!indicatorElement && container) {
+            const svgOrDiv = container.querySelector('svg, .caught, .dball, .pokedex-ball, .dex-indicator, [data-caught]');
+            if (svgOrDiv) {
+                indicatorElement = svgOrDiv;
+                isIndicatorFound = true;
+            }
+        }
+
+        if (!indicatorElement) {
+            // No PokeBall indicator found anywhere in encounter card
+            return false;
+        }
+
+        // 4. Analyze indicator element for GREYED OUT (NOT CAUGHT) vs COLORED (ALREADY CAUGHT)
+        const indSrc = (indicatorElement.src || indicatorElement.getAttribute('src') || '').toLowerCase();
+        const indAlt = (indicatorElement.alt || indicatorElement.getAttribute('alt') || '').toLowerCase();
+        const indTitle = (indicatorElement.title || indicatorElement.getAttribute('title') || '').toLowerCase();
+        const indClass = (indicatorElement.className || '').toLowerCase();
+
+        // A. Explicit uncaught text attributes
+        if (indTitle.indexOf('not caught') !== -1 || indAlt.indexOf('not caught') !== -1 ||
+            indTitle.indexOf('uncaught') !== -1 || indAlt.indexOf('uncaught') !== -1 ||
+            indTitle.indexOf('not owned') !== -1 || indAlt.indexOf('not owned') !== -1 ||
+            indTitle.indexOf('unowned') !== -1 || indAlt.indexOf('unowned') !== -1) {
+            console.log('[PokePreload] Indicator uncaught via title/alt: "' + (indTitle || indAlt) + '"');
+            return false;
+        }
+
+        // B. Explicit caught text attributes
+        if (indTitle.indexOf('already caught') !== -1 || indAlt.indexOf('already caught') !== -1 ||
+            indTitle.indexOf('caught') !== -1 || indAlt.indexOf('caught') !== -1 ||
+            indTitle.indexOf('in pokedex') !== -1 || indAlt.indexOf('in pokedex') !== -1 ||
+            indTitle.indexOf('owned') !== -1 || indAlt.indexOf('owned') !== -1) {
+            console.log('[PokePreload] Indicator duplicate via title/alt: "' + (indTitle || indAlt) + '"');
+            return true;
+        }
+
+        // C. Greyed-out file naming patterns
+        if (indSrc.indexOf('grey') !== -1 || indSrc.indexOf('gray') !== -1 ||
+            indSrc.indexOf('bw') !== -1 || indSrc.indexOf('blackwhite') !== -1 ||
+            indSrc.indexOf('empty') !== -1 || indSrc.indexOf('uncaught') !== -1 ||
+            indSrc.indexOf('nocatch') !== -1 || indSrc.indexOf('off') !== -1 ||
+            indSrc.indexOf('not_caught') !== -1 || indSrc.indexOf('0.png') !== -1) {
+            console.log('[PokePreload] Indicator uncaught via grey/uncaught filename: ' + indSrc);
+            return false;
+        }
+
+        // D. Greyed-out CSS class names
+        if (indClass.indexOf('grey') !== -1 || indClass.indexOf('gray') !== -1 ||
+            indClass.indexOf('uncaught') !== -1 || indClass.indexOf('not-caught') !== -1 ||
+            indClass.indexOf('bw') !== -1 || indClass.indexOf('disabled') !== -1 ||
+            indClass.indexOf('desaturated') !== -1) {
+            console.log('[PokePreload] Indicator uncaught via grey CSS class: ' + indClass);
+            return false;
+        }
+
+        // E. Computed / Inline CSS Filter & Opacity
+        let filterVal = '';
+        let opacityVal = 1.0;
+        try {
+            if (window.getComputedStyle) {
+                const computed = window.getComputedStyle(indicatorElement);
+                if (computed) {
+                    filterVal = (computed.filter || '').toLowerCase();
+                    const op = parseFloat(computed.opacity);
+                    if (!isNaN(op)) opacityVal = op;
+                }
+            }
+        } catch (_) {}
+
+        // Fallback to inline style if computed not available
+        if (!filterVal && indicatorElement.style && indicatorElement.style.filter) {
+            filterVal = indicatorElement.style.filter.toLowerCase();
+        }
+        if (indicatorElement.style && indicatorElement.style.opacity) {
+            const op = parseFloat(indicatorElement.style.opacity);
+            if (!isNaN(op)) opacityVal = op;
+        }
+
+        // Grayscale / desaturated or low opacity means GREYED OUT (NOT CAUGHT)
+        if (filterVal.indexOf('grayscale') !== -1 || filterVal.indexOf('saturate(0') !== -1 || opacityVal < 0.5) {
+            console.log('[PokePreload] Indicator uncaught via CSS (filter: ' + filterVal + ', opacity: ' + opacityVal + ')');
+            return false;
+        }
+
+        // F. The PokeBall icon is present, NOT greyed out, has full color and opacity -> IT IS CAUGHT!
+        console.log('[PokePreload] Indicator DUPLICATE CONFIRMED (colored PokeBall icon: src=' + indSrc + ', title=' + indTitle + ', opacity=' + opacityVal + ')');
+        return true;
+    } catch (err) {
+        console.warn('[PokePreload] Error in checkEncounterIsDuplicate:', err);
         return false;
     }
+}
+
+// --- 3. TARGET SCANNING ENGINE ---
+function scanForTargets() {
+    // A. Check for /unlock Honeypot / Captcha FIRST across entire domain
+    const path = (window.location.pathname || '').toLowerCase();
+    if (path.indexOf('/unlock') !== -1) {
+        if (!unlockNoticeSent) {
+            unlockNoticeSent = true;
+            ipcRenderer.sendToHost('unlock-detected');
+        }
+        return;
+    } else {
+        unlockNoticeSent = false;
+    }
+
+    // 1. STRICT ACTIVE HUNTING GUARD: Only react to screen during an active hunting session!
+    if (!isHuntingActive) {
+        return;
+    }
+
+    // 2. STRICT PAGE GUARD: Only scan on map or catch page (never on team, box, or trade pages)
+    const isHuntingPage = path.indexOf('/map') !== -1 || path.indexOf('/catch') !== -1;
+    if (!isHuntingPage) {
+        return;
+    }
+
+    // Module-scoped helpers findCatchActionElement, getEncounterContainer, and isEncounterOrCatchUIPresent are used here.
 
     const hasCatchUI = isEncounterOrCatchUIPresent();
 
@@ -692,21 +801,22 @@ function scanForTargets() {
 
     const encounterSig = textLower.slice(0, 100);
     const isNewEncounter = (encounterSig !== lastEvaluatedEncounterSignature);
+    const shortName = encounterBoxText ? encounterBoxText.trim().split('\n')[0].replace(/\s+/g, ' ') : textLower.slice(0, 50);
+
     if (isNewEncounter) {
         lastEvaluatedEncounterSignature = encounterSig;
-        const shortName = encounterBoxText ? encounterBoxText.trim().split('\n')[0].replace(/\s+/g, ' ') : textLower.slice(0, 50);
         console.log('[TargetEngine] Encounter: "' + shortName + '" | Variant: ' + detectedVariant.toUpperCase() + (currentLevel !== null ? (' | Lv: ' + currentLevel) : ''));
+    }
+
     const encContainer = getEncounterContainer();
     const isEncounterDuplicate = checkEncounterIsDuplicate(encContainer);
-    const avoidDupesActive = config.avoidDuplicates !== false;
+    const avoidDupesActive = (config.avoidDuplicates !== false);
 
     if (avoidDupesActive && isEncounterDuplicate) {
         if (isNewEncounter) {
             console.log('[TargetEngine] DUPLICATE ENCOUNTER: "' + shortName + '" (already owned in Dex). Skipping to preserve hunting flow.');
         }
         return;
-    }
-
     }
 
     // Helper: checks whether the encounter's variant is accepted for target species (Tier 1-3)
@@ -845,10 +955,7 @@ function scanForTargets() {
 function triggerTargetFound(targetName, category) {
     if (!isHuntingActive) return;
     if (targetName === lastFoundTarget) return;
-    lastFoundTarget = targetName;
-    isHuntingActive = false;
 
-    
     const encContainer = getEncounterContainer();
     const isDupe = checkEncounterIsDuplicate(encContainer);
     if (config.avoidDuplicates !== false && isDupe) {
@@ -856,11 +963,10 @@ function triggerTargetFound(targetName, category) {
         return;
     }
 
-    console.log('[PokePreload] TARGET DETECTED:', targetName, '(' + category + ')' + (isDupe ? ' [DUPLICATE]' : ''));
-
-
     lastFoundTarget = targetName;
     isHuntingActive = false;
+
+    console.log('[PokePreload] TARGET DETECTED:', targetName, '(' + category + ')' + (isDupe ? ' [DUPLICATE]' : ''));
 
     ipcRenderer.sendToHost('target-found', {
         name: targetName,

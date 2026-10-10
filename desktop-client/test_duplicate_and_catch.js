@@ -19,6 +19,19 @@ function createMockEncounterElement(options = {}) {
   const children = [];
   const textContent = options.text || '';
 
+  if (options.star) {
+    children.push({
+      tagName: 'IMG',
+      src: options.star.src || 'https://www.delugerpg.com/images/star.png',
+      alt: 'Star',
+      naturalWidth: 16,
+      naturalHeight: 16,
+      width: 16,
+      height: 16,
+      className: 'star'
+    });
+  }
+
   if (options.sprite) {
     children.push({
       tagName: 'IMG',
@@ -48,6 +61,19 @@ function createMockEncounterElement(options = {}) {
     });
   }
 
+  if (options.typeBadge) {
+    children.push({
+      tagName: 'IMG',
+      src: options.typeBadge.src || 'https://www.delugerpg.com/images/types/psychic.png',
+      alt: 'Psychic',
+      naturalWidth: 24,
+      naturalHeight: 24,
+      width: 24,
+      height: 24,
+      className: 'type'
+    });
+  }
+
   return {
     innerText: textContent,
     textContent: textContent,
@@ -61,14 +87,14 @@ function createMockEncounterElement(options = {}) {
 function mockCheckDuplicate(container, computedFilter = '', opacity = 1.0) {
   if (!container) return false;
   const rawText = (container.innerText || container.textContent || '').toLowerCase();
-  if (rawText.indexOf('already caught') !== -1 || rawText.indexOf('already in pokedex') !== -1 || rawText.indexOf('already owned') !== -1) {
+  if (rawText.indexOf('already caught') !== -1 || rawText.indexOf('already in pokedex') !== -1 || rawText.indexOf('already owned') !== -1 || rawText.indexOf('pokedex: caught') !== -1) {
     return true;
   }
   if (rawText.indexOf('not caught') !== -1 || rawText.indexOf('uncaught') !== -1 || rawText.indexOf('not in pokedex') !== -1 || rawText.indexOf('new pokemon') !== -1) {
     return false;
   }
 
-  const imgs = container.querySelectorAll('img');
+  const imgs = container.querySelectorAll ? container.querySelectorAll('img') : [];
   let indicatorImg = null;
   for (let i = 0; i < imgs.length; i++) {
     const img = imgs[i];
@@ -77,22 +103,50 @@ function mockCheckDuplicate(container, computedFilter = '', opacity = 1.0) {
     const title = (img.title || '').toLowerCase();
     const className = (img.className || '').toLowerCase();
 
-    if (src.indexOf('/pokemon/') !== -1 || src.indexOf('/sprites/') !== -1) {
-      if (img.naturalWidth > 40 || img.width > 40) continue;
+    const isWildSprite = src.indexOf('/pokemon/') !== -1 || src.indexOf('/sprites/') !== -1 ||
+                         src.indexOf('/regular/') !== -1 || src.indexOf('/shiny/') !== -1 ||
+                         src.indexOf('/retro/') !== -1 || src.indexOf('/chrome/') !== -1 ||
+                         src.indexOf('/metallic/') !== -1 || src.indexOf('/shadow/') !== -1 ||
+                         src.indexOf('/ghostly/') !== -1 || src.indexOf('/dark/') !== -1 ||
+                         src.indexOf('/mirage/') !== -1 || src.indexOf('/negative/') !== -1;
+    if (isWildSprite) {
+      if ((img.naturalWidth && img.naturalWidth > 40) || (img.width && img.width > 40)) continue;
+      if (className.indexOf('sprite') !== -1 || className.indexOf('poke') !== -1) continue;
     }
-    if (src.indexOf('/types/') !== -1 || src.indexOf('/type/') !== -1 || alt.indexOf('type') !== -1 || title.indexOf('type') !== -1) {
+
+    const isTypeBadge = src.indexOf('/types/') !== -1 || src.indexOf('/type/') !== -1 ||
+                        src.indexOf('type_') !== -1 || src.indexOf('type-') !== -1 ||
+                        alt.indexOf('type') !== -1 || title.indexOf('type') !== -1 ||
+                        className.indexOf('type') !== -1 ||
+                        src.match(/\/(?:normal|fire|water|grass|electric|ice|fighting|poison|ground|flying|psychic|bug|rock|ghost|dragon|steel|dark|fairy)\.(?:png|gif|jpe?g)/i);
+    if (isTypeBadge) continue;
+
+    if (src.indexOf('star') !== -1 || alt.indexOf('star') !== -1 || title.indexOf('star') !== -1 ||
+        src.indexOf('fav') !== -1 || className.indexOf('star') !== -1) {
       continue;
     }
 
-    const isBallOrDex = src.indexOf('dball') !== -1 || src.indexOf('pokeball') !== -1 || src.indexOf('ball') !== -1 ||
-                        src.indexOf('caught') !== -1 || src.indexOf('pokedex') !== -1 || src.indexOf('dexball') !== -1 ||
+    if (src.indexOf('arrow') !== -1 || alt.indexOf('arrow') !== -1 || title.indexOf('arrow') !== -1) {
+      continue;
+    }
+
+    const isBallOrDex = src.indexOf('dball') !== -1 || src.indexOf('pokeball') !== -1 ||
+                        src.indexOf('poke-ball') !== -1 || src.indexOf('poke_ball') !== -1 ||
+                        src.indexOf('dexball') !== -1 || src.indexOf('ball') !== -1 ||
+                        src.indexOf('caught') !== -1 || src.indexOf('pokedex') !== -1 ||
+                        src.indexOf('dex') !== -1 ||
                         alt.indexOf('caught') !== -1 || title.indexOf('caught') !== -1 ||
+                        alt.indexOf('pokedex') !== -1 || title.indexOf('pokedex') !== -1 ||
                         alt.indexOf('dex') !== -1 || title.indexOf('dex') !== -1 ||
                         alt.indexOf('ball') !== -1 || title.indexOf('ball') !== -1 ||
-                        className.indexOf('caught') !== -1 || className.indexOf('ball') !== -1 || className.indexOf('dex') !== -1;
+                        className.indexOf('caught') !== -1 || className.indexOf('dball') !== -1 ||
+                        className.indexOf('pokedex') !== -1 || className.indexOf('dex') !== -1 ||
+                        className.indexOf('ball') !== -1;
 
-    const isSmallIcon = (img.naturalWidth > 0 && img.naturalWidth <= 32) || (img.width > 0 && img.width <= 32);
-    if (isBallOrDex || (isSmallIcon && src.indexOf('/pokemon/') === -1)) {
+    const isSmallCardIcon = ((img.naturalWidth && img.naturalWidth <= 32) || (img.width && img.width <= 32)) &&
+                            !isWildSprite && !isTypeBadge;
+
+    if (isBallOrDex || isSmallCardIcon) {
       indicatorImg = img;
       break;
     }
@@ -103,33 +157,45 @@ function mockCheckDuplicate(container, computedFilter = '', opacity = 1.0) {
   const indSrc = (indicatorImg.src || '').toLowerCase();
   const indAlt = (indicatorImg.alt || '').toLowerCase();
   const indTitle = (indicatorImg.title || '').toLowerCase();
+  const indClass = (indicatorImg.className || '').toLowerCase();
 
   if (indTitle.indexOf('not caught') !== -1 || indAlt.indexOf('not caught') !== -1 ||
       indTitle.indexOf('uncaught') !== -1 || indAlt.indexOf('uncaught') !== -1 ||
-      indTitle.indexOf('not owned') !== -1 || indAlt.indexOf('not owned') !== -1) {
+      indTitle.indexOf('not owned') !== -1 || indAlt.indexOf('not owned') !== -1 ||
+      indTitle.indexOf('unowned') !== -1 || indAlt.indexOf('unowned') !== -1) {
     return false;
   }
 
-  if (indTitle.indexOf('caught') !== -1 || indAlt.indexOf('caught') !== -1 ||
+  if (indTitle.indexOf('already caught') !== -1 || indAlt.indexOf('already caught') !== -1 ||
+      indTitle.indexOf('caught') !== -1 || indAlt.indexOf('caught') !== -1 ||
       indTitle.indexOf('in pokedex') !== -1 || indAlt.indexOf('in pokedex') !== -1 ||
       indTitle.indexOf('owned') !== -1 || indAlt.indexOf('owned') !== -1) {
     return true;
   }
 
-  if (indSrc.indexOf('grey') !== -1 || indSrc.indexOf('gray') !== -1 || indSrc.indexOf('bw') !== -1 ||
-      indSrc.indexOf('empty') !== -1 || indSrc.indexOf('uncaught') !== -1 || indSrc.indexOf('nocatch') !== -1 ||
-      indSrc.indexOf('off') !== -1) {
+  if (indSrc.indexOf('grey') !== -1 || indSrc.indexOf('gray') !== -1 ||
+      indSrc.indexOf('bw') !== -1 || indSrc.indexOf('blackwhite') !== -1 ||
+      indSrc.indexOf('empty') !== -1 || indSrc.indexOf('uncaught') !== -1 ||
+      indSrc.indexOf('nocatch') !== -1 || indSrc.indexOf('off') !== -1 ||
+      indSrc.indexOf('not_caught') !== -1 || indSrc.indexOf('0.png') !== -1) {
     return false;
   }
 
-  if (computedFilter.indexOf('grayscale(1') !== -1 || computedFilter.indexOf('saturate(0') !== -1 || opacity < 0.5) {
+  if (indClass.indexOf('grey') !== -1 || indClass.indexOf('gray') !== -1 ||
+      indClass.indexOf('uncaught') !== -1 || indClass.indexOf('not-caught') !== -1 ||
+      indClass.indexOf('bw') !== -1 || indClass.indexOf('disabled') !== -1 ||
+      indClass.indexOf('desaturated') !== -1) {
     return false;
   }
 
-  if (indSrc.indexOf('dball') !== -1 || indSrc.indexOf('pokeball') !== -1 || indSrc.indexOf('caught') !== -1) {
-    return true;
+  const effectiveFilter = computedFilter || (indicatorImg.style && indicatorImg.style.filter ? indicatorImg.style.filter.toLowerCase() : '');
+  const effectiveOpacity = (indicatorImg.style && indicatorImg.style.opacity !== undefined) ? indicatorImg.style.opacity : opacity;
+
+  if (effectiveFilter.indexOf('grayscale') !== -1 || effectiveFilter.indexOf('saturate(0') !== -1 || effectiveOpacity < 0.5) {
+    return false;
   }
-  return false;
+
+  return true;
 }
 
 // Scenario 1A: Encounter with Red Pokeball (Already Caught in Dex)
@@ -188,6 +254,44 @@ function mockCheckDuplicate(container, computedFilter = '', opacity = 1.0) {
   const isDupe = mockCheckDuplicate(container);
   assert.strictEqual(isDupe, true, 'Text containing already in pokedex must be detected as DUPLICATE');
   console.log('[PASS] Scenario 1E: Text indicator correctly identified as DUPLICATE');
+}
+
+// Scenario 1F: EXACT Production Encounter: Ghostly Cosmog with colored Pokeball icon
+{
+  const container = createMockEncounterElement({
+    text: 'Legendary Pokemon\nGhostly Cosmog Appeared!\nLevel: 10 HP: 40\nPsychic\nTry to Catch It',
+    star: { src: 'https://www.delugerpg.com/images/star.png' },
+    sprite: 'https://img.delugerpg.com/pokemon/ghostly/cosmog.png',
+    indicator: { src: 'https://www.delugerpg.com/images/ball.png', title: 'Cosmog', width: 16, height: 16 },
+    typeBadge: { src: 'https://www.delugerpg.com/images/types/psychic.png' }
+  });
+  const isDupe = mockCheckDuplicate(container, 'none', 1.0);
+  assert.strictEqual(isDupe, true, 'Ghostly Cosmog with colored ball.png MUST be detected as DUPLICATE');
+  console.log('[PASS] Scenario 1F: Ghostly Cosmog production encounter correctly identified as DUPLICATE');
+}
+
+// Scenario 1G: Pokeball icon with opacity < 0.5 (Desaturated / Greyed out)
+{
+  const container = createMockEncounterElement({
+    text: 'A wild Miraidon appeared! Level 70',
+    sprite: 'https://www.delugerpg.com/pokemon/regular/miraidon.png',
+    indicator: { src: 'https://www.delugerpg.com/images/dball.png' }
+  });
+  const isDupe = mockCheckDuplicate(container, '', 0.35);
+  assert.strictEqual(isDupe, false, 'Pokeball with opacity 0.35 must be detected as NOT DUPLICATE (greyed out)');
+  console.log('[PASS] Scenario 1G: Low-opacity greyed out icon correctly identified as NOT DUPLICATE');
+}
+
+// Scenario 1H: Pokeball icon with saturate(0) filter
+{
+  const container = createMockEncounterElement({
+    text: 'A wild Zacian appeared! Level 70',
+    sprite: 'https://www.delugerpg.com/pokemon/regular/zacian.png',
+    indicator: { src: 'https://www.delugerpg.com/images/ball.png' }
+  });
+  const isDupe = mockCheckDuplicate(container, 'saturate(0%)');
+  assert.strictEqual(isDupe, false, 'Pokeball with saturate(0%) must be detected as NOT DUPLICATE (greyed out)');
+  console.log('[PASS] Scenario 1H: saturate(0%) filter correctly identified as NOT DUPLICATE');
 }
 
 // 2. Verify Zero Residue on Auto-Catch Removals

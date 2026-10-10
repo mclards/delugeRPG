@@ -139,6 +139,11 @@ function isAdOrTrackerNoise(msg) {
          m.includes('pagead') ||
          m.includes('google_ad') ||
          m.includes('adsystem') ||
+         m.includes('powerpreference option is currently ignored') ||
+         m.includes('no available adapters') ||
+         m.includes('requestadapter()') ||
+         m.includes('ots parsing error') ||
+         m.includes('font-size:0;color:transparent') ||
          m.includes('typeerror: failed to fetch');
 }
 

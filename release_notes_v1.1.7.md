@@ -20,10 +20,15 @@
 - **Expanded Width**: Widened the header status chip (`#statusChip`) to 360px (min 320px, max 420px) to prevent notification truncation and clipping.
 - **Centered, Shortened Status Text**: Cleaned and condensed all notification strings across roaming, ball selection, throwing, and resuming.
 
-### 4. PokeFinder Userscript Alignment (v4.6)
-- Synchronized [pokefinder.user.js](pokefinder.user.js) to **v4.6** with identical Option A zero-stock redirection, direct map navigation, and inventory stock logging.
+### 4. Advanced Google Vignette (Full-Screen Interstitial Ad) Suppression
+- **Native Link Prevention**: Dynamically injects `data-google-vignette="false"` on navigation links so Google Auto Ads skips full-page interstitial triggers on page transitions.
+- **Autonomous Overlay Dismissal**: Automatically detects Google Vignette overlays, simulates dismiss clicks (`#dismiss-button`, `[aria-label="Close ad"]`), cleans `#google_vignette` URL fragments, and prevents viewport scroll locks.
+- **Server Stealth**: Operates purely on cosmetic rendering without blocking network requests, preserving 100% compliance with DelugeRPG server ad verification checks.
 
-### 5. Verified Reliability & Clean ASCII Integrity
+### 5. PokeFinder Userscript Alignment (v4.6)
+- Synchronized [pokefinder.user.js](pokefinder.user.js) to **v4.6** with identical Option A zero-stock redirection, direct map navigation, live stock quantity logging, and Google Vignette suppression.
+
+### 6. Verified Reliability & Clean ASCII Integrity
 - Validated with live production encounters (e.g., *Ghostly Yveltal Lv 62*, *Kartana Lv 51*) with 0 errors and zero detection footprints.
 - 100% 7-bit clean ASCII compliance across all client source files.
 

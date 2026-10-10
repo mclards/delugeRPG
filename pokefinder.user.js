@@ -327,7 +327,7 @@
     let lastStatusColor = '#4caf50';
 
     // --- OPTION B: COSMETIC AD HIDING ---
-    // Satisfies DelugeRPG script verification over network while visually collapsing banners
+    // Satisfies DelugeRPG script verification over network while visually collapsing banners & dismissing interstitials
     const COSMETIC_AD_STYLE_ID = 'pokefinder-cosmetic-ad-hide';
     const COSMETIC_AD_CSS = [
         '/* DelugeRPG Option B: Cosmetic Ad Hiding (Preserves 1-click Skip button while collapsing banners) */',
@@ -335,12 +335,26 @@
         'div[id*="-gpt-ad-"],',
         'div[id^="google_ads_iframe"],',
         'div[id*="google_ads_iframe"],',
+        'div[id^="aswift_"],',
+        'div[id*="-aswift-"],',
+        'div[id*="aswift_host"],',
         'ins.adsbygoogle,',
+        'ins.adsbygoogle-noablate,',
+        '.google-auto-placed,',
         'iframe[id^="google_ads_iframe"],',
         'iframe[id*="google_ads_iframe"],',
+        'iframe[id^="aswift_"],',
+        'iframe[name^="aswift_"],',
+        'iframe[id*="ad_iframe"],',
         'iframe[src*="doubleclick.net"],',
         'iframe[src*="googlesyndication.com"],',
         'iframe[src*="googleads"],',
+        'div[class*="grippy-host"],',
+        'div[data-google-vignette],',
+        'div[id*="google-interstitial"],',
+        'div[class*="google-interstitial"],',
+        'div[id*="google-rewarded-video"],',
+        'div[aria-label="Advertisement"],',
         '.advertisement,',
         '.ad-slot,',
         '.ad-container,',
@@ -359,19 +373,98 @@
         'div[class*="ad-container"],',
         'div[class*="ad-wrapper"],',
         'div[class*="ad_unit"],',
-        'div[class*="ad-unit"] {',
+        'div[class*="ad-unit"],',
+        'div[id*="interstitial"],',
+        'div[class*="interstitial"],',
+        'div[class*="ad-overlay"],',
+        'div[id*="ad-overlay"],',
+        'div[class*="overlay-ad"],',
+        'div[id*="overlay-ad"] {',
         '    display: none !important;',
         '    visibility: hidden !important;',
         '    height: 0 !important;',
         '    min-height: 0 !important;',
         '    max-height: 0 !important;',
+        '    width: 0 !important;',
+        '    min-width: 0 !important;',
+        '    max-width: 0 !important;',
         '    margin: 0 !important;',
         '    padding: 0 !important;',
         '    opacity: 0 !important;',
         '    pointer-events: none !important;',
         '    overflow: hidden !important;',
+        '}',
+        '/* Restore viewport scroll/interaction if interstitial scripts attempt to lock it */',
+        'html, body {',
+        '    overflow: auto !important;',
         '}'
     ].join('\n');
+
+    function vaccinateLinksAgainstVignettes() {
+        if (!hideAdsCosmetically) return;
+        try {
+            const links = document.querySelectorAll('a:not([data-google-vignette])');
+            for (let i = 0; i < links.length; i++) {
+                links[i].setAttribute('data-google-vignette', 'false');
+            }
+        } catch (_) {}
+    }
+
+    function dismissGoogleVignetteOverlay() {
+        if (!hideAdsCosmetically) return;
+        try {
+            // A. Clean vignette hash from URL without navigation
+            if (window.location.hash && window.location.hash.indexOf('google_vignette') !== -1) {
+                try {
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                } catch (_) {}
+            }
+
+            // B. Auto-click native Google Vignette dismiss / close buttons
+            const dismissSelectors = [
+                '#dismiss-button',
+                'div#dismiss-button',
+                'button#dismiss-button',
+                'div[aria-label="Close ad" i]',
+                'button[aria-label="Close ad" i]',
+                'div[aria-label="Close" i]',
+                'button[aria-label="Close" i]',
+                '.grippy-host',
+                'div[class*="close-button" i]',
+                'div[id*="close-button" i]'
+            ];
+
+            for (let s = 0; s < dismissSelectors.length; s++) {
+                const btn = document.querySelector(dismissSelectors[s]);
+                if (btn && btn.offsetParent !== null) {
+                    try {
+                        btn.click();
+                    } catch (_) {}
+                }
+            }
+
+            // C. Collapse any fixed full-screen interstitial overlays holding ad iframes
+            const fixedElements = document.querySelectorAll('div[style*="position: fixed"], div[style*="position:fixed"], ins.adsbygoogle[data-vignette-loaded]');
+            for (let f = 0; f < fixedElements.length; f++) {
+                const el = fixedElements[f];
+                const hasAdChild = el.querySelector('iframe[src*="google"], iframe[src*="doubleclick"], iframe[id^="aswift"], ins.adsbygoogle, #dismiss-button');
+                const isAd = el.id && (el.id.indexOf('aswift') !== -1 || el.id.indexOf('google') !== -1);
+                if (hasAdChild || isAd || el.hasAttribute('data-vignette-loaded')) {
+                    el.style.setProperty('display', 'none', 'important');
+                    el.style.setProperty('pointer-events', 'none', 'important');
+                    el.style.setProperty('visibility', 'hidden', 'important');
+                }
+            }
+
+            // D. Prevent ad scripts from locking document body scrolling
+            if (document.body && document.body.style && document.body.style.overflow === 'hidden') {
+                document.body.style.overflow = '';
+            }
+            if (document.documentElement && document.documentElement.style && document.documentElement.style.overflow === 'hidden') {
+                document.documentElement.style.overflow = '';
+            }
+        } catch (_) {}
+    }
 
     function applyCosmeticAdHiding() {
         try {
@@ -387,6 +480,8 @@
                         parent.appendChild(styleEl);
                     }
                 }
+                vaccinateLinksAgainstVignettes();
+                dismissGoogleVignetteOverlay();
             } else {
                 if (styleEl && styleEl.parentNode) {
                     styleEl.parentNode.removeChild(styleEl);
@@ -396,6 +491,12 @@
     }
 
     applyCosmeticAdHiding();
+    setInterval(function() {
+        if (hideAdsCosmetically) {
+            vaccinateLinksAgainstVignettes();
+            dismissGoogleVignetteOverlay();
+        }
+    }, 500);
 
     function createStatusUI() {
         if (!document.body || document.getElementById('pokefinder-hud')) return;

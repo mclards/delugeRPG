@@ -538,9 +538,12 @@ assert.strictEqual(preloadJs.includes('checkAndSyncMapPresence'), true, 'game-pr
 assert.strictEqual(preloadJs.includes("'map-presence'"), true, 'game-preload.js must send map-presence IPC');
 assert.strictEqual(preloadJs.includes('hideAdsCosmetically'), true, 'game-preload.js must support hideAdsCosmetically');
 assert.strictEqual(preloadJs.includes('applyCosmeticAdHiding'), true, 'game-preload.js must contain applyCosmeticAdHiding');
+assert.strictEqual(preloadJs.includes('vaccinateLinksAgainstVignettes'), true, 'game-preload.js must contain vaccinateLinksAgainstVignettes');
+assert.strictEqual(preloadJs.includes('dismissGoogleVignetteOverlay'), true, 'game-preload.js must contain dismissGoogleVignetteOverlay');
+assert.strictEqual(preloadJs.includes('aswift_'), true, 'game-preload.js must target aswift containers');
 assert.strictEqual(preloadJs.includes('deluge_last_map_url'), true, 'game-preload.js must store deluge_last_map_url');
 assert.strictEqual(preloadJs.includes('window.location.href = returnUrl'), true, 'game-preload.js must directly redirect to returnUrl on zero stock');
-console.log('[PASS] game-preload.js verified: runAutoCatchLifecycle, getRandomCatchDelay, checkAndSyncMapPresence, and Master Ball auto-catch active.');
+console.log('[PASS] game-preload.js verified: runAutoCatchLifecycle, getRandomCatchDelay, checkAndSyncMapPresence, Master Ball auto-catch, and Google Vignette suppression active.');
 
 // 3. Auto-Catch (Master Ball) State Machine & Guard Verification
 console.log('\n--- TEST 3: Auto-Catch (Master Ball) State Machine & Guard Verification ---');

@@ -826,27 +826,55 @@ function checkEncounterIsDuplicate(container, shouldLog = false) {
     }
 }
 
+function checkHasCaptchaElement() {
+    try {
+        const path = (window.location.pathname || '').toLowerCase();
+        if (path.indexOf('/login') !== -1) return false;
+        if (path.indexOf('/unlock') !== -1) return true;
+        const cEl = document.querySelector(
+            'iframe[src*="captcha" i], iframe[src*="turnstile" i], iframe[src*="recaptcha" i], iframe[src*="challenges.cloudflare.com" i], ' +
+            '#captcha, .captcha, #recaptcha, .g-recaptcha, .cf-turnstile, [id*="captcha" i], [class*="captcha" i]'
+        );
+        if (cEl) {
+            const st = window.getComputedStyle(cEl);
+            if (st.display !== 'none' && st.visibility !== 'hidden') return true;
+        }
+    } catch (_) {}
+    return false;
+}
+
+function checkAndSyncMapPresence() {
+    try {
+        const path = (window.location.pathname || '').toLowerCase();
+        const hasMapElement = !!(document.getElementById('map') || document.getElementById('mapcanvas') || document.querySelector('.trainer') || document.getElementById('user'));
+        const hasDpad = !!document.getElementById('dpad');
+        const isMapPage = (path.indexOf('/map') !== -1) || (hasMapElement && hasDpad);
+        const hasCatchUI = !!findCatchActionElement();
+        const hasCaptcha = checkHasCaptchaElement();
+
+        ipcRenderer.sendToHost('map-presence', {
+            isMap: isMapPage,
+            hasMapEl: hasMapElement,
+            hasEncounter: hasCatchUI,
+            hasCaptcha: hasCaptcha,
+            pathname: path,
+            url: window.location.href
+        });
+
+        if (!isMapPage && isHuntingActive) {
+            isHuntingActive = false;
+            ipcRenderer.sendToHost('hunting-auto-pause', { reason: 'outside-map', path: path });
+        }
+    } catch (_) {}
+}
+
 // --- 3. TARGET SCANNING ENGINE ---
 function scanForTargets() {
     // A. Check for /unlock Honeypot / Captcha FIRST across game pages (excluding normal login pages)
     const path = (window.location.pathname || '').toLowerCase();
     const isLoginPath = path.indexOf('/login') !== -1;
     const isUnlockPath = path.indexOf('/unlock') !== -1;
-    let hasCaptchaElement = false;
-    if (!isLoginPath) {
-        try {
-            const cEl = document.querySelector(
-                'iframe[src*="captcha" i], iframe[src*="turnstile" i], iframe[src*="recaptcha" i], iframe[src*="challenges.cloudflare.com" i], ' +
-                '#captcha, .captcha, #recaptcha, .g-recaptcha, .cf-turnstile, [id*="captcha" i], [class*="captcha" i]'
-            );
-            if (cEl) {
-                const st = window.getComputedStyle(cEl);
-                if (st.display !== 'none' && st.visibility !== 'hidden') {
-                    hasCaptchaElement = true;
-                }
-            }
-        } catch (_) {}
-    }
+    const hasCaptchaElement = checkHasCaptchaElement();
 
     if (!isLoginPath && (isUnlockPath || hasCaptchaElement)) {
         if (!unlockNoticeSent) {
@@ -1689,6 +1717,7 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('DOMContentLoaded', () => {
     console.log('[PokePreload] DOMContentLoaded on ' + window.location.pathname);
     applyCosmeticAdHiding();
+    checkAndSyncMapPresence();
     const path = (window.location.pathname || '').toLowerCase();
     if (path.indexOf('/login') !== -1) {
         const creds = config && config.dummyAccount;
@@ -1718,14 +1747,12 @@ window.addEventListener('DOMContentLoaded', () => {
 // High-frequency polling (300ms) for instant responsiveness
 setInterval(() => {
     syncNavStatusToHost();
-    const path = (window.location.pathname || '').toLowerCase();
-    const isHuntingPage = path.indexOf('/map') !== -1 || path.indexOf('/catch') !== -1;
-    if (!isHuntingPage && isHuntingActive) {
-        isHuntingActive = false;
-        ipcRenderer.sendToHost('hunting-auto-pause', { reason: 'outside-map', path: path });
-    }
+    checkAndSyncMapPresence();
     scanForTargets();
 }, 300);
+
+window.addEventListener('popstate', checkAndSyncMapPresence);
+window.addEventListener('hashchange', checkAndSyncMapPresence);
 
 function isGuestInputField(el) {
     if (!el) return false;

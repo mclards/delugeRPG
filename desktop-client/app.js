@@ -293,6 +293,7 @@ let walkTimeout = null;
 let soundEnabled = config.settings.soundAlert !== false;
 let mapIsSearching = false;
 let isEncounterOnScreen = false;
+let guestReportsMap = false;
 let isStepPending = false;
 let stepPendingTicks = 0;
 let userManuallyPaused = false;
@@ -1074,10 +1075,16 @@ function isMapUrl(rawUrl) {
     const u = new URL(rawUrl);
     if (!u.hostname.includes('delugerpg.com')) return false;
     const p = u.pathname.toLowerCase();
-    return p === '/map' || p.startsWith('/map/');
+    return p.startsWith('/map') || p.includes('/map');
   } catch (_) {
     return false;
   }
+}
+
+function isCurrentPageMap() {
+  if (guestReportsMap) return true;
+  const curUrl = (delugeView && delugeView.getURL()) || '';
+  return isMapUrl(curUrl);
 }
 
 function autoPauseOutsideMap(source = '') {
@@ -1093,6 +1100,8 @@ function autoPauseOutsideMap(source = '') {
     updateToggleButton();
     updateStatus('Auto-Paused (Outside Map)', '#f59e0b');
     syncHuntingState();
+  } else if (!isCurrentPageMap()) {
+    updateStatus('Auto-Paused (Outside Map)', '#f59e0b');
   }
 }
 
@@ -1142,11 +1151,10 @@ function toggleHunting() {
   }
 
   if (!isRunning) {
-    const curUrl = delugeView ? delugeView.getURL() : '';
-    if (curUrl && !isMapUrl(curUrl)) {
+    if (!isCurrentPageMap()) {
       updateStatus('Cannot Hunt Outside Map!', '#ef4444');
       setTimeout(() => {
-        if (!isRunning) updateStatus('Paused (Outside Map)', '#f59e0b');
+        if (!isRunning && !isCurrentPageMap()) updateStatus('Paused (Outside Map)', '#f59e0b');
       }, 2000);
       return;
     }
@@ -1854,8 +1862,7 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
     return;
   }
 
-  const curUrl = (delugeView && delugeView.getURL()) || '';
-  if (!isMapUrl(curUrl)) return;
+  if (!isCurrentPageMap()) return;
 
   const delaySec = Math.max(2, parseInt((config.settings && config.settings.autoStartDelay) || 5, 10));
   autoStartRemainingSeconds = delaySec;
@@ -1867,8 +1874,7 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
   autoStartCountdownTimer = setInterval(() => {
     autoStartRemainingSeconds--;
     if (autoStartRemainingSeconds > 0) {
-      const activeUrl = (delugeView && delugeView.getURL()) || '';
-      if (!isMapUrl(activeUrl) || isUnlockChallengeActive || isEncounterOnScreen || isRunning || userManuallyPaused) {
+      if (!isCurrentPageMap() || isUnlockChallengeActive || isEncounterOnScreen || isRunning || userManuallyPaused) {
         cancelPendingAutoStart('Conditions changed during countdown');
         updateToggleButton();
         return;
@@ -1881,8 +1887,7 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
   autoStartTimer = setTimeout(() => {
     cancelPendingAutoStart();
 
-    const activeUrl = (delugeView && delugeView.getURL()) || '';
-    if (!isMapUrl(activeUrl)) {
+    if (!isCurrentPageMap()) {
       backendLog('AutoStart', 'Aborted auto-start: no longer on map URL.');
       return;
     }
@@ -1913,11 +1918,16 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
 }
 
 function handleMapNavigation(url) {
-  if (!isMapUrl(url)) {
+  const onMap = isMapUrl(url) || guestReportsMap;
+  if (!onMap) {
     cancelPendingAutoStart('Navigated outside map');
     userManuallyPaused = false;
     autoPauseOutsideMap(url);
   } else {
+    // Clear "Outside Map" warning if on map
+    if (!isRunning && statusText && statusText.textContent && statusText.textContent.includes('Outside Map')) {
+      updateStatus('Paused', '#f59e0b');
+    }
     if (isUnlockChallengeActive) {
       isUnlockChallengeActive = false;
       backendLog('SecurityChallenge', 'Navigated back to map from /unlock. Captcha completed.');
@@ -1926,7 +1936,9 @@ function handleMapNavigation(url) {
     // Auto-start hunting whenever map is opened if enabled, unless user manually paused!
     const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
     if (!isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
-      triggerDelayedAutoStart('Map opened');
+      if (!autoStartTimer) {
+        triggerDelayedAutoStart('Map opened');
+      }
     }
   }
 }
@@ -1936,9 +1948,19 @@ delugeView.addEventListener('did-navigate', (event) => {
   handleMapNavigation(url);
 });
 
+delugeView.addEventListener('did-navigate-in-page', (event) => {
+  const url = event.url || (delugeView && delugeView.getURL()) || '';
+  handleMapNavigation(url);
+});
+
+delugeView.addEventListener('did-finish-load', () => {
+  const url = (delugeView && delugeView.getURL()) || '';
+  handleMapNavigation(url);
+});
+
 delugeView.addEventListener('will-navigate', (event) => {
   const url = event.url || '';
-  if (!isMapUrl(url)) {
+  if (!isMapUrl(url) && !guestReportsMap) {
     autoPauseOutsideMap(url);
   }
 });
@@ -2007,6 +2029,35 @@ delugeView.addEventListener('ipc-message', (event) => {
     toggleHunting();
   }
 
+  if (event.channel === 'map-presence') {
+    const data = event.args[0] || {};
+    guestReportsMap = !!data.isMap;
+    const prevEncounter = isEncounterOnScreen;
+    isEncounterOnScreen = !!data.hasEncounter;
+
+    if (!guestReportsMap) {
+      if (isRunning) {
+        autoPauseOutsideMap(data.pathname || 'outside-map');
+      }
+    } else {
+      // Clear "Outside Map" warning if on map
+      if (!isRunning && statusText && statusText.textContent && statusText.textContent.includes('Outside Map')) {
+        updateStatus('Paused', '#f59e0b');
+      }
+
+      if (prevEncounter && !isEncounterOnScreen) {
+        backendLog('Encounter', 'Target / wild encounter resolved. Returned to clean map view.');
+      }
+
+      const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
+      if (!isRunning && !userManuallyPaused && !isEncounterOnScreen && !isUnlockChallengeActive && shouldAutoStart) {
+        if (!autoStartTimer) {
+          triggerDelayedAutoStart('Map presence confirmed by guest');
+        }
+      }
+    }
+  }
+
   if (event.channel === 'target-found') {
     isStepPending = false;
     if (!isRunning) {
@@ -2029,7 +2080,9 @@ delugeView.addEventListener('ipc-message', (event) => {
       walkTimeout = null;
     }
     isRunning = false;
-    userManuallyPaused = true;
+    // CRITICAL: Encounter pause is NOT a manual user pause!
+    // userManuallyPaused stays false so client can auto-start once encounter is caught!
+    userManuallyPaused = false;
     isEncounterOnScreen = true;
     updateToggleButton();
 
@@ -2094,8 +2147,10 @@ delugeView.addEventListener('dom-ready', () => {
   }
   const curUrl = (delugeView && delugeView.getURL()) || '';
   const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
-  if (isMapUrl(curUrl) && !isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
-    triggerDelayedAutoStart('Map loaded on startup');
+  if (isCurrentPageMap() && !isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
+    if (!autoStartTimer) {
+      triggerDelayedAutoStart('Map loaded on dom-ready');
+    }
   }
 });
 

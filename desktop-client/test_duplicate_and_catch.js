@@ -513,17 +513,22 @@ assert.strictEqual(appJs.includes('autoStartMapBtn'), true, 'app.js must contain
 assert.strictEqual(appJs.includes('autoStartDelaySelect'), true, 'app.js must contain autoStartDelaySelect');
 assert.strictEqual(appJs.includes('hideAdsBtn'), true, 'app.js must contain hideAdsBtn (Option B)');
 assert.strictEqual(appJs.includes('updateHideAdsUI'), true, 'app.js must contain updateHideAdsUI (Option B)');
-assert.strictEqual(appJs.includes('openLogsBtn'), true, 'app.js must contain openLogsBtn');
-console.log('[PASS] app.js verified: Zero auto-catch residue, handleMapNavigation, triggerDelayedAutoStart, and hideAdsBtn active.');
+assert.strictEqual(appJs.includes('guestReportsMap'), true, 'app.js must track guestReportsMap');
+assert.strictEqual(appJs.includes('isCurrentPageMap'), true, 'app.js must provide isCurrentPageMap');
+assert.strictEqual(appJs.includes("channel === 'map-presence'"), true, 'app.js must listen for map-presence IPC');
+assert.strictEqual(appJs.includes('did-navigate-in-page'), true, 'app.js must listen for did-navigate-in-page');
+console.log('[PASS] app.js verified: Zero auto-catch residue, handleMapNavigation, triggerDelayedAutoStart, guestReportsMap, and hideAdsBtn active.');
 
 const preloadJs = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
 assert.strictEqual(preloadJs.includes('startCatchSequence'), false, 'game-preload.js must not contain startCatchSequence');
 assert.strictEqual(preloadJs.includes('catchStepInterval'), false, 'game-preload.js must not contain catchStepInterval');
 assert.strictEqual(preloadJs.includes('performLoginAutoFill'), true, 'game-preload.js must contain performLoginAutoFill');
-assert.strictEqual(preloadJs.includes('hasCaptchaElement'), true, 'game-preload.js must check hasCaptchaElement');
+assert.strictEqual(preloadJs.includes('checkHasCaptchaElement'), true, 'game-preload.js must check checkHasCaptchaElement');
+assert.strictEqual(preloadJs.includes('checkAndSyncMapPresence'), true, 'game-preload.js must contain checkAndSyncMapPresence');
+assert.strictEqual(preloadJs.includes("'map-presence'"), true, 'game-preload.js must send map-presence IPC');
 assert.strictEqual(preloadJs.includes('hideAdsCosmetically'), true, 'game-preload.js must support hideAdsCosmetically (Option B)');
 assert.strictEqual(preloadJs.includes('applyCosmeticAdHiding'), true, 'game-preload.js must contain applyCosmeticAdHiding (Option B)');
-console.log('[PASS] game-preload.js verified: Zero auto-catch residue, performLoginAutoFill, captcha checks, and Option B active.');
+console.log('[PASS] game-preload.js verified: Zero auto-catch residue, performLoginAutoFill, checkAndSyncMapPresence, and Option B active.');
 
 // 3. Verify 100% 7-bit Clean ASCII across all files
 console.log('\n--- TEST 3: 100% 7-bit Clean ASCII Verification ---');

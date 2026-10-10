@@ -169,11 +169,16 @@ let config = {
 };
 
 let configSynced = false;
+let lastSyncedConfigStr = '';
 ipcRenderer.on('update-config', (event, newSettings) => {
     if (newSettings) {
         config = Object.assign({}, config, newSettings);
         configSynced = true;
-        console.log('[PokePreload] Synced config:', JSON.stringify(config));
+        const currentStr = JSON.stringify(config);
+        if (currentStr !== lastSyncedConfigStr) {
+            lastSyncedConfigStr = currentStr;
+            console.log('[PokePreload] Configuration synchronized successfully');
+        }
     }
 });
 
@@ -370,7 +375,7 @@ function extractWildLevel(container) {
     return null;
 }
 
-function checkEncounterIsDuplicate(container) {
+function checkEncounterIsDuplicate(container, shouldLog = false) {
     try {
         if (!container) {
             container = getEncounterContainer();
@@ -389,7 +394,7 @@ function checkEncounterIsDuplicate(container) {
             rawText.indexOf('uncaught') !== -1 ||
             rawText.indexOf('not in pokedex') !== -1 ||
             rawText.indexOf('new pokemon') !== -1) {
-            console.log('[PokePreload] Duplicate check: matched explicit uncaught text');
+            if (shouldLog) console.log('[PokePreload] Duplicate check: matched explicit uncaught text');
             return false;
         }
 
@@ -401,7 +406,7 @@ function checkEncounterIsDuplicate(container) {
             rawText.indexOf('already owned') !== -1 ||
             rawText.indexOf('pokedex: caught') !== -1 ||
             rawText.indexOf('dex: caught') !== -1) {
-            console.log('[PokePreload] Duplicate check: matched explicit duplicate text');
+            if (shouldLog) console.log('[PokePreload] Duplicate check: matched explicit duplicate text');
             return true;
         }
 
@@ -548,7 +553,7 @@ function checkEncounterIsDuplicate(container) {
             indTitle.indexOf("new pokemon") !== -1 || indAlt.indexOf("new pokemon") !== -1;
 
         if (isUncaughtByText) {
-            console.log('[PokePreload] Indicator UNCAUGHT confirmed via title/alt: "' + (indTitle || indAlt) + '"');
+            if (shouldLog) console.log('[PokePreload] Indicator UNCAUGHT confirmed via title/alt: "' + (indTitle || indAlt) + '"');
             return false;
         }
 
@@ -569,7 +574,7 @@ function checkEncounterIsDuplicate(container) {
             indSrc.indexOf('dball_gray') !== -1 || indSrc.indexOf('dball_bw') !== -1;
 
         if (isUncaughtBySrc) {
-            console.log('[PokePreload] Indicator UNCAUGHT confirmed via filename pattern: ' + indSrc);
+            if (shouldLog) console.log('[PokePreload] Indicator UNCAUGHT confirmed via filename pattern: ' + indSrc);
             return false;
         }
 
@@ -582,7 +587,7 @@ function checkEncounterIsDuplicate(container) {
             indClass.indexOf('desaturated') !== -1 || indClass.indexOf('off') !== -1;
 
         if (isUncaughtByClass) {
-            console.log('[PokePreload] Indicator UNCAUGHT confirmed via CSS class: ' + indClass);
+            if (shouldLog) console.log('[PokePreload] Indicator UNCAUGHT confirmed via CSS class: ' + indClass);
             return false;
         }
 
@@ -609,7 +614,7 @@ function checkEncounterIsDuplicate(container) {
         }
 
         if (filterVal.indexOf('grayscale') !== -1 || filterVal.indexOf('saturate(0') !== -1 || opacityVal < 0.5) {
-            console.log('[PokePreload] Indicator UNCAUGHT confirmed via CSS filter/opacity (filter: ' + filterVal + ', opacity: ' + opacityVal + ')');
+            if (shouldLog) console.log('[PokePreload] Indicator UNCAUGHT confirmed via CSS filter/opacity (filter: ' + filterVal + ', opacity: ' + opacityVal + ')');
             return false;
         }
 
@@ -628,7 +633,7 @@ function checkEncounterIsDuplicate(container) {
             indTitle.indexOf('registered') !== -1 || indAlt.indexOf('registered') !== -1;
 
         if (isCaughtByText) {
-            console.log('[PokePreload] Indicator DUPLICATE CONFIRMED via title/alt: "' + (indTitle || indAlt) + '"');
+            if (shouldLog) console.log('[PokePreload] Indicator DUPLICATE CONFIRMED via title/alt: "' + (indTitle || indAlt) + '"');
             return true;
         }
 
@@ -640,16 +645,16 @@ function checkEncounterIsDuplicate(container) {
             !isUncaughtBySrc;
 
         if (isStandardCaughtBall) {
-            console.log('[PokePreload] Indicator DUPLICATE CONFIRMED via colored PokeBall icon: src=' + indSrc);
+            if (shouldLog) console.log('[PokePreload] Indicator DUPLICATE CONFIRMED via colored PokeBall icon: src=' + indSrc);
             return true;
         }
 
         // G. CRITICAL FAIL-SAFE: If status cannot be definitively confirmed as a duplicate,
         // NEVER assume duplicate! Default to false so targets are NEVER accidentally skipped!
-        console.log('[PokePreload] Indicator status inconclusive (src=' + indSrc + ', title=' + indTitle + ') - defaulting to NOT duplicate for safety.');
+        if (shouldLog) console.log('[PokePreload] Indicator status inconclusive (src=' + indSrc + ', title=' + indTitle + ') - defaulting to NOT duplicate for safety.');
         return false;
     } catch (err) {
-        console.warn('[PokePreload] Error in checkEncounterIsDuplicate:', err);
+        if (shouldLog) console.warn('[PokePreload] Error in checkEncounterIsDuplicate:', err);
         return false;
     }
 }
@@ -894,7 +899,7 @@ function scanForTargets() {
     }
 
     const encContainer = getEncounterContainer();
-    const isEncounterDuplicate = checkEncounterIsDuplicate(encContainer);
+    const isEncounterDuplicate = checkEncounterIsDuplicate(encContainer, isNewEncounter);
     const avoidDupesActive = (config.avoidDuplicates !== false);
 
     if (avoidDupesActive && isEncounterDuplicate) {
@@ -1042,7 +1047,7 @@ function triggerTargetFound(targetName, category) {
     if (targetName === lastFoundTarget) return;
 
     const encContainer = getEncounterContainer();
-    const isDupe = checkEncounterIsDuplicate(encContainer);
+    const isDupe = checkEncounterIsDuplicate(encContainer, false);
     if (config.avoidDuplicates !== false && isDupe) {
         console.log('[PokePreload] Duplicate target detected during trigger: ' + targetName + ' - skipping.');
         return;

@@ -56,6 +56,29 @@ function getResolvedConfigPath() {
 const CONFIG_PATH = getResolvedConfigPath();
 const LOG_FILE = path.join(path.dirname(CONFIG_PATH), 'backend_live.log');
 
+function isAdOrTrackerNoise(msg) {
+  if (!msg || typeof msg !== 'string') return true;
+  const m = msg.toLowerCase().trim();
+  if (m === '') return true;
+  return m.includes('[gpt]') ||
+         m.includes('googletag') ||
+         m.includes('goo.gle/gpt') ||
+         m.includes('novatiq') ||
+         m.includes('pubads') ||
+         m.includes('fundingchoices') ||
+         m.includes('console.groupend') ||
+         m.includes('uctagdata') ||
+         m.includes('content security policy') ||
+         m.includes('doubleclick') ||
+         m.includes('securepubads') ||
+         m.includes('adsbygoogle') ||
+         m.includes('adservice') ||
+         m.includes('pagead') ||
+         m.includes('google_ad') ||
+         m.includes('adsystem') ||
+         m.includes('typeerror: failed to fetch');
+}
+
 function appendSystemLog(line) {
   try {
     const dir = path.dirname(LOG_FILE);
@@ -315,6 +338,8 @@ if (!gotTheLock) {
     contents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
     contents.on('console-message', (e, level, message) => {
+      if (isAdOrTrackerNoise(message)) return;
+      if (contents.getType && contents.getType() === 'webview') return;
       const ts = new Date().toISOString().substring(11, 23);
       const line = `[${ts}] [WebContents Console] ${message}\n`;
       try {

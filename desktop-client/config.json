@@ -30,7 +30,7 @@
     "enableLevelFilter": false,
     "levelFilterMode": "min",
     "levelFilterValue": 12,
-    "zoomFactor": 0.7,
+    "zoomFactor": 0.6,
     "levelFilterScope": "targets",
     "legendaryClassic": true,
     "legendaryUltraBeasts": true,

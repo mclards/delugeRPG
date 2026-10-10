@@ -114,6 +114,30 @@ function saveLocalConfig() {
 loadLocalConfig();
 
 const LOG_FILE = path.join(path.dirname(CONFIG_PATH), 'backend_live.log');
+
+function isAdOrTrackerNoise(msg) {
+  if (!msg || typeof msg !== 'string') return true;
+  const m = msg.toLowerCase().trim();
+  if (m === '') return true;
+  return m.includes('[gpt]') ||
+         m.includes('googletag') ||
+         m.includes('goo.gle/gpt') ||
+         m.includes('novatiq') ||
+         m.includes('pubads') ||
+         m.includes('fundingchoices') ||
+         m.includes('console.groupend') ||
+         m.includes('uctagdata') ||
+         m.includes('content security policy') ||
+         m.includes('doubleclick') ||
+         m.includes('securepubads') ||
+         m.includes('adsbygoogle') ||
+         m.includes('adservice') ||
+         m.includes('pagead') ||
+         m.includes('google_ad') ||
+         m.includes('adsystem') ||
+         m.includes('typeerror: failed to fetch');
+}
+
 function backendLog(tag, msg) {
   const ts = new Date().toISOString().substring(11, 23);
   const detail = (typeof msg === 'object') ? JSON.stringify(msg) : String(msg);
@@ -1678,8 +1702,8 @@ function handleMoveSuccess(dir) {
 
 // Webview Diagnostics & Logging Forwarder
 delugeView.addEventListener('console-message', (e) => {
+  if (isAdOrTrackerNoise(e.message)) return;
   backendLog('WebviewConsole', e.message);
-  console.log('[Webview Console]', e.message);
 });
 
 delugeView.addEventListener('preload-error', (e) => {

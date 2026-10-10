@@ -69,7 +69,8 @@ function loadLocalConfig() {
       soundAlert: true,
       autoPauseOnTarget: true,
       avoidDuplicates: true,
-      autoStartOnMap: true
+      autoStartOnMap: true,
+      autoStartDelay: 5
     }
   };
   try {
@@ -164,6 +165,8 @@ const avoidDupesBtn = document.getElementById('avoidDupesBtn');
 const avoidDupesBadge = document.getElementById('avoidDupesBadge');
 const autoStartMapBtn = document.getElementById('autoStartMapBtn');
 const autoStartMapBadge = document.getElementById('autoStartMapBadge');
+const autoStartDelayRow = document.getElementById('autoStartDelayRow');
+const autoStartDelaySelect = document.getElementById('autoStartDelaySelect');
 const openLogsBtn = document.getElementById('openLogsBtn');
 const wipeBtn = document.getElementById('wipeBtn');
 const networkBtn = document.getElementById('networkBtn');
@@ -562,14 +565,22 @@ function updateAvoidDupesUI() {
 
 function updateAutoStartMapUI() {
   const isAuto = config.settings && config.settings.autoStartOnMap !== false;
+  const delaySec = (config.settings && config.settings.autoStartDelay) || 5;
   if (autoStartMapBadge) {
     autoStartMapBadge.textContent = isAuto ? 'ON' : 'OFF';
     autoStartMapBadge.className = isAuto ? 'dropdown-badge dropdown-badge-on' : 'dropdown-badge dropdown-badge-off';
   }
   if (autoStartMapBtn) {
     autoStartMapBtn.title = isAuto
-      ? 'Auto-Start on Maps: ON (Begins hunting immediately when map is opened)'
+      ? `Auto-Start on Maps: ON (Begins hunting after ${delaySec}s safety delay when map is opened)`
       : 'Auto-Start on Maps: OFF (Stays paused until manual start)';
+  }
+  if (autoStartDelaySelect) {
+    autoStartDelaySelect.value = String(delaySec);
+  }
+  if (autoStartDelayRow) {
+    autoStartDelayRow.style.opacity = isAuto ? '1' : '0.45';
+    autoStartDelayRow.style.pointerEvents = isAuto ? 'auto' : 'none';
   }
 }
 
@@ -959,6 +970,7 @@ function isMapUrl(rawUrl) {
 }
 
 function autoPauseOutsideMap(source = '') {
+  cancelPendingAutoStart('Navigated outside map');
   if (isRunning) {
     console.log('[Auto-Pause] Hunting auto-paused because client navigated outside map:', source);
     isRunning = false;
@@ -999,6 +1011,7 @@ function updateToggleButton() {
 }
 
 function toggleHunting() {
+  cancelPendingAutoStart('Hunting toggled by user');
   if (!isRunning) {
     const curUrl = delugeView ? delugeView.getURL() : '';
     if (curUrl && !isMapUrl(curUrl)) {
@@ -1674,9 +1687,92 @@ delugeView.addEventListener('preload-error', (e) => {
   console.error('[Webview Preload Error]', e.preloadPath, e.error);
 });
 
-// Navigation Safety: Auto-pause outside maps, Auto-start when map is opened
+// Navigation Safety: Auto-pause outside maps, Auto-start when map is opened with safety delay
+let autoStartTimer = null;
+let autoStartCountdownTimer = null;
+let autoStartRemainingSeconds = 0;
+
+function cancelPendingAutoStart(reason = '') {
+  if (autoStartTimer) {
+    clearTimeout(autoStartTimer);
+    autoStartTimer = null;
+  }
+  if (autoStartCountdownTimer) {
+    clearInterval(autoStartCountdownTimer);
+    autoStartCountdownTimer = null;
+  }
+  if (autoStartRemainingSeconds > 0) {
+    if (reason) {
+      backendLog('AutoStart', `Cancelled pending auto-start: ${reason}`);
+    }
+    autoStartRemainingSeconds = 0;
+  }
+}
+
+function triggerDelayedAutoStart(sourceReason = 'Map opened') {
+  cancelPendingAutoStart();
+
+  const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
+  if (!shouldAutoStart) return;
+  if (isRunning) return;
+  if (isEncounterOnScreen) return;
+  if (isUnlockChallengeActive) {
+    backendLog('AutoStart', 'Skipping auto-start: captcha challenge active.');
+    return;
+  }
+
+  const curUrl = (delugeView && delugeView.getURL()) || '';
+  if (!isMapUrl(curUrl)) return;
+
+  const delaySec = Math.max(2, parseInt((config.settings && config.settings.autoStartDelay) || 5, 10));
+  autoStartRemainingSeconds = delaySec;
+
+  backendLog('AutoStart', `${sourceReason}. Pending auto-start scheduled in ${delaySec}s to allow map scripts and security checks to settle.`);
+  updateStatus(`Map loaded. Auto-starting in ${autoStartRemainingSeconds}s...`, '#f59e0b');
+
+  autoStartCountdownTimer = setInterval(() => {
+    autoStartRemainingSeconds--;
+    if (autoStartRemainingSeconds > 0) {
+      const activeUrl = (delugeView && delugeView.getURL()) || '';
+      if (!isMapUrl(activeUrl) || isUnlockChallengeActive || isEncounterOnScreen || isRunning) {
+        cancelPendingAutoStart('Conditions changed during countdown');
+        return;
+      }
+      updateStatus(`Map loaded. Auto-starting in ${autoStartRemainingSeconds}s...`, '#f59e0b');
+    }
+  }, 1000);
+
+  autoStartTimer = setTimeout(() => {
+    cancelPendingAutoStart();
+
+    const activeUrl = (delugeView && delugeView.getURL()) || '';
+    if (!isMapUrl(activeUrl)) {
+      backendLog('AutoStart', 'Aborted auto-start: no longer on map URL.');
+      return;
+    }
+    if (isUnlockChallengeActive) {
+      backendLog('AutoStart', 'Aborted auto-start: captcha challenge active.');
+      return;
+    }
+    if (isEncounterOnScreen) {
+      backendLog('AutoStart', 'Aborted auto-start: encounter currently on screen.');
+      return;
+    }
+    if (isRunning) return;
+
+    backendLog('AutoStart', `Security delay (${delaySec}s) elapsed without captcha. Auto-starting hunting session.`);
+    isRunning = true;
+    isStepPending = false;
+    updateToggleButton();
+    syncHuntingState();
+    updateStatus('Hunting Active (Auto-Started)', '#22c55e');
+    scheduleNextStep(1000);
+  }, delaySec * 1000);
+}
+
 function handleMapNavigation(url) {
   if (!isMapUrl(url)) {
+    cancelPendingAutoStart('Navigated outside map');
     autoPauseOutsideMap(url);
   } else {
     isEncounterOnScreen = false;
@@ -1688,12 +1784,7 @@ function handleMapNavigation(url) {
     // Auto-start hunting whenever map is opened if enabled!
     const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
     if (!isRunning && shouldAutoStart) {
-      backendLog('AutoStart', 'Map opened. Auto-starting hunting session.');
-      isRunning = true;
-      isStepPending = false;
-      updateToggleButton();
-      syncHuntingState();
-      scheduleNextStep(1000);
+      triggerDelayedAutoStart('Map opened');
     }
   }
 }
@@ -1794,7 +1885,8 @@ delugeView.addEventListener('ipc-message', (event) => {
     }
     backendLog('TargetHalt', `TARGET HALT: ${name} (Category: ${data.category || 'Target'})`);
 
-    // Halt movement immediately
+    // Halt movement immediately and cancel any pending auto-start
+    cancelPendingAutoStart('Target encounter found');
     if (walkTimeout) {
       clearTimeout(walkTimeout);
       walkTimeout = null;
@@ -1815,7 +1907,8 @@ delugeView.addEventListener('ipc-message', (event) => {
   }
 
   if (event.channel === 'unlock-detected') {
-    // Immediate emergency halt on security challenge
+    // Immediate emergency halt and cancellation on security challenge
+    cancelPendingAutoStart('Captcha (/unlock) security challenge detected');
     if (walkTimeout) {
       clearTimeout(walkTimeout);
       walkTimeout = null;
@@ -1864,12 +1957,7 @@ delugeView.addEventListener('dom-ready', () => {
   const curUrl = (delugeView && delugeView.getURL()) || '';
   const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
   if (isMapUrl(curUrl) && !isRunning && !isEncounterOnScreen && shouldAutoStart) {
-    backendLog('AutoStart', 'Map loaded on startup. Auto-starting hunting session.');
-    isRunning = true;
-    isStepPending = false;
-    updateToggleButton();
-    syncHuntingState();
-    scheduleNextStep(1200);
+    triggerDelayedAutoStart('Map loaded on startup');
   }
 });
 
@@ -2366,9 +2454,24 @@ if (autoStartMapBtn) {
   autoStartMapBtn.addEventListener('click', () => {
     if (!config.settings) config.settings = {};
     config.settings.autoStartOnMap = !(config.settings.autoStartOnMap !== false);
+    if (!config.settings.autoStartOnMap) {
+      cancelPendingAutoStart('Auto-Start disabled by user');
+    }
     saveLocalConfig();
     updateAutoStartMapUI();
     updateStatus('Auto-Start on Maps: ' + (config.settings.autoStartOnMap ? 'ON' : 'OFF'), '#10b981');
+  });
+}
+
+if (autoStartDelaySelect) {
+  autoStartDelaySelect.addEventListener('change', () => {
+    if (!config.settings) config.settings = {};
+    const val = parseInt(autoStartDelaySelect.value, 10) || 5;
+    config.settings.autoStartDelay = val;
+    saveLocalConfig();
+    updateAutoStartMapUI();
+    updateStatus(`Auto-Start Delay: ${val}s (Captcha Safety)`, '#10b981');
+    backendLog('Settings', `Auto-start map safety delay updated to ${val}s`);
   });
 }
 

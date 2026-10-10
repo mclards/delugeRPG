@@ -588,7 +588,22 @@ function checkEncounterIsDuplicate(container) {
 function scanForTargets() {
     // A. Check for /unlock Honeypot / Captcha FIRST across entire domain
     const path = (window.location.pathname || '').toLowerCase();
-    if (path.indexOf('/unlock') !== -1) {
+    const isUnlockPath = path.indexOf('/unlock') !== -1;
+    let hasCaptchaElement = false;
+    try {
+        const cEl = document.querySelector(
+            'iframe[src*="captcha" i], iframe[src*="turnstile" i], iframe[src*="recaptcha" i], iframe[src*="challenges.cloudflare.com" i], ' +
+            '#captcha, .captcha, #recaptcha, .g-recaptcha, .cf-turnstile, [id*="captcha" i], [class*="captcha" i]'
+        );
+        if (cEl) {
+            const st = window.getComputedStyle(cEl);
+            if (st.display !== 'none' && st.visibility !== 'hidden') {
+                hasCaptchaElement = true;
+            }
+        }
+    } catch (_) {}
+
+    if (isUnlockPath || hasCaptchaElement) {
         if (!unlockNoticeSent) {
             unlockNoticeSent = true;
             ipcRenderer.sendToHost('unlock-detected');

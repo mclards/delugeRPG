@@ -22,6 +22,7 @@
     "autoPauseOnTarget": true,
     "avoidDuplicates": true,
     "autoStartOnMap": true,
+    "autoStartDelay": 5,
     "targetPreset": "legendaries",
     "findLegendaries": true,
     "findMegasAndGigantamax": false,

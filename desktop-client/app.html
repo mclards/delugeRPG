@@ -1075,6 +1075,15 @@
             <span class="dropdown-label">Auto-Start on Maps</span>
             <span id="autoStartMapBadge" class="dropdown-badge dropdown-badge-on">ON</span>
           </button>
+          <div id="autoStartDelayRow" style="padding: 2px 10px 4px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <label for="autoStartDelaySelect" style="font-size: 11px; color: #94a3b8; font-weight: 500;">Safety Delay:</label>
+            <select id="autoStartDelaySelect" style="height: 24px; background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 4px; font-size: 11px; padding: 0 4px;" title="Delay before auto-starting on maps to allow DelugeRPG scripts and captcha checks to settle">
+              <option value="3">3 sec</option>
+              <option value="5" selected>5 sec (Safe)</option>
+              <option value="8">8 sec</option>
+              <option value="10">10 sec</option>
+            </select>
+          </div>
           <div class="dropdown-divider"></div>
 
           <div class="nav-dropdown-header">Walking Movement Mode</div>

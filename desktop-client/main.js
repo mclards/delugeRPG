@@ -101,7 +101,8 @@ function loadConfig() {
       soundAlert: true,
       autoPauseOnTarget: true,
       avoidDuplicates: true,
-      autoStartOnMap: true
+      autoStartOnMap: true,
+      autoStartDelay: 5
     }
   };
   try {

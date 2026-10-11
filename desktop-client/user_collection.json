@@ -1,0 +1,4970 @@
+[
+  {
+    "id": "bgS5Gd",
+    "name": "Mirage Rayquaza",
+    "variant": "Mirage",
+    "level": 67,
+    "exp": "67,000",
+    "types": [
+      "Dragon",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      },
+      {
+        "name": "Dragon Pulse",
+        "type": "Dragon"
+      },
+      {
+        "name": "Hyper Beam",
+        "type": "Normal"
+      },
+      {
+        "name": "Extreme Speed",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": true,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/mirage/rayquaza.png"
+  },
+  {
+    "id": "BVT1hp",
+    "name": "Metallic Xerneas (Neutral)",
+    "variant": "Metallic",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fairy"
+    ],
+    "moves": [
+      {
+        "name": "Close Combat",
+        "type": "Fighting"
+      },
+      {
+        "name": "Moonblast",
+        "type": "Fairy"
+      },
+      {
+        "name": "Giga Impact",
+        "type": "Normal"
+      },
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/xerneas%20%28neutral%29.png"
+  },
+  {
+    "id": "z2LtSg",
+    "name": "Comfey",
+    "variant": "Normal",
+    "level": 91,
+    "exp": "91,108",
+    "types": [
+      "Fairy"
+    ],
+    "moves": [
+      {
+        "name": "Vine Whip",
+        "type": "Grass"
+      },
+      {
+        "name": "Draining Kiss",
+        "type": "Fairy"
+      },
+      {
+        "name": "Wrap",
+        "type": "Normal"
+      },
+      {
+        "name": "Petal Blizzard",
+        "type": "Grass"
+      }
+    ],
+    "inTeam": true,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/comfey.png"
+  },
+  {
+    "id": "bgS5D5",
+    "name": "Shadow Tapu Fini",
+    "variant": "Shadow",
+    "level": 75,
+    "exp": "75,000",
+    "types": [
+      "Water",
+      "Fairy"
+    ],
+    "moves": [
+      {
+        "name": "Brine",
+        "type": "Water"
+      },
+      {
+        "name": "Nature's Madness",
+        "type": "Fairy"
+      },
+      {
+        "name": "Muddy Water",
+        "type": "Water"
+      },
+      {
+        "name": "Hydro Pump",
+        "type": "Water"
+      }
+    ],
+    "inTeam": true,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/tapu%20fini.png"
+  },
+  {
+    "id": "5N9CVk",
+    "name": "Mesprit",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Confusion",
+        "type": "Psychic"
+      },
+      {
+        "name": "Water Pulse",
+        "type": "Water"
+      },
+      {
+        "name": "Hidden Power",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": true,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mesprit.png"
+  },
+  {
+    "id": "zgDswJ",
+    "name": "Retro Glastrier",
+    "variant": "Retro",
+    "level": 77,
+    "exp": "77,142",
+    "types": [
+      "Ice"
+    ],
+    "moves": [
+      {
+        "name": "Avalanche",
+        "type": "Ice"
+      },
+      {
+        "name": "Stomp",
+        "type": "Normal"
+      },
+      {
+        "name": "Icicle Crash",
+        "type": "Ice"
+      },
+      {
+        "name": "Double-edge",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/retro/glastrier.png"
+  },
+  {
+    "id": "TnQPRQ",
+    "name": "Zamazenta (Hero)",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Metal Burst",
+        "type": "Steel"
+      },
+      {
+        "name": "Crunch",
+        "type": "Dark"
+      },
+      {
+        "name": "Moonblast",
+        "type": "Fairy"
+      },
+      {
+        "name": "Revenge",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/zamazenta%20%28hero%29.png"
+  },
+  {
+    "id": "bLPcND",
+    "name": "Calyrex (Shadow Rider)",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic",
+      "Ghost"
+    ],
+    "moves": [
+      {
+        "name": "Astral Barrage",
+        "type": "Ghost"
+      },
+      {
+        "name": "Hex",
+        "type": "Ghost"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      },
+      {
+        "name": "Shadow Ball",
+        "type": "Ghost"
+      }
+    ],
+    "inTeam": true,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/calyrex%20%28shadow%20rider%29.png"
+  },
+  {
+    "id": "mrJ8N4",
+    "name": "Dark Terapagos",
+    "variant": "Dark",
+    "level": 83,
+    "exp": "83,142",
+    "types": [
+      "Normal"
+    ],
+    "moves": [
+      {
+        "name": "Tri Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Earth Power",
+        "type": "Ground"
+      },
+      {
+        "name": "Tera Starstorm",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/terapagos.png"
+  },
+  {
+    "id": "R7XQJB",
+    "name": "Abra",
+    "variant": "Normal",
+    "level": 24,
+    "exp": "24,724",
+    "types": [
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Tackle",
+        "type": "Normal"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      },
+      {
+        "name": "Tackle",
+        "type": "Normal"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      }
+    ],
+    "inTeam": true,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/abra.png"
+  },
+  {
+    "id": "TjZB1y",
+    "name": "Iron Bundle",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Ice",
+      "Water"
+    ],
+    "moves": [
+      {
+        "name": "Drill Peck",
+        "type": "Flying"
+      },
+      {
+        "name": "Freeze-dry",
+        "type": "Ice"
+      },
+      {
+        "name": "Flip Turn",
+        "type": "Water"
+      },
+      {
+        "name": "Ice Beam",
+        "type": "Ice"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/iron%20bundle.png"
+  },
+  {
+    "id": "Lg5qt8",
+    "name": "Ghostly Mesprit",
+    "variant": "Ghostly",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Confusion",
+        "type": "Psychic"
+      },
+      {
+        "name": "Water Pulse",
+        "type": "Water"
+      },
+      {
+        "name": "Hidden Power",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/mesprit.png"
+  },
+  {
+    "id": "mNfvL3",
+    "name": "Iron Moth",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fire",
+      "Poison"
+    ],
+    "moves": [
+      {
+        "name": "Sludge Wave",
+        "type": "Poison"
+      },
+      {
+        "name": "Fiery Dance",
+        "type": "Fire"
+      },
+      {
+        "name": "Hurricane",
+        "type": "Flying"
+      },
+      {
+        "name": "Bug Buzz",
+        "type": "Bug"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/iron%20moth.png"
+  },
+  {
+    "id": "j7N62N",
+    "name": "Azelf",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Explosion",
+        "type": "Normal"
+      },
+      {
+        "name": "Last Resort",
+        "type": "Normal"
+      },
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Uproar",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/azelf.png"
+  },
+  {
+    "id": "j5dSV8",
+    "name": "Dark Iron Crown",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Steel",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Confusion",
+        "type": "Psychic"
+      },
+      {
+        "name": "Tachyon Cutter",
+        "type": "Steel"
+      },
+      {
+        "name": "Psyshock",
+        "type": "Psychic"
+      },
+      {
+        "name": "Flash Cannon",
+        "type": "Steel"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/iron%20crown.png"
+  },
+  {
+    "id": "12gDw",
+    "name": "Cresselia",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      },
+      {
+        "name": "Psycho Cut",
+        "type": "Psychic"
+      },
+      {
+        "name": "Slash",
+        "type": "Normal"
+      },
+      {
+        "name": "Aurora Beam",
+        "type": "Ice"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/cresselia.png"
+  },
+  {
+    "id": "s1MhNG",
+    "name": "Slither Wing",
+    "variant": "Normal",
+    "level": 49,
+    "exp": "49,000",
+    "types": [
+      "Bug",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Lunge",
+        "type": "Bug"
+      },
+      {
+        "name": "Superpower",
+        "type": "Fighting"
+      },
+      {
+        "name": "First Impression",
+        "type": "Bug"
+      },
+      {
+        "name": "Thrash",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/slither%20wing.png"
+  },
+  {
+    "id": "h5Gj6q",
+    "name": "Iron Valiant",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fairy",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Dazzling Gleam",
+        "type": "Fairy"
+      },
+      {
+        "name": "Psycho Cut",
+        "type": "Psychic"
+      },
+      {
+        "name": "Moonblast",
+        "type": "Fairy"
+      },
+      {
+        "name": "Spirit Break",
+        "type": "Fairy"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/iron%20valiant.png"
+  },
+  {
+    "id": "mNfd2H",
+    "name": "Shaymin (Sky)",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Grass",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Seed Flare",
+        "type": "Grass"
+      },
+      {
+        "name": "Leaf Storm",
+        "type": "Grass"
+      },
+      {
+        "name": "Energy Ball",
+        "type": "Grass"
+      },
+      {
+        "name": "Air Slash",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/shaymin%20%28sky%29.png"
+  },
+  {
+    "id": "BVT1pR",
+    "name": "Ghostly Pheromosa",
+    "variant": "Ghostly",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Bug",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Silver Wind",
+        "type": "Bug"
+      },
+      {
+        "name": "Triple Kick",
+        "type": "Fighting"
+      },
+      {
+        "name": "Bug Buzz",
+        "type": "Bug"
+      },
+      {
+        "name": "High Jump Kick",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/pheromosa.png"
+  },
+  {
+    "id": "R7XQkm",
+    "name": "Enamorus (Therian)",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fairy",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Crunch",
+        "type": "Dark"
+      },
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Moonblast",
+        "type": "Fairy"
+      },
+      {
+        "name": "Springtide Storm",
+        "type": "Fairy"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/enamorus%20%28therian%29.png"
+  },
+  {
+    "id": "fyp473",
+    "name": "Xerneas (Neutral)",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fairy"
+    ],
+    "moves": [
+      {
+        "name": "Close Combat",
+        "type": "Fighting"
+      },
+      {
+        "name": "Moonblast",
+        "type": "Fairy"
+      },
+      {
+        "name": "Giga Impact",
+        "type": "Normal"
+      },
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/xerneas%20%28neutral%29.png"
+  },
+  {
+    "id": "mNfd8d",
+    "name": "Mega Diancie",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Rock",
+      "Fairy"
+    ],
+    "moves": [
+      {
+        "name": "Diamond Storm",
+        "type": "Rock"
+      },
+      {
+        "name": "Moonblast",
+        "type": "Fairy"
+      },
+      {
+        "name": "Stone Edge",
+        "type": "Rock"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mega%20diancie.png"
+  },
+  {
+    "id": "R5RkfX",
+    "name": "Metallic Mega Garchomp",
+    "variant": "Metallic",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dragon",
+      "Ground"
+    ],
+    "moves": [
+      {
+        "name": "Dragon Claw",
+        "type": "Dragon"
+      },
+      {
+        "name": "Dig",
+        "type": "Ground"
+      },
+      {
+        "name": "Crunch",
+        "type": "Dark"
+      },
+      {
+        "name": "Dragon Rush",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/mega%20garchomp.png"
+  },
+  {
+    "id": "srVVNn",
+    "name": "Shadow Mega Latios",
+    "variant": "Shadow",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dragon",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Dragon Pulse",
+        "type": "Dragon"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      },
+      {
+        "name": "Zen Headbutt",
+        "type": "Psychic"
+      },
+      {
+        "name": "Luster Purge",
+        "type": "Psychic"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/mega%20latios.png"
+  },
+  {
+    "id": "TnKhXL",
+    "name": "Mirage Mega Manectric",
+    "variant": "Mirage",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Electric"
+    ],
+    "moves": [
+      {
+        "name": "Bite",
+        "type": "Dark"
+      },
+      {
+        "name": "Thunder Fang",
+        "type": "Electric"
+      },
+      {
+        "name": "Wild Charge",
+        "type": "Electric"
+      },
+      {
+        "name": "Thunder",
+        "type": "Electric"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/mirage/mega%20manectric.png"
+  },
+  {
+    "id": "b2wXwD",
+    "name": "Mirage Mega Mewtwo X",
+    "variant": "Mirage",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Hyper Beam",
+        "type": "Normal"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      },
+      {
+        "name": "Aura Sphere",
+        "type": "Fighting"
+      },
+      {
+        "name": "Psystrike",
+        "type": "Psychic"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/mirage/mega%20mewtwo%20x.png"
+  },
+  {
+    "id": "R5RFKJ",
+    "name": "Mirage Enamorus (Therian)",
+    "variant": "Mirage",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fairy",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Crunch",
+        "type": "Dark"
+      },
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Moonblast",
+        "type": "Fairy"
+      },
+      {
+        "name": "Springtide Storm",
+        "type": "Fairy"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/mirage/enamorus%20%28therian%29.png"
+  },
+  {
+    "id": "srVV9B",
+    "name": "Shadow Buzzwole",
+    "variant": "Shadow",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Bug",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Mega Punch",
+        "type": "Normal"
+      },
+      {
+        "name": "Fell Stinger",
+        "type": "Bug"
+      },
+      {
+        "name": "Superpower",
+        "type": "Fighting"
+      },
+      {
+        "name": "Focus Punch",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/buzzwole.png"
+  },
+  {
+    "id": "j5dMgF",
+    "name": "Tapu Lele",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic",
+      "Fairy"
+    ],
+    "moves": [
+      {
+        "name": "Draining Kiss",
+        "type": "Fairy"
+      },
+      {
+        "name": "Confusion",
+        "type": "Psychic"
+      },
+      {
+        "name": "Psybeam",
+        "type": "Psychic"
+      },
+      {
+        "name": "Moonblast",
+        "type": "Fairy"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/tapu%20lele.png"
+  },
+  {
+    "id": "LnWm5d",
+    "name": "Lugia",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Gust",
+        "type": "Flying"
+      },
+      {
+        "name": "Hydro Pump",
+        "type": "Water"
+      },
+      {
+        "name": "Aeroblast",
+        "type": "Flying"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/lugia.png"
+  },
+  {
+    "id": "yG1fPG",
+    "name": "Dark Uxie",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Confusion",
+        "type": "Psychic"
+      },
+      {
+        "name": "Water Gun",
+        "type": "Water"
+      },
+      {
+        "name": "Hyper Beam",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/uxie.png"
+  },
+  {
+    "id": "fGHRg9",
+    "name": "Metallic Deoxys",
+    "variant": "Metallic",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Hyper Beam",
+        "type": "Normal"
+      },
+      {
+        "name": "Psycho Boost",
+        "type": "Psychic"
+      },
+      {
+        "name": "Zen Headbutt",
+        "type": "Psychic"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/deoxys.png"
+  },
+  {
+    "id": "srVww8",
+    "name": "Enamorus (Therian)",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fairy",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Crunch",
+        "type": "Dark"
+      },
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Moonblast",
+        "type": "Fairy"
+      },
+      {
+        "name": "Springtide Storm",
+        "type": "Fairy"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/enamorus%20%28therian%29.png"
+  },
+  {
+    "id": "5N9JFH",
+    "name": "Regigigas",
+    "variant": "Normal",
+    "level": 60,
+    "exp": "60,000",
+    "types": [
+      "Normal"
+    ],
+    "moves": [
+      {
+        "name": "Giga Impact",
+        "type": "Normal"
+      },
+      {
+        "name": "Zen Headbutt",
+        "type": "Psychic"
+      },
+      {
+        "name": "Superpower",
+        "type": "Fighting"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/regigigas.png"
+  },
+  {
+    "id": "5VrpYR",
+    "name": "Nihilego",
+    "variant": "Normal",
+    "level": 57,
+    "exp": "57,000",
+    "types": [
+      "Rock",
+      "Poison"
+    ],
+    "moves": [
+      {
+        "name": "Acid",
+        "type": "Poison"
+      },
+      {
+        "name": "Venoshock",
+        "type": "Poison"
+      },
+      {
+        "name": "Power Gem",
+        "type": "Rock"
+      },
+      {
+        "name": "Head Smash",
+        "type": "Rock"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/nihilego.png"
+  },
+  {
+    "id": "BVT1mc",
+    "name": "Dark Galarian Moltres",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dark",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Fiery Wrath",
+        "type": "Dark"
+      },
+      {
+        "name": "Hurricane",
+        "type": "Flying"
+      },
+      {
+        "name": "Sky Attack",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/galarian%20moltres.png"
+  },
+  {
+    "id": "zgDsRw",
+    "name": "Ghostly Yveltal",
+    "variant": "Ghostly",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dark",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Dragon Rush",
+        "type": "Dragon"
+      },
+      {
+        "name": "Phantom Force",
+        "type": "Ghost"
+      },
+      {
+        "name": "Sucker Punch",
+        "type": "Dark"
+      },
+      {
+        "name": "Sky Attack",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/yveltal.png"
+  },
+  {
+    "id": "LLtrBH",
+    "name": "Chrome Skuntank",
+    "variant": "Chrome",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Poison",
+      "Dark"
+    ],
+    "moves": [
+      {
+        "name": "Toxic",
+        "type": "Poison"
+      },
+      {
+        "name": "Night Slash",
+        "type": "Dark"
+      },
+      {
+        "name": "Flamethrower",
+        "type": "Fire"
+      },
+      {
+        "name": "Fury Swipes",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/chrome/skuntank.png"
+  },
+  {
+    "id": "fGHRP9",
+    "name": "Ghostly Wo-chien",
+    "variant": "Ghostly",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dark",
+      "Grass"
+    ],
+    "moves": [
+      {
+        "name": "Dark Pulse",
+        "type": "Dark"
+      },
+      {
+        "name": "Foul Play",
+        "type": "Dark"
+      },
+      {
+        "name": "Power Whip",
+        "type": "Grass"
+      },
+      {
+        "name": "Leaf Storm",
+        "type": "Grass"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/wo-chien.png"
+  },
+  {
+    "id": "LLtr68",
+    "name": "Dark Kartana",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Grass",
+      "Steel"
+    ],
+    "moves": [
+      {
+        "name": "X-scissor",
+        "type": "Bug"
+      },
+      {
+        "name": "Air Slash",
+        "type": "Flying"
+      },
+      {
+        "name": "Psycho Cut",
+        "type": "Psychic"
+      },
+      {
+        "name": "Guillotine",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/kartana.png"
+  },
+  {
+    "id": "R7X7dT",
+    "name": "Dark Mega Sharpedo",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Water",
+      "Dark"
+    ],
+    "moves": [
+      {
+        "name": "Night Slash",
+        "type": "Dark"
+      },
+      {
+        "name": "Skull Bash",
+        "type": "Normal"
+      },
+      {
+        "name": "Aqua Jet",
+        "type": "Water"
+      },
+      {
+        "name": "Ice Fang",
+        "type": "Ice"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/mega%20sharpedo.png"
+  },
+  {
+    "id": "mrJ8qr",
+    "name": "Chrome Landorus (Incarnate)",
+    "variant": "Chrome",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Ground",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Fissure",
+        "type": "Ground"
+      },
+      {
+        "name": "Stone Edge",
+        "type": "Rock"
+      },
+      {
+        "name": "Hammer Arm",
+        "type": "Fighting"
+      },
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/chrome/landorus%20%28incarnate%29.png"
+  },
+  {
+    "id": "R5RFws",
+    "name": "Dark Buzzwole",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Bug",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Mega Punch",
+        "type": "Normal"
+      },
+      {
+        "name": "Fell Stinger",
+        "type": "Bug"
+      },
+      {
+        "name": "Superpower",
+        "type": "Fighting"
+      },
+      {
+        "name": "Focus Punch",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/buzzwole.png"
+  },
+  {
+    "id": "z2Ltkj",
+    "name": "Dark Meloetta (Pirouette)",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Normal",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Psybeam",
+        "type": "Psychic"
+      },
+      {
+        "name": "Wake-up Slap",
+        "type": "Fighting"
+      },
+      {
+        "name": "Hyper Voice",
+        "type": "Normal"
+      },
+      {
+        "name": "Close Combat",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/meloetta%20%28pirouette%29.png"
+  },
+  {
+    "id": "BNn2Bm",
+    "name": "Metallic Nihilego",
+    "variant": "Metallic",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Rock",
+      "Poison"
+    ],
+    "moves": [
+      {
+        "name": "Acid",
+        "type": "Poison"
+      },
+      {
+        "name": "Venoshock",
+        "type": "Poison"
+      },
+      {
+        "name": "Power Gem",
+        "type": "Rock"
+      },
+      {
+        "name": "Head Smash",
+        "type": "Rock"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/nihilego.png"
+  },
+  {
+    "id": "hGhN8b",
+    "name": "Ghostly Regidrago",
+    "variant": "Ghostly",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Crunch",
+        "type": "Dark"
+      },
+      {
+        "name": "Dragon Claw",
+        "type": "Dragon"
+      },
+      {
+        "name": "Hyper Beam",
+        "type": "Normal"
+      },
+      {
+        "name": "Dragon Energy",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/regidrago.png"
+  },
+  {
+    "id": "R7XQY7",
+    "name": "Dark Regigigas",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Normal"
+    ],
+    "moves": [
+      {
+        "name": "Giga Impact",
+        "type": "Normal"
+      },
+      {
+        "name": "Zen Headbutt",
+        "type": "Psychic"
+      },
+      {
+        "name": "Superpower",
+        "type": "Fighting"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/regigigas.png"
+  },
+  {
+    "id": "fGHRwv",
+    "name": "Metallic Dialga",
+    "variant": "Metallic",
+    "level": 78,
+    "exp": "78,000",
+    "types": [
+      "Steel",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Aura Sphere",
+        "type": "Fighting"
+      },
+      {
+        "name": "Flash Cannon",
+        "type": "Steel"
+      },
+      {
+        "name": "Slash",
+        "type": "Normal"
+      },
+      {
+        "name": "Earth Power",
+        "type": "Ground"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/dialga.png"
+  },
+  {
+    "id": "j7N6GN",
+    "name": "Iron Thorns",
+    "variant": "Normal",
+    "level": 46,
+    "exp": "46,000",
+    "types": [
+      "Rock",
+      "Electric"
+    ],
+    "moves": [
+      {
+        "name": "Stone Edge",
+        "type": "Rock"
+      },
+      {
+        "name": "Giga Impact",
+        "type": "Normal"
+      },
+      {
+        "name": "Earthquake",
+        "type": "Ground"
+      },
+      {
+        "name": "Pin Missile",
+        "type": "Bug"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/iron%20thorns.png"
+  },
+  {
+    "id": "mrJ8k5",
+    "name": "Great Tusk",
+    "variant": "Normal",
+    "level": 43,
+    "exp": "43,000",
+    "types": [
+      "Ground",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Bulldoze",
+        "type": "Ground"
+      },
+      {
+        "name": "Brick Break",
+        "type": "Fighting"
+      },
+      {
+        "name": "Stomping Tantrum",
+        "type": "Ground"
+      },
+      {
+        "name": "Earthquake",
+        "type": "Ground"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/great%20tusk.png"
+  },
+  {
+    "id": "srVwbW",
+    "name": "Shadow Groudon",
+    "variant": "Shadow",
+    "level": 72,
+    "exp": "72,000",
+    "types": [
+      "Ground"
+    ],
+    "moves": [
+      {
+        "name": "Mud Shot",
+        "type": "Ground"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Slash",
+        "type": "Normal"
+      },
+      {
+        "name": "Earth Power",
+        "type": "Ground"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/groudon.png"
+  },
+  {
+    "id": "BNncR3",
+    "name": "Dark Onix",
+    "variant": "Dark",
+    "level": 8,
+    "exp": "8,181",
+    "types": [
+      "Rock",
+      "Ground"
+    ],
+    "moves": [
+      {
+        "name": "Bind",
+        "type": "Normal"
+      },
+      {
+        "name": "Slam",
+        "type": "Normal"
+      },
+      {
+        "name": "Rock Throw",
+        "type": "Rock"
+      },
+      {
+        "name": "Earthquake",
+        "type": "Ground"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/onix.png"
+  },
+  {
+    "id": "j5dSRd",
+    "name": "Kartana",
+    "variant": "Normal",
+    "level": 59,
+    "exp": "59,016",
+    "types": [
+      "Grass",
+      "Steel"
+    ],
+    "moves": [
+      {
+        "name": "X-scissor",
+        "type": "Bug"
+      },
+      {
+        "name": "Air Slash",
+        "type": "Flying"
+      },
+      {
+        "name": "Psycho Cut",
+        "type": "Psychic"
+      },
+      {
+        "name": "Guillotine",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/kartana.png"
+  },
+  {
+    "id": "j7N6LN",
+    "name": "Terapagos",
+    "variant": "Normal",
+    "level": 64,
+    "exp": "64,000",
+    "types": [
+      "Normal"
+    ],
+    "moves": [
+      {
+        "name": "Tri Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Earth Power",
+        "type": "Ground"
+      },
+      {
+        "name": "Tera Starstorm",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/terapagos.png"
+  },
+  {
+    "id": "zL3DK5",
+    "name": "Suicune",
+    "variant": "Normal",
+    "level": 60,
+    "exp": "60,000",
+    "types": [
+      "Water"
+    ],
+    "moves": [
+      {
+        "name": "Bite",
+        "type": "Dark"
+      },
+      {
+        "name": "Ice Fang",
+        "type": "Ice"
+      },
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Hydro Pump",
+        "type": "Water"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/suicune.png"
+  },
+  {
+    "id": "mrJ8C7",
+    "name": "Dark Hoopa (Unbound)",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic",
+      "Dark"
+    ],
+    "moves": [
+      {
+        "name": "Hyperspace Hole",
+        "type": "Psychic"
+      },
+      {
+        "name": "Phantom Force",
+        "type": "Ghost"
+      },
+      {
+        "name": "Shadow Ball",
+        "type": "Ghost"
+      },
+      {
+        "name": "Psycho Boost",
+        "type": "Psychic"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/hoopa%20%28unbound%29.png"
+  },
+  {
+    "id": "h5GLLw",
+    "name": "Arceus (Ghost)",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Ghost"
+    ],
+    "moves": [
+      {
+        "name": "Shadow Force",
+        "type": "Ghost"
+      },
+      {
+        "name": "Shadow Ball",
+        "type": "Ghost"
+      },
+      {
+        "name": "Ominous Wind",
+        "type": "Ghost"
+      },
+      {
+        "name": "Shadow Punch",
+        "type": "Ghost"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/arceus%20%28ghost%29.png"
+  },
+  {
+    "id": "5Vrpdp",
+    "name": "Ting-lu",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dark",
+      "Ground"
+    ],
+    "moves": [
+      {
+        "name": "Dark Pulse",
+        "type": "Dark"
+      },
+      {
+        "name": "Stomping Tantrum",
+        "type": "Ground"
+      },
+      {
+        "name": "Earthquake",
+        "type": "Ground"
+      },
+      {
+        "name": "Ruination",
+        "type": "Dark"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/ting-lu.png"
+  },
+  {
+    "id": "b2wXSF",
+    "name": "Azelf",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Explosion",
+        "type": "Normal"
+      },
+      {
+        "name": "Last Resort",
+        "type": "Normal"
+      },
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Uproar",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/azelf.png"
+  },
+  {
+    "id": "z2LYzF",
+    "name": "Chrome Lugia",
+    "variant": "Chrome",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Aeroblast",
+        "type": "Flying"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      },
+      {
+        "name": "Hydro Pump",
+        "type": "Water"
+      },
+      {
+        "name": "Ice Beam",
+        "type": "Ice"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/chrome/lugia.png"
+  },
+  {
+    "id": "R7XQYQ",
+    "name": "Shadow Gouging Fire",
+    "variant": "Shadow",
+    "level": 40,
+    "exp": "40,000",
+    "types": [
+      "Fire",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Incinerate",
+        "type": "Fire"
+      },
+      {
+        "name": "Lava Plume",
+        "type": "Fire"
+      },
+      {
+        "name": "Dragon Claw",
+        "type": "Dragon"
+      },
+      {
+        "name": "Dragon Rush",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/gouging%20fire.png"
+  },
+  {
+    "id": "R5RFbv",
+    "name": "Ghostly Gouging Fire",
+    "variant": "Ghostly",
+    "level": 46,
+    "exp": "46,000",
+    "types": [
+      "Fire",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Incinerate",
+        "type": "Fire"
+      },
+      {
+        "name": "Lava Plume",
+        "type": "Fire"
+      },
+      {
+        "name": "Dragon Claw",
+        "type": "Dragon"
+      },
+      {
+        "name": "Dragon Rush",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/gouging%20fire.png"
+  },
+  {
+    "id": "TnQPfp",
+    "name": "Chi-yu",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dark",
+      "Fire"
+    ],
+    "moves": [
+      {
+        "name": "Dark Pulse",
+        "type": "Dark"
+      },
+      {
+        "name": "Lava Plume",
+        "type": "Fire"
+      },
+      {
+        "name": "Ruination",
+        "type": "Dark"
+      },
+      {
+        "name": "Overheat",
+        "type": "Fire"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/chi-yu.png"
+  },
+  {
+    "id": "LLt8Rn",
+    "name": "Charmeleon",
+    "variant": "Normal",
+    "level": 36,
+    "exp": "36,040",
+    "types": [
+      "Fire"
+    ],
+    "moves": [
+      {
+        "name": "Scratch",
+        "type": "Normal"
+      },
+      {
+        "name": "Ember",
+        "type": "Fire"
+      },
+      {
+        "name": "Dragon Rage",
+        "type": "Dragon"
+      },
+      {
+        "name": "Fire Fang",
+        "type": "Fire"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/charmeleon.png"
+  },
+  {
+    "id": "h5GtHd",
+    "name": "Shadow Charmander",
+    "variant": "Shadow",
+    "level": 43,
+    "exp": "43,416",
+    "types": [
+      "Fire"
+    ],
+    "moves": [
+      {
+        "name": "Scratch",
+        "type": "Normal"
+      },
+      {
+        "name": "Ember",
+        "type": "Fire"
+      },
+      {
+        "name": "Dragon Rage",
+        "type": "Dragon"
+      },
+      {
+        "name": "Slash",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/charmander.png"
+  },
+  {
+    "id": "j5vL9Q",
+    "name": "Metallic Bagon",
+    "variant": "Metallic",
+    "level": 13,
+    "exp": "13,562",
+    "types": [
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Headbutt",
+        "type": "Normal"
+      },
+      {
+        "name": "Bite",
+        "type": "Dark"
+      },
+      {
+        "name": "Ember",
+        "type": "Fire"
+      },
+      {
+        "name": "Rage",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/bagon.png"
+  },
+  {
+    "id": "zL3xPH",
+    "name": "Metallic Walking Wake",
+    "variant": "Metallic",
+    "level": 42,
+    "exp": "42,000",
+    "types": [
+      "Water",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Twister",
+        "type": "Dragon"
+      },
+      {
+        "name": "Hydro Steam",
+        "type": "Water"
+      },
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      },
+      {
+        "name": "Hydro Pump",
+        "type": "Water"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/walking%20wake.png"
+  },
+  {
+    "id": "zgDsv7",
+    "name": "Mirage Skarmory",
+    "variant": "Mirage",
+    "level": 5,
+    "exp": "5,636",
+    "types": [
+      "Steel",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Swift",
+        "type": "Normal"
+      },
+      {
+        "name": "Fury Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Air Cutter",
+        "type": "Flying"
+      },
+      {
+        "name": "Steel Wing",
+        "type": "Steel"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/mirage/skarmory.png"
+  },
+  {
+    "id": "rjQTB",
+    "name": "Electrike",
+    "variant": "Normal",
+    "level": 5,
+    "exp": "5,000",
+    "types": [
+      "Electric"
+    ],
+    "moves": [
+      {
+        "name": "Tackle",
+        "type": "Normal"
+      },
+      {
+        "name": "Quick Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Spark",
+        "type": "Electric"
+      },
+      {
+        "name": "Bite",
+        "type": "Dark"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/electrike.png"
+  },
+  {
+    "id": "BNn2WK",
+    "name": "Kubfu",
+    "variant": "Normal",
+    "level": 6,
+    "exp": "6,000",
+    "types": [
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Rock Smash",
+        "type": "Fighting"
+      },
+      {
+        "name": "Brick Break",
+        "type": "Fighting"
+      },
+      {
+        "name": "Headbutt",
+        "type": "Normal"
+      },
+      {
+        "name": "Aerial Ace",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/kubfu.png"
+  },
+  {
+    "id": "bLPZtw",
+    "name": "Metallic Mudkip",
+    "variant": "Metallic",
+    "level": 9,
+    "exp": "9,000",
+    "types": [
+      "Water"
+    ],
+    "moves": [
+      {
+        "name": "Tackle",
+        "type": "Normal"
+      },
+      {
+        "name": "Water Gun",
+        "type": "Water"
+      },
+      {
+        "name": "Quick Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Mud-slap",
+        "type": "Ground"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/mudkip.png"
+  },
+  {
+    "id": "mNfdw2",
+    "name": "Registeel",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Steel"
+    ],
+    "moves": [
+      {
+        "name": "Explosion",
+        "type": "Normal"
+      },
+      {
+        "name": "Metal Claw",
+        "type": "Steel"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Superpower",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/registeel.png"
+  },
+  {
+    "id": "Lg5qg7",
+    "name": "Okidogi",
+    "variant": "Normal",
+    "level": 78,
+    "exp": "78,000",
+    "types": [
+      "Poison",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Low Kick",
+        "type": "Fighting"
+      },
+      {
+        "name": "Poison Fang",
+        "type": "Poison"
+      },
+      {
+        "name": "Brutal Swing",
+        "type": "Dark"
+      },
+      {
+        "name": "Upper Hand",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/okidogi.png"
+  },
+  {
+    "id": "fGHRFF",
+    "name": "Shadow Raikou",
+    "variant": "Shadow",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Electric"
+    ],
+    "moves": [
+      {
+        "name": "Discharge",
+        "type": "Electric"
+      },
+      {
+        "name": "Thunder",
+        "type": "Electric"
+      },
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Thunder Fang",
+        "type": "Electric"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/raikou.png"
+  },
+  {
+    "id": "LLtrHm",
+    "name": "Regice",
+    "variant": "Normal",
+    "level": 79,
+    "exp": "79,172",
+    "types": [
+      "Ice"
+    ],
+    "moves": [
+      {
+        "name": "Explosion",
+        "type": "Normal"
+      },
+      {
+        "name": "Icy Wind",
+        "type": "Ice"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Superpower",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/regice.png"
+  },
+  {
+    "id": "TjZBKn",
+    "name": "Shiny Tapu Koko",
+    "variant": "Shiny",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Electric",
+      "Fairy"
+    ],
+    "moves": [
+      {
+        "name": "Brave Bird",
+        "type": "Flying"
+      },
+      {
+        "name": "Quick Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Discharge",
+        "type": "Electric"
+      },
+      {
+        "name": "Electro Ball",
+        "type": "Electric"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shiny/tapu%20koko.png"
+  },
+  {
+    "id": "yG1bms",
+    "name": "Shadow Volcanion",
+    "variant": "Shadow",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fire",
+      "Water"
+    ],
+    "moves": [
+      {
+        "name": "Steam Eruption",
+        "type": "Water"
+      },
+      {
+        "name": "Flare Blitz",
+        "type": "Fire"
+      },
+      {
+        "name": "Overheat",
+        "type": "Fire"
+      },
+      {
+        "name": "Explosion",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/volcanion.png"
+  },
+  {
+    "id": "zL3DwQ",
+    "name": "Ghostly Cobalion",
+    "variant": "Ghostly",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Steel",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Quick Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Metal Claw",
+        "type": "Steel"
+      },
+      {
+        "name": "Take Down",
+        "type": "Normal"
+      },
+      {
+        "name": "Iron Head",
+        "type": "Steel"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/cobalion.png"
+  },
+  {
+    "id": "h5GLLF",
+    "name": "Shiny Yveltal",
+    "variant": "Shiny",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dark",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Dragon Rush",
+        "type": "Dragon"
+      },
+      {
+        "name": "Phantom Force",
+        "type": "Ghost"
+      },
+      {
+        "name": "Sucker Punch",
+        "type": "Dark"
+      },
+      {
+        "name": "Sky Attack",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shiny/yveltal.png"
+  },
+  {
+    "id": "BVT1hd",
+    "name": "Galarian Moltres",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dark",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Fiery Wrath",
+        "type": "Dark"
+      },
+      {
+        "name": "Hurricane",
+        "type": "Flying"
+      },
+      {
+        "name": "Sky Attack",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/galarian%20moltres.png"
+  },
+  {
+    "id": "zL3DfH",
+    "name": "Thundurus (Therian)",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Electric",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Uproar",
+        "type": "Normal"
+      },
+      {
+        "name": "Thunder Shock",
+        "type": "Electric"
+      },
+      {
+        "name": "Bite",
+        "type": "Dark"
+      },
+      {
+        "name": "Hammer Arm",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/thundurus%20%28therian%29.png"
+  },
+  {
+    "id": "5VrpjH",
+    "name": "Virizion",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Grass",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Take Down",
+        "type": "Normal"
+      },
+      {
+        "name": "Giga Drain",
+        "type": "Grass"
+      },
+      {
+        "name": "Leaf Blade",
+        "type": "Grass"
+      },
+      {
+        "name": "Close Combat",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/virizion.png"
+  },
+  {
+    "id": "bLPZdQ",
+    "name": "Shiny Mega Metagross",
+    "variant": "Shiny",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Steel",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Hyper Beam",
+        "type": "Normal"
+      },
+      {
+        "name": "Hammer Arm",
+        "type": "Fighting"
+      },
+      {
+        "name": "Meteor Mash",
+        "type": "Steel"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shiny/mega%20metagross.png"
+  },
+  {
+    "id": "zgDy9z",
+    "name": "Venusaur",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Grass",
+      "Poison"
+    ],
+    "moves": [
+      {
+        "name": "Solar Beam",
+        "type": "Grass"
+      },
+      {
+        "name": "Giga Drain",
+        "type": "Grass"
+      },
+      {
+        "name": "Razor Leaf",
+        "type": "Grass"
+      },
+      {
+        "name": "Tackle",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/venusaur.png"
+  },
+  {
+    "id": "fyp4rQ",
+    "name": "Metallic Volcanion",
+    "variant": "Metallic",
+    "level": 60,
+    "exp": "60,000",
+    "types": [
+      "Fire",
+      "Water"
+    ],
+    "moves": [
+      {
+        "name": "Steam Eruption",
+        "type": "Water"
+      },
+      {
+        "name": "Flare Blitz",
+        "type": "Fire"
+      },
+      {
+        "name": "Overheat",
+        "type": "Fire"
+      },
+      {
+        "name": "Explosion",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/volcanion.png"
+  },
+  {
+    "id": "TjZBDn",
+    "name": "Dark Ho-oh",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fire",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Sacred Fire",
+        "type": "Fire"
+      },
+      {
+        "name": "Sky Attack",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/ho-oh.png"
+  },
+  {
+    "id": "mNfdxp",
+    "name": "Zygarde (Complete Forme)",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dragon",
+      "Ground"
+    ],
+    "moves": [
+      {
+        "name": "Earthquake",
+        "type": "Ground"
+      },
+      {
+        "name": "Dragon Pulse",
+        "type": "Dragon"
+      },
+      {
+        "name": "Extreme Speed",
+        "type": "Normal"
+      },
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/zygarde%20%28complete%20forme%29.png"
+  },
+  {
+    "id": "srVwyJ",
+    "name": "Dark Koraidon",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fighting",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Giga Impact",
+        "type": "Normal"
+      },
+      {
+        "name": "Close Combat",
+        "type": "Fighting"
+      },
+      {
+        "name": "Flare Blitz",
+        "type": "Fire"
+      },
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/koraidon.png"
+  },
+  {
+    "id": "srV3Gp",
+    "name": "Ghostly Slowking",
+    "variant": "Ghostly",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Water",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Headbutt",
+        "type": "Normal"
+      },
+      {
+        "name": "Water Gun",
+        "type": "Water"
+      },
+      {
+        "name": "Confusion",
+        "type": "Psychic"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/slowking.png"
+  },
+  {
+    "id": "j5dMZg",
+    "name": "Mirage Dialga (Origin)",
+    "variant": "Mirage",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Steel",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Earth Power",
+        "type": "Ground"
+      },
+      {
+        "name": "Iron Tail",
+        "type": "Steel"
+      },
+      {
+        "name": "Flash Cannon",
+        "type": "Steel"
+      },
+      {
+        "name": "Roar Of Time",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/mirage/dialga%20%28origin%29.png"
+  },
+  {
+    "id": "fyp4Ms",
+    "name": "Shiny Mega Mewtwo X",
+    "variant": "Shiny",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Psychic",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Psystrike",
+        "type": "Psychic"
+      },
+      {
+        "name": "Hyper Beam",
+        "type": "Normal"
+      },
+      {
+        "name": "Aura Sphere",
+        "type": "Fighting"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shiny/mega%20mewtwo%20x.png"
+  },
+  {
+    "id": "TjZVVr",
+    "name": "Negative Mega Abomasnow",
+    "variant": "Negative",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Grass",
+      "Ice"
+    ],
+    "moves": [
+      {
+        "name": "Razor Leaf",
+        "type": "Grass"
+      },
+      {
+        "name": "Ice Shard",
+        "type": "Ice"
+      },
+      {
+        "name": "Wood Hammer",
+        "type": "Grass"
+      },
+      {
+        "name": "Blizzard",
+        "type": "Ice"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/negative/mega%20abomasnow.png"
+  },
+  {
+    "id": "BNn2Qk",
+    "name": "Buzzwole",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Bug",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Mega Punch",
+        "type": "Normal"
+      },
+      {
+        "name": "Fell Stinger",
+        "type": "Bug"
+      },
+      {
+        "name": "Superpower",
+        "type": "Fighting"
+      },
+      {
+        "name": "Focus Punch",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/buzzwole.png"
+  },
+  {
+    "id": "rjbnk",
+    "name": "Pheromosa",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Bug",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Silver Wind",
+        "type": "Bug"
+      },
+      {
+        "name": "Triple Kick",
+        "type": "Fighting"
+      },
+      {
+        "name": "Bug Buzz",
+        "type": "Bug"
+      },
+      {
+        "name": "High Jump Kick",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/pheromosa.png"
+  },
+  {
+    "id": "mNfxrN",
+    "name": "Mega Medicham",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fighting",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Confusion",
+        "type": "Psychic"
+      },
+      {
+        "name": "Hidden Power",
+        "type": "Normal"
+      },
+      {
+        "name": "Force Palm",
+        "type": "Fighting"
+      },
+      {
+        "name": "High Jump Kick",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mega%20medicham.png"
+  },
+  {
+    "id": "fyp4hx",
+    "name": "Metallic Melmetal",
+    "variant": "Metallic",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Steel"
+    ],
+    "moves": [
+      {
+        "name": "Double Iron Bash",
+        "type": "Steel"
+      },
+      {
+        "name": "Thunder Wave",
+        "type": "Electric"
+      },
+      {
+        "name": "Superpower",
+        "type": "Fighting"
+      },
+      {
+        "name": "Hyper Beam",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/melmetal.png"
+  },
+  {
+    "id": "zgDsrk",
+    "name": "Dialga",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Steel",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Aura Sphere",
+        "type": "Fighting"
+      },
+      {
+        "name": "Flash Cannon",
+        "type": "Steel"
+      },
+      {
+        "name": "Slash",
+        "type": "Normal"
+      },
+      {
+        "name": "Earth Power",
+        "type": "Ground"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dialga.png"
+  },
+  {
+    "id": "mrJ8XS",
+    "name": "Shadow Rayquaza",
+    "variant": "Shadow",
+    "level": 64,
+    "exp": "64,000",
+    "types": [
+      "Dragon",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      },
+      {
+        "name": "Dragon Pulse",
+        "type": "Dragon"
+      },
+      {
+        "name": "Hyper Beam",
+        "type": "Normal"
+      },
+      {
+        "name": "Extreme Speed",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/rayquaza.png"
+  },
+  {
+    "id": "yyYKSZ",
+    "name": "Keldeo",
+    "variant": "Normal",
+    "level": 73,
+    "exp": "73,000",
+    "types": [
+      "Water",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Take Down",
+        "type": "Normal"
+      },
+      {
+        "name": "Aqua Tail",
+        "type": "Water"
+      },
+      {
+        "name": "Hydro Pump",
+        "type": "Water"
+      },
+      {
+        "name": "Close Combat",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/keldeo.png"
+  },
+  {
+    "id": "TPk7JS",
+    "name": "Type: Null",
+    "variant": "Normal",
+    "level": 10,
+    "exp": "10,000",
+    "types": [
+      "Normal"
+    ],
+    "moves": [
+      {
+        "name": "Tackle",
+        "type": "Normal"
+      },
+      {
+        "name": "Aerial Ace",
+        "type": "Flying"
+      },
+      {
+        "name": "X-scissor",
+        "type": "Bug"
+      },
+      {
+        "name": "Crush Claw",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/type%3A%20null.png"
+  },
+  {
+    "id": "z2Ltkm",
+    "name": "Meltan",
+    "variant": "Normal",
+    "level": 6,
+    "exp": "6,000",
+    "types": [
+      "Steel"
+    ],
+    "moves": [
+      {
+        "name": "Headbutt",
+        "type": "Normal"
+      },
+      {
+        "name": "Thunder Wave",
+        "type": "Electric"
+      },
+      {
+        "name": "Flash Cannon",
+        "type": "Steel"
+      },
+      {
+        "name": "Toxic",
+        "type": "Poison"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/meltan.png"
+  },
+  {
+    "id": "5N9JN7",
+    "name": "Metallic Regirock",
+    "variant": "Metallic",
+    "level": 69,
+    "exp": "69,000",
+    "types": [
+      "Rock"
+    ],
+    "moves": [
+      {
+        "name": "Rock Throw",
+        "type": "Rock"
+      },
+      {
+        "name": "Explosion",
+        "type": "Normal"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Superpower",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/regirock.png"
+  },
+  {
+    "id": "bLPcVQ",
+    "name": "Walking Wake",
+    "variant": "Normal",
+    "level": 47,
+    "exp": "47,000",
+    "types": [
+      "Water",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Twister",
+        "type": "Dragon"
+      },
+      {
+        "name": "Hydro Steam",
+        "type": "Water"
+      },
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      },
+      {
+        "name": "Hydro Pump",
+        "type": "Water"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/walking%20wake.png"
+  },
+  {
+    "id": "s1MhWK",
+    "name": "Metallic Kubfu",
+    "variant": "Metallic",
+    "level": 17,
+    "exp": "17,176",
+    "types": [
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Rock Smash",
+        "type": "Fighting"
+      },
+      {
+        "name": "Brick Break",
+        "type": "Fighting"
+      },
+      {
+        "name": "Headbutt",
+        "type": "Normal"
+      },
+      {
+        "name": "Aerial Ace",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/kubfu.png"
+  },
+  {
+    "id": "12gBq",
+    "name": "Metallic Xurkitree",
+    "variant": "Metallic",
+    "level": 65,
+    "exp": "65,000",
+    "types": [
+      "Electric"
+    ],
+    "moves": [
+      {
+        "name": "Thunder Punch",
+        "type": "Electric"
+      },
+      {
+        "name": "Discharge",
+        "type": "Electric"
+      },
+      {
+        "name": "Power Whip",
+        "type": "Grass"
+      },
+      {
+        "name": "Zap Cannon",
+        "type": "Electric"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/xurkitree.png"
+  },
+  {
+    "id": "yG1fkx",
+    "name": "Negative Landorus (Incarnate)",
+    "variant": "Negative",
+    "level": 65,
+    "exp": "65,000",
+    "types": [
+      "Ground",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Fissure",
+        "type": "Ground"
+      },
+      {
+        "name": "Stone Edge",
+        "type": "Rock"
+      },
+      {
+        "name": "Hammer Arm",
+        "type": "Fighting"
+      },
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/negative/landorus%20%28incarnate%29.png"
+  },
+  {
+    "id": "yG1fkd",
+    "name": "Negative Iron Boulder",
+    "variant": "Negative",
+    "level": 49,
+    "exp": "49,000",
+    "types": [
+      "Rock",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Horn Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Psycho Cut",
+        "type": "Psychic"
+      },
+      {
+        "name": "Rock Tomb",
+        "type": "Rock"
+      },
+      {
+        "name": "Mighty Cleave",
+        "type": "Rock"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/negative/iron%20boulder.png"
+  },
+  {
+    "id": "mNfxVm",
+    "name": "Mega Houndoom",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dark",
+      "Fire"
+    ],
+    "moves": [
+      {
+        "name": "Foul Play",
+        "type": "Dark"
+      },
+      {
+        "name": "Flamethrower",
+        "type": "Fire"
+      },
+      {
+        "name": "Crunch",
+        "type": "Dark"
+      },
+      {
+        "name": "Inferno",
+        "type": "Fire"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mega%20houndoom.png"
+  },
+  {
+    "id": "yG1fSH",
+    "name": "Shadow Ogerpon (Wellspring Mask)",
+    "variant": "Shadow",
+    "level": 67,
+    "exp": "67,000",
+    "types": [
+      "Grass",
+      "Water"
+    ],
+    "moves": [
+      {
+        "name": "Ivy Cudgel",
+        "type": "Grass"
+      },
+      {
+        "name": "Slam",
+        "type": "Normal"
+      },
+      {
+        "name": "Throat Chop",
+        "type": "Dark"
+      },
+      {
+        "name": "Power Whip",
+        "type": "Grass"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/ogerpon%20%28wellspring%20mask%29.png"
+  },
+  {
+    "id": "mNfdS4",
+    "name": "Metallic Eternamax Eternatus",
+    "variant": "Metallic",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Poison",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Dynamax Cannon",
+        "type": "Dragon"
+      },
+      {
+        "name": "Sludge Bomb",
+        "type": "Poison"
+      },
+      {
+        "name": "Flamethrower",
+        "type": "Fire"
+      },
+      {
+        "name": "Eternabeam",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/eternamax%20eternatus.png"
+  },
+  {
+    "id": "5N9JJH",
+    "name": "Dada Zarude",
+    "variant": "Normal",
+    "level": 62,
+    "exp": "62,000",
+    "types": [
+      "Dark",
+      "Grass"
+    ],
+    "moves": [
+      {
+        "name": "Power Whip",
+        "type": "Grass"
+      },
+      {
+        "name": "Energy Ball",
+        "type": "Grass"
+      },
+      {
+        "name": "Thrash",
+        "type": "Normal"
+      },
+      {
+        "name": "Hammer Arm",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dada%20zarude.png"
+  },
+  {
+    "id": "TPk738",
+    "name": "Negative Yveltal",
+    "variant": "Negative",
+    "level": 65,
+    "exp": "65,000",
+    "types": [
+      "Dark",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Dragon Rush",
+        "type": "Dragon"
+      },
+      {
+        "name": "Phantom Force",
+        "type": "Ghost"
+      },
+      {
+        "name": "Sucker Punch",
+        "type": "Dark"
+      },
+      {
+        "name": "Sky Attack",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/negative/yveltal.png"
+  },
+  {
+    "id": "j7N3gY",
+    "name": "Negative Reshiram",
+    "variant": "Negative",
+    "level": 71,
+    "exp": "71,000",
+    "types": [
+      "Dragon",
+      "Fire"
+    ],
+    "moves": [
+      {
+        "name": "Fire Blast",
+        "type": "Fire"
+      },
+      {
+        "name": "Dragon Rage",
+        "type": "Dragon"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Flamethrower",
+        "type": "Fire"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/negative/reshiram.png"
+  },
+  {
+    "id": "LnWmCk",
+    "name": "Gouging Fire",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fire",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Incinerate",
+        "type": "Fire"
+      },
+      {
+        "name": "Lava Plume",
+        "type": "Fire"
+      },
+      {
+        "name": "Dragon Claw",
+        "type": "Dragon"
+      },
+      {
+        "name": "Dragon Rush",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/gouging%20fire.png"
+  },
+  {
+    "id": "5N9CBp",
+    "name": "Cobalion",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Steel",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Quick Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Metal Claw",
+        "type": "Steel"
+      },
+      {
+        "name": "Take Down",
+        "type": "Normal"
+      },
+      {
+        "name": "Iron Head",
+        "type": "Steel"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/cobalion.png"
+  },
+  {
+    "id": "Lg5qbk",
+    "name": "Shiny Meditite",
+    "variant": "Shiny",
+    "level": 13,
+    "exp": "13,000",
+    "types": [
+      "Fighting",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Confusion",
+        "type": "Psychic"
+      },
+      {
+        "name": "Force Palm",
+        "type": "Fighting"
+      },
+      {
+        "name": "High Jump Kick",
+        "type": "Fighting"
+      },
+      {
+        "name": "Brick Break",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shiny/meditite.png"
+  },
+  {
+    "id": "z2LtWM",
+    "name": "Iron Boulder",
+    "variant": "Normal",
+    "level": 50,
+    "exp": "50,000",
+    "types": [
+      "Rock",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Horn Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Psycho Cut",
+        "type": "Psychic"
+      },
+      {
+        "name": "Rock Tomb",
+        "type": "Rock"
+      },
+      {
+        "name": "Mighty Cleave",
+        "type": "Rock"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/iron%20boulder.png"
+  },
+  {
+    "id": "5VvZ87",
+    "name": "Ghostly Iron Boulder",
+    "variant": "Ghostly",
+    "level": 43,
+    "exp": "43,000",
+    "types": [
+      "Rock",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Horn Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Psycho Cut",
+        "type": "Psychic"
+      },
+      {
+        "name": "Rock Tomb",
+        "type": "Rock"
+      },
+      {
+        "name": "Mighty Cleave",
+        "type": "Rock"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/iron%20boulder.png"
+  },
+  {
+    "id": "Lg5MRw",
+    "name": "Ghostly Tornadus (Incarnate)",
+    "variant": "Ghostly",
+    "level": 67,
+    "exp": "67,000",
+    "types": [
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Crunch",
+        "type": "Dark"
+      },
+      {
+        "name": "Dark Pulse",
+        "type": "Dark"
+      },
+      {
+        "name": "Hammer Arm",
+        "type": "Fighting"
+      },
+      {
+        "name": "Thrash",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/tornadus%20%28incarnate%29.png"
+  },
+  {
+    "id": "yG1b3y",
+    "name": "Wo-chien",
+    "variant": "Normal",
+    "level": 70,
+    "exp": "70,000",
+    "types": [
+      "Dark",
+      "Grass"
+    ],
+    "moves": [
+      {
+        "name": "Dark Pulse",
+        "type": "Dark"
+      },
+      {
+        "name": "Foul Play",
+        "type": "Dark"
+      },
+      {
+        "name": "Power Whip",
+        "type": "Grass"
+      },
+      {
+        "name": "Leaf Storm",
+        "type": "Grass"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/wo-chien.png"
+  },
+  {
+    "id": "R7X7tV",
+    "name": "Ghostly Mega Charizard Y",
+    "variant": "Ghostly",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fire",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Dragon Rage",
+        "type": "Dragon"
+      },
+      {
+        "name": "Slash",
+        "type": "Normal"
+      },
+      {
+        "name": "Inferno",
+        "type": "Fire"
+      },
+      {
+        "name": "Flare Blitz",
+        "type": "Fire"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/mega%20charizard%20y.png"
+  },
+  {
+    "id": "TPkGjT",
+    "name": "Mega Rayquaza",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dragon",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Dragon Pulse",
+        "type": "Dragon"
+      },
+      {
+        "name": "Hyper Beam",
+        "type": "Normal"
+      },
+      {
+        "name": "Extreme Speed",
+        "type": "Normal"
+      },
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mega%20rayquaza.png"
+  },
+  {
+    "id": "b2wX9V",
+    "name": "Phione",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Water"
+    ],
+    "moves": [
+      {
+        "name": "Dive",
+        "type": "Water"
+      },
+      {
+        "name": "Water Pulse",
+        "type": "Water"
+      },
+      {
+        "name": "Bubble Beam",
+        "type": "Water"
+      },
+      {
+        "name": "Blizzard",
+        "type": "Ice"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/phione.png"
+  },
+  {
+    "id": "fyp4Dz",
+    "name": "Entei",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Fire"
+    ],
+    "moves": [
+      {
+        "name": "Bite",
+        "type": "Dark"
+      },
+      {
+        "name": "Flamethrower",
+        "type": "Fire"
+      },
+      {
+        "name": "Lava Plume",
+        "type": "Fire"
+      },
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/entei.png"
+  },
+  {
+    "id": "j7N6dD",
+    "name": "Raikou",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Electric"
+    ],
+    "moves": [
+      {
+        "name": "Discharge",
+        "type": "Electric"
+      },
+      {
+        "name": "Thunder",
+        "type": "Electric"
+      },
+      {
+        "name": "Extrasensory",
+        "type": "Psychic"
+      },
+      {
+        "name": "Thunder Fang",
+        "type": "Electric"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/raikou.png"
+  },
+  {
+    "id": "zgDsvC",
+    "name": "Metallic Galarian Moltres",
+    "variant": "Metallic",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dark",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Fiery Wrath",
+        "type": "Dark"
+      },
+      {
+        "name": "Hurricane",
+        "type": "Flying"
+      },
+      {
+        "name": "Sky Attack",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/galarian%20moltres.png"
+  },
+  {
+    "id": "mrJ8CG",
+    "name": "Metallic White Kyurem (Overdrive)",
+    "variant": "Metallic",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dragon",
+      "Ice"
+    ],
+    "moves": [
+      {
+        "name": "Dragon Pulse",
+        "type": "Dragon"
+      },
+      {
+        "name": "Blizzard",
+        "type": "Ice"
+      },
+      {
+        "name": "Outrage",
+        "type": "Dragon"
+      },
+      {
+        "name": "Hyper Voice",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/white%20kyurem%20%28overdrive%29.png"
+  },
+  {
+    "id": "LnWmxX",
+    "name": "Dark Mega Latias",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dragon",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Dragon Pulse",
+        "type": "Dragon"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      },
+      {
+        "name": "Zen Headbutt",
+        "type": "Psychic"
+      },
+      {
+        "name": "Dragon Claw",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/mega%20latias.png"
+  },
+  {
+    "id": "BVspkM",
+    "name": "Metang",
+    "variant": "Normal",
+    "level": 51,
+    "exp": "51,178",
+    "types": [
+      "Steel",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Take Down",
+        "type": "Normal"
+      },
+      {
+        "name": "Metal Claw",
+        "type": "Steel"
+      },
+      {
+        "name": "Confusion",
+        "type": "Psychic"
+      },
+      {
+        "name": "Pursuit",
+        "type": "Dark"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/metang.png"
+  },
+  {
+    "id": "12g9Y",
+    "name": "Cosmog",
+    "variant": "Normal",
+    "level": 14,
+    "exp": "14,000",
+    "types": [
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Splash",
+        "type": "Normal"
+      },
+      {
+        "name": "Splash",
+        "type": "Normal"
+      },
+      {
+        "name": "Splash",
+        "type": "Normal"
+      },
+      {
+        "name": "Splash",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/cosmog.png"
+  },
+  {
+    "id": "z2LYQQ",
+    "name": "Metallic Raging Bolt",
+    "variant": "Metallic",
+    "level": 49,
+    "exp": "49,000",
+    "types": [
+      "Electric",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Discharge",
+        "type": "Electric"
+      },
+      {
+        "name": "Rising Voltage",
+        "type": "Electric"
+      },
+      {
+        "name": "Dragon Hammer",
+        "type": "Dragon"
+      },
+      {
+        "name": "Thunderclap",
+        "type": "Electric"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/raging%20bolt.png"
+  },
+  {
+    "id": "Lg5qM5",
+    "name": "Xurkitree",
+    "variant": "Normal",
+    "level": 60,
+    "exp": "60,000",
+    "types": [
+      "Electric"
+    ],
+    "moves": [
+      {
+        "name": "Thunder Punch",
+        "type": "Electric"
+      },
+      {
+        "name": "Discharge",
+        "type": "Electric"
+      },
+      {
+        "name": "Power Whip",
+        "type": "Grass"
+      },
+      {
+        "name": "Zap Cannon",
+        "type": "Electric"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/xurkitree.png"
+  },
+  {
+    "id": "TjZfTq",
+    "name": "Retro Iron Boulder",
+    "variant": "Retro",
+    "level": 45,
+    "exp": "45,000",
+    "types": [
+      "Rock",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Horn Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Psycho Cut",
+        "type": "Psychic"
+      },
+      {
+        "name": "Rock Tomb",
+        "type": "Rock"
+      },
+      {
+        "name": "Mighty Cleave",
+        "type": "Rock"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/retro/iron%20boulder.png"
+  },
+  {
+    "id": "5Vrp5z",
+    "name": "Mirage Raging Bolt",
+    "variant": "Mirage",
+    "level": 46,
+    "exp": "46,000",
+    "types": [
+      "Electric",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Discharge",
+        "type": "Electric"
+      },
+      {
+        "name": "Rising Voltage",
+        "type": "Electric"
+      },
+      {
+        "name": "Dragon Hammer",
+        "type": "Dragon"
+      },
+      {
+        "name": "Thunderclap",
+        "type": "Electric"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/mirage/raging%20bolt.png"
+  },
+  {
+    "id": "BNnCM8",
+    "name": "Farfetch'd",
+    "variant": "Normal",
+    "level": 16,
+    "exp": "16,000",
+    "types": [
+      "Normal",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Cut",
+        "type": "Normal"
+      },
+      {
+        "name": "Fury Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Peck",
+        "type": "Flying"
+      },
+      {
+        "name": "Toxic",
+        "type": "Poison"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/farfetch%27d.png"
+  },
+  {
+    "id": "srVw4x",
+    "name": "Negative Terapagos",
+    "variant": "Negative",
+    "level": 75,
+    "exp": "75,000",
+    "types": [
+      "Normal"
+    ],
+    "moves": [
+      {
+        "name": "Tri Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Earth Power",
+        "type": "Ground"
+      },
+      {
+        "name": "Tera Starstorm",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/negative/terapagos.png"
+  },
+  {
+    "id": "mNfdSV",
+    "name": "Guzzlord",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dark",
+      "Dragon"
+    ],
+    "moves": [
+      {
+        "name": "Stomping Tantrum",
+        "type": "Ground"
+      },
+      {
+        "name": "Crunch",
+        "type": "Dark"
+      },
+      {
+        "name": "Heavy Slam",
+        "type": "Steel"
+      },
+      {
+        "name": "Dragon Rush",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/guzzlord.png"
+  },
+  {
+    "id": "LnWm3D",
+    "name": "Metallic Mega Latias",
+    "variant": "Metallic",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Dragon",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Dragon Pulse",
+        "type": "Dragon"
+      },
+      {
+        "name": "Psychic",
+        "type": "Psychic"
+      },
+      {
+        "name": "Zen Headbutt",
+        "type": "Psychic"
+      },
+      {
+        "name": "Dragon Claw",
+        "type": "Dragon"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/metallic/mega%20latias.png"
+  },
+  {
+    "id": "bgS5MZ",
+    "name": "Celesteela",
+    "variant": "Normal",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Steel",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Air Slash",
+        "type": "Flying"
+      },
+      {
+        "name": "Skull Bash",
+        "type": "Normal"
+      },
+      {
+        "name": "Heavy Slam",
+        "type": "Steel"
+      },
+      {
+        "name": "Double-edge",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/celesteela.png"
+  },
+  {
+    "id": "fGHRJ2",
+    "name": "Regirock",
+    "variant": "Normal",
+    "level": 61,
+    "exp": "61,000",
+    "types": [
+      "Rock"
+    ],
+    "moves": [
+      {
+        "name": "Rock Throw",
+        "type": "Rock"
+      },
+      {
+        "name": "Explosion",
+        "type": "Normal"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      },
+      {
+        "name": "Superpower",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/regirock.png"
+  },
+  {
+    "id": "BNn22S",
+    "name": "Taillow",
+    "variant": "Normal",
+    "level": 15,
+    "exp": "15,000",
+    "types": [
+      "Normal",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Wing Attack",
+        "type": "Flying"
+      },
+      {
+        "name": "Peck",
+        "type": "Flying"
+      },
+      {
+        "name": "Quick Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Aerial Ace",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/taillow.png"
+  },
+  {
+    "id": "LLtr2C",
+    "name": "Shadow Doduo",
+    "variant": "Shadow",
+    "level": 8,
+    "exp": "8,000",
+    "types": [
+      "Normal",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Fury Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Tackle",
+        "type": "Normal"
+      },
+      {
+        "name": "Peck",
+        "type": "Flying"
+      },
+      {
+        "name": "Quick Attack",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/doduo.png"
+  },
+  {
+    "id": "BNn22c",
+    "name": "Chatot",
+    "variant": "Normal",
+    "level": 8,
+    "exp": "8,000",
+    "types": [
+      "Normal",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Peck",
+        "type": "Flying"
+      },
+      {
+        "name": "Fury Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Chatter",
+        "type": "Flying"
+      },
+      {
+        "name": "Uproar",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/chatot.png"
+  },
+  {
+    "id": "yyYH45",
+    "name": "Shadow Hoppip",
+    "variant": "Shadow",
+    "level": 15,
+    "exp": "15,000",
+    "types": [
+      "Grass",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Tackle",
+        "type": "Normal"
+      },
+      {
+        "name": "Stun Spore",
+        "type": "Grass"
+      },
+      {
+        "name": "Sleep Powder",
+        "type": "Grass"
+      },
+      {
+        "name": "Mega Drain",
+        "type": "Grass"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/hoppip.png"
+  },
+  {
+    "id": "TjZBSG",
+    "name": "Tropius",
+    "variant": "Normal",
+    "level": 10,
+    "exp": "10,000",
+    "types": [
+      "Grass",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Gust",
+        "type": "Flying"
+      },
+      {
+        "name": "Stomp",
+        "type": "Normal"
+      },
+      {
+        "name": "Razor Leaf",
+        "type": "Grass"
+      },
+      {
+        "name": "Magical Leaf",
+        "type": "Grass"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/tropius.png"
+  },
+  {
+    "id": "LLtr28",
+    "name": "Mirage Pidove",
+    "variant": "Mirage",
+    "level": 15,
+    "exp": "15,000",
+    "types": [
+      "Normal",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Gust",
+        "type": "Flying"
+      },
+      {
+        "name": "Quick Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Air Cutter",
+        "type": "Flying"
+      },
+      {
+        "name": "Wing Attack",
+        "type": "Flying"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/mirage/pidove.png"
+  },
+  {
+    "id": "s1Mzyf",
+    "name": "Shadow Wo-chien",
+    "variant": "Shadow",
+    "level": 70,
+    "exp": "70,000",
+    "types": [
+      "Dark",
+      "Grass"
+    ],
+    "moves": [
+      {
+        "name": "Dark Pulse",
+        "type": "Dark"
+      },
+      {
+        "name": "Foul Play",
+        "type": "Dark"
+      },
+      {
+        "name": "Power Whip",
+        "type": "Grass"
+      },
+      {
+        "name": "Leaf Storm",
+        "type": "Grass"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/wo-chien.png"
+  },
+  {
+    "id": "rjbn4",
+    "name": "Negative Glastrier",
+    "variant": "Negative",
+    "level": 66,
+    "exp": "66,000",
+    "types": [
+      "Ice"
+    ],
+    "moves": [
+      {
+        "name": "Avalanche",
+        "type": "Ice"
+      },
+      {
+        "name": "Stomp",
+        "type": "Normal"
+      },
+      {
+        "name": "Icicle Crash",
+        "type": "Ice"
+      },
+      {
+        "name": "Double-edge",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/negative/glastrier.png"
+  },
+  {
+    "id": "b2wX9x",
+    "name": "Ghostly Cosmog",
+    "variant": "Ghostly",
+    "level": 14,
+    "exp": "14,000",
+    "types": [
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Splash",
+        "type": "Normal"
+      },
+      {
+        "name": "Splash",
+        "type": "Normal"
+      },
+      {
+        "name": "Splash",
+        "type": "Normal"
+      },
+      {
+        "name": "Splash",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/cosmog.png"
+  },
+  {
+    "id": "LLtrQ6",
+    "name": "Poipole",
+    "variant": "Normal",
+    "level": 38,
+    "exp": "38,000",
+    "types": [
+      "Poison"
+    ],
+    "moves": [
+      {
+        "name": "Peck",
+        "type": "Flying"
+      },
+      {
+        "name": "Acid",
+        "type": "Poison"
+      },
+      {
+        "name": "Venoshock",
+        "type": "Poison"
+      },
+      {
+        "name": "Poison Jab",
+        "type": "Poison"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/poipole.png"
+  },
+  {
+    "id": "zL3WF4",
+    "name": "Negative Brute Bonnet",
+    "variant": "Negative",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Grass",
+      "Dark"
+    ],
+    "moves": [
+      {
+        "name": "Mega Drain",
+        "type": "Grass"
+      },
+      {
+        "name": "Payback",
+        "type": "Dark"
+      },
+      {
+        "name": "Sucker Punch",
+        "type": "Dark"
+      },
+      {
+        "name": "Solar Beam",
+        "type": "Grass"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/negative/brute%20bonnet.png"
+  },
+  {
+    "id": "bLPZd7",
+    "name": "Dark Chesnaught",
+    "variant": "Dark",
+    "level": 100,
+    "exp": "100,000",
+    "types": [
+      "Grass",
+      "Fighting"
+    ],
+    "moves": [
+      {
+        "name": "Seed Bomb",
+        "type": "Grass"
+      },
+      {
+        "name": "Body Slam",
+        "type": "Normal"
+      },
+      {
+        "name": "Wood Hammer",
+        "type": "Grass"
+      },
+      {
+        "name": "Hammer Arm",
+        "type": "Fighting"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/dark/chesnaught.png"
+  },
+  {
+    "id": "hGzTx7",
+    "name": "Ghostly Mudkip",
+    "variant": "Ghostly",
+    "level": 14,
+    "exp": "14,952",
+    "types": [
+      "Water"
+    ],
+    "moves": [
+      {
+        "name": "Tackle",
+        "type": "Normal"
+      },
+      {
+        "name": "Water Gun",
+        "type": "Water"
+      },
+      {
+        "name": "Quick Attack",
+        "type": "Normal"
+      },
+      {
+        "name": "Mud-slap",
+        "type": "Ground"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/mudkip.png"
+  },
+  {
+    "id": "fypXzd",
+    "name": "Chrome Kangaskhan",
+    "variant": "Chrome",
+    "level": 2,
+    "exp": "2,000",
+    "types": [
+      "Normal"
+    ],
+    "moves": [
+      {
+        "name": "Comet Punch",
+        "type": "Normal"
+      },
+      {
+        "name": "Mega Punch",
+        "type": "Normal"
+      },
+      {
+        "name": "Bite",
+        "type": "Dark"
+      },
+      {
+        "name": "Crunch",
+        "type": "Dark"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/chrome/kangaskhan.png"
+  },
+  {
+    "id": "rjQRC",
+    "name": "Ghostly Audino",
+    "variant": "Ghostly",
+    "level": 9,
+    "exp": "9,968",
+    "types": [
+      "Normal"
+    ],
+    "moves": [
+      {
+        "name": "Pound",
+        "type": "Normal"
+      },
+      {
+        "name": "Double Slap",
+        "type": "Normal"
+      },
+      {
+        "name": "Secret Power",
+        "type": "Normal"
+      },
+      {
+        "name": "Take Down",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/audino.png"
+  },
+  {
+    "id": "R7X7t4",
+    "name": "Mirage Kangaskhan",
+    "variant": "Mirage",
+    "level": 7,
+    "exp": "7,354",
+    "types": [
+      "Normal"
+    ],
+    "moves": [
+      {
+        "name": "Comet Punch",
+        "type": "Normal"
+      },
+      {
+        "name": "Mega Punch",
+        "type": "Normal"
+      },
+      {
+        "name": "Bite",
+        "type": "Dark"
+      },
+      {
+        "name": "Crunch",
+        "type": "Dark"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/mirage/kangaskhan.png"
+  },
+  {
+    "id": "bLPZtF",
+    "name": "Ghostly Snorunt",
+    "variant": "Ghostly",
+    "level": 16,
+    "exp": "16,000",
+    "types": [
+      "Ice"
+    ],
+    "moves": [
+      {
+        "name": "Headbutt",
+        "type": "Normal"
+      },
+      {
+        "name": "Bite",
+        "type": "Dark"
+      },
+      {
+        "name": "Powder Snow",
+        "type": "Ice"
+      },
+      {
+        "name": "Icy Wind",
+        "type": "Ice"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/ghostly/snorunt.png"
+  },
+  {
+    "id": "hGzTxk",
+    "name": "Chrome Beldum",
+    "variant": "Chrome",
+    "level": 8,
+    "exp": "8,000",
+    "types": [
+      "Steel",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Take Down",
+        "type": "Normal"
+      },
+      {
+        "name": "Take Down",
+        "type": "Normal"
+      },
+      {
+        "name": "Take Down",
+        "type": "Normal"
+      },
+      {
+        "name": "Take Down",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/chrome/beldum.png"
+  },
+  {
+    "id": "yG1w9G",
+    "name": "Slowpoke",
+    "variant": "Normal",
+    "level": 16,
+    "exp": "16,000",
+    "types": [
+      "Water",
+      "Psychic"
+    ],
+    "moves": [
+      {
+        "name": "Tackle",
+        "type": "Normal"
+      },
+      {
+        "name": "Water Gun",
+        "type": "Water"
+      },
+      {
+        "name": "Confusion",
+        "type": "Psychic"
+      },
+      {
+        "name": "Yawn",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/normal/slowpoke.png"
+  },
+  {
+    "id": "hGzTxC",
+    "name": "Chrome Aerodactyl",
+    "variant": "Chrome",
+    "level": 12,
+    "exp": "12,000",
+    "types": [
+      "Rock",
+      "Flying"
+    ],
+    "moves": [
+      {
+        "name": "Wing Attack",
+        "type": "Flying"
+      },
+      {
+        "name": "Supersonic",
+        "type": "Normal"
+      },
+      {
+        "name": "Steel Wing",
+        "type": "Steel"
+      },
+      {
+        "name": "Ancient Power",
+        "type": "Rock"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/chrome/aerodactyl.png"
+  },
+  {
+    "id": "5N9P7V",
+    "name": "Shadow Froakie",
+    "variant": "Shadow",
+    "level": 13,
+    "exp": "13,000",
+    "types": [
+      "Water"
+    ],
+    "moves": [
+      {
+        "name": "Pound",
+        "type": "Normal"
+      },
+      {
+        "name": "Bubble",
+        "type": "Water"
+      },
+      {
+        "name": "Lick",
+        "type": "Ghost"
+      },
+      {
+        "name": "Quick Attack",
+        "type": "Normal"
+      }
+    ],
+    "inTeam": false,
+    "sprite": "https://i.dstatic.com/images/pokemon/front/shadow/froakie.png"
+  }
+]

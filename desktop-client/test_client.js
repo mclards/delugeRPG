@@ -56,8 +56,23 @@ assert(avg >= 2000 && avg <= 2250, `Average delay (${avg}ms) must center around 
 
 console.log(`[PASS] Hardened Gaussian delay generator: 1000 trials passed with avg ${avg}ms (min seen ${minSeen}ms >= ${config.settings.minSafetyFloor}ms).`);
 
-// 4. Verify 100% clean ASCII across all client files
-const files = ['main.js', 'app.js', 'game-preload.js', 'targets.js', 'config.json', 'package.json', 'app.html', 'test_client.js'];
+// 4. Verify Team Engine and Counter Algorithm
+const teamEngine = require('./team_engine');
+assert(typeof teamEngine.buildBestTeam === 'function', 'teamEngine.buildBestTeam must be a function');
+const gymData = require('./gym_leaders.json');
+const collectionData = require('./user_collection.json');
+assert(gymData.KANTO && gymData.KANTO.length > 0, 'gym_leaders.json must contain Kanto leaders');
+assert(collectionData.length > 0, 'user_collection.json must contain pokemon');
+
+const brock = gymData.KANTO.find(l => l.name === 'Brock');
+assert(brock, 'Brock must be found in Kanto leaders');
+const brockTeam = teamEngine.buildBestTeam(brock, collectionData);
+assert(brockTeam.length === 6, 'Must recommend exactly 6 Pokemon for Brock');
+assert(brockTeam[0].score > 0, 'Top counter must have positive score');
+console.log(`[PASS] Team Engine: Verified top 6 counters for ${brock.name} (${brockTeam[0].name} scored ${brockTeam[0].score.toFixed(1)}).`);
+
+// 5. Verify 100% clean ASCII across all client files
+const files = ['main.js', 'app.js', 'game-preload.js', 'targets.js', 'team_engine.js', 'config.json', 'package.json', 'app.html', 'test_client.js', 'test_deep_verification.js'];
 for (const file of files) {
   const content = fs.readFileSync(path.join(__dirname, file), 'utf8');
   for (let i = 0; i < content.length; i++) {
@@ -69,3 +84,4 @@ for (const file of files) {
 
 console.log('[PASS] All desktop client files are 100% clean 7-bit ASCII.');
 console.log('--- ALL DESKTOP CLIENT HARDENING TESTS PASSED PERFECTLY ---');
+

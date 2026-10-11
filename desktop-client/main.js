@@ -233,6 +233,38 @@ function setupSessionHardening(ses, config) {
 
     callback({ requestHeaders: headers });
   });
+
+  // C. Network POST Interceptor: Captures raw payloads and endpoints
+  ses.webRequest.onBeforeRequest({ urls: ['*://*.delugerpg.com/*'] }, (details, callback) => {
+    if (details.method === 'POST') {
+      try {
+        let postBody = '';
+        if (details.uploadData && details.uploadData.length > 0) {
+          const parts = [];
+          for (const item of details.uploadData) {
+            if (item.bytes) {
+              parts.push(Buffer.from(item.bytes).toString('utf8'));
+            }
+          }
+          postBody = parts.join('');
+        }
+        backendLog('NETWORK_POST', `${details.url} -> ${postBody}`);
+
+        const dumpDir = path.join(__dirname, 'dom_dumps');
+        if (!fs.existsSync(dumpDir)) fs.mkdirSync(dumpDir, { recursive: true });
+        const filePath = path.join(dumpDir, 'team_save_network_post.json');
+        fs.writeFileSync(filePath, JSON.stringify({
+          timestamp: new Date().toISOString(),
+          url: details.url,
+          method: details.method,
+          postBody: postBody
+        }, null, 2), 'utf8');
+      } catch (err) {
+        console.error('[NetworkIntercept] Error:', err);
+      }
+    }
+    callback({});
+  });
 }
 
 function createWindow() {
@@ -302,6 +334,19 @@ if (!gotTheLock) {
         storages: ['cookies', 'localstorage', 'indexdb', 'websql', 'serviceworkers', 'cachestorage']
       });
       await ses.clearCache();
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  // IPC Handler: Soft Battle Cache Flush (Purges client storage & HTTP cache without touching auth cookies)
+  ipcMain.handle('soft-session-flush', async () => {
+    try {
+      await ses.clearCache();
+      await ses.clearStorageData({
+        storages: ['localstorage', 'indexdb', 'websql', 'serviceworkers', 'cachestorage']
+      });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

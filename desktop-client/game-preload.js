@@ -384,14 +384,145 @@ function getRandomCatchDelay(minMs = 1000, maxMs = 10000) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function dispatchHumanClick(el) {
-    if (!el) return;
+function getGaussianDelay(meanMs = 1200, stdDevMs = 200, minFloorMs = 800) {
+    const u1 = Math.random();
+    const u2 = Math.random();
+    const z = Math.sqrt(-2.0 * Math.log(u1 || 0.0001)) * Math.sin(2.0 * Math.PI * u2);
+    const val = Math.round(meanMs + (z * stdDevMs));
+    return Math.max(minFloorMs, val);
+}
+
+function dispatchHumanClick(el, callback) {
+    if (!el) {
+        if (typeof callback === 'function') callback();
+        return;
+    }
     try {
-        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
-        el.click();
-        el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+        const rect = el.getBoundingClientRect();
+        const hasSize = rect.width > 0 && rect.height > 0;
+        const relX = hasSize ? Math.floor(rect.left + rect.width * (0.2 + Math.random() * 0.6)) : 50;
+        const relY = hasSize ? Math.floor(rect.top + rect.height * (0.2 + Math.random() * 0.6)) : 50;
+        const scrX = (window.screenX || 0) + relX;
+        const scrY = (window.screenY || 0) + relY;
+
+        const moveProps = {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: relX,
+            clientY: relY,
+            screenX: scrX,
+            screenY: scrY,
+            pageX: relX + (window.scrollX || 0),
+            pageY: relY + (window.scrollY || 0),
+            buttons: 0,
+            pointerId: 1,
+            pointerType: 'mouse',
+            isPrimary: true
+        };
+
+        const downProps = Object.assign({}, moveProps, { buttons: 1, button: 0 });
+
+        try {
+            if (typeof PointerEvent === 'function') {
+                el.dispatchEvent(new PointerEvent('pointerover', moveProps));
+                el.dispatchEvent(new PointerEvent('pointerenter', moveProps));
+                el.dispatchEvent(new PointerEvent('pointermove', moveProps));
+            }
+        } catch (_) {}
+
+        el.dispatchEvent(new MouseEvent('mouseover', moveProps));
+        el.dispatchEvent(new MouseEvent('mouseenter', moveProps));
+        el.dispatchEvent(new MouseEvent('mousemove', moveProps));
+
+        try {
+            if (typeof PointerEvent === 'function') {
+                el.dispatchEvent(new PointerEvent('pointerdown', downProps));
+            }
+        } catch (_) {}
+
+        el.dispatchEvent(new MouseEvent('mousedown', downProps));
+
+        try { if (typeof el.focus === 'function') el.focus(); } catch (_) {}
+
+        const finishAction = () => {
+            const upProps = Object.assign({}, moveProps, { buttons: 0, button: 0 });
+            try {
+                if (typeof PointerEvent === 'function') {
+                    el.dispatchEvent(new PointerEvent('pointerup', upProps));
+                }
+            } catch (_) {}
+
+            el.dispatchEvent(new MouseEvent('mouseup', upProps));
+            try { el.click(); } catch (_) {}
+            if (typeof callback === 'function') callback();
+        };
+
+        if (typeof callback === 'function') {
+            const holdDelay = Math.floor(Math.random() * 60) + 65;
+            setTimeout(finishAction, holdDelay);
+        } else {
+            finishAction();
+        }
     } catch (_) {
         try { el.click(); } catch (_) {}
+        if (typeof callback === 'function') callback();
+    }
+}
+
+function simulateMouseMovement(fromEl, toEl, callback) {
+    if (!fromEl || !toEl) {
+        if (typeof callback === 'function') callback();
+        return;
+    }
+    try {
+        const fromRect = fromEl.getBoundingClientRect();
+        const toRect = toEl.getBoundingClientRect();
+        const startX = fromRect.left + fromRect.width / 2;
+        const startY = fromRect.top + fromRect.height / 2;
+        const endX = toRect.left + toRect.width * (0.3 + Math.random() * 0.4);
+        const endY = toRect.top + toRect.height * (0.3 + Math.random() * 0.4);
+
+        const steps = 4;
+        let currentStep = 0;
+        const moveInterval = setInterval(() => {
+            currentStep++;
+            const progress = currentStep / steps;
+            const jitterX = (Math.random() - 0.5) * 6;
+            const jitterY = (Math.random() - 0.5) * 6;
+            const curX = Math.floor(startX + (endX - startX) * progress + jitterX);
+            const curY = Math.floor(startY + (endY - startY) * progress + jitterY);
+
+            const mProps = {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+                clientX: curX,
+                clientY: curY,
+                screenX: (window.screenX || 0) + curX,
+                screenY: (window.screenY || 0) + curY,
+                pageX: curX + (window.scrollX || 0),
+                pageY: curY + (window.scrollY || 0),
+                buttons: 0,
+                pointerId: 1,
+                pointerType: 'mouse',
+                isPrimary: true
+            };
+
+            try {
+                if (typeof PointerEvent === 'function') {
+                    window.dispatchEvent(new PointerEvent('pointermove', mProps));
+                }
+            } catch (_) {}
+            window.dispatchEvent(new MouseEvent('mousemove', mProps));
+
+            if (currentStep >= steps) {
+                clearInterval(moveInterval);
+                if (typeof callback === 'function') callback();
+            }
+        }, 30);
+    } catch (_) {
+        if (typeof callback === 'function') callback();
     }
 }
 
@@ -1839,8 +1970,13 @@ ipcRenderer.on('step-dispatched', (event, data) => {
     }, 850);
 });
 
-// Guest Context Spacebar Toggle Handler
+// Guest Context Spacebar Toggle & F8 Snapshot Handlers
 window.addEventListener('keydown', (e) => {
+    if (e.key === 'F8') {
+        e.preventDefault();
+        captureCurrentDom('manual-F8');
+        return;
+    }
     if (e.code === 'Space' || e.key === ' ') {
         const activeEl = document.activeElement;
         const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT' || activeEl.isContentEditable);
@@ -1852,12 +1988,80 @@ window.addEventListener('keydown', (e) => {
     }
 }, true);
 
+// --- UNIVERSAL DOM CAPTURER / RECORDER ---
+let lastCapturedUrl = '';
+let lastCapturedHtmlLength = 0;
+let domCaptureDebounceTimer = null;
+
+function captureCurrentDom(triggerReason) {
+    try {
+        if (triggerReason !== 'manual-F8') return;
+        if (!document || !document.documentElement) return;
+        const currentUrl = window.location.href || '';
+        const currentPath = (window.location.pathname || '').toLowerCase();
+        const currentSearch = window.location.search || '';
+        const html = document.documentElement.outerHTML || '';
+
+        if (!html || html.length < 50) return;
+
+        lastCapturedUrl = currentUrl;
+        lastCapturedHtmlLength = html.length;
+
+        ipcRenderer.sendToHost('capture-dom-dump', {
+            url: currentUrl,
+            pathname: window.location.pathname || '/',
+            search: currentSearch,
+            title: document.title || '',
+            html: html,
+            reason: triggerReason || 'manual-F8',
+            timestamp: Date.now()
+        });
+    } catch (err) {
+        console.error('[PokePreload] Capture error:', err);
+    }
+}
+
+function scheduleDomCapture(reason, delayMs) {
+    const delay = (typeof delayMs === 'number') ? delayMs : 1200;
+    if (domCaptureDebounceTimer) {
+        clearTimeout(domCaptureDebounceTimer);
+    }
+    domCaptureDebounceTimer = setTimeout(() => {
+        captureCurrentDom(reason);
+    }, delay);
+}
+
+// Hook SPA navigation (pushState, replaceState)
+try {
+    const _origPushState = history.pushState;
+    history.pushState = function() {
+        const ret = _origPushState.apply(this, arguments);
+        scheduleDomCapture('pushState', 1200);
+        return ret;
+    };
+    const _origReplaceState = history.replaceState;
+    history.replaceState = function() {
+        const ret = _origReplaceState.apply(this, arguments);
+        scheduleDomCapture('replaceState', 1200);
+        return ret;
+    };
+} catch (_) {}
+
+// Hook user interactions (clicking tabs, pagination, buttons, links, dropdowns)
+document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t && (t.closest('a') || t.closest('button') || t.closest('input[type="submit"]') || t.closest('.pagination') || t.closest('[data-page]') || t.closest('[onclick]'))) {
+        scheduleDomCapture('click-interaction', 1500);
+    }
+}, true);
+
 // Initialization
 window.addEventListener('DOMContentLoaded', () => {
     console.log('[PokePreload] DOMContentLoaded on ' + window.location.pathname);
     applyCosmeticAdHiding();
     checkAndSyncMapPresence();
     const path = (window.location.pathname || '').toLowerCase();
+    scheduleDomCapture(path.indexOf('/map') !== -1 ? 'initial-map' : 'DOMContentLoaded', 1200);
     if (path.indexOf('/login') !== -1) {
         const creds = config && config.dummyAccount;
         if (creds && creds.username && creds.password) {
@@ -1883,6 +2087,10 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+window.addEventListener('load', () => {
+    scheduleDomCapture('page-load', 1500);
+});
+
 // High-frequency polling (300ms) for instant responsiveness
 setInterval(() => {
     syncNavStatusToHost();
@@ -1894,8 +2102,14 @@ setInterval(() => {
     }
 }, 300);
 
-window.addEventListener('popstate', checkAndSyncMapPresence);
-window.addEventListener('hashchange', checkAndSyncMapPresence);
+window.addEventListener('popstate', () => {
+    checkAndSyncMapPresence();
+    scheduleDomCapture('popstate', 1200);
+});
+window.addEventListener('hashchange', () => {
+    checkAndSyncMapPresence();
+    scheduleDomCapture('hashchange', 1200);
+});
 
 function isGuestInputField(el) {
     if (!el) return false;
@@ -2068,8 +2282,9 @@ function runAutoCatchLifecycle() {
                 target: targetName,
                 stockRemaining: remainingStock
             });
-            dispatchHumanClick(returnBtn);
-            autoCatchStepInProgress = false;
+            dispatchHumanClick(returnBtn, () => {
+                autoCatchStepInProgress = false;
+            });
         }, returnDelay);
         return;
     }
@@ -2098,8 +2313,9 @@ function runAutoCatchLifecycle() {
                     delay: startDelay
                 });
                 setTimeout(() => {
-                    dispatchHumanClick(startBattleBtn);
-                    autoCatchStepInProgress = false;
+                    dispatchHumanClick(startBattleBtn, () => {
+                        autoCatchStepInProgress = false;
+                    });
                 }, startDelay);
                 return;
             }
@@ -2204,25 +2420,33 @@ function runAutoCatchLifecycle() {
             });
 
             setTimeout(() => {
-                dispatchHumanClick(masterRadio);
-                masterRadio.checked = true;
-                masterRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                const targetEl = (masterRadio.id ? document.querySelector('label[for="' + masterRadio.id + '"]') : null) || masterRadio.closest('label') || masterRadio;
+                dispatchHumanClick(targetEl, () => {
+                    masterRadio.checked = true;
+                    masterRadio.dispatchEvent(new Event('input', { bubbles: true }));
+                    masterRadio.dispatchEvent(new Event('change', { bubbles: true }));
 
-                const throwDelay = getRandomCatchDelay(1000, 10000);
-                ipcRenderer.sendToHost('autocatch-status', {
-                    step: 'throwing-master-ball',
-                    delay: throwDelay,
-                    stock: masterStock
+                    const throwDelay = getRandomCatchDelay(1000, 10000);
+                    ipcRenderer.sendToHost('autocatch-status', {
+                        step: 'throwing-master-ball',
+                        delay: throwDelay,
+                        stock: masterStock
+                    });
+
+                    setTimeout(() => {
+                        const activeThrowBtn = document.querySelector('input[type="submit"][value*="Throw" i], button[value*="Throw" i], input[value*="Throw" i]') || throwBtn;
+                        if (activeThrowBtn) {
+                            try { sessionStorage.setItem('deluge_autocatch_thrown', 'true'); } catch (_) {}
+                            simulateMouseMovement(targetEl, activeThrowBtn, () => {
+                                dispatchHumanClick(activeThrowBtn, () => {
+                                    autoCatchStepInProgress = false;
+                                });
+                            });
+                        } else {
+                            autoCatchStepInProgress = false;
+                        }
+                    }, throwDelay);
                 });
-
-                setTimeout(() => {
-                    const activeThrowBtn = document.querySelector('input[type="submit"][value*="Throw" i], button[value*="Throw" i], input[value*="Throw" i]') || throwBtn;
-                    if (activeThrowBtn) {
-                        try { sessionStorage.setItem('deluge_autocatch_thrown', 'true'); } catch (_) {}
-                        dispatchHumanClick(activeThrowBtn);
-                    }
-                    autoCatchStepInProgress = false;
-                }, throwDelay);
             }, selectDelay);
             return;
         } else {
@@ -2237,9 +2461,15 @@ function runAutoCatchLifecycle() {
                 const activeThrowBtn = document.querySelector('input[type="submit"][value*="Throw" i], button[value*="Throw" i], input[value*="Throw" i]') || throwBtn;
                 if (activeThrowBtn) {
                     try { sessionStorage.setItem('deluge_autocatch_thrown', 'true'); } catch (_) {}
-                    dispatchHumanClick(activeThrowBtn);
+                    const targetEl = (masterRadio.id ? document.querySelector('label[for="' + masterRadio.id + '"]') : null) || masterRadio;
+                    simulateMouseMovement(targetEl, activeThrowBtn, () => {
+                        dispatchHumanClick(activeThrowBtn, () => {
+                            autoCatchStepInProgress = false;
+                        });
+                    });
+                } else {
+                    autoCatchStepInProgress = false;
                 }
-                autoCatchStepInProgress = false;
             }, throwDelay);
             return;
         }
@@ -2254,4 +2484,756 @@ if (document.readyState === 'loading') {
     runAutoCatchLifecycle();
 }
 window.addEventListener('load', runAutoCatchLifecycle);
+
+// --- GYM BATTLE TEAM BUILDER GUEST HANDLERS ---
+function parsePokemonRowsFromHtml(html) {
+    const pokemons = [];
+    const rowPattern = /<div class="row[^"]*"[^>]*data-pkid="([^"]+)"[^>]*>([\s\S]*?)(?=(?:<div class="row[^"]*"[^>]*data-pkid="|<\/div>\s*<\/div>\s*<div id="pagesel"|<\/div>\s*<\/div>\s*<div class="pagination|<div class="pagenum))/g;
+    let match;
+    while ((match = rowPattern.exec(html)) !== null) {
+        const id = match[1];
+        const block = match[2];
+
+        const nameMatch = block.match(/data-name="([^"]+)"/) || block.match(/<span class="nnfield[^"]*">([^<]+)<\/span>/);
+        const name = nameMatch ? nameMatch[1].trim() : 'Unknown';
+
+        const classMatch = block.match(/data-class="([^"]*)"/);
+        let variant = classMatch ? classMatch[1].trim() : '';
+        if (!variant) {
+            const imgMatch = block.match(/src="[^"]*\/([a-z]+)\/[^"]+\.png"/i);
+            if (imgMatch && imgMatch[1]) {
+                variant = imgMatch[1].charAt(0).toUpperCase() + imgMatch[1].slice(1).toLowerCase();
+            }
+        }
+        if (!variant || variant.toLowerCase() === 'normal') variant = 'Normal';
+
+        const levelMatch = block.match(/<b>Level:<\/b>\s*(\d+)/i);
+        const level = levelMatch ? parseInt(levelMatch[1], 10) : 1;
+
+        const expMatch = block.match(/<b>Exp:<\/b>\s*([0-9,]+)/i);
+        const exp = expMatch ? expMatch[1].trim() : '0';
+
+        const types = [];
+        const typePattern = /<i class="tbtn tbtn-([a-z]+)" title="([^"]+)"/ig;
+        let tMatch;
+        while ((tMatch = typePattern.exec(block)) !== null) {
+            types.push(tMatch[2].trim());
+        }
+
+        const moves = [];
+        const attkSectionMatch = block.match(/<div class="attk"[^>]*>([\s\S]*?)<\/div>\s*<div class="opts"/i) || block.match(/<div class="attk"[^>]*>([\s\S]*?)<\/div>/i);
+        if (attkSectionMatch) {
+            const moveDivPattern = /<div class="hoverclr-([a-z]+)">([^<]+)<\/div>/g;
+            let mMatch;
+            while ((mMatch = moveDivPattern.exec(attkSectionMatch[1])) !== null) {
+                const mType = mMatch[1].charAt(0).toUpperCase() + mMatch[1].slice(1).toLowerCase();
+                moves.push({
+                    name: mMatch[2].trim(),
+                    type: mType
+                });
+            }
+        }
+
+        const inTeam = block.includes('In Team') || block.includes('/team/replace');
+        const spriteMatch = block.match(/<img[^>]+src="([^"]+)"/i);
+        const sprite = spriteMatch ? spriteMatch[1] : '';
+
+        pokemons.push({
+            id,
+            name,
+            variant,
+            level,
+            exp,
+            types,
+            moves,
+            inTeam,
+            sprite
+        });
+    }
+    return pokemons;
+}
+
+ipcRenderer.on('start-scan-pokemon', async () => {
+    try {
+        console.log('[PokePreload] Starting automated pokemon collection scan...');
+        ipcRenderer.sendToHost('scan-pokemon-status', { step: 'reading-page-1' });
+
+        const res1 = await fetch('/pokemon/page/1', { credentials: 'include' });
+        const html1 = await res1.text();
+
+        let maxPages = 1;
+        const pageMatches = html1.match(/\/pokemon\/page\/(\d+)/g) || [];
+        for (let i = 0; i < pageMatches.length; i++) {
+            const pnum = parseInt(pageMatches[i].replace('/pokemon/page/', ''), 10);
+            if (pnum > maxPages) maxPages = pnum;
+        }
+
+        const page1Pokes = parsePokemonRowsFromHtml(html1);
+        const map = new Map();
+        page1Pokes.forEach(p => map.set(p.id, p));
+
+        for (let page = 2; page <= maxPages; page++) {
+            ipcRenderer.sendToHost('scan-pokemon-status', { step: 'reading-page', page: page, total: maxPages });
+            await new Promise(r => setTimeout(r, 450));
+            try {
+                const res = await fetch('/pokemon/page/' + page, { credentials: 'include' });
+                const html = await res.text();
+                const pokes = parsePokemonRowsFromHtml(html);
+                pokes.forEach(p => map.set(p.id, p));
+            } catch (err) {
+                console.warn('[PokePreload] Error fetching page ' + page + ':', err);
+            }
+        }
+
+        const allPokes = Array.from(map.values());
+        console.log('[PokePreload] Scan complete! Total pokemon found: ' + allPokes.length);
+        ipcRenderer.sendToHost('pokemon-scan-complete', {
+            success: true,
+            pokemons: allPokes,
+            pageCount: maxPages
+        });
+    } catch (err) {
+        console.error('[PokePreload] Scan error:', err);
+        ipcRenderer.sendToHost('pokemon-scan-complete', {
+            success: false,
+            error: err.message
+        });
+    }
+});
+
+function parsePokemonFromTrainerProfile(html) {
+    const pokemons = [];
+    if (!html) return pokemons;
+
+    const vpPattern = /<div class="viewpoketable[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?:<\/div>|<div class="viewpoketable|<\/div>\s*<hr)/g;
+    let match;
+    while ((match = vpPattern.exec(html)) !== null) {
+        const block = match[1];
+        const h4Match = block.match(/<h4>([^<]+)<\/h4>/i);
+        const name = h4Match ? h4Match[1].trim() : '';
+        if (!name) continue;
+
+        const types = [];
+        const tPattern = /<i class="tbtn tbtn-([a-z]+)" title="([^"]+)"/ig;
+        let tMatch;
+        while ((tMatch = tPattern.exec(block)) !== null) {
+            types.push(tMatch[2].trim());
+        }
+
+        const imgMatch = block.match(/src="([^"]+\.png)"/i);
+        const sprite = imgMatch ? imgMatch[1] : '';
+
+        let level = 100;
+        const lvlMatch = block.match(/<b>Level:<\/b>\s*(\d+)/i);
+        if (lvlMatch) level = parseInt(lvlMatch[1], 10);
+
+        pokemons.push({
+            name: name,
+            types: types.length > 0 ? types : ['Normal'],
+            level: level,
+            sprite: sprite
+        });
+    }
+
+    if (pokemons.length === 0) {
+        const pokePattern = /<div class="pokemon"[^>]*>([\s\S]*?)<\/div>/g;
+        let pMatch;
+        while ((pMatch = pokePattern.exec(html)) !== null) {
+            const block = pMatch[1];
+            const spanMatch = block.match(/<span class="smallcaps">([^<]+)<\/span>/i);
+            const name = spanMatch ? spanMatch[1].trim() : '';
+            if (!name) continue;
+
+            const types = [];
+            const tPattern = /<i class="tbtn tbtn-([a-z]+)" title="([^"]+)"/ig;
+            let tMatch;
+            while ((tMatch = tPattern.exec(block)) !== null) {
+                types.push(tMatch[2].trim());
+            }
+
+            const imgMatch = block.match(/src="([^"]+\.png)"/i);
+            const sprite = imgMatch ? imgMatch[1] : '';
+
+            pokemons.push({
+                name: name,
+                types: types.length > 0 ? types : ['Normal'],
+                level: 100,
+                sprite: sprite
+            });
+        }
+    }
+
+    return pokemons;
+}
+
+ipcRenderer.on('start-scan-trainer-rosters', async (event, data) => {
+    try {
+        const trainers = data && data.trainers ? data.trainers : [];
+        if (trainers.length === 0) {
+            ipcRenderer.sendToHost('scan-trainers-status', { step: 'probe-failed', message: 'No trainers found to scan.' });
+            return;
+        }
+
+        ipcRenderer.sendToHost('scan-trainers-status', { step: 'probing', message: 'Testing trainer profile endpoint (/npc/5141)...' });
+
+        let probeRes = await fetch('/npc/5141', { credentials: 'include' });
+        let probeHtml = await probeRes.text();
+        let parsedProbe = parsePokemonFromTrainerProfile(probeHtml);
+
+        if (parsedProbe.length === 0) {
+            probeRes = await fetch('/npc/5145', { credentials: 'include' });
+            probeHtml = await probeRes.text();
+            parsedProbe = parsePokemonFromTrainerProfile(probeHtml);
+        }
+
+        if (parsedProbe.length === 0) {
+            console.log('[PokePreload] Probe check: /npc/ pages do not expose pokemon teams.');
+            ipcRenderer.sendToHost('scan-trainers-status', {
+                step: 'probe-failed',
+                message: 'DelugeRPG /npc/ profile pages do not show team rosters. Rosters are automatically captured as you battle!'
+            });
+            return;
+        }
+
+        console.log('[PokePreload] Probe passed! Starting human-like harvest of ' + trainers.length + ' trainers...');
+        ipcRenderer.sendToHost('scan-trainers-status', { step: 'probe-passed', total: trainers.length });
+
+        for (let i = 0; i < trainers.length; i++) {
+            const tr = trainers[i];
+            const delay = Math.floor(1800 + Math.random() * 800);
+            await new Promise(r => setTimeout(r, delay));
+
+            ipcRenderer.sendToHost('scan-trainers-status', {
+                step: 'harvesting',
+                current: i + 1,
+                total: trainers.length,
+                trainerName: tr.name
+            });
+
+            try {
+                const res = await fetch('/npc/' + tr.npcId, { credentials: 'include' });
+                const html = await res.text();
+                const pokes = parsePokemonFromTrainerProfile(html);
+                if (pokes.length > 0) {
+                    ipcRenderer.sendToHost('battle-opponents-detected', {
+                        trainerName: tr.name,
+                        npcId: tr.npcId,
+                        trainerTitle: tr.name + "'s Team",
+                        roster: pokes
+                    });
+                }
+            } catch (err) {
+                console.warn('[PokePreload] Error fetching trainer ' + tr.name + ':', err);
+            }
+        }
+
+        ipcRenderer.sendToHost('scan-trainers-status', { step: 'completed', message: 'All trainers scanned successfully!' });
+    } catch (err) {
+        console.error('[PokePreload] Scan trainer error:', err);
+        ipcRenderer.sendToHost('scan-trainers-status', { step: 'error', message: err.message });
+    }
+});
+
+function executeSlotAssignment(ids, pokes) {
+    const pokesMap = new Map();
+    if (Array.isArray(pokes)) {
+        pokes.forEach(p => {
+            if (p && p.id) pokesMap.set(p.id, p);
+        });
+    }
+
+    const startTime = Date.now();
+    const waitTimer = setInterval(() => {
+        const teamList = document.getElementById('teamlist');
+        if (!teamList) {
+            if (Date.now() - startTime > 4000) {
+                clearInterval(waitTimer);
+                ipcRenderer.sendToHost('team-apply-complete', { success: false, error: 'teamlist not found' });
+            }
+            return;
+        }
+
+        clearInterval(waitTimer);
+
+        // Humanized initial perception delay (500ms - 750ms)
+        const perceptionDelay = getGaussianDelay(650, 100, 500);
+        ipcRenderer.sendToHost('team-apply-status', { step: 'assigning', message: 'Configuring team lineup slots...' });
+
+        setTimeout(() => {
+            teamList.innerHTML = '';
+            for (let i = 0; i < ids.length; i++) {
+                const pkId = ids[i];
+                const p = pokesMap.get(pkId) || { name: 'Pokemon ' + (i + 1), level: 100, types: ['normal'], sprite: '' };
+                const pType = (p.types && p.types[0] ? p.types[0] : 'normal').toLowerCase();
+
+                const li = document.createElement('li');
+                li.id = 'mem_' + pkId;
+                li.className = 'indbox ui-droppable ui-sortable-handle';
+
+                let spriteHtml = '';
+                if (p.sprite) {
+                    spriteHtml = '<div><img src="' + p.sprite + '" alt="' + p.name + '" class="pk72"></div>';
+                }
+
+                li.innerHTML = '<div class="row typeclr-' + pType + '" data-pktype="' + pType + '" data-pkid="' + pkId + '">' +
+                    '<div class="name">' + p.name + '</div>' +
+                    '<div class="info">' +
+                        spriteHtml +
+                        '<div>' +
+                            '<div><b>Level: </b>' + (p.level || 100) + '</div>' +
+                            '<div class="itype"><i class="tbtn tbtn-' + pType + ' tbtn-mini" title="' + pType + '"></i></div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="remove">Remove</div>' +
+                '</div>';
+                teamList.appendChild(li);
+            }
+
+            try {
+                if (window.$ && window.$('#teamlist').data('ui-sortable')) {
+                    window.$('#teamlist').sortable('refresh');
+                }
+            } catch (_) {}
+
+            ipcRenderer.sendToHost('team-apply-status', { step: 'reviewing', message: 'Reviewing team lineup...' });
+
+            // Humanized lineup inspection delay before saving (1150ms - 1500ms)
+            // Total time before SaveState() = perceptionDelay + reviewDelay >= 1700ms Safety Floor
+            const reviewDelay = getGaussianDelay(1250, 120, 1100);
+
+            setTimeout(() => {
+                ipcRenderer.sendToHost('team-apply-status', { step: 'saving', message: 'Saving team to DelugeRPG...' });
+
+                const saveBtn = document.querySelector('button[onclick*="SaveState"], #save_team, button.btn-primary');
+                if (saveBtn) {
+                    dispatchHumanClick(saveBtn);
+                } else if (typeof window.SaveState === 'function') {
+                    window.SaveState();
+                }
+
+                let checkCount = 0;
+                const confirmTimer = setInterval(() => {
+                    checkCount++;
+                    const modalDone = document.querySelector('#DMbody .notify_done, .notify_done');
+                    if (modalDone || checkCount > 20) {
+                        clearInterval(confirmTimer);
+                        const dismissDelay = getGaussianDelay(450, 80, 350);
+                        setTimeout(() => {
+                            try {
+                                const closeBtn = document.querySelector('#DMbody .close, #DMbody button, #DMoverlay');
+                                if (closeBtn) dispatchHumanClick(closeBtn);
+                            } catch (_) {}
+                            ipcRenderer.sendToHost('team-apply-complete', { success: true });
+                        }, dismissDelay);
+                    }
+                }, 150);
+            }, reviewDelay);
+        }, perceptionDelay);
+    }, 60);
+}
+
+ipcRenderer.on('apply-team-slots', (event, data) => {
+    const ids = (data && data.pokemonIds) || [];
+    const pokes = (data && data.pokemons) || [];
+    if (!ids || ids.length === 0) return;
+
+    try {
+        console.log('[PokePreload] Applying team slots:', ids);
+        const path = (window.location.pathname || '').toLowerCase();
+
+        if (path.indexOf('/team/edit') === -1) {
+            sessionStorage.setItem('deluge_pending_team_slots', JSON.stringify({
+                ids: ids,
+                pokemons: pokes,
+                timestamp: Date.now()
+            }));
+            ipcRenderer.sendToHost('team-apply-status', { step: 'navigating', message: 'Navigating to Team Editor...' });
+            window.location.href = 'https://www.delugerpg.com/team/edit';
+            return;
+        }
+
+        executeSlotAssignment(ids, pokes);
+    } catch (err) {
+        console.error('[PokePreload] Apply team error:', err);
+        ipcRenderer.sendToHost('team-apply-complete', { success: false, error: err.message });
+    }
+});
+
+// --- 5. MANUAL TEAM EDIT & SAVE TRANSACTION SPY ---
+function injectTeamSaveSpy() {
+    try {
+        if (document.getElementById('deluge-team-save-spy')) return;
+        const script = document.createElement('script');
+        script.id = 'deluge-team-save-spy';
+        script.textContent = `
+(function() {
+    console.log('[TEAM_SPY] Active: Listening for manual team edit and SaveState...');
+
+    // A. Intercept XMLHttpRequest
+    var origOpen = XMLHttpRequest.prototype.open;
+    var origSend = XMLHttpRequest.prototype.send;
+    var origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+
+    XMLHttpRequest.prototype.open = function(method, url) {
+        this._spyMethod = method;
+        this._spyUrl = url;
+        this._spyHeaders = {};
+        return origOpen.apply(this, arguments);
+    };
+
+    XMLHttpRequest.prototype.setRequestHeader = function(header, value) {
+        if (!this._spyHeaders) this._spyHeaders = {};
+        this._spyHeaders[header] = value;
+        return origSetHeader.apply(this, arguments);
+    };
+
+    XMLHttpRequest.prototype.send = function(data) {
+        var xhr = this;
+        var method = xhr._spyMethod;
+        var url = xhr._spyUrl;
+        var body = data;
+
+        var isTeamReq = (url && (url.indexOf('team') !== -1 || url.indexOf('edit') !== -1)) || method === 'POST';
+
+        if (isTeamReq) {
+            console.log('[TEAM_SPY] Intercepted XHR send to:', url, 'method:', method, 'body:', body);
+
+            var teamListEl = document.getElementById('teamlist');
+            var teamMembers = [];
+            if (teamListEl) {
+                var lis = teamListEl.querySelectorAll('li');
+                for (var i = 0; i < lis.length; i++) {
+                    var li = lis[i];
+                    var row = li.querySelector('.row');
+                    teamMembers.push({
+                        slotIndex: i + 1,
+                        liId: li.id,
+                        liClass: li.className,
+                        rowPkid: row ? row.getAttribute('data-pkid') : null,
+                        rowClass: row ? row.className : null,
+                        rowText: (row ? row.innerText : '').replace(/\\s+/g, ' ').trim()
+                    });
+                }
+            }
+
+            var sortableSerialize = '';
+            var sortableToArray = [];
+            try {
+                if (window.$ && window.$('#teamlist').data('ui-sortable')) {
+                    sortableSerialize = window.$('#teamlist').sortable('serialize');
+                    sortableToArray = window.$('#teamlist').sortable('toArray');
+                }
+            } catch (_) {}
+
+            xhr.addEventListener('load', function() {
+                console.log('[TEAM_SPY] Intercepted XHR response:', xhr.status, xhr.responseText);
+                window.postMessage({
+                    type: 'DELUGE_TEAM_INTERCEPT',
+                    method: method,
+                    url: url,
+                    headers: xhr._spyHeaders,
+                    postBody: String(body || ''),
+                    responseStatus: xhr.status,
+                    responseText: xhr.responseText,
+                    teamMembersDOM: teamMembers,
+                    sortableSerialize: sortableSerialize,
+                    sortableToArray: sortableToArray,
+                    saveStateSource: window.SaveState ? window.SaveState.toString() : 'not_found'
+                }, '*');
+            });
+        }
+
+        return origSend.apply(this, arguments);
+    };
+
+    // B. Intercept window.fetch
+    var origFetch = window.fetch;
+    window.fetch = function(input, init) {
+        var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+        var method = (init && init.method) ? init.method : 'GET';
+        var body = (init && init.body) ? init.body : null;
+
+        var isTeamReq = (url && (url.indexOf('team') !== -1 || url.indexOf('edit') !== -1)) || method === 'POST';
+        if (isTeamReq) {
+            console.log('[TEAM_SPY] Intercepted fetch to:', url, 'method:', method, 'body:', body);
+        }
+
+        return origFetch.apply(this, arguments).then(function(res) {
+            if (isTeamReq) {
+                res.clone().text().then(function(text) {
+                    console.log('[TEAM_SPY] Intercepted fetch response:', res.status, text);
+                    window.postMessage({
+                        type: 'DELUGE_TEAM_INTERCEPT',
+                        method: method,
+                        url: url,
+                        postBody: String(body || ''),
+                        responseStatus: res.status,
+                        responseText: text,
+                        saveStateSource: window.SaveState ? window.SaveState.toString() : 'not_found'
+                    }, '*');
+                }).catch(function() {});
+            }
+            return res;
+        });
+    };
+
+    // C. Hook SaveState directly
+    function hookSaveState() {
+        if (window.SaveState && !window.SaveState.__spied) {
+            var originalSaveState = window.SaveState;
+            var spiedFn = function() {
+                console.log('[TEAM_SPY] User invoked SaveState()!');
+                return originalSaveState.apply(this, arguments);
+            };
+            spiedFn.__spied = true;
+            window.SaveState = spiedFn;
+            console.log('[TEAM_SPY] Wrapped window.SaveState successfully!');
+        }
+    }
+
+    hookSaveState();
+    setInterval(hookSaveState, 1000);
+})();
+`;
+        (document.head || document.documentElement).appendChild(script);
+    } catch (err) {
+        console.warn('[PokePreload] Could not inject team save spy:', err);
+    }
+}
+
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'DELUGE_TEAM_INTERCEPT') {
+        console.log('[PokePreload] Captured team save transaction:', event.data);
+        ipcRenderer.sendToHost('team-intercept-captured', event.data);
+    }
+});
+
+// --- 6. LIVE BATTLE OPPONENT DETECTOR & ROSTER HARVESTER ---
+function detectBattleOpponents() {
+    try {
+        const path = (window.location.pathname || '').toLowerCase();
+
+        // Mode 1: Live PvP Battle (#teamleft)
+        const teamLeft = document.getElementById('teamleft');
+        if (teamLeft) {
+            const h2 = teamLeft.querySelector('h2');
+            const trainerTitle = h2 ? h2.textContent.trim() : 'Opponent Team';
+            const trainerName = trainerTitle.replace(/['']s\s*Team$/i, '').trim();
+            const items = teamLeft.querySelectorAll('.battlelistitem');
+            if (items && items.length > 0) {
+                const roster = [];
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    const nameEl = item.querySelector('.batname span');
+                    const name = nameEl ? nameEl.textContent.trim() : 'Unknown';
+                    const types = [];
+                    const typeBtns = item.querySelectorAll('.batname i.tbtn, i.tbtn');
+                    for (let j = 0; j < typeBtns.length; j++) {
+                        const t = typeBtns[j].getAttribute('title');
+                        if (t && types.indexOf(t) === -1) types.push(t);
+                    }
+                    let level = 100;
+                    const lvlHpEl = item.querySelector('.battlelistlvlhp');
+                    if (lvlHpEl) {
+                        const m = lvlHpEl.textContent.match(/Level:\s*(\d+)/i);
+                        if (m) level = parseInt(m[1], 10);
+                    }
+                    const imgEl = item.querySelector('.battlelistimg img');
+                    const sprite = imgEl ? (imgEl.getAttribute('src') || '') : '';
+                    roster.push({
+                        name: name,
+                        types: types.length > 0 ? types : ['Normal'],
+                        level: level,
+                        sprite: sprite
+                    });
+                }
+                if (roster.length > 0) {
+                    ipcRenderer.sendToHost('battle-opponents-detected', {
+                        trainerName: trainerName,
+                        trainerTitle: trainerTitle,
+                        roster: roster,
+                        battleUrl: window.location.pathname + window.location.search
+                    });
+                    return;
+                }
+            }
+        }
+
+        // Mode 2: NPC Battle (#opponent .pokemon on active battle screen)
+        const oppEl = document.getElementById('opponent');
+        if (oppEl) {
+            const pokeEl = oppEl.querySelector('.pokemon');
+            if (pokeEl) {
+                const fullText = (pokeEl.textContent || '').trim();
+                let trainerName = '';
+                const m = fullText.match(/^(.+?)['']s\s+/i);
+                if (m) trainerName = m[1].trim();
+
+                const nameSpan = pokeEl.querySelector('.smallcaps');
+                const pokeName = nameSpan ? nameSpan.textContent.trim() : '';
+
+                const types = [];
+                const typeBtns = pokeEl.querySelectorAll('i.tbtn');
+                for (let j = 0; j < typeBtns.length; j++) {
+                    const t = typeBtns[j].getAttribute('title');
+                    if (t && types.indexOf(t) === -1) types.push(t);
+                }
+
+                let level = 100;
+                const hpEl = pokeEl.querySelector('.hp');
+                if (hpEl) {
+                    const hpM = hpEl.textContent.match(/HP:\s*(\d+)\/(\d+)/i);
+                    if (hpM) {
+                        const maxHp = parseInt(hpM[2], 10);
+                        if (maxHp <= 100) level = Math.max(1, Math.round(maxHp / 2));
+                        else level = 100;
+                    }
+                }
+
+                const imgEl = pokeEl.querySelector('img');
+                const sprite = imgEl ? (imgEl.getAttribute('src') || '') : '';
+
+                if (trainerName && pokeName) {
+                    ipcRenderer.sendToHost('battle-opponents-detected', {
+                        trainerName: trainerName,
+                        trainerTitle: trainerName + "'s Team",
+                        roster: [{
+                            name: pokeName,
+                            types: types.length > 0 ? types : ['Normal'],
+                            level: level,
+                            sprite: sprite
+                        }],
+                        battleUrl: window.location.pathname + window.location.search
+                    });
+                }
+            }
+        }
+
+        // Mode 3: Post-Battle / Victory Screen (#viewpokes .viewpoketable)
+        const viewPokes = document.getElementById('viewpokes');
+        const notifyDone = document.querySelector('.notify_done');
+        if (viewPokes && notifyDone) {
+            const notifText = notifyDone.textContent || '';
+            const tMatch = notifText.match(/defeated\s+<b>?(.+?)<\/b>?\./i) || notifText.match(/defeated\s+(.+?)\./i);
+            const trainerName = tMatch ? tMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+
+            const pTables = viewPokes.querySelectorAll('.viewpoketable');
+            if (pTables && pTables.length > 0 && trainerName) {
+                const roster = [];
+                for (let k = 0; k < pTables.length; k++) {
+                    const table = pTables[k];
+                    const h4 = table.querySelector('h4');
+                    const pName = h4 ? h4.textContent.trim() : '';
+                    if (!pName) continue;
+
+                    const types = [];
+                    const itypes = table.querySelectorAll('.itype i.tbtn, i.tbtn');
+                    for (let j = 0; j < itypes.length; j++) {
+                        const t = itypes[j].getAttribute('title');
+                        if (t && types.indexOf(t) === -1) types.push(t);
+                    }
+
+                    let level = 100;
+                    const bEls = table.querySelectorAll('b');
+                    for (let b = 0; b < bEls.length; b++) {
+                        if (bEls[b].textContent.indexOf('Level:') !== -1 && bEls[b].nextSibling) {
+                            const lNum = parseInt(bEls[b].nextSibling.textContent.trim(), 10);
+                            if (!isNaN(lNum)) level = lNum;
+                        }
+                    }
+
+                    const img = table.querySelector('.vpname img');
+                    const sprite = img ? (img.getAttribute('src') || '') : '';
+
+                    roster.push({
+                        name: pName,
+                        types: types.length > 0 ? types : ['Normal'],
+                        level: level,
+                        sprite: sprite
+                    });
+                }
+
+                if (roster.length > 0) {
+                    ipcRenderer.sendToHost('battle-opponents-detected', {
+                        trainerName: trainerName,
+                        trainerTitle: trainerName + "'s Team",
+                        roster: roster,
+                        battleUrl: window.location.pathname + window.location.search
+                    });
+                }
+            }
+        }
+
+        // Mode 4: NPC Profile Page (/npc/*)
+        if (path.indexOf('/npc/') !== -1) {
+            const h1 = document.querySelector('h1');
+            const trainerName = h1 ? h1.textContent.replace(/^NPC:?\s*/i, '').trim() : '';
+            const pItems = document.querySelectorAll('.viewpoketable, .battlelistitem, .pokemon');
+            if (trainerName && pItems.length > 0) {
+                const roster = [];
+                for (let i = 0; i < pItems.length; i++) {
+                    const el = pItems[i];
+                    const nameEl = el.querySelector('h4, .smallcaps, .batname span');
+                    const pName = nameEl ? nameEl.textContent.trim() : '';
+                    if (!pName) continue;
+                    const types = [];
+                    const tBtns = el.querySelectorAll('i.tbtn');
+                    for (let j = 0; j < tBtns.length; j++) {
+                        const t = tBtns[j].getAttribute('title');
+                        if (t && types.indexOf(t) === -1) types.push(t);
+                    }
+                    const img = el.querySelector('img');
+                    roster.push({
+                        name: pName,
+                        types: types.length > 0 ? types : ['Normal'],
+                        level: 100,
+                        sprite: img ? (img.getAttribute('src') || '') : ''
+                    });
+                }
+                if (roster.length > 0) {
+                    const battleUrl = window.location.pathname.replace('/npc/', '/battle/trainer/');
+                    ipcRenderer.sendToHost('battle-opponents-detected', {
+                        trainerName: trainerName,
+                        trainerTitle: trainerName,
+                        roster: roster,
+                        battleUrl: battleUrl
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('[PokePreload] Error detecting battle opponent:', err);
+    }
+}
+
+ipcRenderer.on('check-battle-opponents', () => {
+    detectBattleOpponents();
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+    const path = (window.location.pathname || '').toLowerCase();
+    if (path.indexOf('/team/edit') !== -1) {
+        injectTeamSaveSpy();
+        try {
+            const pending = sessionStorage.getItem('deluge_pending_team_slots');
+            if (pending) {
+                sessionStorage.removeItem('deluge_pending_team_slots');
+                const parsed = JSON.parse(pending);
+                const ids = parsed.ids || (Array.isArray(parsed) ? parsed : []);
+                const pokes = parsed.pokemons || [];
+                const isFresh = !parsed.timestamp || (Date.now() - parsed.timestamp < 60000);
+                if (isFresh && Array.isArray(ids) && ids.length > 0) {
+                    executeSlotAssignment(ids, pokes);
+                }
+            }
+        } catch (_) {}
+    }
+
+    if (path.indexOf('/battle') !== -1 || path.indexOf('/npc') !== -1) {
+        detectBattleOpponents();
+        setTimeout(detectBattleOpponents, 500);
+        setTimeout(detectBattleOpponents, 1500);
+    }
+});
+
 

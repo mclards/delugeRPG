@@ -32,7 +32,7 @@
     "enableLevelFilter": false,
     "levelFilterMode": "min",
     "levelFilterValue": 12,
-    "zoomFactor": 0.7,
+    "zoomFactor": 0.8,
     "levelFilterScope": "targets",
     "legendaryClassic": true,
     "legendaryUltraBeasts": true,
@@ -50,6 +50,7 @@
       "Negative"
     ],
     "customTargetList": "",
-    "blacklistList": ""
+    "blacklistList": "",
+    "teamRosterMode": "TRAINING"
   }
 }

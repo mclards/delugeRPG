@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const teamEngine = require('./team_engine.js');
 
 function deepMerge(target, source) {
   const output = Object.assign({}, target);
@@ -296,6 +297,36 @@ const wipeModal = document.getElementById('wipeModal');
 const closeWipeBtn = document.getElementById('closeWipeBtn');
 const cancelWipeBtn = document.getElementById('cancelWipeBtn');
 const confirmWipeBtn = document.getElementById('confirmWipeBtn');
+const trainerIntelModal = document.getElementById('trainerIntelModal');
+const closeTrainerIntelBtn = document.getElementById('closeTrainerIntelBtn');
+const cancelTrainerIntelBtn = document.getElementById('cancelTrainerIntelBtn');
+const inspectBattleBtn = document.getElementById('inspectBattleBtn');
+const activeBattleStatusMsg = document.getElementById('activeBattleStatusMsg');
+const modalRosterCountBadge = document.getElementById('modalRosterCountBadge');
+const teamBuilderModal = document.getElementById('teamBuilderModal');
+const teamBuilderBtn = document.getElementById('teamBuilderBtn');
+const teamBuilderMenuBtn = document.getElementById('teamBuilderMenuBtn');
+const closeTeamBuilderBtn = document.getElementById('closeTeamBuilderBtn');
+const scanPokesBtn = document.getElementById('scanPokesBtn');
+const scanTrainersBtn = document.getElementById('scanTrainersBtn');
+const scanStatusBadge = document.getElementById('scanStatusBadge');
+const teamCategorySelect = document.getElementById('teamCategorySelect');
+const teamTrainerSelect = document.getElementById('teamTrainerSelect');
+const buildTeamBtn = document.getElementById('buildTeamBtn');
+const teamResultContainer = document.getElementById('teamResultContainer');
+const teamResultList = document.getElementById('teamResultList');
+const teamActionRow = document.getElementById('teamActionRow');
+const teamActionStatus = document.getElementById('teamActionStatus');
+const copyTeamBtn = document.getElementById('copyTeamBtn');
+const applyTeamBtn = document.getElementById('applyTeamBtn');
+const trainerSearchInput = document.getElementById('trainerSearchInput');
+const clearTrainerSearchBtn = document.getElementById('clearTrainerSearchBtn');
+const filteredTrainerCountBadge = document.getElementById('filteredTrainerCountBadge');
+const teamEmptyPrompt = document.getElementById('teamEmptyPrompt');
+const poolModeAllBtn = document.getElementById('poolModeAllBtn');
+const poolModeTrainingBtn = document.getElementById('poolModeTrainingBtn');
+const trainingStatsBadge = document.getElementById('trainingStatsBadge');
+const battleOpponentBtn = document.getElementById('battleOpponentBtn');
 
 // State
 let isRunning = false;
@@ -740,7 +771,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.1.7';
+    let appVer = '1.2.0';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -2033,6 +2064,222 @@ delugeView.addEventListener('ipc-message', (event) => {
     backendLog('DOM_DUMP', event.args[0]);
   }
 
+  if (event.channel === 'capture-dom-dump') {
+    const data = event.args[0] || {};
+    try {
+      const dumpsDir = path.join(__dirname, 'dom_dumps');
+      if (!fs.existsSync(dumpsDir)) {
+        fs.mkdirSync(dumpsDir, { recursive: true });
+      }
+
+      const cleanPath = (data.pathname || 'page')
+        .replace(/^\/+|\/+$/g, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_') || 'home';
+
+      const cleanSearch = (data.search || '')
+        .replace(/^\?+/, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      const fileBase = cleanSearch ? `${cleanPath}__${cleanSearch}` : cleanPath;
+      const filename = `dump_${fileBase}.html`;
+      const targetFile = path.join(dumpsDir, filename);
+
+      fs.writeFileSync(targetFile, data.html, 'utf8');
+
+      // Update manifest index file
+      const manifestPath = path.join(dumpsDir, 'manifest.json');
+      let manifest = [];
+      try {
+        if (fs.existsSync(manifestPath)) {
+          manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        }
+      } catch (_) { manifest = []; }
+
+      const entryKey = (data.pathname || '') + (data.search || '');
+      const existingIdx = manifest.findIndex(m => m.key === entryKey);
+      const entry = {
+        key: entryKey,
+        pathname: data.pathname,
+        search: data.search,
+        url: data.url,
+        title: data.title,
+        file: filename,
+        sizeBytes: Buffer.byteLength(data.html, 'utf8'),
+        lastCaptured: new Date().toISOString(),
+        reason: data.reason
+      };
+
+      if (existingIdx >= 0) {
+        manifest[existingIdx] = entry;
+      } else {
+        manifest.push(entry);
+      }
+      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+
+      const sizeKb = (entry.sizeBytes / 1024).toFixed(1);
+      console.log(`[DOMCapture] Captured: ${data.url} -> dom_dumps/${filename} (${sizeKb} KB) [${data.reason}]`);
+      backendLog('DOM_CAPTURE', `Captured ${data.url} -> ${filename} (${sizeKb} KB) [${data.reason}]`);
+
+      if (!isRunning) {
+        updateStatus(`Captured ${filename}`, '#10b981');
+        setTimeout(() => {
+          if (!isRunning && statusText && statusText.textContent && statusText.textContent.includes('Captured')) {
+            updateStatus('Ready (Snapshot Saved)', '#38bdf8');
+          }
+        }, 2500);
+      }
+    } catch (err) {
+      console.error('[DOMCapture] Failed to save snapshot:', err);
+    }
+  }
+
+  if (event.channel === 'scan-pokemon-status') {
+    const data = event.args[0] || {};
+    if (scanStatusBadge) {
+      if (data.page && data.total) {
+        scanStatusBadge.textContent = `Reading page ${data.page}/${data.total}...`;
+      } else {
+        scanStatusBadge.textContent = 'Scanning page 1...';
+      }
+    }
+  }
+
+  if (event.channel === 'pokemon-scan-complete') {
+    const data = event.args[0] || {};
+    if (data.success && Array.isArray(data.pokemons)) {
+      currentCollection = data.pokemons;
+      try {
+        fs.writeFileSync(path.join(__dirname, 'user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
+      } catch (_) {}
+      if (scanStatusBadge) scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced (${data.pageCount || 1} pgs)`;
+      if (typeof updateRosterModeUI === 'function') updateRosterModeUI();
+      console.log(`[TeamBuilder] Successfully synced ${currentCollection.length} Pokemon across ${data.pageCount || 1} pages.`);
+      backendLog('TEAM_BUILDER', `Synced ${currentCollection.length} Pokemon across ${data.pageCount || 1} pages`);
+
+      if (isBuildSyncInProgress) {
+        isBuildSyncInProgress = false;
+        if (buildTeamBtn) {
+          buildTeamBtn.innerHTML = '<span>&#9876;</span><span>Build Best Team</span>';
+          buildTeamBtn.style.opacity = '1';
+        }
+        if (pendingBuildLeader && typeof executeTeamBuild === 'function') {
+          executeTeamBuild(pendingBuildLeader);
+          pendingBuildLeader = null;
+        }
+        if (teamActionStatus) {
+          teamActionStatus.textContent = 'Freshest box synced & lineup updated!';
+          teamActionStatus.style.color = '#10b981';
+          setTimeout(() => { if (teamActionStatus) teamActionStatus.textContent = ''; }, 2500);
+        }
+      }
+    } else {
+      if (scanStatusBadge) scanStatusBadge.textContent = 'Scan failed';
+      if (isBuildSyncInProgress) {
+        isBuildSyncInProgress = false;
+        if (buildTeamBtn) {
+          buildTeamBtn.innerHTML = '<span>&#9876;</span><span>Build Best Team</span>';
+          buildTeamBtn.style.opacity = '1';
+        }
+      }
+    }
+  }
+
+  if (event.channel === 'team-apply-status') {
+    const data = event.args[0] || {};
+    if (teamActionStatus && data.message) {
+      teamActionStatus.textContent = data.message;
+      teamActionStatus.style.color = '#38bdf8';
+    }
+  }
+
+  if (event.channel === 'team-apply-complete') {
+    const data = event.args[0] || {};
+    if (applyTeamBtn) {
+      applyTeamBtn.disabled = false;
+      applyTeamBtn.innerHTML = '<span>&#10003;</span> <span>Team Saved!</span>';
+      setTimeout(() => {
+        if (applyTeamBtn) applyTeamBtn.innerHTML = 'Change Team';
+      }, 2500);
+    }
+    if (battleOpponentBtn) {
+      battleOpponentBtn.disabled = false;
+    }
+    if (teamActionStatus) {
+      if (data.success) {
+        teamActionStatus.textContent = 'Team updated successfully on DelugeRPG!';
+        teamActionStatus.style.color = '#10b981';
+      } else {
+        teamActionStatus.textContent = 'Failed: ' + (data.error || 'Check game window');
+        teamActionStatus.style.color = '#f87171';
+      }
+    }
+  }
+
+  if (event.channel === 'scan-trainers-status') {
+    const data = event.args[0] || {};
+    if (scanStatusBadge) {
+      if (data.step === 'probing') {
+        scanStatusBadge.textContent = data.message || 'Testing /npc/ endpoint...';
+        scanStatusBadge.style.color = '#38bdf8';
+      } else if (data.step === 'probe-failed') {
+        scanStatusBadge.textContent = `${currentCollection ? currentCollection.length : 0} Pokemon Synced`;
+        scanStatusBadge.style.color = '#38bdf8';
+        if (activeBattleStatusMsg) {
+          activeBattleStatusMsg.style.color = '#38bdf8';
+          activeBattleStatusMsg.textContent = 'Auto-recording is active in live battles!';
+        }
+      } else if (data.step === 'harvesting') {
+        scanStatusBadge.textContent = `Harvesting ${data.current}/${data.total} (${data.trainerName})...`;
+        scanStatusBadge.style.color = '#38bdf8';
+      } else if (data.step === 'completed') {
+        scanStatusBadge.textContent = 'All trainers harvested!';
+        scanStatusBadge.style.color = '#10b981';
+      } else if (data.step === 'error') {
+        scanStatusBadge.textContent = 'Harvest error';
+        scanStatusBadge.style.color = '#f87171';
+      }
+    }
+  }
+
+  if (event.channel === 'battle-opponents-detected') {
+    const data = event.args[0] || {};
+    if (data && Array.isArray(data.roster) && data.roster.length > 0) {
+      handleLiveBattleOpponents(data);
+      if (scanStatusBadge) {
+        scanStatusBadge.textContent = `Captured ${data.trainerName}! (${data.roster.length} Pkmn)`;
+        scanStatusBadge.style.color = '#34d399';
+        setTimeout(() => {
+          if (scanStatusBadge) {
+            scanStatusBadge.textContent = `${currentCollection ? currentCollection.length : 0} Pokemon Synced`;
+            scanStatusBadge.style.color = '#38bdf8';
+          }
+        }, 5000);
+      }
+      if (activeBattleStatusMsg) {
+        activeBattleStatusMsg.style.color = '#34d399';
+        activeBattleStatusMsg.textContent = `Successfully captured ${data.trainerName}'s ${data.roster.length}-Pokemon team into database!`;
+      }
+      if (typeof updateTrainerIntelStats === 'function') {
+        updateTrainerIntelStats();
+      }
+    }
+  }
+
+  if (event.channel === 'team-intercept-captured') {
+    const data = event.args[0] || {};
+    try {
+      const dumpDir = path.join(__dirname, 'dom_dumps');
+      if (!fs.existsSync(dumpDir)) fs.mkdirSync(dumpDir, { recursive: true });
+      const filePath = path.join(dumpDir, 'team_save_intercept.json');
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+      backendLog('TEAM_INTERCEPT', `Captured and saved to ${filePath}`);
+      updateStatus('Team Save Intercepted!', '#10b981');
+      console.log('[TeamIntercept] Successfully captured team save transaction to dom_dumps/team_save_intercept.json');
+    } catch (err) {
+      console.error('[TeamIntercept] Error saving intercept:', err);
+    }
+  }
+
   if (event.channel === 'preload-ready' || event.channel === 'request-config') {
     delugeView.send('update-config', config.settings);
     syncHuntingState();
@@ -2286,7 +2533,7 @@ function showModal(modalEl) {
   document.body.classList.add('modal-open');
   window.focus();
 
-  [targetModal, networkModal, accountModal, wipeModal].forEach(m => {
+  [targetModal, networkModal, accountModal, wipeModal, trainerIntelModal].forEach(m => {
     if (m) m.style.display = 'none';
   });
   if (modalEl) {
@@ -2297,7 +2544,7 @@ function showModal(modalEl) {
 
 function closeAllModals() {
   document.body.classList.remove('modal-open');
-  [targetModal, networkModal, accountModal, wipeModal].forEach(m => {
+  [targetModal, networkModal, accountModal, wipeModal, trainerIntelModal].forEach(m => {
     if (m) m.style.display = 'none';
   });
   if (modalBackdrop) modalBackdrop.classList.remove('active');
@@ -2311,7 +2558,7 @@ function closeAllModals() {
 closeAllModals();
 
 // Stop click bubbling on modals so clicks never reach backdrop or outside handlers
-[targetModal, networkModal, accountModal, wipeModal].forEach(m => {
+[targetModal, networkModal, accountModal, wipeModal, teamBuilderModal].forEach(m => {
   if (m) {
     m.addEventListener('click', (e) => e.stopPropagation());
     m.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -2362,7 +2609,11 @@ if (modalBackdrop) {
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    closeAllModals();
+    if (modalBackdrop && modalBackdrop.classList.contains('active')) {
+      closeAllModals();
+    } else if (teamBuilderModal && teamBuilderModal.style.display === 'flex') {
+      closeTeamBuilderPanel();
+    }
   }
   if (e.code === 'Space' || e.key === ' ') {
     const activeEl = document.activeElement;
@@ -2702,35 +2953,70 @@ if (saveTargetsBtn) {
   });
 }
 
+function closeNavDropdown() {
+  if (navDropdown) navDropdown.classList.add('hidden');
+  if (navMenuBtn) navMenuBtn.classList.remove('btn-accent');
+  const backdrop = document.getElementById('dropdownBackdrop');
+  if (backdrop) backdrop.style.display = 'none';
+}
+
+function openNavDropdown() {
+  if (navDropdown) navDropdown.classList.remove('hidden');
+  if (navMenuBtn) navMenuBtn.classList.add('btn-accent');
+  const backdrop = document.getElementById('dropdownBackdrop');
+  if (backdrop) backdrop.style.display = 'block';
+}
+
+function toggleNavDropdown() {
+  if (!navDropdown) return;
+  if (navDropdown.classList.contains('hidden')) {
+    openNavDropdown();
+  } else {
+    closeNavDropdown();
+  }
+}
+
+function closeDropdown() {
+  closeNavDropdown();
+}
+
 // Collapsible Navigation Dropdown Menu Handlers
 if (navMenuBtn && navDropdown) {
   navMenuBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    navDropdown.classList.toggle('hidden');
-    navMenuBtn.classList.toggle('btn-accent', !navDropdown.classList.contains('hidden'));
+    toggleNavDropdown();
   });
+
+  const dropdownBackdrop = document.getElementById('dropdownBackdrop');
+  if (dropdownBackdrop) {
+    dropdownBackdrop.addEventListener('click', closeNavDropdown);
+    dropdownBackdrop.addEventListener('mousedown', closeNavDropdown);
+  }
 
   // Close dropdown when clicking outside
   document.addEventListener('click', (e) => {
     if (!navDropdown.contains(e.target) && e.target !== navMenuBtn) {
-      navDropdown.classList.add('hidden');
-      navMenuBtn.classList.remove('btn-accent');
+      closeNavDropdown();
     }
   });
+
+  // Close dropdown on window blur (e.g. clicking into webview)
+  window.addEventListener('blur', closeNavDropdown);
+  if (delugeView) {
+    delugeView.addEventListener('focus', closeNavDropdown);
+  }
 
   // Close dropdown on Escape key
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !navDropdown.classList.contains('hidden')) {
-      navDropdown.classList.add('hidden');
-      navMenuBtn.classList.remove('btn-accent');
+      closeNavDropdown();
     }
   });
 
   // Auto-close dropdown when any option inside is clicked (excluding toggle items that maintain state)
   navDropdown.querySelectorAll('.dropdown-item:not(.dropdown-toggle-item)').forEach(item => {
     item.addEventListener('click', () => {
-      navDropdown.classList.add('hidden');
-      navMenuBtn.classList.remove('btn-accent');
+      closeNavDropdown();
     });
   });
 }
@@ -2831,9 +3117,31 @@ if (openLogsBtn) {
 
 
 
-refreshBtn.addEventListener('click', () => {
-  delugeView.reload();
-});
+if (refreshBtn) {
+  refreshBtn.addEventListener('click', async () => {
+    if (isRunning) stopBot();
+    updateStatus('Flushing battle cache & reloading...', '#38bdf8');
+    try {
+      if (delugeView && typeof delugeView.executeJavaScript === 'function') {
+        try {
+          await delugeView.executeJavaScript('sessionStorage.clear(); localStorage.clear();');
+        } catch (_) {}
+      }
+      await ipcRenderer.invoke('soft-session-flush');
+    } catch (_) {}
+
+    if (delugeView) {
+      if (typeof delugeView.reloadIgnoringCache === 'function') {
+        delugeView.reloadIgnoringCache();
+      } else {
+        delugeView.reload();
+      }
+    }
+    setTimeout(() => {
+      updateStatus('Ready', '#10b981');
+    }, 1500);
+  });
+}
 
 // Clean Slate / Wipe Session Storage (In-DOM confirmation to prevent Windows focus loss)
 function openWipeModal() {
@@ -2965,8 +3273,13 @@ ipcRenderer.on('zoom-command', (event, cmd) => {
   else if (cmd === 'reset') zoomReset();
 });
 
-// 3. Host Window Keyboard Shortcuts (Ctrl + + / Ctrl + - / Ctrl + 0)
+// 3. Host Window Keyboard Shortcuts (F5 / Ctrl + R / Ctrl + + / Ctrl + - / Ctrl + 0)
 window.addEventListener('keydown', (e) => {
+  if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R'))) {
+    e.preventDefault();
+    if (refreshBtn) refreshBtn.click();
+    return;
+  }
   if (e.ctrlKey || e.metaKey) {
     if (e.key === '=' || e.key === '+' || e.code === 'NumpadAdd' || e.code === 'Equal') {
       e.preventDefault();
@@ -2992,3 +3305,916 @@ window.addEventListener('wheel', (e) => {
     }
   }
 }, { passive: false });
+
+// --- GYM BATTLE TEAM BUILDER CONTROLLER ---
+let currentCollection = [];
+let gymLeadersData = {};
+let lastRecommendedTeam = [];
+let liveBattleOpponent = null;
+let teamRosterMode = (config.settings && config.settings.teamRosterMode) || 'ALL';
+let isBuildSyncInProgress = false;
+let pendingBuildLeader = null;
+let lastSelectedBattleUrl = null;
+
+function getActiveCandidates() {
+  if (!currentCollection || currentCollection.length === 0) return [];
+  if (teamRosterMode === 'TRAINING') {
+    return currentCollection.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
+  }
+  return currentCollection;
+}
+
+function updateRosterModeUI() {
+  const inTrainingCount = (currentCollection || []).filter(p => (typeof p.level === 'number' ? p.level : 100) < 100).length;
+  const totalCount = (currentCollection || []).length;
+
+  if (poolModeAllBtn) {
+    poolModeAllBtn.textContent = `All Levels (${totalCount})`;
+    if (teamRosterMode === 'ALL') {
+      poolModeAllBtn.style.border = 'none';
+      poolModeAllBtn.style.background = 'rgba(56, 189, 248, 0.2)';
+      poolModeAllBtn.style.color = '#38bdf8';
+      poolModeAllBtn.style.fontWeight = '700';
+    } else {
+      poolModeAllBtn.style.border = 'none';
+      poolModeAllBtn.style.background = 'transparent';
+      poolModeAllBtn.style.color = '#94a3b8';
+      poolModeAllBtn.style.fontWeight = '500';
+    }
+  }
+
+  if (poolModeTrainingBtn) {
+    poolModeTrainingBtn.innerHTML = `&#9889; Training &lt;100 (${inTrainingCount})`;
+    if (teamRosterMode === 'TRAINING') {
+      poolModeTrainingBtn.style.border = 'none';
+      poolModeTrainingBtn.style.background = 'rgba(16, 185, 129, 0.25)';
+      poolModeTrainingBtn.style.color = '#34d399';
+      poolModeTrainingBtn.style.fontWeight = '700';
+    } else {
+      poolModeTrainingBtn.style.border = 'none';
+      poolModeTrainingBtn.style.background = 'transparent';
+      poolModeTrainingBtn.style.color = '#94a3b8';
+      poolModeTrainingBtn.style.fontWeight = '500';
+    }
+  }
+
+  if (trainingStatsBadge) {
+    if (teamRosterMode === 'TRAINING') {
+      trainingStatsBadge.textContent = `${inTrainingCount} in training (<100)`;
+      trainingStatsBadge.style.color = '#34d399';
+    } else {
+      trainingStatsBadge.textContent = `${inTrainingCount} in training`;
+      trainingStatsBadge.style.color = '#38bdf8';
+    }
+  }
+}
+
+function setTeamRosterMode(mode) {
+  teamRosterMode = mode;
+  if (!config.settings) config.settings = {};
+  config.settings.teamRosterMode = mode;
+  saveLocalConfig();
+  updateRosterModeUI();
+  if (lastRecommendedTeam && lastRecommendedTeam.length > 0) {
+    const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
+    if (selVal && buildTeamBtn) {
+      buildTeamBtn.click();
+    }
+  }
+}
+
+if (poolModeAllBtn) {
+  poolModeAllBtn.addEventListener('click', () => setTeamRosterMode('ALL'));
+}
+if (poolModeTrainingBtn) {
+  poolModeTrainingBtn.addEventListener('click', () => setTeamRosterMode('TRAINING'));
+}
+
+function handleLiveBattleOpponents(data) {
+  if (!data || !Array.isArray(data.roster) || data.roster.length === 0) return;
+  liveBattleOpponent = data;
+  if (data.battleUrl) {
+    lastSelectedBattleUrl = data.battleUrl;
+  }
+  backendLog('BATTLE_DETECTOR', `Opponent detected: ${data.trainerName} (${data.roster.length} Pokemon)`);
+
+  // Auto-learn into gymLeadersData and persist to gym_leaders.json
+  if (gymLeadersData && data.trainerName) {
+    let targetTrainer = null;
+    const cleanSearchName = data.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const allGroups = [
+      gymLeadersData.ULTIMATE_TRAINERS,
+      gymLeadersData.STRONG_TRAINERS,
+      gymLeadersData.VIP_TRAINERS,
+      gymLeadersData.STANDARD_TRAINERS
+    ];
+    for (const group of allGroups) {
+      if (!group) continue;
+      targetTrainer = group.find(t => {
+        const cName = t.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return cName === cleanSearchName || (t.npcId && data.npcId && t.npcId === data.npcId);
+      });
+      if (targetTrainer) break;
+    }
+    if (!targetTrainer && gymLeadersData.GYM_LEAGUES) {
+      for (const reg in gymLeadersData.GYM_LEAGUES) {
+        targetTrainer = gymLeadersData.GYM_LEAGUES[reg].find(t => {
+          const cName = t.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return cName === cleanSearchName;
+        });
+        if (targetTrainer) break;
+      }
+    }
+
+    if (targetTrainer) {
+      if (!Array.isArray(targetTrainer.roster)) targetTrainer.roster = [];
+      let updated = false;
+      for (const newPoke of data.roster) {
+        const existing = targetTrainer.roster.find(p => p.name.toLowerCase() === newPoke.name.toLowerCase());
+        if (!existing) {
+          targetTrainer.roster.push(newPoke);
+          updated = true;
+        }
+      }
+      if (updated) {
+        try {
+          const gymPath = path.join(__dirname, 'gym_leaders.json');
+          fs.writeFileSync(gymPath, JSON.stringify(gymLeadersData, null, 2), 'utf8');
+          backendLog('ROSTER_HARVESTER', `Updated ${targetTrainer.name} roster (${targetTrainer.roster.length}/6 known)`);
+          populateGymTrainerSelect();
+        } catch (e) {
+          backendLog('ROSTER_HARVESTER', `Failed saving roster: ${e.message}`);
+        }
+      }
+    }
+  }
+
+  if (!teamTrainerSelect) return;
+
+  let liveGroup = document.getElementById('optgroup-live-battle');
+  if (!liveGroup) {
+    liveGroup = document.createElement('optgroup');
+    liveGroup.id = 'optgroup-live-battle';
+    liveGroup.label = 'CURRENT BATTLE (LIVE DETECTED)';
+    teamTrainerSelect.insertBefore(liveGroup, teamTrainerSelect.firstChild);
+  }
+  liveGroup.innerHTML = '';
+  const opt = document.createElement('option');
+  opt.value = 'LIVE__BATTLE';
+  opt.textContent = `${data.trainerTitle || data.trainerName} (${data.roster.length} Pokemon)`;
+  liveGroup.appendChild(opt);
+
+  // Pre-select live opponent only if user has not already built an active team lineup
+  if (!lastRecommendedTeam || lastRecommendedTeam.length === 0) {
+    teamTrainerSelect.value = 'LIVE__BATTLE';
+  }
+}
+
+function loadTeamBuilderData() {
+  try {
+    const collPath = path.join(__dirname, 'user_collection.json');
+    if (fs.existsSync(collPath)) {
+      currentCollection = JSON.parse(fs.readFileSync(collPath, 'utf8'));
+      if (scanStatusBadge) scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced`;
+      updateRosterModeUI();
+    }
+  } catch (_) {}
+
+  try {
+    const gymPath = path.join(__dirname, 'gym_leaders.json');
+    if (fs.existsSync(gymPath)) {
+      gymLeadersData = JSON.parse(fs.readFileSync(gymPath, 'utf8'));
+      const activeCategory = (teamCategorySelect && teamCategorySelect.value) ? teamCategorySelect.value : 'ALL';
+      const activeSearch = (trainerSearchInput && trainerSearchInput.value) ? trainerSearchInput.value : '';
+      populateGymTrainerSelect(activeCategory, activeSearch);
+    }
+  } catch (_) {}
+}
+
+function populateGymTrainerSelect(categoryFilter = null, searchTerm = null) {
+  if (!teamTrainerSelect || !gymLeadersData) return;
+
+  if (categoryFilter === null) {
+    categoryFilter = (teamCategorySelect && teamCategorySelect.value) ? teamCategorySelect.value : 'ALL';
+  }
+  if (searchTerm === null) {
+    searchTerm = (trainerSearchInput && trainerSearchInput.value) ? trainerSearchInput.value : '';
+  }
+
+  const query = searchTerm.toLowerCase().trim();
+  const prevSelectedValue = teamTrainerSelect.value;
+  teamTrainerSelect.innerHTML = '';
+  let matchCount = 0;
+
+  if (liveBattleOpponent && Array.isArray(liveBattleOpponent.roster) && liveBattleOpponent.roster.length > 0) {
+    const liveGroup = document.createElement('optgroup');
+    liveGroup.id = 'optgroup-live-battle';
+    liveGroup.label = 'CURRENT BATTLE (LIVE DETECTED)';
+    const opt = document.createElement('option');
+    opt.value = 'LIVE__BATTLE';
+    opt.textContent = `[LIVE] ${liveBattleOpponent.trainerTitle || liveBattleOpponent.trainerName} (${liveBattleOpponent.roster.length} Pokemon)`;
+    liveGroup.appendChild(opt);
+    teamTrainerSelect.appendChild(liveGroup);
+    matchCount++;
+  }
+
+  const groupOrder = [
+    { key: 'VIP_TRAINERS', label: 'VIP TRAINERS (Gym Leaders & Champions)' },
+    { key: 'ULTIMATE_TRAINERS', label: 'ULTIMATE TRAINERS (Lvl 100 Masters)' },
+    { key: 'STRONG_TRAINERS', label: 'STRONG TRAINERS (Bosses & Veterans)' },
+    { key: 'STANDARD_TRAINERS', label: 'STANDARD TRAINERS' },
+    { key: 'KANTO', label: 'KANTO LEAGUE' },
+    { key: 'JOHTO', label: 'JOHTO LEAGUE' },
+    { key: 'HOENN', label: 'HOENN LEAGUE' },
+    { key: 'SINNOH', label: 'SINNOH LEAGUE' },
+    { key: 'UNOVA', label: 'UNOVA LEAGUE' },
+    { key: 'KALOS', label: 'KALOS LEAGUE' },
+    { key: 'ALOLA', label: 'ALOLA LEAGUE' },
+    { key: 'GALAR', label: 'GALAR LEAGUE' },
+    { key: 'PALDEA', label: 'PALDEA LEAGUE' }
+  ];
+
+  for (const item of groupOrder) {
+    const groupKey = item.key;
+    const trainers = gymLeadersData[groupKey];
+    if (!trainers || !Array.isArray(trainers)) continue;
+
+    if (categoryFilter === 'GYM_LEAGUES') {
+      if (groupKey.endsWith('_TRAINERS')) continue;
+    } else if (categoryFilter !== 'ALL') {
+      if (groupKey !== categoryFilter) continue;
+    }
+
+    const matchingTrainers = [];
+    trainers.forEach((leader, idx) => {
+      const nameMatch = leader.name && leader.name.toLowerCase().includes(query);
+      const typesMatch = leader.types && leader.types.some(t => t.toLowerCase().includes(query));
+      const groupMatch = item.label.toLowerCase().includes(query);
+      const npcMatch = leader.npcId && String(leader.npcId).includes(query);
+      if (!query || nameMatch || typesMatch || groupMatch || npcMatch) {
+        matchingTrainers.push({ leader, idx });
+      }
+    });
+
+    if (matchingTrainers.length === 0) continue;
+
+    const group = document.createElement('optgroup');
+    group.label = `${item.label} (${matchingTrainers.length})`;
+
+    matchingTrainers.forEach(({ leader, idx }) => {
+      const opt = document.createElement('option');
+      opt.value = `${groupKey}__${idx}`;
+      const typeStr = (leader.types || []).join('/');
+      const lvlStr = leader.avgLevel ? `Lv ${leader.avgLevel}` : '';
+      const rosterBadge = (Array.isArray(leader.roster) && leader.roster.length > 0) ? ` [${leader.roster.length}/6]` : '';
+      opt.textContent = `${leader.name} (${typeStr}${lvlStr ? ' - ' + lvlStr : ''})${rosterBadge}`;
+      group.appendChild(opt);
+      matchCount++;
+    });
+
+    teamTrainerSelect.appendChild(group);
+  }
+
+  if (filteredTrainerCountBadge) {
+    if (query) {
+      filteredTrainerCountBadge.textContent = `${matchCount} found`;
+      filteredTrainerCountBadge.style.color = matchCount > 0 ? '#10b981' : '#f87171';
+    } else {
+      filteredTrainerCountBadge.textContent = `${matchCount} available`;
+      filteredTrainerCountBadge.style.color = '#64748b';
+    }
+  }
+
+  if (liveBattleOpponent) {
+    teamTrainerSelect.value = 'LIVE__BATTLE';
+  } else if (prevSelectedValue && teamTrainerSelect.querySelector(`option[value="${prevSelectedValue}"]`)) {
+    teamTrainerSelect.value = prevSelectedValue;
+  } else if (teamTrainerSelect.options.length > 0) {
+    teamTrainerSelect.selectedIndex = 0;
+  }
+}
+
+if (teamCategorySelect) {
+  teamCategorySelect.addEventListener('change', () => {
+    populateGymTrainerSelect(teamCategorySelect.value, trainerSearchInput ? trainerSearchInput.value : '');
+  });
+}
+
+if (trainerSearchInput) {
+  trainerSearchInput.addEventListener('input', () => {
+    const val = trainerSearchInput.value.trim();
+    if (clearTrainerSearchBtn) {
+      clearTrainerSearchBtn.style.display = val ? 'block' : 'none';
+    }
+    populateGymTrainerSelect(teamCategorySelect ? teamCategorySelect.value : 'ALL', val);
+  });
+}
+
+if (clearTrainerSearchBtn) {
+  clearTrainerSearchBtn.addEventListener('click', () => {
+    if (trainerSearchInput) {
+      trainerSearchInput.value = '';
+      clearTrainerSearchBtn.style.display = 'none';
+      populateGymTrainerSelect(teamCategorySelect ? teamCategorySelect.value : 'ALL', '');
+      trainerSearchInput.focus();
+    }
+  });
+}
+
+function updateTeamBuilderBadge(isOpen) {
+  const badge = document.getElementById('teamBuilderBadge');
+  if (badge) {
+    badge.textContent = isOpen ? 'ON' : 'OFF';
+    badge.className = 'dropdown-badge ' + (isOpen ? 'dropdown-badge-on' : 'dropdown-badge-off');
+  }
+}
+
+function openTeamBuilderPanel() {
+  if (!teamBuilderModal) return;
+  teamBuilderModal.style.display = 'flex';
+  if (delugeView) {
+    delugeView.classList.remove('full-width');
+    delugeView.style.width = '75%';
+    delugeView.style.flex = '3';
+    delugeView.style.pointerEvents = 'auto';
+  }
+  if (teamBuilderBtn) {
+    teamBuilderBtn.classList.add('btn-accent');
+  }
+  updateTeamBuilderBadge(true);
+  loadTeamBuilderData();
+  if (!lastRecommendedTeam || lastRecommendedTeam.length === 0) {
+    if (teamEmptyPrompt) teamEmptyPrompt.style.display = 'flex';
+    if (teamResultContainer) teamResultContainer.style.display = 'none';
+    if (teamActionRow) teamActionRow.style.display = 'none';
+  } else {
+    if (teamEmptyPrompt) teamEmptyPrompt.style.display = 'none';
+    if (teamResultContainer) teamResultContainer.style.display = 'block';
+    if (teamActionRow) teamActionRow.style.display = 'flex';
+  }
+  try {
+    if (delugeView && typeof delugeView.send === 'function') {
+      delugeView.send('check-battle-opponents');
+    }
+  } catch (_) {}
+}
+
+function closeTeamBuilderPanel() {
+  if (!teamBuilderModal) return;
+  teamBuilderModal.style.display = 'none';
+  if (delugeView) {
+    delugeView.classList.add('full-width');
+    delugeView.style.width = '100%';
+    delugeView.style.flex = '1';
+    delugeView.style.pointerEvents = 'auto';
+  }
+  if (teamBuilderBtn) {
+    teamBuilderBtn.classList.remove('btn-accent');
+  }
+  updateTeamBuilderBadge(false);
+}
+
+function toggleTeamBuilderPanel() {
+  if (!teamBuilderModal) return;
+  const isVisible = teamBuilderModal.style.display === 'flex';
+  if (isVisible) {
+    closeTeamBuilderPanel();
+  } else {
+    openTeamBuilderPanel();
+  }
+}
+
+function openTeamBuilderModal() {
+  openTeamBuilderPanel();
+}
+
+if (teamBuilderBtn) teamBuilderBtn.addEventListener('click', toggleTeamBuilderPanel);
+if (teamBuilderMenuBtn) {
+  teamBuilderMenuBtn.addEventListener('click', () => {
+    closeNavDropdown();
+    toggleTeamBuilderPanel();
+  });
+}
+if (closeTeamBuilderBtn) closeTeamBuilderBtn.addEventListener('click', closeTeamBuilderPanel);
+
+if (scanPokesBtn) {
+  scanPokesBtn.addEventListener('click', () => {
+    if (scanStatusBadge) scanStatusBadge.textContent = 'Scanning...';
+    delugeView.send('start-scan-pokemon');
+  });
+}
+
+function updateTrainerIntelStats() {
+  if (!gymLeadersData) return;
+  let gymTotal = 0, gymKnown = 0;
+  const regions = ['KANTO', 'JOHTO', 'HOENN', 'SINNOH', 'UNOVA', 'KALOS', 'ALOLA', 'GALAR', 'PALDEA'];
+  for (const reg of regions) {
+    if (Array.isArray(gymLeadersData[reg])) {
+      for (const l of gymLeadersData[reg]) {
+        gymTotal++;
+        if (l.roster && l.roster.length > 0) gymKnown++;
+      }
+    }
+  }
+  let oppTotal = gymTotal, oppKnown = gymKnown;
+  const tiers = ['VIP_TRAINERS', 'ULTIMATE_TRAINERS', 'STRONG_TRAINERS', 'STANDARD_TRAINERS'];
+  for (const tier of tiers) {
+    if (Array.isArray(gymLeadersData[tier])) {
+      for (const t of gymLeadersData[tier]) {
+        oppTotal++;
+        if (t.roster && t.roster.length > 0) oppKnown++;
+      }
+    }
+  }
+  if (modalRosterCountBadge) {
+    modalRosterCountBadge.textContent = `${gymKnown}/${gymTotal} Gyms (${Math.round((gymKnown / (gymTotal || 1)) * 100)}%) - ${oppKnown}/${oppTotal} Total`;
+  }
+}
+
+function probeTrainerRostersDirectly(targetTrainers) {
+  if (!delugeView) return;
+  delugeView.send('start-scan-trainer-rosters', { trainers: targetTrainers });
+}
+
+if (scanTrainersBtn) {
+  scanTrainersBtn.addEventListener('click', () => {
+    updateTrainerIntelStats();
+    if (activeBattleStatusMsg) {
+      if (delugeView) {
+        try {
+          const curUrl = delugeView.getURL() || '';
+          if (curUrl.includes('/battle')) {
+            delugeView.send('check-battle-opponents');
+            activeBattleStatusMsg.style.color = '#38bdf8';
+            activeBattleStatusMsg.textContent = 'Active battle detected! Scanning arena for opponent team...';
+          } else {
+            activeBattleStatusMsg.style.color = '#94a3b8';
+            activeBattleStatusMsg.textContent = 'Auto-recorder active. Opponent teams are saved automatically when battles begin!';
+          }
+        } catch (_) {
+          activeBattleStatusMsg.textContent = 'Auto-recorder active in battles.';
+        }
+      }
+    }
+    showModal(trainerIntelModal);
+  });
+}
+
+if (closeTrainerIntelBtn) closeTrainerIntelBtn.addEventListener('click', closeAllModals);
+if (cancelTrainerIntelBtn) cancelTrainerIntelBtn.addEventListener('click', closeAllModals);
+
+if (inspectBattleBtn) {
+  inspectBattleBtn.addEventListener('click', () => {
+    if (!delugeView) return;
+    try {
+      const curUrl = delugeView.getURL() || '';
+      if (curUrl.includes('/battle')) {
+        delugeView.send('check-battle-opponents');
+        if (activeBattleStatusMsg) {
+          activeBattleStatusMsg.style.color = '#38bdf8';
+          activeBattleStatusMsg.textContent = 'Scanning active battle for opponent roster...';
+        }
+      } else {
+        if (activeBattleStatusMsg) {
+          activeBattleStatusMsg.style.color = '#fbbf24';
+          activeBattleStatusMsg.textContent = 'No battle active on screen. Enter a battle on the left to capture!';
+        }
+      }
+    } catch (_) {}
+  });
+}
+
+function renderTeamLineup(leader, team) {
+  if (!teamResultContainer || !teamResultList) return;
+  if (teamEmptyPrompt) teamEmptyPrompt.style.display = 'none';
+  teamResultContainer.style.display = 'block';
+  teamResultList.innerHTML = '';
+
+  if (!team || team.length === 0) {
+    const emptyMsg = teamRosterMode === 'TRAINING'
+      ? 'No eligible training counters (&lt; Lv 100) found in your collection for this opponent.'
+      : 'No eligible counters found.';
+    teamResultList.innerHTML = `<div style="padding:16px 10px; color:#94a3b8; font-size:11px; text-align:center;">${emptyMsg}</div>`;
+    if (teamActionRow) teamActionRow.style.display = 'none';
+    return;
+  }
+
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 6px; font-size:10px; color:#94a3b8; border-bottom:1px solid #1e293b; margin-bottom:6px; font-weight:600;';
+  const targetLabel = (leader && leader.name) ? leader.name : 'Opponent';
+  const modeBadge = teamRosterMode === 'TRAINING'
+    ? ' <span style="color:#34d399; font-weight:700; margin-left:6px; background:rgba(16,185,129,0.15); padding:1px 6px; border-radius:4px;">&#9889; TRAINING (&lt;100)</span>'
+    : '';
+  header.innerHTML = `<span>YOUR COUNTER TEAM${modeBadge}</span><span>TARGET: ${targetLabel}</span>`;
+  teamResultList.appendChild(header);
+
+  team.forEach(p => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:#0f172a; border:1px solid #1e293b; border-radius:6px; font-size:11px; gap:8px;';
+
+    const left = document.createElement('div');
+    left.style.cssText = 'display:flex; align-items:center; gap:8px; min-width:0; flex:1;';
+
+    const slotBadge = document.createElement('span');
+    slotBadge.style.cssText = 'font-weight:700; color:#38bdf8; width:14px; flex-shrink:0;';
+    slotBadge.textContent = `${p.slot}.`;
+    left.appendChild(slotBadge);
+
+    if (p.sprite) {
+      const img = document.createElement('img');
+      img.src = p.sprite;
+      img.style.cssText = 'width:28px; height:28px; object-fit:contain; flex-shrink:0;';
+      left.appendChild(img);
+    }
+
+    const info = document.createElement('div');
+    info.style.cssText = 'min-width:0; overflow:hidden;';
+    const varColor = (p.variant && p.variant !== 'Normal') ? '#fbbf24' : '#f8fafc';
+    info.innerHTML = `<div style="font-weight:700; color:${varColor}; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name} <span style="font-weight:500; color:#94a3b8;">(Lv ${p.level})</span></div>` +
+                     `<div style="font-size:10px; color:#38bdf8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Attack: <b>${p.bestMove}</b></div>`;
+    left.appendChild(info);
+
+    const right = document.createElement('div');
+    right.style.cssText = 'text-align:right; white-space:nowrap; flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:2px;';
+
+    let targetBadgeHtml = '';
+    if (p.targetName === 'Safety Anchor & Carry') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.15); border-radius:4px;">CARRY ANCHOR</span>';
+    } else if (p.targetName === 'Lead Solo Sweeper') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#fbbf24; background:rgba(251,191,36,0.15); border-radius:4px;">SOLO SWEEPER</span>';
+    } else if (p.targetName === 'Gym Anchor' || p.targetName === 'Reserve Anchor') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#94a3b8; background:rgba(148,163,184,0.15); border-radius:4px;">RESERVE</span>';
+    } else if (p.targetName === 'Trainee' || (typeof p.targetName === 'string' && p.targetName.startsWith('Trainee'))) {
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#34d399; background:rgba(16,185,129,0.15); border-radius:4px;">TRAINEE</span>';
+    } else if (p.targetName) {
+      targetBadgeHtml = `<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f87171; background:rgba(248,113,113,0.15); border-radius:4px;">vs ${p.targetName}</span>`;
+    } else {
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.15); border-radius:4px;">COUNTER</span>';
+    }
+
+    const cleanRole = (p.role || '').replace(/\s*\(vs\s+[^)]+\)/i, '');
+    right.innerHTML = targetBadgeHtml +
+                      `<div style="font-size:10px; font-weight:600; color:#10b981;">${cleanRole}</div>`;
+
+    row.appendChild(left);
+    row.appendChild(right);
+    teamResultList.appendChild(row);
+  });
+
+  if (teamActionRow) teamActionRow.style.display = 'flex';
+  if (teamActionStatus) teamActionStatus.textContent = '';
+}
+
+function executeTeamBuild(targetLeader) {
+  if (!targetLeader) return;
+
+  if (!currentCollection || currentCollection.length === 0) {
+    loadTeamBuilderData();
+  }
+
+  if (currentCollection.length === 0) {
+    if (teamResultContainer) teamResultContainer.style.display = 'block';
+    if (teamResultList) teamResultList.innerHTML = '<div style="padding:10px; color:#f87171; font-size:11px; text-align:center;">No Pokemon in database. Click "Scan My Box" first.</div>';
+    if (teamActionRow) teamActionRow.style.display = 'none';
+    return;
+  }
+
+  if (teamRosterMode === 'TRAINING') {
+    const trainees = (currentCollection || []).filter(p => (p.level || 100) < 100);
+    const lvl100Pokes = (currentCollection || []).filter(p => (p.level || 0) === 100);
+    const highLvlPokes = (currentCollection || []).filter(p => (p.level || 0) >= 70);
+
+    if (trainees.length === 0) {
+      if (teamResultContainer) teamResultContainer.style.display = 'block';
+      if (teamResultList) {
+        teamResultList.innerHTML = '<div style="padding:16px 10px; color:#94a3b8; font-size:11px; text-align:center;">No training candidates (&lt; Lv 100) available in your collection.<br><span style="color:#64748b; font-size:10px;">Switch to <b>All Levels</b> or catch/scan more Pokemons.</span></div>';
+      }
+      if (teamActionRow) teamActionRow.style.display = 'none';
+      return;
+    }
+
+    // 1. Pick the Level 100 carry DEFENSE-FIRST: it must survive the roster's STAB
+    //    attacks (resists / immunities), not just hit hard.
+    let rankedCarries = teamEngine.rankCarries(lvl100Pokes.filter(p => teamEngine.canSoloTrainer(p, targetLeader)), targetLeader);
+    if (rankedCarries.length === 0) {
+      rankedCarries = teamEngine.rankCarries(lvl100Pokes.length > 0 ? lvl100Pokes : highLvlPokes, targetLeader);
+    }
+    const carryPoke = rankedCarries.length > 0 ? rankedCarries[0].poke : null;
+    const bestCarries = carryPoke ? teamEngine.buildBestTeam(targetLeader, [carryPoke]) : [];
+    const carry = bestCarries.length > 0 ? bestCarries[0] : null;
+
+    // 2. Trainees filtered to prevent duplicate species with carry
+    const carrySpecies = carry ? teamEngine.getBaseSpecies(carry.name) : '';
+    const availableTrainees = trainees.filter(p => (!carry || p.id !== carry.id) && (!carrySpecies || teamEngine.getBaseSpecies(p.name) !== carrySpecies));
+
+    // 3. Pick top 5 trainees (< 100)
+    let traineeCounters = teamEngine.buildBestTeam(targetLeader, availableTrainees).slice(0, 5);
+
+    // 4. Check if any trainee can solo targetLeader
+    let soloTraineeIdx = -1;
+    for (let idx = 0; idx < traineeCounters.length; idx++) {
+      const tc = traineeCounters[idx];
+      const orig = availableTrainees.find(p => p.id === tc.id);
+      if (orig && teamEngine.canSoloTrainer(orig, targetLeader)) {
+        soloTraineeIdx = idx;
+        break;
+      }
+    }
+
+    // If none of top 5 can solo, check remaining available trainees
+    if (soloTraineeIdx === -1) {
+      for (const p of availableTrainees) {
+        if (teamEngine.canSoloTrainer(p, targetLeader)) {
+          const scored = teamEngine.buildBestTeam(targetLeader, [p]);
+          if (scored.length > 0) {
+            const soloTrainee = scored[0];
+            traineeCounters = traineeCounters.filter(t => teamEngine.getBaseSpecies(t.name) !== teamEngine.getBaseSpecies(p.name));
+            if (traineeCounters.length >= 5) traineeCounters.pop();
+            traineeCounters.unshift(soloTrainee);
+            soloTraineeIdx = 0;
+            break;
+          }
+        }
+      }
+    } else if (soloTraineeIdx > 0) {
+      // Reorder so solo-capable trainee leads in Slot 1
+      const soloTrainee = traineeCounters.splice(soloTraineeIdx, 1)[0];
+      traineeCounters.unshift(soloTrainee);
+      soloTraineeIdx = 0;
+    }
+
+    const hybridTeam = [];
+    traineeCounters.forEach((t, idx) => {
+      const orig = availableTrainees.find(p => p.id === t.id);
+      const isSolo = orig ? teamEngine.canSoloTrainer(orig, targetLeader) : false;
+      hybridTeam.push({
+        slot: idx + 1,
+        id: t.id,
+        name: t.name,
+        variant: t.variant,
+        level: t.level,
+        types: t.types,
+        sprite: t.sprite,
+        bestMove: t.bestMove,
+        targetName: isSolo ? 'Lead Solo Sweeper' : ('Trainee #' + (idx + 1)),
+        role: isSolo ? 'Lead Solo Sweeper (100% Solo EXP)' : (t.role || ('Trainee Counter (Lv ' + t.level + ')')),
+        score: t.score
+      });
+    });
+
+    if (carry && !hybridTeam.some(p => p.id === carry.id)) {
+      hybridTeam.push({
+        slot: hybridTeam.length + 1,
+        id: carry.id,
+        name: carry.name,
+        variant: carry.variant,
+        level: carry.level,
+        types: carry.types,
+        sprite: carry.sprite,
+        bestMove: carry.bestMove,
+        targetName: 'Safety Anchor & Carry',
+        role: 'Solo Sweeper Carry (Lv ' + carry.level + ')',
+        score: carry.score
+      });
+    }
+
+    lastRecommendedTeam = hybridTeam;
+    renderTeamLineup(targetLeader, hybridTeam);
+    return;
+  }
+
+  const candidates = getActiveCandidates();
+  if (candidates.length === 0) {
+    if (teamResultContainer) teamResultContainer.style.display = 'block';
+    if (teamResultList) {
+      teamResultList.innerHTML = '<div style="padding:10px; color:#f87171; font-size:11px; text-align:center;">No Pokemon in database. Click "Scan My Box" first.</div>';
+    }
+    if (teamActionRow) teamActionRow.style.display = 'none';
+    return;
+  }
+
+  const team = teamEngine.buildBestTeam(targetLeader, candidates);
+  lastRecommendedTeam = team;
+  renderTeamLineup(targetLeader, team);
+}
+
+if (buildTeamBtn) {
+  buildTeamBtn.addEventListener('click', () => {
+    const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
+    if (!selVal) return;
+
+    let targetLeader = null;
+    if (selVal === 'LIVE__BATTLE') {
+      if (!liveBattleOpponent || !liveBattleOpponent.roster) return;
+      let matchedTypes = ['Mixed'];
+      if (gymLeadersData && liveBattleOpponent.trainerName) {
+        const cleanSearchName = liveBattleOpponent.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const allGroups = [
+          gymLeadersData.ULTIMATE_TRAINERS,
+          gymLeadersData.STRONG_TRAINERS,
+          gymLeadersData.VIP_TRAINERS,
+          gymLeadersData.STANDARD_TRAINERS
+        ];
+        for (const group of allGroups) {
+          if (!group) continue;
+          const found = group.find(t => t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanSearchName);
+          if (found && found.types && found.types.length > 0) {
+            matchedTypes = found.types;
+            break;
+          }
+        }
+      }
+      targetLeader = {
+        name: liveBattleOpponent.trainerName,
+        roster: liveBattleOpponent.roster,
+        types: matchedTypes
+      };
+    } else {
+      const parts = selVal.split('__');
+      const groupKey = parts[0];
+      const idxOrName = parts[1];
+      const group = gymLeadersData[groupKey] || [];
+      if (/^\d+$/.test(idxOrName)) {
+        targetLeader = group[parseInt(idxOrName, 10)];
+      } else {
+        targetLeader = group.find(l => l.name === idxOrName);
+      }
+    }
+    if (!targetLeader) return;
+
+    if (targetLeader.battleUrl) {
+      lastSelectedBattleUrl = targetLeader.battleUrl;
+    } else if (targetLeader.npcId) {
+      lastSelectedBattleUrl = '/battle/trainer/' + targetLeader.npcId;
+    }
+
+    // 1. Build immediately with existing cached collection for zero latency
+    executeTeamBuild(targetLeader);
+
+    // 2. Automatically sync freshest Pokemon data from Box (doing the same as Scan My Box)
+    if (delugeView && typeof delugeView.send === 'function' && !isBuildSyncInProgress) {
+      isBuildSyncInProgress = true;
+      pendingBuildLeader = targetLeader;
+      buildTeamBtn.innerHTML = '<span>&#8635;</span><span>Syncing Box...</span>';
+      if (scanStatusBadge) {
+        scanStatusBadge.textContent = 'Syncing box...';
+        scanStatusBadge.style.color = '#38bdf8';
+      }
+      delugeView.send('start-scan-pokemon');
+    }
+  });
+}
+
+if (applyTeamBtn) {
+  applyTeamBtn.addEventListener('click', () => {
+    if (!lastRecommendedTeam || lastRecommendedTeam.length === 0) return;
+    const ids = lastRecommendedTeam.map(p => p.id);
+    applyTeamBtn.disabled = true;
+    if (battleOpponentBtn) battleOpponentBtn.disabled = true;
+    applyTeamBtn.innerHTML = '<span>&#8635;</span> <span>Saving...</span>';
+    if (teamActionStatus) {
+      teamActionStatus.textContent = 'Applying team on DelugeRPG...';
+      teamActionStatus.style.color = '#38bdf8';
+    }
+    delugeView.send('apply-team-slots', { pokemonIds: ids, pokemons: lastRecommendedTeam });
+    setTimeout(() => {
+      if (applyTeamBtn && applyTeamBtn.disabled) {
+        applyTeamBtn.disabled = false;
+        applyTeamBtn.innerHTML = 'Change Team';
+      }
+      if (battleOpponentBtn) battleOpponentBtn.disabled = false;
+    }, 12000);
+  });
+}
+
+if (copyTeamBtn) {
+  copyTeamBtn.addEventListener('click', () => {
+    if (!lastRecommendedTeam || lastRecommendedTeam.length === 0) return;
+    const text = lastRecommendedTeam.map(p => `${p.slot}. ${p.name} (Lv ${p.level}) - Attack: ${p.bestMove} [${p.role}]`).join('\n');
+    try {
+      navigator.clipboard.writeText(text);
+      if (teamActionStatus) {
+        teamActionStatus.textContent = 'Copied lineup to clipboard!';
+        teamActionStatus.style.color = '#10b981';
+        setTimeout(() => { if (teamActionStatus) teamActionStatus.textContent = ''; }, 2500);
+      }
+    } catch (_) {}
+  });
+}
+
+function resolveTargetBattleUrl() {
+  if (lastSelectedBattleUrl) return lastSelectedBattleUrl;
+
+  const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
+
+  if (selVal === 'LIVE__BATTLE') {
+    if (liveBattleOpponent) {
+      if (liveBattleOpponent.battleUrl) return liveBattleOpponent.battleUrl;
+      if (liveBattleOpponent.npcId) return `/battle/trainer/${liveBattleOpponent.npcId}`;
+      if (gymLeadersData && liveBattleOpponent.trainerName) {
+        const cleanName = liveBattleOpponent.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const allGroups = [
+          gymLeadersData.ULTIMATE_TRAINERS,
+          gymLeadersData.STRONG_TRAINERS,
+          gymLeadersData.VIP_TRAINERS,
+          gymLeadersData.STANDARD_TRAINERS,
+          gymLeadersData.KANTO, gymLeadersData.JOHTO, gymLeadersData.HOENN,
+          gymLeadersData.SINNOH, gymLeadersData.UNOVA, gymLeadersData.KALOS,
+          gymLeadersData.ALOLA, gymLeadersData.GALAR, gymLeadersData.PALDEA
+        ];
+        for (const grp of allGroups) {
+          if (Array.isArray(grp)) {
+            const found = grp.find(l => l.name && l.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanName);
+            if (found && found.battleUrl) return found.battleUrl;
+            if (found && found.npcId) return `/battle/trainer/${found.npcId}`;
+          }
+        }
+      }
+    }
+    return '/battle/trainer';
+  }
+
+  if (selVal && gymLeadersData) {
+    const parts = selVal.split('__');
+    const groupKey = parts[0];
+    const idxOrName = parts[1];
+    const group = gymLeadersData[groupKey] || [];
+    const leader = /^\d+$/.test(idxOrName) ? group[parseInt(idxOrName, 10)] : group.find(l => l.name === idxOrName);
+    if (leader) {
+      if (leader.battleUrl) return leader.battleUrl;
+      if (leader.npcId) return `/battle/trainer/${leader.npcId}`;
+    }
+  }
+
+  return '/battle/trainer';
+}
+
+if (battleOpponentBtn) {
+  battleOpponentBtn.addEventListener('click', () => {
+    const battleUrl = resolveTargetBattleUrl();
+    const fullUrl = battleUrl.startsWith('http') ? battleUrl : `https://www.delugerpg.com${battleUrl}`;
+
+    battleOpponentBtn.disabled = true;
+    if (applyTeamBtn) applyTeamBtn.disabled = true;
+    battleOpponentBtn.innerHTML = '<span>&#8635;</span> <span>Entering...</span>';
+    if (teamActionStatus) {
+      teamActionStatus.textContent = 'Entering battle arena on DelugeRPG...';
+      teamActionStatus.style.color = '#38bdf8';
+    }
+
+    // Natural human click-to-navigation pacing
+    setTimeout(() => {
+      if (delugeView) {
+        try {
+          const curUrl = delugeView.getURL() || '';
+          if (curUrl === fullUrl) {
+            delugeView.reload();
+          } else {
+            delugeView.loadURL(fullUrl);
+          }
+          delugeView.focus();
+        } catch (err) {
+          console.error('Error entering battle arena:', err);
+        }
+      }
+
+      setTimeout(() => {
+        if (battleOpponentBtn) {
+          battleOpponentBtn.disabled = false;
+          battleOpponentBtn.innerHTML = '<span>&#9876;</span> <span>Battle Now</span>';
+        }
+        if (applyTeamBtn) {
+          applyTeamBtn.disabled = false;
+        }
+        if (teamActionStatus && teamActionStatus.textContent === 'Entering battle arena on DelugeRPG...') {
+          teamActionStatus.textContent = 'In Battle Arena';
+          teamActionStatus.style.color = '#10b981';
+          setTimeout(() => {
+            if (teamActionStatus && teamActionStatus.textContent === 'In Battle Arena') {
+              teamActionStatus.textContent = '';
+            }
+          }, 3000);
+        }
+      }, 1200);
+    }, 350);
+  });
+}
+
+if (teamTrainerSelect) {
+  teamTrainerSelect.addEventListener('change', () => {
+    lastSelectedBattleUrl = null;
+    const selVal = teamTrainerSelect.value;
+    if (selVal && selVal !== 'LIVE__BATTLE' && gymLeadersData) {
+      const parts = selVal.split('__');
+      const group = gymLeadersData[parts[0]] || [];
+      const leader = /^\d+$/.test(parts[1]) ? group[parseInt(parts[1], 10)] : group.find(l => l.name === parts[1]);
+      if (leader) {
+        if (leader.battleUrl) lastSelectedBattleUrl = leader.battleUrl;
+        else if (leader.npcId) lastSelectedBattleUrl = '/battle/trainer/' + leader.npcId;
+      }
+    }
+  });
+}
+
+// Open Team Builder docked side panel by default
+openTeamBuilderPanel();

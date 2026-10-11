@@ -1,6 +1,6 @@
 {
   "name": "delugerpg-desktop-client",
-  "version": "1.1.7",
+  "version": "1.2.0",
   "description": "Standalone Stealth Desktop Client for DelugeRPG",
   "main": "main.js",
   "scripts": {
@@ -41,6 +41,10 @@
       "app.js",
       "game-preload.js",
       "targets.js",
+      "team_engine.js",
+      "gym_leaders.json",
+      "skills_database.json",
+      "user_collection.json",
       "config.json",
       "assets/**/*"
     ],

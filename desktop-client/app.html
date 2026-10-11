@@ -47,7 +47,7 @@
       gap: 8px;
       flex-shrink: 0;
       z-index: 10000;
-      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+      box-shadow: none;
       position: relative;
     }
     .nav-section {
@@ -80,7 +80,7 @@
       border-radius: 50%;
       background: linear-gradient(180deg, #ef4444 48%, #1f2937 48%, #1f2937 52%, #f8fafc 52%);
       border: 2px solid #111827;
-      box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
+      box-shadow: none;
       position: relative;
       flex-shrink: 0;
     }
@@ -95,7 +95,7 @@
       border-radius: 50%;
       background: #ffffff;
       border: 1.5px solid #1f2937;
-      box-shadow: 0 0 2px rgba(0,0,0,0.5);
+      box-shadow: none;
     }
     .title-badge {
       display: flex;
@@ -215,17 +215,17 @@
       background: linear-gradient(135deg, #10b981 0%, #059669 100%);
       border: 1px solid #34d399;
       color: #ffffff;
-      box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
+      box-shadow: none !important;
     }
     .btn-active:hover {
       background: linear-gradient(135deg, #059669 0%, #047857 100%);
-      box-shadow: 0 0 18px rgba(16, 185, 129, 0.5);
+      box-shadow: none !important;
     }
     .btn-paused {
       background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
       border: 1px solid #fbbf24;
       color: #ffffff;
-      box-shadow: 0 0 14px rgba(245, 158, 11, 0.25);
+      box-shadow: none !important;
     }
 
     /* Secondary Specialized Button Variants */
@@ -279,7 +279,8 @@
     }
     select:focus {
       border-color: #38bdf8;
-      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+      outline: none;
+      box-shadow: none;
     }
     .select-arrow {
       position: absolute;
@@ -307,7 +308,7 @@
       font-weight: 600;
       background: rgba(15, 23, 42, 0.75);
       border: 1px solid rgba(148, 163, 184, 0.2);
-      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+      box-shadow: none;
       box-sizing: border-box;
       flex-shrink: 0;
     }
@@ -317,7 +318,7 @@
       border-radius: 50%;
       background: #94a3b8;
       flex-shrink: 0;
-      box-shadow: 0 0 6px currentColor;
+      box-shadow: none;
     }
     .status-text {
       color: #cbd5e1;
@@ -489,7 +490,7 @@
       background: #161f33;
       border: 1px solid #334155;
       border-radius: 10px;
-      box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      box-shadow: none;
       padding: 6px;
       z-index: 90;
       display: flex;
@@ -564,12 +565,12 @@
     .dropdown-badge-on {
       background: rgba(16, 185, 129, 0.2);
       color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.4);
+      border: none;
     }
     .dropdown-badge-off {
       background: rgba(148, 163, 184, 0.15);
       color: #94a3b8;
-      border: 1px solid rgba(148, 163, 184, 0.25);
+      border: none;
     }
     .dropdown-divider {
       height: 1px;
@@ -596,28 +597,54 @@
       font-weight: 700;
       color: #38bdf8;
       background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.25);
+      border: none;
       border-radius: 4px;
       padding: 1px 6px;
       letter-spacing: 0.3px;
     }
 
-    /* --- GAME CONTAINER --- */
+    /* --- GAME CONTAINER & DOCKED SPLIT VIEW (3/4 + 1/4) --- */
     #gameContainer {
       flex: 1;
       display: flex;
+      flex-direction: row;
       width: 100%;
       height: calc(100vh - 44px);
       position: relative;
-      background: #0f172a;
+      background: #0b0f17;
+      overflow: hidden;
     }
     #delugeView {
-      width: 100%;
+      flex: 3;
+      width: 75%;
       height: 100%;
+      min-width: 0;
       border: none;
       user-select: auto !important;
       -webkit-user-select: auto !important;
       outline: none;
+    }
+    #delugeView.full-width {
+      flex: 1;
+      width: 100%;
+    }
+    #teamBuilderModal {
+      flex: 1;
+      width: 25%;
+      min-width: 320px;
+      max-width: 480px;
+      height: 100%;
+      display: none;
+      flex-direction: column;
+      background: #111827;
+      border-left: 1px solid #1f2937;
+      padding: 12px 14px;
+      box-sizing: border-box;
+      box-shadow: none !important;
+      color: #f1f5f9;
+      overflow: hidden;
+      flex-shrink: 0;
+      z-index: 10;
     }
 
     /* --- MODAL BACKDROP & CENTERING --- */
@@ -651,7 +678,7 @@
       border: 1px solid #29354f;
       border-radius: 14px;
       padding: 18px 22px;
-      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255,255,255,0.07);
+      box-shadow: none;
       z-index: 9999;
       color: #f1f5f9;
       box-sizing: border-box;
@@ -739,7 +766,7 @@
       background: #0284c7;
       border-color: #38bdf8;
       color: #ffffff;
-      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+      box-shadow: none !important;
     }
     .modal-tab-content {
       display: none;
@@ -768,7 +795,7 @@
       background: #0b1120;
       padding: 4px;
       border-radius: 8px;
-      border: 1px solid #1e293b;
+      border: none;
       margin-bottom: 2px;
     }
     .preset-pill-btn {
@@ -794,7 +821,7 @@
     .preset-pill-btn.btn-active {
       background: #0284c7;
       color: #ffffff;
-      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+      box-shadow: none !important;
     }
 
     /* Filter Cards */
@@ -949,7 +976,8 @@
     }
     .input-field:focus {
       border-color: #38bdf8;
-      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+      outline: none;
+      box-shadow: none;
     }
     .input-field::placeholder {
       color: #475569;
@@ -1034,6 +1062,9 @@
   <!-- Modal Dimmed Backdrop -->
   <div id="modalBackdrop"></div>
 
+  <!-- Dropdown Outside Click Interceptor -->
+  <div id="dropdownBackdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 85; background: transparent;"></div>
+
   <!-- TOP TOOLBAR -->
   <div id="toolbar">
     <!-- Left Section: Branding Logo -->
@@ -1070,6 +1101,7 @@
       <!-- Quick Action Toggles Cluster -->
       <div class="action-cluster">
         <button id="soundBtn" class="btn btn-icon btn-accent" title="Toggle Audio Chime Alert">&#128266;</button>
+        <button id="refreshBtn" class="btn btn-icon" title="Reload Game Page &amp; Flush Battle Cache [F5]">&#8635;</button>
       </div>
 
       <!-- Network Shield Badge -->
@@ -1089,6 +1121,11 @@
         <button id="navMenuBtn" class="btn btn-icon" title="Tools &amp; Settings Menu">&#9776;</button>
         <div id="navDropdown" class="nav-dropdown hidden">
           <div class="nav-dropdown-header">Targeting &amp; Detection</div>
+          <button id="teamBuilderMenuBtn" class="dropdown-item dropdown-toggle-item" title="Team Builder">
+            <span class="dropdown-icon">&#9876;</span>
+            <span class="dropdown-label">Team Builder</span>
+            <span id="teamBuilderBadge" class="dropdown-badge dropdown-badge-on">ON</span>
+          </button>
           <button id="targetModalBtn" class="dropdown-item" title="Configure Target Pokemon Filters &amp; Presets">
             <span class="dropdown-icon">&#127919;</span>
             <span class="dropdown-label">Target Pokemon Filters</span>
@@ -1154,10 +1191,6 @@
             <span class="dropdown-label">Open System Logs</span>
           </button>
           <div class="dropdown-divider"></div>
-          <button id="refreshBtn" class="dropdown-item" title="Reload game map">
-            <span class="dropdown-icon">&#8635;</span>
-            <span class="dropdown-label">Reload Game Map</span>
-          </button>
           <button id="wipeBtn" class="dropdown-item dropdown-danger" title="Wipe all cookies, cache, and site data">
             <span class="dropdown-icon">&#128465;</span>
             <span class="dropdown-label">Wipe Session &amp; Identity</span>
@@ -1165,7 +1198,7 @@
           <div class="dropdown-divider"></div>
           <div id="navVersionFooter" class="nav-version-footer">
             <span class="nav-version-label">DelugeRPG Client</span>
-            <span id="navVersionBadge" class="nav-version-badge">v1.1.7</span>
+            <span id="navVersionBadge" class="nav-version-badge">v1.2.0</span>
           </div>
         </div>
       </div>
@@ -1438,7 +1471,51 @@
     </div>
   </div>
 
-  <!-- MAIN DELUGERPG GAME CONTAINER -->
+  <!-- 4.5 TRAINER ROSTER INTEL & AUTO-RECORDER MODAL -->
+  <div id="trainerIntelModal" class="modal-box" style="width: 440px;">
+    <div class="modal-header-row">
+      <div class="modal-title" style="color:#38bdf8;">&#128737; Trainer Intel &amp; Auto-Recorder</div>
+      <button id="closeTrainerIntelBtn" class="modal-close-icon" title="Close">&#10005;</button>
+    </div>
+    <div class="modal-desc" style="margin-bottom: 10px;">
+      Live opponent battle telemetry and offline trainer roster coverage.
+    </div>
+
+    <!-- Coverage Stats Card -->
+    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 11px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #1e293b; padding-bottom: 4px;">
+        <span style="font-weight: 700; color: #f8fafc; font-size: 11.5px;">Database Completeness</span>
+        <span id="modalRosterCountBadge" style="font-weight: 700; color: #34d399; font-size: 11px;">131/131 Gyms (100%)</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; color: #94a3b8; font-size: 10.5px;">
+        <div>&#10003; <strong>Gym Leagues:</strong> <span style="color:#38bdf8;">131 / 131</span> (Kanto-Paldea)</div>
+        <div>&#10003; <strong>VIP / Special:</strong> <span style="color:#38bdf8;">46 / 132</span> (Ash, Red, etc.)</div>
+        <div>&#10003; <strong>Total Opponents:</strong> <span style="color:#38bdf8;">449 Opponents</span></div>
+        <div>&#10003; <strong>Auto-Learner:</strong> <span style="color:#34d399; font-weight: 700;">Always Active</span></div>
+      </div>
+    </div>
+
+    <!-- How It Works Card -->
+    <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid #1e293b; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 11px; line-height: 1.45; color: #cbd5e1;">
+      <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px; font-size: 11.5px;">How DelugeRPG Auto-Recording Works</div>
+      <div style="color: #94a3b8; font-size: 10.5px; margin-bottom: 6px;">
+        DelugeRPG protects trainer privacy by hiding team rosters on public profile pages (<code style="color:#7dd3fc;">/npc/</code>), preventing mass web scrapers.
+      </div>
+      <div style="font-size: 10.5px;">
+        &#9889; <strong>Live Battle Detector:</strong> The client automatically listens to all live battles (<code style="color:#7dd3fc;">#teamleft</code>, <code style="color:#7dd3fc;">#opponent</code>, and <code style="color:#7dd3fc;">#viewpokes</code>). The instant you face an opponent, their entire team is captured and permanently saved to your offline database!
+      </div>
+    </div>
+
+    <!-- Active Battle Action & Status -->
+    <div id="activeBattleStatusMsg" style="font-size: 10.5px; color: #94a3b8; margin-bottom: 12px; min-height: 16px;"></div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <button id="inspectBattleBtn" class="btn btn-accent" style="height: 28px; font-size: 11px; padding: 0 12px;" title="Scan opponent roster from current battle screen">&#9876; Scan Current Battle</button>
+      <button id="cancelTrainerIntelBtn" class="btn" style="width: 80px; height: 28px;">Close</button>
+    </div>
+  </div>
+
+  <!-- MAIN DELUGERPG GAME CONTAINER & 3/4 + 1/4 SPLIT VIEW -->
   <div id="gameContainer">
     <webview
       id="delugeView"
@@ -1449,6 +1526,111 @@
       useragent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.7444.52 Safari/537.36"
       allowpopups>
     </webview>
+
+    <!-- 5. DOCKED SIDE PANEL: TEAM BUILDER (1/4 OF WINDOW) -->
+    <div id="teamBuilderModal" style="display: flex;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1e293b;">
+        <div style="font-weight: 700; font-size: 13px; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+          <span>&#9876;</span>
+          <span>Team Builder</span>
+        </div>
+        <button id="closeTeamBuilderBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none;">&#10005;</button>
+      </div>
+
+      <!-- Scan Bar -->
+      <div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; background: #0f172a; border-radius: 6px; margin-bottom: 6px; box-shadow: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Roster &amp; Data Sync</span>
+          <span id="scanStatusBadge" style="font-size: 10px; color: #38bdf8; font-weight: 600;">96 Pokemon Synced</span>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button id="scanPokesBtn" type="button" class="btn" style="flex: 1; height: 24px; font-size: 10px; box-shadow: none;" title="Scan and sync your box Pokemon collection">&#8635; Scan My Box</button>
+          <button id="scanTrainersBtn" type="button" class="btn" style="flex: 1; height: 24px; font-size: 10px; box-shadow: none;" title="View trainer roster database &amp; auto-recorder status">&#128737; Trainer Intel</button>
+        </div>
+      </div>
+
+      <!-- Opponent Select & Tier Filter -->
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px;">
+        <div>
+          <label for="teamCategorySelect" style="font-size: 10px; font-weight: 600; color: #94a3b8; display: block; margin-bottom: 2px;">Category / Tier Filter:</label>
+          <select id="teamCategorySelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; background: #0f172a; border: 1px solid #334155; color: #f8fafc; border-radius: 6px; padding: 0 6px; box-shadow: none;">
+            <option value="ALL">All Opponents (449)</option>
+            <optgroup label="TRAINER TIERS">
+              <option value="VIP_TRAINERS">VIP Trainers (132)</option>
+              <option value="ULTIMATE_TRAINERS">Ultimate Trainers (6)</option>
+              <option value="STRONG_TRAINERS">Strong Trainers (72)</option>
+              <option value="STANDARD_TRAINERS">Standard Trainers (108)</option>
+            </optgroup>
+            <optgroup label="REGIONAL GYM LEAGUES">
+              <option value="GYM_LEAGUES">All Gym Leagues (131 Leaders)</option>
+              <option value="KANTO">Kanto League (15 Leaders)</option>
+              <option value="JOHTO">Johto League (15 Leaders)</option>
+              <option value="HOENN">Hoenn League (15 Leaders)</option>
+              <option value="SINNOH">Sinnoh League (14 Leaders)</option>
+              <option value="UNOVA">Unova League (16 Leaders)</option>
+              <option value="KALOS">Kalos League (15 Leaders)</option>
+              <option value="ALOLA">Alola League (14 Leaders)</option>
+              <option value="GALAR">Galar League (14 Leaders)</option>
+              <option value="PALDEA">Paldea League (13 Leaders)</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div>
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="text" id="trainerSearchInput" class="input-field" placeholder="Search by name, type, region (e.g. Geeta, Fire)..." style="height: 26px; font-size: 11px; padding: 0 24px 0 8px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; width: 100%; box-shadow: none;">
+            <button id="clearTrainerSearchBtn" type="button" style="display: none; position: absolute; right: 6px; background: transparent; border: none; color: #64748b; font-size: 11px; cursor: pointer; padding: 2px; line-height: 1;" title="Clear search">&#10005;</button>
+          </div>
+        </div>
+
+        <div>
+          <label for="teamTrainerSelect" style="font-size: 10px; font-weight: 600; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+            <span>Target Battle Opponent:</span>
+            <span id="filteredTrainerCountBadge" style="font-size: 9.5px; color: #64748b; font-weight: 600;"></span>
+          </label>
+          <select id="teamTrainerSelect" class="clean-select" style="width: 100%; height: 28px; font-size: 11px; font-weight: 600; background: #0f172a; border: 1px solid #334155; color: #f8fafc; border-radius: 6px; padding: 0 8px; box-shadow: none;"></select>
+        </div>
+      </div>
+      <!-- Team Builder Mode (All Levels vs Training < 100) -->
+      <div style="display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Candidate Pool</span>
+          <span id="trainingStatsBadge" style="font-size: 9.5px; color: #38bdf8; font-weight: 600;">118 in training</span>
+        </div>
+        <div style="display: flex; gap: 4px; background: #0b1120; padding: 2px; border-radius: 6px;">
+          <button type="button" id="poolModeAllBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none; border: none; background: rgba(56, 189, 248, 0.18); color: #38bdf8; font-weight: 700;" title="Use all Pokemon in your collection (including Level 100)">All Levels</button>
+          <button type="button" id="poolModeTrainingBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none; border: none; background: transparent; color: #94a3b8; font-weight: 500;" title="Use non-level 100 Pokemon only so you can train and max them out">&#9889; Training (&lt;100)</button>
+        </div>
+      </div>
+
+      <!-- Build Action -->
+      <button id="buildTeamBtn" type="button" class="btn" style="width: 100%; height: 28px; font-size: 11px; font-weight: 700; background: #0284c7; border: 1px solid #38bdf8; color: #ffffff; margin-bottom: 6px; box-shadow: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <span>&#9876;</span>
+        <span>Build Best Team</span>
+      </button>
+
+      <!-- Empty Lineup Prompt (Shown when no active team built) -->
+      <div id="teamEmptyPrompt" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px 10px; background: rgba(15, 23, 42, 0.4); border-radius: 8px; color: #64748b; font-size: 11px; margin-bottom: 6px;">
+        <div style="font-size: 20px; color: #38bdf8; margin-bottom: 6px; opacity: 0.7;">&#9876;</div>
+        <div style="font-weight: 700; color: #94a3b8; font-size: 11.5px; margin-bottom: 3px;">No Active Lineup</div>
+        <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px;">Select an opponent above and click <b>Build Best Team</b>, or fight a trainer on DelugeRPG to counter them live.</div>
+      </div>
+
+      <!-- Lineup Results -->
+      <div id="teamResultContainer" style="flex: 1; overflow-y: auto; min-height: 0; display: none; margin-bottom: 6px;">
+        <div id="teamResultList" style="display: flex; flex-direction: column; gap: 5px;"></div>
+      </div>
+
+      <!-- Action Bar -->
+      <div id="teamActionRow" style="display: none; flex-direction: column; gap: 5px; border-top: 1px solid #1e293b; padding-top: 8px; margin-top: auto; flex-shrink: 0;">
+        <span id="teamActionStatus" style="font-size: 10.5px; color: #10b981; font-weight: 600; text-align: center;"></span>
+        <div style="display: flex; gap: 6px;">
+          <button id="copyTeamBtn" type="button" class="btn" style="flex: 1; height: 27px; font-size: 10.5px; box-shadow: none;" title="Copy lineup summary to clipboard">Copy</button>
+          <button id="applyTeamBtn" type="button" class="btn" style="flex: 1.2; height: 27px; font-size: 10.5px; font-weight: 700; background: #059669; border: 1px solid #10b981; color: #ffffff; box-shadow: none;" title="Equip this lineup in DelugeRPG">Change Team</button>
+          <button id="battleOpponentBtn" type="button" class="btn" style="flex: 1.1; height: 27px; font-size: 10.5px; font-weight: 700; background: #0284c7; border: 1px solid #38bdf8; color: #ffffff; box-shadow: none;" title="Go directly to this opponent's battle arena on DelugeRPG">&#9876; Battle Now</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

@@ -639,10 +639,10 @@ runTest('app.html & app.js: 3/4 + 1/4 docked split view layout audit (Zero overl
   assert(!appJsContent.includes('showModal(teamBuilderModal)'), 'app.js must NOT treat teamBuilderModal as a popup modal with backdrop');
 });
 
-runTest('app.html & app.js: Live Search, Regional Filtering & DOM Clean Slate Audit', () => {
-  // DOM search and prompt bindings
-  assert(appHtml.includes('id="trainerSearchInput"'), 'trainerSearchInput must exist in app.html');
-  assert(appHtml.includes('id="clearTrainerSearchBtn"'), 'clearTrainerSearchBtn must exist in app.html');
+runTest('app.html & app.js: Regional Filtering & DOM Clean Slate Audit', () => {
+  // DOM search removed and prompt bindings verified
+  assert(!appHtml.includes('id="trainerSearchInput"'), 'trainerSearchInput must be removed from app.html');
+  assert(!appHtml.includes('id="clearTrainerSearchBtn"'), 'clearTrainerSearchBtn must be removed from app.html');
   assert(appHtml.includes('id="filteredTrainerCountBadge"'), 'filteredTrainerCountBadge must exist in app.html');
   assert(appHtml.includes('id="teamEmptyPrompt"'), 'teamEmptyPrompt must exist in app.html');
 
@@ -651,10 +651,10 @@ runTest('app.html & app.js: Live Search, Regional Filtering & DOM Clean Slate Au
   assert(appHtml.includes('value="KANTO"'), 'Kanto League option must exist');
   assert(appHtml.includes('value="GALAR"'), 'Galar League option must exist');
 
-  // Controller search & filter wiring
+  // Controller regional filter wiring
   const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
-  assert(appJsContent.includes('trainerSearchInput.addEventListener'), 'trainerSearchInput input listener must exist');
-  assert(appJsContent.includes('clearTrainerSearchBtn.addEventListener'), 'clearTrainerSearchBtn click listener must exist');
+  assert(appJsContent.includes('teamCategorySelect.addEventListener'), 'teamCategorySelect change listener must exist');
+  assert(!appJsContent.includes('trainerSearchInput'), 'trainerSearchInput must not exist in app.js');
 
   // Preload DOM snapshot cleaner verification
   const preloadContent = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');

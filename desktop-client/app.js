@@ -352,8 +352,6 @@ const teamActionRow = document.getElementById('teamActionRow');
 const teamActionStatus = document.getElementById('teamActionStatus');
 const copyTeamBtn = document.getElementById('copyTeamBtn');
 const applyTeamBtn = document.getElementById('applyTeamBtn');
-const trainerSearchInput = document.getElementById('trainerSearchInput');
-const clearTrainerSearchBtn = document.getElementById('clearTrainerSearchBtn');
 const filteredTrainerCountBadge = document.getElementById('filteredTrainerCountBadge');
 const teamEmptyPrompt = document.getElementById('teamEmptyPrompt');
 const poolModeAllBtn = document.getElementById('poolModeAllBtn');
@@ -3682,23 +3680,18 @@ function loadTeamBuilderData() {
     if (rawGym) {
       gymLeadersData = JSON.parse(rawGym);
       const activeCategory = (teamCategorySelect && teamCategorySelect.value) ? teamCategorySelect.value : 'ALL';
-      const activeSearch = (trainerSearchInput && trainerSearchInput.value) ? trainerSearchInput.value : '';
-      populateGymTrainerSelect(activeCategory, activeSearch);
+      populateGymTrainerSelect(activeCategory);
     }
   } catch (_) {}
 }
 
-function populateGymTrainerSelect(categoryFilter = null, searchTerm = null) {
+function populateGymTrainerSelect(categoryFilter = null) {
   if (!teamTrainerSelect || !gymLeadersData) return;
 
   if (categoryFilter === null) {
     categoryFilter = (teamCategorySelect && teamCategorySelect.value) ? teamCategorySelect.value : 'ALL';
   }
-  if (searchTerm === null) {
-    searchTerm = (trainerSearchInput && trainerSearchInput.value) ? trainerSearchInput.value : '';
-  }
 
-  const query = searchTerm.toLowerCase().trim();
   const prevSelectedValue = teamTrainerSelect.value;
   teamTrainerSelect.innerHTML = '';
   let matchCount = 0;
@@ -3742,23 +3735,12 @@ function populateGymTrainerSelect(categoryFilter = null, searchTerm = null) {
       if (groupKey !== categoryFilter) continue;
     }
 
-    const matchingTrainers = [];
-    trainers.forEach((leader, idx) => {
-      const nameMatch = leader.name && leader.name.toLowerCase().includes(query);
-      const typesMatch = leader.types && leader.types.some(t => t.toLowerCase().includes(query));
-      const groupMatch = item.label.toLowerCase().includes(query);
-      const npcMatch = leader.npcId && String(leader.npcId).includes(query);
-      if (!query || nameMatch || typesMatch || groupMatch || npcMatch) {
-        matchingTrainers.push({ leader, idx });
-      }
-    });
-
-    if (matchingTrainers.length === 0) continue;
+    if (trainers.length === 0) continue;
 
     const group = document.createElement('optgroup');
-    group.label = `${item.label} (${matchingTrainers.length})`;
+    group.label = `${item.label} (${trainers.length})`;
 
-    matchingTrainers.forEach(({ leader, idx }) => {
+    trainers.forEach((leader, idx) => {
       const opt = document.createElement('option');
       opt.value = `${groupKey}__${idx}`;
       const typeStr = (leader.types || []).join('/');
@@ -3773,13 +3755,8 @@ function populateGymTrainerSelect(categoryFilter = null, searchTerm = null) {
   }
 
   if (filteredTrainerCountBadge) {
-    if (query) {
-      filteredTrainerCountBadge.textContent = `${matchCount} found`;
-      filteredTrainerCountBadge.style.color = matchCount > 0 ? '#10b981' : '#f87171';
-    } else {
-      filteredTrainerCountBadge.textContent = `${matchCount} available`;
-      filteredTrainerCountBadge.style.color = '#64748b';
-    }
+    filteredTrainerCountBadge.textContent = `${matchCount} available`;
+    filteredTrainerCountBadge.style.color = '#64748b';
   }
 
   if (liveBattleOpponent) {
@@ -3793,28 +3770,7 @@ function populateGymTrainerSelect(categoryFilter = null, searchTerm = null) {
 
 if (teamCategorySelect) {
   teamCategorySelect.addEventListener('change', () => {
-    populateGymTrainerSelect(teamCategorySelect.value, trainerSearchInput ? trainerSearchInput.value : '');
-  });
-}
-
-if (trainerSearchInput) {
-  trainerSearchInput.addEventListener('input', () => {
-    const val = trainerSearchInput.value.trim();
-    if (clearTrainerSearchBtn) {
-      clearTrainerSearchBtn.style.display = val ? 'block' : 'none';
-    }
-    populateGymTrainerSelect(teamCategorySelect ? teamCategorySelect.value : 'ALL', val);
-  });
-}
-
-if (clearTrainerSearchBtn) {
-  clearTrainerSearchBtn.addEventListener('click', () => {
-    if (trainerSearchInput) {
-      trainerSearchInput.value = '';
-      clearTrainerSearchBtn.style.display = 'none';
-      populateGymTrainerSelect(teamCategorySelect ? teamCategorySelect.value : 'ALL', '');
-      trainerSearchInput.focus();
-    }
+    populateGymTrainerSelect(teamCategorySelect.value);
   });
 }
 

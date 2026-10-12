@@ -327,6 +327,41 @@ const poolModeAllBtn = document.getElementById('poolModeAllBtn');
 const poolModeTrainingBtn = document.getElementById('poolModeTrainingBtn');
 const trainingStatsBadge = document.getElementById('trainingStatsBadge');
 const battleOpponentBtn = document.getElementById('battleOpponentBtn');
+const adsInspectorModal = document.getElementById('adsInspectorModal');
+const adsInspectorMenuBtn = document.getElementById('adsInspectorMenuBtn');
+const closeAdsInspectorBtn = document.getElementById('closeAdsInspectorBtn');
+const switchTeamBuilderFromAdsBtn = document.getElementById('switchTeamBuilderFromAdsBtn');
+const switchAdsInspectorFromTeamBtn = document.getElementById('switchAdsInspectorFromTeamBtn');
+const rescanAdsBtn = document.getElementById('rescanAdsBtn');
+const clearAdsLogBtn = document.getElementById('clearAdsLogBtn');
+const adsFeedList = document.getElementById('adsFeedList');
+const adsEmptyPrompt = document.getElementById('adsEmptyPrompt');
+const navAdsCountBadge = document.getElementById('navAdsCountBadge');
+const teamHeaderAdsBadge = document.getElementById('teamHeaderAdsBadge');
+const adsStatTotal = document.getElementById('adsStatTotal');
+const adsStatAdsense = document.getElementById('adsStatAdsense');
+const adsStatGpt = document.getElementById('adsStatGpt');
+const adsStatVignette = document.getElementById('adsStatVignette');
+const adsFilterTabs = document.getElementById('adsFilterTabs');
+
+// Catch Log & Daily Auto-Catch Panel Elements
+const dailyCaughtBtn = document.getElementById('dailyCaughtBtn');
+const caughtSummaryText = document.getElementById('caughtSummaryText');
+const mbSummaryText = document.getElementById('mbSummaryText');
+const catchLogModal = document.getElementById('catchLogModal');
+const catchLogMenuBtn = document.getElementById('catchLogMenuBtn');
+const closeCatchLogBtn = document.getElementById('closeCatchLogBtn');
+const switchTeamBuilderFromCatchBtn = document.getElementById('switchTeamBuilderFromCatchBtn');
+const clearCatchLogBtn = document.getElementById('clearCatchLogBtn');
+const refreshCatchLogBtn = document.getElementById('refreshCatchLogBtn');
+const catchFeedList = document.getElementById('catchFeedList');
+const catchEmptyPrompt = document.getElementById('catchEmptyPrompt');
+const catchDateBadge = document.getElementById('catchDateBadge');
+const catchStatCount = document.getElementById('catchStatCount');
+const catchStatMbStock = document.getElementById('catchStatMbStock');
+const catchStatMbUsed = document.getElementById('catchStatMbUsed');
+const ballStockDetails = document.getElementById('ballStockDetails');
+const navCaughtCountBadge = document.getElementById('navCaughtCountBadge');
 
 // State
 let isRunning = false;
@@ -771,7 +806,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.2.0';
+    let appVer = '1.3.0';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -2280,6 +2315,16 @@ delugeView.addEventListener('ipc-message', (event) => {
     }
   }
 
+  if (event.channel === 'ad-detected-event') {
+    const ad = event.args[0] || {};
+    handleAdDetected(ad);
+  }
+
+  if (event.channel === 'ads-listener-update') {
+    const data = event.args[0] || {};
+    handleAdsSummaryUpdate(data);
+  }
+
   if (event.channel === 'preload-ready' || event.channel === 'request-config') {
     delugeView.send('update-config', config.settings);
     syncHuntingState();
@@ -2424,10 +2469,22 @@ delugeView.addEventListener('ipc-message', (event) => {
       backendLog('AutoCatch', `Battle screen reached. Waiting ${data.delay}ms to click Start Battle.`);
     } else if (step === 'selecting-master-ball') {
       const stockStr = (typeof data.stock === 'number') ? ` (Stock: ${data.stock})` : '';
+      if (typeof data.stock === 'number') {
+        dailyCatchData.masterBallStock = data.stock;
+        saveDailyCatchLog();
+        updateCatchLogBadge();
+        renderCatchLogUI();
+      }
       updateStatus(`Auto-Catch: Select Ball (${delaySec}s)...`, '#eab308');
       backendLog('AutoCatch', `Selecting Master Ball${stockStr}. Waiting ${data.delay}ms.`);
     } else if (step === 'throwing-master-ball') {
       const stockStr = (typeof data.stock === 'number') ? ` (Stock: ${data.stock})` : '';
+      if (typeof data.stock === 'number') {
+        dailyCatchData.masterBallStock = data.stock;
+        saveDailyCatchLog();
+        updateCatchLogBadge();
+        renderCatchLogUI();
+      }
       updateStatus(`Auto-Catch: Throw Ball (${delaySec}s)...`, '#eab308');
       backendLog('AutoCatch', `Throwing Master Ball${stockStr}. Waiting ${data.delay}ms.`);
     } else if (step === 'returning-to-map') {
@@ -2440,7 +2497,23 @@ delugeView.addEventListener('ipc-message', (event) => {
       backendLog('AutoCatch', `${name} successfully captured via Master Ball${remainingStr}.`);
       userManuallyPaused = false;
       wasHuntingBeforeAutoCatch = true;
+
+      recordCaughtPokemon(data.pokemon || {
+        name: name,
+        fullName: name,
+        variant: 'Normal',
+        level: '?',
+        sprite: '',
+        category: 'Wild Encounter',
+        ball: 'Master Ball',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      }, data.stockRemaining);
     } else if (step === 'out-of-stock') {
+      dailyCatchData.masterBallStock = 0;
+      saveDailyCatchLog();
+      updateCatchLogBadge();
+      renderCatchLogUI();
+
       const delaySec = data.delay ? (data.delay / 1000).toFixed(1) : '10.0';
       updateStatus(`Master Ball (0)! Returning (${delaySec}s)...`, '#ef4444');
       backendLog('AutoCatch', `Master Ball out of stock. Redirecting directly to previous map in ${data.delay || 10000}ms.`);
@@ -2454,6 +2527,11 @@ delugeView.addEventListener('ipc-message', (event) => {
         });
       } catch (_) {}
     }
+  }
+
+  if (event.channel === 'ball-inventory-update') {
+    const inv = event.args[0] || {};
+    updateBallInventory(inv);
   }
 
   if (event.channel === 'unlock-detected') {
@@ -2558,7 +2636,7 @@ function closeAllModals() {
 closeAllModals();
 
 // Stop click bubbling on modals so clicks never reach backdrop or outside handlers
-[targetModal, networkModal, accountModal, wipeModal, teamBuilderModal].forEach(m => {
+[targetModal, networkModal, accountModal, wipeModal, teamBuilderModal, adsInspectorModal, catchLogModal].forEach(m => {
   if (m) {
     m.addEventListener('click', (e) => e.stopPropagation());
     m.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -2613,6 +2691,10 @@ window.addEventListener('keydown', (e) => {
       closeAllModals();
     } else if (teamBuilderModal && teamBuilderModal.style.display === 'flex') {
       closeTeamBuilderPanel();
+    } else if (adsInspectorModal && adsInspectorModal.style.display === 'flex') {
+      closeAdsInspectorPanel();
+    } else if (catchLogModal && catchLogModal.style.display === 'flex') {
+      closeCatchLogPanel();
     }
   }
   if (e.code === 'Space' || e.key === ' ') {
@@ -3184,10 +3266,12 @@ function closeNetworkModal() {
 }
 
 networkBtn.addEventListener('click', () => {
+  closeNavDropdown();
   detectNetworkIdentity();
   openNetworkModal();
 });
 networkBadge.addEventListener('click', () => {
+  closeNavDropdown();
   detectNetworkIdentity();
   openNetworkModal();
 });
@@ -3631,6 +3715,8 @@ function updateTeamBuilderBadge(isOpen) {
 
 function openTeamBuilderPanel() {
   if (!teamBuilderModal) return;
+  if (adsInspectorModal) adsInspectorModal.style.display = 'none';
+  if (catchLogModal) catchLogModal.style.display = 'none';
   teamBuilderModal.style.display = 'flex';
   if (delugeView) {
     delugeView.classList.remove('full-width');
@@ -3662,11 +3748,14 @@ function openTeamBuilderPanel() {
 function closeTeamBuilderPanel() {
   if (!teamBuilderModal) return;
   teamBuilderModal.style.display = 'none';
-  if (delugeView) {
-    delugeView.classList.add('full-width');
-    delugeView.style.width = '100%';
-    delugeView.style.flex = '1';
-    delugeView.style.pointerEvents = 'auto';
+  if ((!adsInspectorModal || adsInspectorModal.style.display !== 'flex') &&
+      (!catchLogModal || catchLogModal.style.display !== 'flex')) {
+    if (delugeView) {
+      delugeView.classList.add('full-width');
+      delugeView.style.width = '100%';
+      delugeView.style.flex = '1';
+      delugeView.style.pointerEvents = 'auto';
+    }
   }
   if (teamBuilderBtn) {
     teamBuilderBtn.classList.remove('btn-accent');
@@ -3696,6 +3785,214 @@ if (teamBuilderMenuBtn) {
   });
 }
 if (closeTeamBuilderBtn) closeTeamBuilderBtn.addEventListener('click', closeTeamBuilderPanel);
+
+// --- LIVE ADS LISTENER & TELEMETRY CONTROLLER ---
+let liveAdsRegistry = [];
+let adsFilterType = 'ALL';
+let adsTelemetryStats = { total: 0, types: {} };
+
+function handleAdDetected(ad) {
+  if (!ad) return;
+  backendLog('AdsListener', `[${ad.type}] ${ad.tag}${ad.elementId ? '#' + ad.elementId : ''} (Slot: ${ad.slotId || 'none'}, ${ad.dimensions ? ad.dimensions.width + 'x' + ad.dimensions.height : '0x0'}) -> ${ad.status}`);
+}
+
+function handleAdsSummaryUpdate(data) {
+  if (!data) return;
+  const list = Array.isArray(data.ads) ? data.ads : [];
+  liveAdsRegistry = list;
+  adsTelemetryStats = data.summary || { total: list.length, types: {} };
+
+  if (navAdsCountBadge) {
+    navAdsCountBadge.textContent = `${list.length} Hidden`;
+  }
+  if (teamHeaderAdsBadge) {
+    teamHeaderAdsBadge.textContent = `${list.length}`;
+  }
+
+  if (adsStatTotal) adsStatTotal.textContent = `${list.length}`;
+  if (adsStatAdsense) adsStatAdsense.textContent = `${(adsTelemetryStats.types && adsTelemetryStats.types['Google AdSense']) || 0}`;
+  if (adsStatGpt) adsStatGpt.textContent = `${(adsTelemetryStats.types && adsTelemetryStats.types['Google Publisher Tag (GPT)']) || 0}`;
+  if (adsStatVignette) adsStatVignette.textContent = `${(adsTelemetryStats.types && adsTelemetryStats.types['Google Vignette Interstitial']) || 0}`;
+
+  if (adsInspectorModal && adsInspectorModal.style.display === 'flex') {
+    renderAdsInspectorUI();
+  }
+}
+
+function getBadgeClassForAdType(type) {
+  switch (type) {
+    case 'Google AdSense': return 'badge-adsense';
+    case 'Google Publisher Tag (GPT)': return 'badge-gpt';
+    case 'Google Vignette Interstitial': return 'badge-vignette';
+    case 'Sticky / Anchor Banner': return 'badge-anchor';
+    case 'Video / Rewarded Ad': return 'badge-video';
+    case 'Third-Party Ad Network': return 'badge-thirdparty';
+    case 'Deluge Ad Container': return 'badge-container';
+    default: return 'badge-label';
+  }
+}
+
+function renderAdsInspectorUI() {
+  if (!adsFeedList) return;
+
+  const filtered = (adsFilterType === 'ALL')
+    ? liveAdsRegistry
+    : liveAdsRegistry.filter(a => a.type === adsFilterType);
+
+  if (filtered.length === 0) {
+    if (adsEmptyPrompt) adsEmptyPrompt.style.display = 'block';
+    adsFeedList.innerHTML = '';
+    if (adsEmptyPrompt) adsFeedList.appendChild(adsEmptyPrompt);
+    return;
+  }
+
+  if (adsEmptyPrompt) adsEmptyPrompt.style.display = 'none';
+
+  let html = '';
+  const reversed = filtered.slice().reverse();
+  for (let i = 0; i < reversed.length; i++) {
+    const item = reversed[i];
+    const badgeCls = getBadgeClassForAdType(item.type);
+    const dimStr = item.dimensions ? `${item.dimensions.width}&times;${item.dimensions.height}` : '0&times;0';
+    const idStr = item.elementId ? `#${item.elementId}` : '';
+    const slotStr = item.slotId ? `Slot: ${item.slotId}` : '';
+    const srcStr = item.src ? `<div style="font-size: 9.5px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px;">Src: ${item.src}</div>` : '';
+
+    html += `
+      <div class="ad-telemetry-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+          <span class="ad-type-badge ${badgeCls}">${item.type}</span>
+          <span style="font-size: 9.5px; color: #64748b; font-family: monospace;">${item.detectedAt || ''}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 4px;">
+          <span style="font-size: 11px; font-weight: 700; color: #f1f5f9; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            ${item.tag}${idStr}
+          </span>
+          <span style="font-size: 10px; color: #38bdf8; font-weight: 600; flex-shrink: 0;">${dimStr}</span>
+        </div>
+        ${slotStr ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 1px;">${slotStr}</div>` : ''}
+        ${srcStr}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 1px solid #1e293b; font-size: 9.5px;">
+          <span style="color: #64748b;">Container: <code style="color: #94a3b8;">${item.parentContainer || 'None'}</code></span>
+          <span style="color: #34d399; font-weight: 600;">${item.status || 'Smoothly Collapsed'}</span>
+        </div>
+      </div>
+    `;
+  }
+  adsFeedList.innerHTML = html;
+}
+
+function openAdsInspectorPanel() {
+  if (!adsInspectorModal) return;
+  if (teamBuilderModal) {
+    teamBuilderModal.style.display = 'none';
+    if (teamBuilderBtn) teamBuilderBtn.classList.remove('btn-accent');
+    updateTeamBuilderBadge(false);
+  }
+  if (catchLogModal) {
+    catchLogModal.style.display = 'none';
+  }
+  adsInspectorModal.style.display = 'flex';
+  if (delugeView) {
+    delugeView.classList.remove('full-width');
+    delugeView.style.width = '75%';
+    delugeView.style.flex = '3';
+    delugeView.style.pointerEvents = 'auto';
+  }
+  renderAdsInspectorUI();
+  try {
+    if (delugeView && typeof delugeView.send === 'function') {
+      delugeView.send('scan-page-ads');
+    }
+  } catch (_) {}
+}
+
+function closeAdsInspectorPanel() {
+  if (!adsInspectorModal) return;
+  adsInspectorModal.style.display = 'none';
+  if ((!teamBuilderModal || teamBuilderModal.style.display !== 'flex') &&
+      (!catchLogModal || catchLogModal.style.display !== 'flex')) {
+    if (delugeView) {
+      delugeView.classList.add('full-width');
+      delugeView.style.width = '100%';
+      delugeView.style.flex = '1';
+      delugeView.style.pointerEvents = 'auto';
+    }
+  }
+}
+
+function toggleAdsInspectorPanel() {
+  if (!adsInspectorModal) return;
+  const isVisible = adsInspectorModal.style.display === 'flex';
+  if (isVisible) {
+    closeAdsInspectorPanel();
+  } else {
+    openAdsInspectorPanel();
+  }
+}
+
+if (adsInspectorMenuBtn) {
+  adsInspectorMenuBtn.addEventListener('click', () => {
+    closeNavDropdown();
+    toggleAdsInspectorPanel();
+  });
+}
+if (closeAdsInspectorBtn) {
+  closeAdsInspectorBtn.addEventListener('click', closeAdsInspectorPanel);
+}
+if (switchTeamBuilderFromAdsBtn) {
+  switchTeamBuilderFromAdsBtn.addEventListener('click', () => {
+    closeAdsInspectorPanel();
+    openTeamBuilderPanel();
+  });
+}
+if (switchAdsInspectorFromTeamBtn) {
+  switchAdsInspectorFromTeamBtn.addEventListener('click', () => {
+    closeTeamBuilderPanel();
+    openAdsInspectorPanel();
+  });
+}
+if (rescanAdsBtn) {
+  rescanAdsBtn.addEventListener('click', () => {
+    updateStatus('Scanning DelugeRPG page ads...', '#38bdf8');
+    try {
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('scan-page-ads');
+      }
+    } catch (_) {}
+    setTimeout(() => {
+      updateStatus('Ads scan complete', '#10b981');
+    }, 500);
+  });
+}
+if (clearAdsLogBtn) {
+  clearAdsLogBtn.addEventListener('click', () => {
+    liveAdsRegistry = [];
+    adsTelemetryStats = { total: 0, types: {} };
+    if (navAdsCountBadge) navAdsCountBadge.textContent = '0 Hidden';
+    if (teamHeaderAdsBadge) teamHeaderAdsBadge.textContent = '0';
+    if (adsStatTotal) adsStatTotal.textContent = '0';
+    if (adsStatAdsense) adsStatAdsense.textContent = '0';
+    if (adsStatGpt) adsStatGpt.textContent = '0';
+    if (adsStatVignette) adsStatVignette.textContent = '0';
+    try {
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('clear-ads-registry');
+      }
+    } catch (_) {}
+    renderAdsInspectorUI();
+  });
+}
+if (adsFilterTabs) {
+  adsFilterTabs.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-ad-filter]');
+    if (!btn) return;
+    adsFilterTabs.querySelectorAll('button').forEach(b => b.classList.remove('btn-active'));
+    btn.classList.add('btn-active');
+    adsFilterType = btn.getAttribute('data-ad-filter') || 'ALL';
+    renderAdsInspectorUI();
+  });
+}
 
 if (scanPokesBtn) {
   scanPokesBtn.addEventListener('click', () => {
@@ -4215,6 +4512,302 @@ if (teamTrainerSelect) {
     }
   });
 }
+
+// --- TODAY'S AUTO-CATCH & MASTER BALL PERSISTENCE ---
+const DAILY_CATCH_STORAGE_KEY = 'deluge_daily_catch_log';
+
+function getTodayDateKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+let dailyCatchData = {
+  date: getTodayDateKey(),
+  caught: [],
+  masterBallStock: null,
+  masterBallUsedToday: 0,
+  bagInventory: {
+    pokeBall: null,
+    greatBall: null,
+    ultraBall: null,
+    masterBall: null,
+    rawSummary: ''
+  }
+};
+
+function ensureTodayCatchLog() {
+  const todayKey = getTodayDateKey();
+  if (dailyCatchData.date !== todayKey) {
+    dailyCatchData.date = todayKey;
+    dailyCatchData.caught = [];
+    dailyCatchData.masterBallUsedToday = 0;
+    saveDailyCatchLog();
+  }
+}
+
+function loadDailyCatchLog() {
+  const todayKey = getTodayDateKey();
+  let loaded = null;
+
+  try {
+    const filePath = path.join(__dirname, 'daily_catch_log.json');
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, 'utf8');
+      if (raw) loaded = JSON.parse(raw);
+    }
+  } catch (_) {}
+
+  if (!loaded) {
+    try {
+      const raw = localStorage.getItem(DAILY_CATCH_STORAGE_KEY);
+      if (raw) loaded = JSON.parse(raw);
+    } catch (_) {}
+  }
+
+  if (loaded && typeof loaded === 'object') {
+    if (loaded.date === todayKey) {
+      dailyCatchData.date = todayKey;
+      dailyCatchData.caught = Array.isArray(loaded.caught) ? loaded.caught : [];
+      dailyCatchData.masterBallStock = (typeof loaded.masterBallStock === 'number') ? loaded.masterBallStock : null;
+      dailyCatchData.masterBallUsedToday = (typeof loaded.masterBallUsedToday === 'number') ? loaded.masterBallUsedToday : 0;
+      if (loaded.bagInventory && typeof loaded.bagInventory === 'object') {
+        dailyCatchData.bagInventory = loaded.bagInventory;
+      }
+    } else {
+      // Midnight rollover: new calendar day
+      dailyCatchData.date = todayKey;
+      dailyCatchData.caught = [];
+      dailyCatchData.masterBallUsedToday = 0;
+      dailyCatchData.masterBallStock = (typeof loaded.masterBallStock === 'number') ? loaded.masterBallStock : null;
+      if (loaded.bagInventory && typeof loaded.bagInventory === 'object') {
+        dailyCatchData.bagInventory = loaded.bagInventory;
+      }
+    }
+  }
+
+  saveDailyCatchLog();
+  updateCatchLogBadge();
+  renderCatchLogUI();
+}
+
+function saveDailyCatchLog() {
+  try {
+    const jsonStr = JSON.stringify(dailyCatchData, null, 2);
+    localStorage.setItem(DAILY_CATCH_STORAGE_KEY, jsonStr);
+    const filePath = path.join(__dirname, 'daily_catch_log.json');
+    fs.writeFileSync(filePath, jsonStr, 'utf8');
+  } catch (_) {}
+}
+
+function updateCatchLogBadge() {
+  ensureTodayCatchLog();
+  const count = dailyCatchData.caught ? dailyCatchData.caught.length : 0;
+  if (caughtSummaryText) {
+    caughtSummaryText.textContent = `Today: ${count}`;
+  }
+  if (mbSummaryText) {
+    mbSummaryText.textContent = `MB: ${dailyCatchData.masterBallStock !== null ? dailyCatchData.masterBallStock : '--'}`;
+  }
+  if (navCaughtCountBadge) {
+    navCaughtCountBadge.textContent = `${count} Caught`;
+  }
+  if (dailyCaughtBtn) {
+    dailyCaughtBtn.title = `Today's Auto-Catch: ${count} caught | Master Ball Stock: ${dailyCatchData.masterBallStock !== null ? dailyCatchData.masterBallStock : 'Unknown'}. Click to view details.`;
+  }
+}
+
+function renderCatchLogUI() {
+  ensureTodayCatchLog();
+  const count = dailyCatchData.caught ? dailyCatchData.caught.length : 0;
+
+  if (catchDateBadge) {
+    catchDateBadge.textContent = dailyCatchData.date || 'Today';
+  }
+  if (catchStatCount) {
+    catchStatCount.textContent = count;
+  }
+  if (catchStatMbStock) {
+    catchStatMbStock.textContent = dailyCatchData.masterBallStock !== null ? dailyCatchData.masterBallStock : '--';
+  }
+  if (catchStatMbUsed) {
+    catchStatMbUsed.textContent = dailyCatchData.masterBallUsedToday || 0;
+  }
+
+  if (ballStockDetails) {
+    if (dailyCatchData.bagInventory && dailyCatchData.bagInventory.rawSummary) {
+      ballStockDetails.textContent = dailyCatchData.bagInventory.rawSummary;
+    } else if (dailyCatchData.masterBallStock !== null) {
+      ballStockDetails.textContent = `Master Ball: ${dailyCatchData.masterBallStock}`;
+    } else {
+      ballStockDetails.textContent = 'Syncing bag inventory...';
+    }
+  }
+
+  if (!catchFeedList) return;
+
+  if (count === 0) {
+    catchFeedList.innerHTML = `
+      <div id="catchEmptyPrompt" style="text-align: center; color: #64748b; font-size: 11px; padding: 30px 10px;">
+        <div style="font-size: 20px; margin-bottom: 6px; color: #34d399;">&#9918;</div>
+        <div style="font-weight: 600; color: #94a3b8;">No Pokemon caught yet today</div>
+        <div style="font-size: 10px; margin-top: 4px; color: #475569;">Target Pokemon automatically caught during hunts will appear here with sprite, variant, level, and timestamp.</div>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  for (let i = 0; i < dailyCatchData.caught.length; i++) {
+    const p = dailyCatchData.caught[i];
+    const spriteTag = p.sprite ? `<img src="${p.sprite}" alt="${p.name}">` : `<span style="font-size: 18px; color: #34d399;">&#9918;</span>`;
+    html += `
+      <div class="caught-pokemon-card">
+        <div class="caught-card-thumb">${spriteTag}</div>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+            <span style="font-size: 11.5px; font-weight: 700; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
+            <span style="font-size: 9.5px; color: #64748b; font-weight: 600;">${p.timestamp || ''}</span>
+          </div>
+          <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-weight: 600;">${p.variant || 'Normal'}</span>
+            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); font-weight: 600;">Lv ${p.level || '?'}</span>
+            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(192, 132, 252, 0.15); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.3); font-weight: 600;">${p.ball || 'Master Ball'}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  catchFeedList.innerHTML = html;
+}
+
+function recordCaughtPokemon(pokemon, remainingStock) {
+  ensureTodayCatchLog();
+  if (pokemon) {
+    dailyCatchData.caught.unshift(pokemon);
+  }
+  dailyCatchData.masterBallUsedToday = (dailyCatchData.masterBallUsedToday || 0) + 1;
+  if (typeof remainingStock === 'number') {
+    dailyCatchData.masterBallStock = remainingStock;
+  } else if (typeof dailyCatchData.masterBallStock === 'number' && dailyCatchData.masterBallStock > 0) {
+    dailyCatchData.masterBallStock -= 1;
+  }
+  saveDailyCatchLog();
+  updateCatchLogBadge();
+  renderCatchLogUI();
+}
+
+function updateBallInventory(inv) {
+  if (!inv || typeof inv !== 'object') return;
+  if (typeof inv.masterBall === 'number') {
+    dailyCatchData.masterBallStock = inv.masterBall;
+  }
+  if (!dailyCatchData.bagInventory) dailyCatchData.bagInventory = {};
+  if (typeof inv.pokeBall === 'number') dailyCatchData.bagInventory.pokeBall = inv.pokeBall;
+  if (typeof inv.greatBall === 'number') dailyCatchData.bagInventory.greatBall = inv.greatBall;
+  if (typeof inv.ultraBall === 'number') dailyCatchData.bagInventory.ultraBall = inv.ultraBall;
+  if (typeof inv.masterBall === 'number') dailyCatchData.bagInventory.masterBall = inv.masterBall;
+  if (inv.rawSummary) dailyCatchData.bagInventory.rawSummary = inv.rawSummary;
+
+  saveDailyCatchLog();
+  updateCatchLogBadge();
+  renderCatchLogUI();
+}
+
+function openCatchLogPanel() {
+  if (!catchLogModal) return;
+  if (teamBuilderModal) {
+    teamBuilderModal.style.display = 'none';
+    if (teamBuilderBtn) teamBuilderBtn.classList.remove('btn-accent');
+    updateTeamBuilderBadge(false);
+  }
+  if (adsInspectorModal) {
+    adsInspectorModal.style.display = 'none';
+  }
+  catchLogModal.style.display = 'flex';
+  if (delugeView) {
+    delugeView.classList.remove('full-width');
+    delugeView.style.width = '75%';
+    delugeView.style.flex = '3';
+    delugeView.style.pointerEvents = 'auto';
+  }
+  renderCatchLogUI();
+  try {
+    if (delugeView && typeof delugeView.send === 'function') {
+      delugeView.send('request-ball-inventory');
+    }
+  } catch (_) {}
+}
+
+function closeCatchLogPanel() {
+  if (!catchLogModal) return;
+  catchLogModal.style.display = 'none';
+  if ((!teamBuilderModal || teamBuilderModal.style.display !== 'flex') &&
+      (!adsInspectorModal || adsInspectorModal.style.display !== 'flex')) {
+    if (delugeView) {
+      delugeView.classList.add('full-width');
+      delugeView.style.width = '100%';
+      delugeView.style.flex = '1';
+      delugeView.style.pointerEvents = 'auto';
+    }
+  }
+}
+
+function toggleCatchLogPanel() {
+  if (!catchLogModal) return;
+  if (catchLogModal.style.display === 'flex') {
+    closeCatchLogPanel();
+  } else {
+    openCatchLogPanel();
+  }
+}
+
+if (dailyCaughtBtn) {
+  dailyCaughtBtn.addEventListener('click', toggleCatchLogPanel);
+}
+if (catchLogMenuBtn) {
+  catchLogMenuBtn.addEventListener('click', () => {
+    closeNavDropdown();
+    toggleCatchLogPanel();
+  });
+}
+if (closeCatchLogBtn) {
+  closeCatchLogBtn.addEventListener('click', closeCatchLogPanel);
+}
+if (switchTeamBuilderFromCatchBtn) {
+  switchTeamBuilderFromCatchBtn.addEventListener('click', () => {
+    closeCatchLogPanel();
+    openTeamBuilderPanel();
+  });
+}
+if (clearCatchLogBtn) {
+  clearCatchLogBtn.addEventListener('click', () => {
+    ensureTodayCatchLog();
+    dailyCatchData.caught = [];
+    saveDailyCatchLog();
+    updateCatchLogBadge();
+    renderCatchLogUI();
+    updateStatus("Today's catch log cleared", '#10b981');
+  });
+}
+if (refreshCatchLogBtn) {
+  refreshCatchLogBtn.addEventListener('click', () => {
+    updateStatus('Syncing ball inventory...', '#38bdf8');
+    try {
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('request-ball-inventory');
+      }
+    } catch (_) {}
+    setTimeout(() => {
+      updateStatus('Inventory synced', '#10b981');
+    }, 500);
+  });
+}
+
+// Initial load of today's catch log
+loadDailyCatchLog();
 
 // Open Team Builder docked side panel by default
 openTeamBuilderPanel();

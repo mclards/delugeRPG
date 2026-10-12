@@ -476,6 +476,79 @@
       color: #94a3b8;
     }
 
+    /* Daily Auto-Catch & Master Ball Badge */
+    .daily-caught-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      box-shadow: none !important;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .daily-caught-badge:hover {
+      background: #1e293b;
+      border-color: #475569;
+    }
+    .daily-caught-badge:active {
+      transform: translateY(1px);
+    }
+    .caught-badge-icon {
+      font-size: 12px;
+      color: #34d399;
+    }
+    .caught-badge-sep {
+      color: #475569;
+      font-size: 13px;
+    }
+    .mb-badge-icon {
+      font-size: 11px;
+      color: #c084fc;
+    }
+    .caught-pokemon-card {
+      background: #0b1120;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: none !important;
+      transition: background 0.1s ease;
+    }
+    .caught-pokemon-card:hover {
+      background: #0f172a;
+      border-color: #334155;
+    }
+    .caught-card-thumb {
+      width: 40px;
+      height: 40px;
+      background: #1e293b;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 1px solid #334155;
+    }
+    .caught-card-thumb img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+
     /* Collapsible Navigation Dropdown Menu */
     .nav-menu-wrapper {
       position: relative;
@@ -628,7 +701,7 @@
       flex: 1;
       width: 100%;
     }
-    #teamBuilderModal {
+    #teamBuilderModal, #adsInspectorModal, #catchLogModal {
       flex: 1;
       width: 25%;
       min-width: 320px;
@@ -646,6 +719,35 @@
       flex-shrink: 0;
       z-index: 10;
     }
+    .ad-telemetry-card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 7px 9px;
+      box-shadow: none !important;
+      transition: background 0.15s ease;
+    }
+    .ad-telemetry-card:hover {
+      background: #1e293b;
+    }
+    .ad-type-badge {
+      display: inline-block;
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      box-shadow: none !important;
+    }
+    .badge-adsense { background: #0284c7; color: #ffffff; }
+    .badge-gpt { background: #7c3aed; color: #ffffff; }
+    .badge-vignette { background: #db2777; color: #ffffff; }
+    .badge-anchor { background: #d97706; color: #ffffff; }
+    .badge-video { background: #dc2626; color: #ffffff; }
+    .badge-thirdparty { background: #4f46e5; color: #ffffff; }
+    .badge-container { background: #475569; color: #ffffff; }
+    .badge-label { background: #334155; color: #cbd5e1; }
 
     /* --- MODAL BACKDROP & CENTERING --- */
     #modalBackdrop {
@@ -1104,11 +1206,14 @@
         <button id="refreshBtn" class="btn btn-icon" title="Reload Game Page &amp; Flush Battle Cache [F5]">&#8635;</button>
       </div>
 
-      <!-- Network Shield Badge -->
-      <div id="networkBadge" class="network-badge network-checking" title="Detecting live public IP and ISP...">
-        <span id="netIcon">&#8635;</span>
-        <span id="netText">Checking Network...</span>
-      </div>
+      <!-- Today's Auto-Catch & Master Ball Stock Badge -->
+      <button id="dailyCaughtBtn" class="daily-caught-badge" title="Today's Auto-Catch Log &amp; Master Ball Stock (Click to view details)">
+        <span class="caught-badge-icon">&#9918;</span>
+        <span id="caughtSummaryText">Today: 0</span>
+        <span class="caught-badge-sep">&#183;</span>
+        <span class="mb-badge-icon">&#11088;</span>
+        <span id="mbSummaryText">MB: --</span>
+      </button>
 
       <!-- Main Hunting Toggle Button (Relocated beside Nav Menu Button - Plain, Beveled, No Shadow) -->
       <button id="toggleBtn" class="btn btn-toggle-main btn-paused" title="Start / Pause Automated Hunting [Space / F2]">
@@ -1154,10 +1259,20 @@
             <span class="dropdown-label">Hide Ads</span>
             <span id="hideAdsBadge" class="dropdown-badge dropdown-badge-on">ON</span>
           </button>
+          <button id="adsInspectorMenuBtn" class="dropdown-item" title="Open Ads Inspector &amp; Live Telemetry Panel">
+            <span class="dropdown-icon">&#128065;</span>
+            <span class="dropdown-label">Ads Inspector</span>
+            <span id="navAdsCountBadge" class="dropdown-badge dropdown-badge-on">0 Hidden</span>
+          </button>
           <button id="autoCatchBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Catch (Master Ball): Automatically catch detected target Pokemon using Master Ball (Requires Hide Ads ON)">
             <span class="dropdown-icon">&#128080;</span>
             <span class="dropdown-label">Auto-Catch (Master Ball)</span>
             <span id="autoCatchBadge" class="dropdown-badge dropdown-badge-off">OFF</span>
+          </button>
+          <button id="catchLogMenuBtn" class="dropdown-item" title="View Today's Auto-Catch Log &amp; Master Ball Stock">
+            <span class="dropdown-icon">&#9918;</span>
+            <span class="dropdown-label">Today's Auto-Catch</span>
+            <span id="navCaughtCountBadge" class="dropdown-badge dropdown-badge-on">0 Caught</span>
           </button>
           <div class="dropdown-divider"></div>
 
@@ -1178,6 +1293,12 @@
           <div class="dropdown-divider"></div>
 
           <div class="nav-dropdown-header">Tools &amp; Settings</div>
+          <div style="padding: 2px 8px 6px 8px;">
+            <button id="networkBadge" class="network-badge network-checking" style="width: 100%; max-width: 100%; box-sizing: border-box; justify-content: center; box-shadow: none !important;" title="Current Network Connection">
+              <span id="netIcon">&#8635;</span>
+              <span id="netText">Checking Network...</span>
+            </button>
+          </div>
           <button id="loginHelperBtn" class="dropdown-item" title="Configure saved credentials for one-click login">
             <span class="dropdown-icon">&#128100;</span>
             <span class="dropdown-label">Account Credentials</span>
@@ -1198,7 +1319,7 @@
           <div class="dropdown-divider"></div>
           <div id="navVersionFooter" class="nav-version-footer">
             <span class="nav-version-label">DelugeRPG Client</span>
-            <span id="navVersionBadge" class="nav-version-badge">v1.2.0</span>
+            <span id="navVersionBadge" class="nav-version-badge">v1.3.0</span>
           </div>
         </div>
       </div>
@@ -1534,7 +1655,10 @@
           <span>&#9876;</span>
           <span>Team Builder</span>
         </div>
-        <button id="closeTeamBuilderBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none;">&#10005;</button>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button id="switchAdsInspectorFromTeamBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none;" title="Switch to Ads Inspector panel">&#128065; Ads (<span id="teamHeaderAdsBadge">0</span>)</button>
+          <button id="closeTeamBuilderBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none;">&#10005;</button>
+        </div>
       </div>
 
       <!-- Scan Bar -->
@@ -1628,6 +1752,140 @@
           <button id="copyTeamBtn" type="button" class="btn" style="flex: 1; height: 27px; font-size: 10.5px; box-shadow: none;" title="Copy lineup summary to clipboard">Copy</button>
           <button id="applyTeamBtn" type="button" class="btn" style="flex: 1.2; height: 27px; font-size: 10.5px; font-weight: 700; background: #059669; border: 1px solid #10b981; color: #ffffff; box-shadow: none;" title="Equip this lineup in DelugeRPG">Change Team</button>
           <button id="battleOpponentBtn" type="button" class="btn" style="flex: 1.1; height: 27px; font-size: 10.5px; font-weight: 700; background: #0284c7; border: 1px solid #38bdf8; color: #ffffff; box-shadow: none;" title="Go directly to this opponent's battle arena on DelugeRPG">&#9876; Battle Now</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. DOCKED SIDE PANEL: ADS INSPECTOR (1/4 OF WINDOW) -->
+    <div id="adsInspectorModal" style="display: none;">
+      <!-- Header with title and tab switcher -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1e293b;">
+        <div style="font-weight: 700; font-size: 13px; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+          <span>&#128065;</span>
+          <span>Ads Inspector</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button id="switchTeamBuilderFromAdsBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
+          <button id="closeAdsInspectorBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none;">&#10005;</button>
+        </div>
+      </div>
+
+      <!-- Overview & Mode Banner -->
+      <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; box-shadow: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Adblock Simulation</span>
+          <span id="adsInspectorStatusBadge" style="font-size: 10.5px; font-weight: 700; color: #34d399;">Active (Network Intact)</span>
+        </div>
+        <div style="font-size: 10px; color: #94a3b8; line-height: 1.4;">
+          Cosmetic zero-shift hiding active. DelugeRPG ad verification scripts execute safely while banners, wrappers, and interstitials are smoothly collapsed without blank gaps.
+        </div>
+      </div>
+
+      <!-- Summary Stats Badges Grid -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
+        <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 5px; padding: 4px 6px; text-align: center;">
+          <div style="font-size: 9px; color: #64748b; font-weight: 600;">TOTAL</div>
+          <div id="adsStatTotal" style="font-size: 13px; font-weight: 700; color: #f8fafc;">0</div>
+        </div>
+        <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 5px; padding: 4px 6px; text-align: center;">
+          <div style="font-size: 9px; color: #64748b; font-weight: 600;">ADSENSE</div>
+          <div id="adsStatAdsense" style="font-size: 13px; font-weight: 700; color: #38bdf8;">0</div>
+        </div>
+        <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 5px; padding: 4px 6px; text-align: center;">
+          <div style="font-size: 9px; color: #64748b; font-weight: 600;">GPT/SLOT</div>
+          <div id="adsStatGpt" style="font-size: 13px; font-weight: 700; color: #a78bfa;">0</div>
+        </div>
+        <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 5px; padding: 4px 6px; text-align: center;">
+          <div style="font-size: 9px; color: #64748b; font-weight: 600;">VIGNETTE</div>
+          <div id="adsStatVignette" style="font-size: 13px; font-weight: 700; color: #f472b6;">0</div>
+        </div>
+      </div>
+
+      <!-- Action Bar: Rescan & Clear -->
+      <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+        <button id="rescanAdsBtn" type="button" class="btn btn-accent" style="flex: 1; height: 26px; font-size: 10.5px; box-shadow: none;" title="Trigger immediate full-page DOM ad scan">&#8635; Rescan Page Ads</button>
+        <button id="clearAdsLogBtn" type="button" class="btn" style="height: 26px; font-size: 10.5px; padding: 0 10px; box-shadow: none;" title="Clear detected ads list">Clear Log</button>
+      </div>
+
+      <!-- Filter Tabs -->
+      <div id="adsFilterTabs" style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 6px;">
+        <button type="button" class="btn preset-pill-btn btn-active" data-ad-filter="ALL" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">All</button>
+        <button type="button" class="btn preset-pill-btn" data-ad-filter="Google AdSense" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">AdSense</button>
+        <button type="button" class="btn preset-pill-btn" data-ad-filter="Google Publisher Tag (GPT)" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">GPT</button>
+        <button type="button" class="btn preset-pill-btn" data-ad-filter="Google Vignette Interstitial" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">Vignette</button>
+        <button type="button" class="btn preset-pill-btn" data-ad-filter="Sticky / Anchor Banner" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">Anchor</button>
+        <button type="button" class="btn preset-pill-btn" data-ad-filter="Deluge Ad Container" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">Containers</button>
+      </div>
+
+      <!-- Scrollable Live Ad Feed -->
+      <div id="adsFeedList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
+        <div id="adsEmptyPrompt" style="text-align: center; color: #64748b; font-size: 11px; padding: 30px 10px;">
+          <div style="font-size: 20px; margin-bottom: 6px;">&#128065;</div>
+          <div>Listening for DelugeRPG ads...</div>
+          <div style="font-size: 10px; margin-top: 4px; color: #475569;">Ads detected during browsing will appear here with type, slot, and smooth collapse telemetry.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. DOCKED SIDE PANEL: TODAY'S AUTO-CATCH & MASTER BALL LOG (1/4 OF WINDOW) -->
+    <div id="catchLogModal" style="display: none;">
+      <!-- Header with title and tab switcher -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1e293b;">
+        <div style="font-weight: 700; font-size: 13px; color: #34d399; display: flex; align-items: center; gap: 6px;">
+          <span>&#9918;</span>
+          <span>Today's Auto-Catch</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button id="switchTeamBuilderFromCatchBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
+          <button id="closeCatchLogBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
+        </div>
+      </div>
+
+      <!-- Overview Banner -->
+      <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; box-shadow: none !important;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Auto-Catch Telemetry</span>
+          <span id="catchDateBadge" style="font-size: 10px; font-weight: 700; color: #38bdf8;">Today</span>
+        </div>
+        <div style="font-size: 10px; color: #94a3b8; line-height: 1.4;">
+          Persistent log of target Pokemon automatically caught today. Synchronized live with in-game inventory.
+        </div>
+      </div>
+
+      <!-- Summary Stats Badges Grid -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px;">
+        <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 5px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 9px; color: #64748b; font-weight: 600;">CAUGHT TODAY</div>
+          <div id="catchStatCount" style="font-size: 13px; font-weight: 700; color: #34d399;">0</div>
+        </div>
+        <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 5px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 9px; color: #64748b; font-weight: 600;">MB STOCK</div>
+          <div id="catchStatMbStock" style="font-size: 13px; font-weight: 700; color: #c084fc;">--</div>
+        </div>
+        <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 5px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 9px; color: #64748b; font-weight: 600;">MB USED TODAY</div>
+          <div id="catchStatMbUsed" style="font-size: 13px; font-weight: 700; color: #f59e0b;">0</div>
+        </div>
+      </div>
+
+      <!-- Poke Balls in Bag Stock Strip -->
+      <div id="ballStockStrip" style="background: #0f172a; border: 1px solid #1e293b; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; box-shadow: none !important;">
+        <span style="font-weight: 600; color: #64748b;">Bag Balls:</span>
+        <span id="ballStockDetails" style="color: #cbd5e1;">Syncing bag inventory...</span>
+      </div>
+
+      <!-- Action Bar: Sync & Clear -->
+      <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+        <button id="refreshCatchLogBtn" type="button" class="btn btn-accent" style="flex: 1; height: 26px; font-size: 10.5px; box-shadow: none !important;" title="Request live inventory refresh from game view">&#8635; Sync Inventory</button>
+        <button id="clearCatchLogBtn" type="button" class="btn" style="height: 26px; font-size: 10.5px; padding: 0 10px; box-shadow: none !important;" title="Clear today's caught Pokemon list">&#128465; Clear</button>
+      </div>
+
+      <!-- Scrollable Live Caught Feed -->
+      <div id="catchFeedList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
+        <div id="catchEmptyPrompt" style="text-align: center; color: #64748b; font-size: 11px; padding: 30px 10px;">
+          <div style="font-size: 20px; margin-bottom: 6px; color: #34d399;">&#9918;</div>
+          <div style="font-weight: 600; color: #94a3b8;">No Pokemon caught yet today</div>
+          <div style="font-size: 10px; margin-top: 4px; color: #475569;">Target Pokemon automatically caught during hunts will appear here with sprite, variant, level, and timestamp.</div>
         </div>
       </div>
     </div>

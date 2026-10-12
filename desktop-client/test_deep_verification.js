@@ -42,6 +42,7 @@ const clientFiles = [
   'gym_leaders.json',
   'user_collection.json',
   'skills_database.json',
+  'type_chart_database.json',
   'test_client.js',
   'test_duplicate_and_catch.js',
   'test_deep_verification.js'
@@ -201,23 +202,36 @@ runTest('user_collection.json structure and completeness', () => {
 console.log('\n--- PIPELINE 4: COUNTER RECOMMENDATION ALGORITHM & COMBAT MATH ---');
 
 runTest('Type Chart Multiplier Mathematical Accuracy', () => {
-  // Super effective single type
+  // Super effective single type (2.0x)
   assert.strictEqual(teamEngine.getMoveEffectiveness('Water', ['Fire']), 2.0);
   assert.strictEqual(teamEngine.getMoveEffectiveness('Electric', ['Water']), 2.0);
   assert.strictEqual(teamEngine.getMoveEffectiveness('Ice', ['Dragon']), 2.0);
   assert.strictEqual(teamEngine.getMoveEffectiveness('Fighting', ['Normal']), 2.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Fairy', ['Dark']), 2.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Dark', ['Ghost']), 2.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Psychic', ['Fighting']), 2.0);
   
-  // Super effective dual type (4.0x)
+  // Super effective dual type (4.0x) - DelugeRPG Type Chart Matrices
   assert.strictEqual(teamEngine.getMoveEffectiveness('Grass', ['Water', 'Ground']), 4.0);
   assert.strictEqual(teamEngine.getMoveEffectiveness('Ice', ['Flying', 'Dragon']), 4.0);
   assert.strictEqual(teamEngine.getMoveEffectiveness('Fighting', ['Steel', 'Rock']), 4.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Fire', ['Bug', 'Steel']), 4.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Dark', ['Psychic', 'Ghost']), 4.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Ground', ['Fire', 'Steel']), 4.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Rock', ['Fire', 'Flying']), 4.0);
   
   // Resistance single type (0.5x)
   assert.strictEqual(teamEngine.getMoveEffectiveness('Fire', ['Water']), 0.5);
   assert.strictEqual(teamEngine.getMoveEffectiveness('Grass', ['Fire']), 0.5);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Fighting', ['Psychic']), 0.5);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Dark', ['Fairy']), 0.5);
   
-  // Double resistance (0.25x)
+  // Double resistance dual type (0.25x)
   assert.strictEqual(teamEngine.getMoveEffectiveness('Grass', ['Fire', 'Flying']), 0.25);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Bug', ['Fire', 'Flying']), 0.25);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Grass', ['Bug', 'Steel']), 0.25);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Fighting', ['Psychic', 'Bug']), 0.25);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Normal', ['Rock', 'Steel']), 0.25);
   
   // Immunities (0x)
   assert.strictEqual(teamEngine.getMoveEffectiveness('Electric', ['Ground']), 0.0);
@@ -225,16 +239,56 @@ runTest('Type Chart Multiplier Mathematical Accuracy', () => {
   assert.strictEqual(teamEngine.getMoveEffectiveness('Dragon', ['Fairy']), 0.0);
   assert.strictEqual(teamEngine.getMoveEffectiveness('Poison', ['Steel']), 0.0);
   assert.strictEqual(teamEngine.getMoveEffectiveness('Normal', ['Ghost']), 0.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Ground', ['Flying']), 0.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Psychic', ['Dark']), 0.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Fighting', ['Ghost']), 0.0);
+
+  // Dual-type cancellation to Neutral (2.0x * 0.5x = 1.0x)
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Bug', ['Psychic', 'Fighting']), 1.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Electric', ['Water', 'Ground']), 0.0);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Fire', ['Water', 'Grass']), 1.0);
 });
 
-runTest('Defensive Resistance Calculation', () => {
-  // Fire defender taking Grass attack: Grass vs Fire is 0.5x
+runTest('Type Chart Database Integrity & Parity Audit', () => {
+  const typeDb = require('./type_chart_database.json');
+  assert(typeDb && typeDb.meta, 'type_chart_database.json must have meta header');
+  assert.strictEqual(typeDb.types.length, 18, 'Must contain all 18 standard types');
+  assert.strictEqual(typeDb.meta.stab_multiplier, 1.5, 'STAB multiplier must be exactly 1.5x');
+  assert.strictEqual(typeDb.meta.total_defender_combinations, 171, 'Must contain 171 defender combinations');
+
+  // Verify full parity between type_chart_database and teamEngine for single & dual types
+  for (const defKey in typeDb.defenders) {
+    const entry = typeDb.defenders[defKey];
+    for (const atk of typeDb.types) {
+      const dbMult = entry.matchups[atk];
+      const engineMult = teamEngine.getMoveEffectiveness(atk, entry.types);
+      assert.strictEqual(engineMult, dbMult, `Parity mismatch for ${atk} vs ${defKey}: ${engineMult} !== ${dbMult}`);
+    }
+  }
+});
+
+runTest('Dual-Type Matchup Profiling & Ironclad Defense Evaluation', () => {
+  // Test Steel/Fairy defensive profile
+  const profile = teamEngine.getDefensiveProfile(['Steel', 'Fairy']);
+  assert.deepStrictEqual(profile.immunities.sort(), ['Dragon', 'Poison'].sort());
+  assert.deepStrictEqual(profile.doubleResists, ['Bug']);
+  assert(profile.weaknesses.includes('Fire') && profile.weaknesses.includes('Ground'), 'Must be weak to Fire and Ground');
+  assert.strictEqual(profile.quadWeaknesses.length, 0, 'Steel/Fairy has no quad weaknesses');
+
+  // Defensive Resistance Calculation
   const def1 = teamEngine.getDefensiveResistance(['Fire'], ['Grass']);
   assert.strictEqual(def1, 0.5);
   
-  // Ground defender taking Electric attack: Electric vs Ground is 0.0x
   const def2 = teamEngine.getDefensiveResistance(['Ground'], ['Electric']);
   assert.strictEqual(def2, 0.0);
+
+  // Test dual-type candidate defense against dual-type opponent:
+  // Moltres (Fire/Flying) vs Heracross (Bug/Fighting)
+  const moltres = { id: 'moltres_test', name: 'Moltres', types: ['Fire', 'Flying'], variant: 'Normal', level: 50, moves: [{ name: 'Air Slash', type: 'Flying', power: 75 }] };
+  const score = teamEngine.scoreVsSingleOpponent(moltres, ['Bug', 'Fighting'], 50);
+  assert.strictEqual(score.resistsAll, true, 'Moltres must resist all Heracross STAB attacks');
+  assert.strictEqual(score.worstDefRisk, 0.5, 'Worst incoming STAB must be 0.5x (Fighting: 0.5x, Bug: 0.25x)');
+  assert.strictEqual(score.bestMove.multiplier, 4.0, 'Air Slash must be 4.0x quad super effective');
 });
 
 runTest('Team Builder against Kanto Brock (Rock/Ground)', () => {
@@ -569,6 +623,73 @@ runTest('app.html & app.js: Live Search, Regional Filtering & DOM Clean Slate Au
   assert(dumps.includes('dump_pokemon_page_2.html'), 'dump_pokemon_page_2.html must remain');
 });
 
+runTest('app.html & app.js: Ads Inspector docked panel & telemetry UI audit', () => {
+  const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  assert(appHtml.includes('id="adsInspectorModal"'), 'adsInspectorModal must exist in app.html');
+  assert(appHtml.includes('id="adsInspectorMenuBtn"'), 'adsInspectorMenuBtn must exist in app.html');
+  assert(appHtml.includes('id="rescanAdsBtn"'), 'rescanAdsBtn must exist in app.html');
+  assert(appHtml.includes('id="clearAdsLogBtn"'), 'clearAdsLogBtn must exist in app.html');
+  assert(appHtml.includes('id="adsFeedList"'), 'adsFeedList must exist in app.html');
+
+  // Verify docked 1/4 layout ratio for adsInspectorModal
+  assert(appHtml.includes('#teamBuilderModal, #adsInspectorModal'), 'adsInspectorModal must share docked side panel CSS');
+
+  // Verify controller functions
+  assert(appJsContent.includes('function openAdsInspectorPanel()'), 'app.js must define openAdsInspectorPanel');
+  assert(appJsContent.includes('function closeAdsInspectorPanel()'), 'app.js must define closeAdsInspectorPanel');
+  assert(appJsContent.includes('function toggleAdsInspectorPanel()'), 'app.js must define toggleAdsInspectorPanel');
+  assert(appJsContent.includes('function renderAdsInspectorUI()'), 'app.js must define renderAdsInspectorUI');
+
+  // Zero-glow verification
+  const start = appHtml.indexOf('id="adsInspectorModal"');
+  assert(start !== -1, 'adsInspectorModal must exist in HTML');
+  const modalSlice = appHtml.slice(start, start + 3000);
+  assert(!modalSlice.includes('0 0 1'), 'Must not have glowing box-shadow in ads inspector modal');
+});
+
+runTest('app.html & app.js: Daily Auto-Catch Badge, Docked Panel, & Network Badge Relocation Audit', () => {
+  const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+
+  // Verify Toolbar Badge
+  assert(appHtml.includes('id="dailyCaughtBtn"'), 'dailyCaughtBtn must exist in app.html');
+  assert(appHtml.includes('id="caughtSummaryText"'), 'caughtSummaryText must exist in app.html');
+  assert(appHtml.includes('id="mbSummaryText"'), 'mbSummaryText must exist in app.html');
+
+  // Verify Network Badge Relocation inside Nav Dropdown
+  const navDropdownStart = appHtml.indexOf('id="navDropdown"');
+  assert(navDropdownStart !== -1, 'navDropdown must exist');
+  const navDropdownBlock = appHtml.slice(navDropdownStart, appHtml.indexOf('id="targetModal"'));
+  assert(navDropdownBlock.includes('id="networkBadge"'), 'networkBadge must be relocated inside navDropdown');
+  assert(navDropdownBlock.includes('id="netIcon"'), 'netIcon must be inside networkBadge in navDropdown');
+  assert(navDropdownBlock.includes('id="netText"'), 'netText must be inside networkBadge in navDropdown');
+
+  // Verify Docked Side Panel (1/4 ratio, flex: 1, zero modal backdrop)
+  assert(appHtml.includes('id="catchLogModal"'), 'catchLogModal must exist in app.html');
+  assert(appHtml.includes('#teamBuilderModal, #adsInspectorModal, #catchLogModal'), 'catchLogModal must share docked side panel CSS');
+  assert(appHtml.includes('id="catchFeedList"'), 'catchFeedList must exist in app.html');
+  assert(appHtml.includes('id="clearCatchLogBtn"'), 'clearCatchLogBtn must exist in app.html');
+  assert(appHtml.includes('id="refreshCatchLogBtn"'), 'refreshCatchLogBtn must exist in app.html');
+  assert(appHtml.includes('id="catchStatCount"'), 'catchStatCount must exist in app.html');
+  assert(appHtml.includes('id="catchStatMbStock"'), 'catchStatMbStock must exist in app.html');
+  assert(appHtml.includes('id="catchStatMbUsed"'), 'catchStatMbUsed must exist in app.html');
+
+  // Verify controller functions in app.js
+  assert(appJsContent.includes('function openCatchLogPanel()'), 'app.js must define openCatchLogPanel');
+  assert(appJsContent.includes('function closeCatchLogPanel()'), 'app.js must define closeCatchLogPanel');
+  assert(appJsContent.includes('function toggleCatchLogPanel()'), 'app.js must define toggleCatchLogPanel');
+  assert(appJsContent.includes('function renderCatchLogUI()'), 'app.js must define renderCatchLogUI');
+  assert(appJsContent.includes('function recordCaughtPokemon('), 'app.js must define recordCaughtPokemon');
+  assert(appJsContent.includes('function updateBallInventory('), 'app.js must define updateBallInventory');
+  assert(appJsContent.includes('function loadDailyCatchLog()'), 'app.js must define loadDailyCatchLog');
+  assert(appJsContent.includes('function saveDailyCatchLog()'), 'app.js must define saveDailyCatchLog');
+
+  // Verify zero glowing box-shadows on catch log elements
+  const catchLogStart = appHtml.indexOf('id="catchLogModal"');
+  assert(catchLogStart !== -1, 'catchLogModal must exist in HTML');
+  const catchModalSlice = appHtml.slice(catchLogStart, catchLogStart + 4000);
+  assert(!catchModalSlice.includes('0 0 1'), 'Must not have glowing box-shadow in catch log panel');
+});
+
 // -----------------------------------------------------------------------------
 // PIPELINE 6: IPC CHANNELS & CONTROLLER CONTRACT INTEGRITY
 // -----------------------------------------------------------------------------
@@ -632,6 +753,28 @@ runTest('IPC Channel: soft-session-flush parity (Zero-Logout Battle Cache Flush)
   assert(!flushBlock.includes("'cookies'"), 'soft-session-flush must NEVER wipe cookies (preserves login session)');
 });
 
+runTest('IPC Channel: ads-listener-update parity', () => {
+  assert(preloadJs.includes("ipcRenderer.sendToHost('ads-listener-update'"), 'game-preload.js must emit ads-listener-update');
+  assert(appJs.includes("event.channel === 'ads-listener-update'"), 'app.js must handle ads-listener-update');
+});
+
+runTest('IPC Channel: ad-detected-event parity', () => {
+  assert(preloadJs.includes("ipcRenderer.sendToHost('ad-detected-event'"), 'game-preload.js must emit ad-detected-event');
+  assert(appJs.includes("event.channel === 'ad-detected-event'"), 'app.js must handle ad-detected-event');
+});
+
+runTest('IPC Channel: scan-page-ads parity', () => {
+  assert(appJs.includes("delugeView.send('scan-page-ads')"), 'app.js must send scan-page-ads');
+  assert(preloadJs.includes("ipcRenderer.on('scan-page-ads'"), 'game-preload.js must listen for scan-page-ads');
+});
+
+runTest('IPC Channel: ball-inventory-update & request-ball-inventory parity', () => {
+  assert(preloadJs.includes("ipcRenderer.sendToHost('ball-inventory-update'"), 'game-preload.js must emit ball-inventory-update');
+  assert(appJs.includes("event.channel === 'ball-inventory-update'"), 'app.js must handle ball-inventory-update');
+  assert(appJs.includes("delugeView.send('request-ball-inventory')"), 'app.js must send request-ball-inventory');
+  assert(preloadJs.includes("ipcRenderer.on('request-ball-inventory'"), 'game-preload.js must listen for request-ball-inventory');
+});
+
 // -----------------------------------------------------------------------------
 // PIPELINE 7: TEAM APPLY STATE MACHINE & DOM MANIPULATION AUDIT
 // -----------------------------------------------------------------------------
@@ -643,6 +786,29 @@ runTest('Team Save Spy & Interceptor: Active on /team/edit', () => {
   assert(preloadJs.includes("team-intercept-captured"), 'Must send team-intercept-captured to host');
   assert(appJs.includes("team-intercept-captured"), 'app.js must handle team-intercept-captured');
   assert(mainJs.includes("NETWORK_POST"), 'main.js must intercept raw network POST requests');
+});
+
+runTest('Smooth Adblock Simulation & Parent Wrapper Collapse Engine Audit', () => {
+  assert(preloadJs.includes('function classifyAdElement('), 'classifyAdElement must exist');
+  assert(preloadJs.includes('function smoothCollapseAd('), 'smoothCollapseAd must exist');
+  assert(preloadJs.includes('function scanAllAdsInDOM()'), 'scanAllAdsInDOM must exist');
+  assert(preloadJs.includes('function initAdsObserver()'), 'initAdsObserver must exist');
+  assert(preloadJs.includes('function initAdPushesHook()'), 'initAdPushesHook must exist');
+  assert(preloadJs.includes('data-smooth-ad-collapsed'), 'data-smooth-ad-collapsed must be applied to ad elements');
+  assert(preloadJs.includes('data-ad-parent-collapsed'), 'data-ad-parent-collapsed must be applied to collapsed parent wrappers');
+  assert(preloadJs.includes('div:has(> ins.adsbygoogle:only-child)'), 'COSMETIC_AD_CSS must contain parent wrapper collapse rules');
+  assert(preloadJs.includes("div[id^=\"oa-360-\"]"), 'COSMETIC_AD_CSS must contain instant oa-360 rules');
+  assert(preloadJs.includes("optAd360 Network / Badge"), 'classifyAdElement must classify optAd360 units');
+});
+
+runTest('DelugeRPG Site Header & Navbar Strict Immunity Guard Audit', () => {
+  assert(preloadJs.includes('function healDelugeHeader()'), 'healDelugeHeader must exist');
+  assert(preloadJs.includes("pid === 'del_header'"), 'smoothCollapseAd must guard del_header from collapse');
+  assert(preloadJs.includes("pid === 'navwrap'"), 'smoothCollapseAd must guard navwrap from collapse');
+  assert(preloadJs.includes("'#del_header {'"), 'COSMETIC_AD_CSS must contain explicit #del_header immunity rule');
+  assert(preloadJs.includes("'#navwrap {'"), 'COSMETIC_AD_CSS must contain explicit #navwrap immunity rule');
+  assert(preloadJs.includes("'#menuad {'"), 'COSMETIC_AD_CSS must cleanly collapse #menuad slot');
+  assert(preloadJs.includes('preventScroll: true'), 'dispatchHumanClick must prevent viewport scroll on focus');
 });
 
 // -----------------------------------------------------------------------------

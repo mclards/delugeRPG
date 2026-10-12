@@ -3,4 +3,5 @@ node_modules/
 .DS_Store
 Thumbs.db
 desktop-client/dist/
+desktop-client/daily_catch_log.json
 

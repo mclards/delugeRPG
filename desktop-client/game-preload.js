@@ -169,11 +169,12 @@ let config = {
     hideAdsCosmetically: true
 };
 
-// --- OPTION B: COSMETIC AD HIDING ---
-// Satisfies DelugeRPG script verification over network while visually collapsing banners & dismissing interstitials
+// --- OPTION B: SMOOTH COSMETIC ADBLOCK & ADS LISTENER ENGINE ---
+// Preserves 100% network connectivity for DelugeRPG script verification
+// while eliminating blank wrapper gaps, layout jumping, and intrusive ads
 const COSMETIC_AD_STYLE_ID = 'stealth-cosmetic-ad-hide';
 const COSMETIC_AD_CSS = [
-    '/* DelugeRPG Option B: Cosmetic Ad Hiding (Preserves 1-click Skip button while collapsing banners) */',
+    '/* DelugeRPG Smooth Cosmetic Adblock Simulation (Network Intact, Zero-Shift Hiding) */',
     'div[id^="div-gpt-ad"],',
     'div[id*="-gpt-ad-"],',
     'div[id^="google_ads_iframe"],',
@@ -222,7 +223,16 @@ const COSMETIC_AD_CSS = [
     'div[class*="ad-overlay"],',
     'div[id*="ad-overlay"],',
     'div[class*="overlay-ad"],',
-    'div[id*="overlay-ad"] {',
+    'div[id*="overlay-ad"],',
+    'div[id^="oa-360-"],',
+    'div[id*="oa-360"],',
+    'div[class*="oa-360"],',
+    'div[id*="optad360"],',
+    'div[class*="optad360"],',
+    'a[href*="optad360"],',
+    'img[src*="optad360"],',
+    '[data-smooth-ad-collapsed="true"],',
+    '[data-ad-parent-collapsed="true"] {',
     '    display: none !important;',
     '    visibility: hidden !important;',
     '    height: 0 !important;',
@@ -233,13 +243,73 @@ const COSMETIC_AD_CSS = [
     '    max-width: 0 !important;',
     '    margin: 0 !important;',
     '    padding: 0 !important;',
+    '    border: none !important;',
+    '    outline: none !important;',
     '    opacity: 0 !important;',
     '    pointer-events: none !important;',
     '    overflow: hidden !important;',
+    '    background: transparent !important;',
+    '}',
+    '/* Eliminate empty layout wrappers hosting only ad units */',
+    'div:has(> ins.adsbygoogle:only-child),',
+    'div:has(> div[id^="div-gpt-ad"]:only-child),',
+    'div:has(> div[id^="oa-360-"]:only-child),',
+    'div:has(> iframe[id^="aswift_"]:only-child),',
+    'div:has(> iframe[src*="googleads"]:only-child) {',
+    '    height: 0 !important;',
+    '    min-height: 0 !important;',
+    '    max-height: 0 !important;',
+    '    margin: 0 !important;',
+    '    padding: 0 !important;',
+    '    border: none !important;',
+    '    overflow: hidden !important;',
+    '    background: transparent !important;',
     '}',
     '/* Restore viewport scroll/interaction if interstitial scripts attempt to lock it */',
     'html, body {',
     '    overflow: auto !important;',
+    '}',
+    '/* Core DelugeRPG Layout Immunity: Top header, navbar, logo, user info and game maps */',
+    '#del_header {',
+    '    display: block !important;',
+    '    visibility: visible !important;',
+    '    height: auto !important;',
+    '    min-height: initial !important;',
+    '    max-height: none !important;',
+    '    opacity: 1 !important;',
+    '    pointer-events: auto !important;',
+    '    overflow: visible !important;',
+    '}',
+    '#navwrap {',
+    '    display: block !important;',
+    '    visibility: visible !important;',
+    '    height: auto !important;',
+    '    min-height: initial !important;',
+    '    max-height: none !important;',
+    '    opacity: 1 !important;',
+    '    pointer-events: auto !important;',
+    '    overflow: visible !important;',
+    '}',
+    '#del_header #navwrap,',
+    '#del_header #navwrap *,',
+    '#logo,',
+    '#logo *,',
+    '#navid,',
+    '#navid *,',
+    '#navinf,',
+    '#navinf * {',
+    '    visibility: visible !important;',
+    '    opacity: 1 !important;',
+    '    pointer-events: auto !important;',
+    '}',
+    '#menuad {',
+    '    height: 0px !important;',
+    '    min-height: 0px !important;',
+    '    max-height: 0px !important;',
+    '    margin: 0px !important;',
+    '    padding: 0px !important;',
+    '    overflow: hidden !important;',
+    '    display: none !important;',
     '}'
 ].join('\n');
 
@@ -290,6 +360,9 @@ function dismissGoogleVignetteOverlay() {
         const fixedElements = document.querySelectorAll('div[style*="position: fixed"], div[style*="position:fixed"], ins.adsbygoogle[data-vignette-loaded]');
         for (let f = 0; f < fixedElements.length; f++) {
             const el = fixedElements[f];
+            if (el.id === 'del_header' || el.id === 'navwrap' || (el.closest && el.closest('#del_header, #navwrap, nav'))) {
+                continue;
+            }
             const hasAdChild = el.querySelector('iframe[src*="google"], iframe[src*="doubleclick"], iframe[id^="aswift"], ins.adsbygoogle, #dismiss-button');
             const isAd = el.id && (el.id.indexOf('aswift') !== -1 || el.id.indexOf('google') !== -1);
             if (hasAdChild || isAd || el.hasAttribute('data-vignette-loaded')) {
@@ -305,6 +378,397 @@ function dismissGoogleVignetteOverlay() {
         }
         if (document.documentElement && document.documentElement.style && document.documentElement.style.overflow === 'hidden') {
             document.documentElement.style.overflow = '';
+        }
+    } catch (_) {}
+}
+
+// --- ACTIVE ADS LISTENER & TELEMETRY REGISTRY ---
+const detectedAdsRegistry = new Map();
+let adsBroadcastDebounceTimer = null;
+let adsObserverInstance = null;
+
+const AD_DISCOVERY_SELECTORS = [
+    'ins.adsbygoogle',
+    'ins.adsbygoogle-noablate',
+    'div[id^="div-gpt-ad"]',
+    'div[id*="-gpt-ad-"]',
+    'iframe[id^="google_ads_iframe"]',
+    'iframe[id*="google_ads_iframe"]',
+    'iframe[id^="aswift_"]',
+    'iframe[name^="aswift_"]',
+    'iframe[id*="ad_iframe"]',
+    'iframe[src*="doubleclick.net"]',
+    'iframe[src*="googlesyndication.com"]',
+    'iframe[src*="googleads"]',
+    'div[class*="grippy-host"]',
+    'div[data-google-vignette]',
+    'div[id*="google-interstitial"]',
+    'div[class*="google-interstitial"]',
+    'div[id*="google-rewarded-video"]',
+    'div[aria-label="Advertisement"]',
+    '.advertisement',
+    '.ad-slot',
+    '.ad-container',
+    '.ad-wrapper',
+    '.ad-banner',
+    '.ad-leaderboard',
+    '.ad_unit',
+    '.ad-unit',
+    'div[id="top-ad"]',
+    'div[id="bottom-ad"]',
+    'div[id="side-ad"]',
+    'div[id="header-ad"]',
+    'div[id="footer-ad"]',
+    'div[id^="oa-360-"]',
+    'div[id*="oa-360"]',
+    'div[class*="oa-360"]',
+    'div[id*="optad360"]',
+    'div[class*="optad360"]',
+    'a[href*="optad360"]',
+    'img[src*="optad360"]'
+];
+
+function classifyAdElement(el) {
+    if (!el || !el.tagName || el.id === 'del_header' || el.id === 'navwrap' || el.tagName === 'NAV') return null;
+    const tag = el.tagName.toUpperCase();
+    const id = el.id || '';
+    const cls = typeof el.className === 'string' ? el.className : '';
+    const src = el.src || '';
+
+    let type = '';
+    let slotId = '';
+
+    if (tag === 'INS' && (cls.includes('adsbygoogle') || el.hasAttribute('data-ad-client') || el.hasAttribute('data-ad-slot'))) {
+        type = 'Google AdSense';
+        slotId = el.getAttribute('data-ad-slot') || el.getAttribute('data-ad-client') || '';
+    } else if (id.startsWith('div-gpt-ad') || id.includes('-gpt-ad-') || (tag === 'IFRAME' && id.includes('google_ads_iframe'))) {
+        type = 'Google Publisher Tag (GPT)';
+        slotId = id;
+    } else if (id.startsWith('oa-360-') || id.includes('oa-360') || id.includes('optad360') || cls.includes('oa-360') || cls.includes('optad360') || (tag === 'A' && el.href && el.href.includes('optad360')) || (tag === 'IMG' && src.includes('optad360'))) {
+        type = 'optAd360 Network / Badge';
+        slotId = id || 'optad360';
+    } else if (el.hasAttribute('data-google-vignette') || id.includes('vignette') || el.hasAttribute('data-vignette-loaded') || id === 'dismiss-button') {
+        type = 'Google Vignette Interstitial';
+    } else if (cls.includes('grippy-host') || cls.includes('grippy') || id.includes('anchor')) {
+        type = 'Sticky / Anchor Banner';
+    } else if (id.includes('rewarded-video') || cls.includes('video-ad')) {
+        type = 'Video / Rewarded Ad';
+    } else if (tag === 'IFRAME' && (id.startsWith('aswift_') || (el.name && el.name.startsWith('aswift_')))) {
+        type = 'Google AdSense';
+    } else if (tag === 'IFRAME' && (src.includes('doubleclick') || src.includes('googlesyndication') || src.includes('googleads') || src.includes('amazon-adsystem') || src.includes('criteo') || src.includes('nitropay') || src.includes('playwire') || src.includes('venatus'))) {
+        type = 'Third-Party Ad Network';
+    } else if (id === 'top-ad' || id === 'bottom-ad' || id === 'side-ad' || id === 'header-ad' || id === 'footer-ad' || cls.includes('ad-container') || cls.includes('ad-wrapper') || cls.includes('ad-banner') || cls.includes('ad-leaderboard') || cls.includes('advertisement') || cls.includes('ad_unit') || cls.includes('ad-unit')) {
+        type = 'Deluge Ad Container';
+    } else if (el.textContent && /^(advertisement|sponsored|ads? by google)$/i.test(el.textContent.trim())) {
+        type = 'Ad Notice Label';
+    }
+
+    if (!type) return null;
+
+    let rect = { width: 0, height: 0, top: 0, left: 0 };
+    try {
+        const clientRect = el.getBoundingClientRect();
+        rect = {
+            width: Math.round(clientRect.width),
+            height: Math.round(clientRect.height),
+            top: Math.round(clientRect.top),
+            left: Math.round(clientRect.left)
+        };
+    } catch (_) {}
+
+    let parentInfo = 'None';
+    if (el.parentElement) {
+        const p = el.parentElement;
+        parentInfo = p.tagName + (p.id ? '#' + p.id : (p.className && typeof p.className === 'string' ? '.' + p.className.split(' ')[0] : ''));
+    }
+
+    return {
+        type: type,
+        tag: tag,
+        elementId: id,
+        classes: cls,
+        slotId: slotId,
+        src: src ? src.slice(0, 100) : '',
+        dimensions: rect,
+        parentContainer: parentInfo,
+        status: 'Smoothly Collapsed (0px)',
+        pageUrl: window.location.pathname + window.location.search,
+        detectedAt: new Date().toLocaleTimeString()
+    };
+}
+
+function getAdElementKey(el, adType) {
+    if (el.id) return `${adType}:${el.tagName}#${el.id}`;
+    const slot = el.getAttribute && (el.getAttribute('data-ad-slot') || el.getAttribute('data-ad-client'));
+    if (slot) return `${adType}:${el.tagName}[slot=${slot}]`;
+    if (el.src) return `${adType}:${el.tagName}[src=${el.src.slice(0, 60)}]`;
+    const parentTag = el.parentElement ? el.parentElement.tagName : 'ROOT';
+    const cls = el.className && typeof el.className === 'string' ? el.className.split(' ').slice(0, 2).join('.') : '';
+    return `${adType}:${parentTag}>${el.tagName}.${cls}`;
+}
+
+function smoothCollapseAd(el, adInfo) {
+    if (config.hideAdsCosmetically === false) return;
+    try {
+        // 1. Smooth zero-footprint collapse on target element
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('height', '0px', 'important');
+        el.style.setProperty('min-height', '0px', 'important');
+        el.style.setProperty('max-height', '0px', 'important');
+        el.style.setProperty('width', '0px', 'important');
+        el.style.setProperty('min-width', '0px', 'important');
+        el.style.setProperty('max-width', '0px', 'important');
+        el.style.setProperty('margin', '0px', 'important');
+        el.style.setProperty('padding', '0px', 'important');
+        el.style.setProperty('border', 'none', 'important');
+        el.style.setProperty('outline', 'none', 'important');
+        el.style.setProperty('opacity', '0', 'important');
+        el.style.setProperty('pointer-events', 'none', 'important');
+        el.style.setProperty('overflow', 'hidden', 'important');
+        el.setAttribute('data-smooth-ad-collapsed', 'true');
+
+        // 2. Parent wrapper collapse (eliminates empty white/gray boxes and space gaps)
+        const PROTECTED_CORE_IDS = new Set([
+            'del_header', 'navwrap', 'navid', 'navinf', 'logo', 'map',
+            'catch', 'battle', 'opponent', 'player', 'viewpokes', 'pokebox',
+            'userloggedin', 'content', 'main', 'userpokeballs', 'myteam'
+        ]);
+
+        let parent = el.parentElement;
+        let depth = 0;
+        while (parent && depth < 3 && parent !== document.body && parent !== document.documentElement) {
+            const rawPid = parent.id || '';
+            const pid = rawPid.toLowerCase();
+            const pcls = (parent.className && typeof parent.className === 'string' ? parent.className : '').toLowerCase();
+
+            // STRICT DELUGERPG IMMUNITY: Stop traversal immediately at navigation and core game containers
+            if (
+                PROTECTED_CORE_IDS.has(pid) ||
+                parent.tagName === 'NAV' ||
+                parent.tagName === 'HEADER' ||
+                pid === 'del_header' ||
+                pid === 'navwrap' ||
+                (parent.querySelector && parent.querySelector('#navwrap, nav, #logo, #userloggedin, #map, #opponent, #player, #viewpokes')) ||
+                (parent.closest && parent.closest('#navwrap, nav, #logo, #userloggedin'))
+            ) {
+                break;
+            }
+
+            // Word-boundary token check to avoid false positives (e.g. 'header', 'trade', 'badge', 'shadow', 'loading')
+            const isAdParent = /(^|[-_]|menu)(ads?|adunit|advert|advertisement|adcontainer|adbanner|banner|adwrapper|adslot)([-_]|$)/i.test(pid) ||
+                               /(^|[-_])(ads?|adunit|advert|advertisement|adcontainer|adbanner|banner|adwrapper|adslot|google-auto-placed)([-_]|$)/i.test(pcls) ||
+                               pid.includes('gpt-ad') || pid.includes('aswift');
+
+            let nonAdChildrenCount = 0;
+            if (parent.children) {
+                for (let c = 0; c < parent.children.length; c++) {
+                    const child = parent.children[c];
+                    if (!child.hasAttribute('data-smooth-ad-collapsed') && child.tagName !== 'SCRIPT' && child.tagName !== 'STYLE' && child.tagName !== 'BR') {
+                        const childText = (child.textContent || '').trim();
+                        const hasMediaOrNav = child.querySelector && child.querySelector('img, svg, canvas, nav, a, button, input, iframe:not([src*="google"]):not([src*="doubleclick"])');
+                        if ((childText.length > 0 && !/^(advertisement|sponsored|ads? by google)$/i.test(childText)) || hasMediaOrNav) {
+                            nonAdChildrenCount++;
+                        }
+                    }
+                }
+            }
+
+            if (isAdParent || nonAdChildrenCount === 0) {
+                parent.style.setProperty('height', '0px', 'important');
+                parent.style.setProperty('min-height', '0px', 'important');
+                parent.style.setProperty('max-height', '0px', 'important');
+                parent.style.setProperty('margin', '0px', 'important');
+                parent.style.setProperty('padding', '0px', 'important');
+                parent.style.setProperty('border', 'none', 'important');
+                parent.style.setProperty('outline', 'none', 'important');
+                parent.style.setProperty('overflow', 'hidden', 'important');
+                parent.style.setProperty('background', 'transparent', 'important');
+                parent.setAttribute('data-ad-parent-collapsed', 'true');
+                if (adInfo) adInfo.status = 'Parent Wrapper Collapsed';
+            }
+            parent = parent.parentElement;
+            depth++;
+        }
+
+        // 3. Clear Google Auto Ads body padding that causes huge top/bottom gaps
+        if (adInfo && adInfo.type === 'Sticky / Anchor Banner') {
+            if (document.body) {
+                document.body.style.removeProperty('padding-top');
+                document.body.style.removeProperty('padding-bottom');
+            }
+            if (document.documentElement) {
+                document.documentElement.style.removeProperty('padding-top');
+                document.documentElement.style.removeProperty('padding-bottom');
+            }
+        }
+    } catch (_) {}
+}
+
+function inspectAndRegisterAd(el) {
+    if (!el || el.nodeType !== 1) return null;
+    const info = classifyAdElement(el);
+    if (!info) return null;
+
+    const key = getAdElementKey(el, info.type);
+    const isNew = !detectedAdsRegistry.has(key);
+
+    smoothCollapseAd(el, info);
+
+    detectedAdsRegistry.set(key, info);
+
+    if (isNew) {
+        try {
+            ipcRenderer.sendToHost('ad-detected-event', info);
+        } catch (_) {}
+    }
+    scheduleAdsBroadcast();
+    return info;
+}
+
+function healDelugeHeader() {
+    try {
+        const delHeader = document.getElementById('del_header');
+        if (delHeader) {
+            delHeader.removeAttribute('data-ad-parent-collapsed');
+            delHeader.removeAttribute('data-smooth-ad-collapsed');
+            delHeader.style.removeProperty('display');
+            delHeader.style.removeProperty('height');
+            delHeader.style.removeProperty('min-height');
+            delHeader.style.removeProperty('max-height');
+            delHeader.style.removeProperty('margin');
+            delHeader.style.removeProperty('padding');
+            delHeader.style.removeProperty('overflow');
+            delHeader.style.removeProperty('visibility');
+            delHeader.style.removeProperty('opacity');
+            delHeader.style.removeProperty('pointer-events');
+            delHeader.style.setProperty('display', 'block', 'important');
+            delHeader.style.setProperty('visibility', 'visible', 'important');
+            delHeader.style.setProperty('opacity', '1', 'important');
+        }
+        const navwrap = document.getElementById('navwrap');
+        if (navwrap) {
+            navwrap.removeAttribute('data-ad-parent-collapsed');
+            navwrap.removeAttribute('data-smooth-ad-collapsed');
+            navwrap.style.removeProperty('display');
+            navwrap.style.removeProperty('height');
+            navwrap.style.removeProperty('min-height');
+            navwrap.style.removeProperty('max-height');
+            navwrap.style.removeProperty('overflow');
+            navwrap.style.removeProperty('visibility');
+            navwrap.style.removeProperty('opacity');
+            navwrap.style.setProperty('display', 'block', 'important');
+            navwrap.style.setProperty('visibility', 'visible', 'important');
+            navwrap.style.setProperty('opacity', '1', 'important');
+        }
+        const menuad = document.getElementById('menuad');
+        if (menuad) {
+            menuad.style.setProperty('display', 'none', 'important');
+            menuad.style.setProperty('height', '0px', 'important');
+            menuad.style.setProperty('overflow', 'hidden', 'important');
+        }
+    } catch (_) {}
+}
+
+function scanAllAdsInDOM() {
+    try {
+        for (let i = 0; i < AD_DISCOVERY_SELECTORS.length; i++) {
+            const elements = document.querySelectorAll(AD_DISCOVERY_SELECTORS[i]);
+            for (let j = 0; j < elements.length; j++) {
+                inspectAndRegisterAd(elements[j]);
+            }
+        }
+
+        // Clean notice labels (e.g. text containing "Advertisement")
+        const labelCandidates = document.querySelectorAll('p, div, span, small');
+        for (let l = 0; l < labelCandidates.length; l++) {
+            const el = labelCandidates[l];
+            if (el.closest && el.closest('#del_header, #navwrap, nav, #logo, #userloggedin')) continue;
+            if (el.children.length === 0 && el.textContent) {
+                const txt = el.textContent.trim();
+                if (/^(advertisement|sponsored|ads? by google)$/i.test(txt)) {
+                    inspectAndRegisterAd(el);
+                }
+            }
+        }
+        healDelugeHeader();
+    } catch (_) {}
+}
+
+function scheduleAdsBroadcast() {
+    if (adsBroadcastDebounceTimer) clearTimeout(adsBroadcastDebounceTimer);
+    adsBroadcastDebounceTimer = setTimeout(() => {
+        try {
+            const list = Array.from(detectedAdsRegistry.values());
+            const types = {};
+            for (let i = 0; i < list.length; i++) {
+                const t = list[i].type;
+                types[t] = (types[t] || 0) + 1;
+            }
+            ipcRenderer.sendToHost('ads-listener-update', {
+                summary: {
+                    total: list.length,
+                    types: types,
+                    pageUrl: window.location.pathname + window.location.search
+                },
+                ads: list
+            });
+        } catch (_) {}
+    }, 100);
+}
+
+function initAdsObserver() {
+    if (adsObserverInstance) return;
+    try {
+        const root = document.documentElement || document.body;
+        if (!root) return;
+
+        adsObserverInstance = new MutationObserver((mutations) => {
+            let shouldScan = false;
+            for (let m = 0; m < mutations.length; m++) {
+                const mut = mutations[m];
+                if (mut.addedNodes && mut.addedNodes.length > 0) {
+                    for (let n = 0; n < mut.addedNodes.length; n++) {
+                        const node = mut.addedNodes[n];
+                        if (node.nodeType === 1) {
+                            inspectAndRegisterAd(node);
+                            shouldScan = true;
+                        }
+                    }
+                }
+            }
+            if (shouldScan) {
+                vaccinateLinksAgainstVignettes();
+                dismissGoogleVignetteOverlay();
+                scanAllAdsInDOM();
+            }
+        });
+
+        adsObserverInstance.observe(root, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'id', 'style', 'src']
+        });
+    } catch (_) {}
+}
+
+function initAdPushesHook() {
+    try {
+        if (typeof window !== 'undefined') {
+            if (!window.adsbygoogle) {
+                window.adsbygoogle = [];
+            }
+            if (!window.__adsbygoogle_hooked) {
+                window.__adsbygoogle_hooked = true;
+                const originalPush = window.adsbygoogle.push;
+                window.adsbygoogle.push = function(...args) {
+                    try {
+                        setTimeout(scanAllAdsInDOM, 50);
+                    } catch (_) {}
+                    return originalPush ? originalPush.apply(this, args) : [].push.apply(this, args);
+                };
+            }
         }
     } catch (_) {}
 }
@@ -326,16 +790,59 @@ function applyCosmeticAdHiding() {
             }
             vaccinateLinksAgainstVignettes();
             dismissGoogleVignetteOverlay();
+            healDelugeHeader();
+            scanAllAdsInDOM();
+            initAdsObserver();
+            initAdPushesHook();
         } else {
             if (styleEl && styleEl.parentNode) {
                 styleEl.parentNode.removeChild(styleEl);
             }
+            healDelugeHeader();
         }
     } catch (_) {}
 }
 
-// Initial application of Option B
+// Initial application of Option B & Ads Listener
+healDelugeHeader();
 applyCosmeticAdHiding();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        healDelugeHeader();
+        applyCosmeticAdHiding();
+        scanAllAdsInDOM();
+        initAdsObserver();
+    });
+} else {
+    healDelugeHeader();
+    scanAllAdsInDOM();
+    initAdsObserver();
+}
+window.addEventListener('load', () => {
+    healDelugeHeader();
+    scanAllAdsInDOM();
+});
+
+// Periodic lightweight sweep (every 2.5s) to catch delayed or asynchronously injected ads
+setInterval(() => {
+    if (config.hideAdsCosmetically !== false) {
+        vaccinateLinksAgainstVignettes();
+        dismissGoogleVignetteOverlay();
+        healDelugeHeader();
+        scanAllAdsInDOM();
+    }
+}, 2500);
+
+// Host IPC triggers for Ads Listener
+ipcRenderer.on('scan-page-ads', () => {
+    scanAllAdsInDOM();
+    scheduleAdsBroadcast();
+});
+
+ipcRenderer.on('clear-ads-registry', () => {
+    detectedAdsRegistry.clear();
+    scheduleAdsBroadcast();
+});
 
 let configSynced = false;
 let lastSyncedConfigStr = '';
@@ -443,7 +950,7 @@ function dispatchHumanClick(el, callback) {
 
         el.dispatchEvent(new MouseEvent('mousedown', downProps));
 
-        try { if (typeof el.focus === 'function') el.focus(); } catch (_) {}
+        try { if (typeof el.focus === 'function') el.focus({ preventScroll: true }); } catch (_) {}
 
         const finishAction = () => {
             const upProps = Object.assign({}, moveProps, { buttons: 0, button: 0 });
@@ -1578,6 +2085,43 @@ function triggerTargetFound(targetName, category) {
             sessionStorage.setItem('deluge_autocatch_active', 'true');
             sessionStorage.setItem('deluge_autocatch_target', targetName);
             sessionStorage.removeItem('deluge_autocatch_thrown');
+
+            let spriteUrl = '';
+            const encBox = encContainer || getEncounterContainer();
+            const spriteImg = (encBox ? encBox.querySelector('img[src*="/pokemon/"], img[src*="/sprites/"], img[src*="/dex/"], img[src*="/regular/"], img[src*="/shiny/"], img[src*="/retro/"], img[src*="/chrome/"], img[src*="/metallic/"], img[src*="/shadow/"], img[src*="/ghostly/"], img[src*="/dark/"], img[src*="/mirage/"], img[src*="/negative/"], img[src*="delugerpg"]') : null) ||
+                document.querySelector('#showpoke img, .showpoke img, #dexy img, .dexy img, img[src*="/sprites/"], img[src*="/pokemon/"]');
+            if (spriteImg && spriteImg.src) {
+                spriteUrl = spriteImg.src;
+            }
+
+            let variant = 'Normal';
+            const tLower = targetName.toLowerCase();
+            if (tLower.indexOf('shiny') !== -1) variant = 'Shiny';
+            else if (tLower.indexOf('retro') !== -1) variant = 'Retro';
+            else if (tLower.indexOf('chrome') !== -1) variant = 'Chrome';
+            else if (tLower.indexOf('metallic') !== -1) variant = 'Metallic';
+            else if (tLower.indexOf('shadow') !== -1) variant = 'Shadow';
+            else if (tLower.indexOf('ghostly') !== -1) variant = 'Ghostly';
+            else if (tLower.indexOf('dark') !== -1) variant = 'Dark';
+            else if (tLower.indexOf('mirage') !== -1) variant = 'Mirage';
+            else if (tLower.indexOf('negative') !== -1) variant = 'Negative';
+
+            const lvlMatch = targetName.match(/\(Lv\s*(\d+)/i) || (encBox ? (encBox.innerText || '').match(/Lv[.:\s]*(\d+)/i) : null);
+            const level = lvlMatch ? lvlMatch[1] : '?';
+
+            let cleanName = targetName.replace(/\s*\(Lv\s*\d+\+?\)\s*/i, '').replace(/^(Wild Encounter|Mega Line:|Ultra Beast:|Paradox:)\s*/i, '').trim();
+
+            const detailsObj = {
+                name: cleanName || targetName,
+                fullName: targetName,
+                variant: variant,
+                level: level,
+                sprite: spriteUrl,
+                category: category || 'Wild Encounter',
+                ball: 'Master Ball',
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            };
+            sessionStorage.setItem('deluge_autocatch_details', JSON.stringify(detailsObj));
         } catch (_) {}
 
         const catchDelay = getRandomCatchDelay(1000, 10000);
@@ -2215,6 +2759,96 @@ window.addEventListener('wheel', (e) => {
     }
 }, { capture: true, passive: false });
 
+// --- LIVE BALL INVENTORY & AUTO-CATCH METRICS ---
+let lastScrapedMasterBall = null;
+
+function scrapeBallInventory() {
+    const inventory = {
+        masterBall: null,
+        ultraBall: null,
+        greatBall: null,
+        pokeBall: null,
+        rawSummary: ''
+    };
+
+    // 1. Check battle screen ball radio buttons and labels
+    const ballRadios = Array.from(document.querySelectorAll('input[type="radio"], input[type="submit"], button, label'));
+    for (let i = 0; i < ballRadios.length; i++) {
+        const el = ballRadios[i];
+        let text = (el.textContent || el.innerText || el.value || '').trim();
+        if (!text && el.id) {
+            const lbl = document.querySelector('label[for="' + el.id + '"]');
+            if (lbl) text = lbl.textContent || '';
+        }
+        if (!text) continue;
+
+        if (/master\s*ball/i.test(text)) {
+            const m = text.match(/master\s*ball[^\d(]*\((\d+)\)/i) || text.match(/master\s*ball[^\d\n]*[:x\s]+(\d+)/i) || text.match(/\((\d+)\)/);
+            if (m && inventory.masterBall === null) inventory.masterBall = parseInt(m[1], 10);
+        }
+        if (/ultra\s*ball/i.test(text)) {
+            const m = text.match(/ultra\s*ball[^\d(]*\((\d+)\)/i) || text.match(/ultra\s*ball[^\d\n]*[:x\s]+(\d+)/i);
+            if (m && inventory.ultraBall === null) inventory.ultraBall = parseInt(m[1], 10);
+        }
+        if (/great\s*ball/i.test(text)) {
+            const m = text.match(/great\s*ball[^\d(]*\((\d+)\)/i) || text.match(/great\s*ball[^\d\n]*[:x\s]+(\d+)/i);
+            if (m && inventory.greatBall === null) inventory.greatBall = parseInt(m[1], 10);
+        }
+        if (/poke\s*ball/i.test(text) && !/master|ultra|great/i.test(text)) {
+            const m = text.match(/poke\s*ball[^\d(]*\((\d+)\)/i) || text.match(/(?:^|\W)pokeballs?[^\d\n]*[:x\s]+(\d+)/i);
+            if (m && inventory.pokeBall === null) inventory.pokeBall = parseInt(m[1], 10);
+        }
+    }
+
+    // 2. Check map/bag user container (e.g. #userpokeballs, .userpokeballs, .bag, #inventory)
+    const container = document.getElementById('userpokeballs') ||
+                      document.querySelector('.userpokeballs') ||
+                      document.getElementById('inventory') ||
+                      document.querySelector('.bag');
+    const containerText = container ? (container.innerText || container.textContent || '') : (document.body ? document.body.innerText || '' : '');
+
+    if (containerText) {
+        if (inventory.masterBall === null) {
+            const m = containerText.match(/master\s*ball[^\d\n]*[:x\s]+(\d+)/i) || containerText.match(/master\s*ball[^\d(]*\((\d+)\)/i);
+            if (m) inventory.masterBall = parseInt(m[1], 10);
+        }
+        if (inventory.ultraBall === null) {
+            const m = containerText.match(/ultra\s*ball[^\d\n]*[:x\s]+(\d+)/i) || containerText.match(/ultra\s*ball[^\d(]*\((\d+)\)/i);
+            if (m) inventory.ultraBall = parseInt(m[1], 10);
+        }
+        if (inventory.greatBall === null) {
+            const m = containerText.match(/great\s*ball[^\d\n]*[:x\s]+(\d+)/i) || containerText.match(/great\s*ball[^\d(]*\((\d+)\)/i);
+            if (m) inventory.greatBall = parseInt(m[1], 10);
+        }
+        if (inventory.pokeBall === null) {
+            const m = containerText.match(/(?:^|\W)pokeballs?[^\d\n]*[:x\s]+(\d+)/i) || containerText.match(/poke\s*ball[^\d(]*\((\d+)\)/i);
+            if (m) inventory.pokeBall = parseInt(m[1], 10);
+        }
+    }
+
+    const parts = [];
+    if (inventory.pokeBall !== null) parts.push('Poke: ' + inventory.pokeBall);
+    if (inventory.greatBall !== null) parts.push('Great: ' + inventory.greatBall);
+    if (inventory.ultraBall !== null) parts.push('Ultra: ' + inventory.ultraBall);
+    if (inventory.masterBall !== null) parts.push('Master: ' + inventory.masterBall);
+    inventory.rawSummary = parts.join(' | ');
+
+    return inventory;
+}
+
+function checkAndSyncBallInventory(force = false) {
+    try {
+        const inv = scrapeBallInventory();
+        const hasData = inv.masterBall !== null || inv.ultraBall !== null || inv.greatBall !== null || inv.pokeBall !== null;
+        if (hasData || force) {
+            if (force || inv.masterBall !== lastScrapedMasterBall) {
+                lastScrapedMasterBall = inv.masterBall;
+                ipcRenderer.sendToHost('ball-inventory-update', inv);
+            }
+        }
+    } catch (_) {}
+}
+
 // --- AUTO-CATCH (MASTER BALL) LIFECYCLE ENGINE ---
 let autoCatchStepInProgress = false;
 
@@ -2256,6 +2890,7 @@ function runAutoCatchLifecycle() {
         autoCatchStepInProgress = true;
         let targetName = 'Target Pokemon';
         let remainingStock = null;
+        let caughtData = null;
         try {
             targetName = sessionStorage.getItem('deluge_autocatch_target') || 'Target Pokemon';
             const rawStock = sessionStorage.getItem('deluge_autocatch_stock');
@@ -2263,11 +2898,34 @@ function runAutoCatchLifecycle() {
                 const s = parseInt(rawStock, 10);
                 if (!isNaN(s) && s > 0) remainingStock = s - 1;
             }
+            const rawDetails = sessionStorage.getItem('deluge_autocatch_details');
+            if (rawDetails) {
+                try {
+                    caughtData = JSON.parse(rawDetails);
+                } catch (_) {}
+            }
             sessionStorage.removeItem('deluge_autocatch_active');
             sessionStorage.removeItem('deluge_autocatch_thrown');
             sessionStorage.removeItem('deluge_autocatch_target');
             sessionStorage.removeItem('deluge_autocatch_stock');
+            sessionStorage.removeItem('deluge_autocatch_details');
         } catch (_) {}
+
+        if (!caughtData) {
+            caughtData = {
+                name: targetName,
+                fullName: targetName,
+                variant: 'Normal',
+                level: '?',
+                sprite: '',
+                category: 'Wild Encounter',
+                ball: 'Master Ball',
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            };
+        }
+        if (remainingStock !== null) {
+            lastScrapedMasterBall = remainingStock;
+        }
 
         const returnDelay = getRandomCatchDelay(1000, 10000);
         ipcRenderer.sendToHost('autocatch-status', {
@@ -2280,7 +2938,8 @@ function runAutoCatchLifecycle() {
             ipcRenderer.sendToHost('autocatch-status', {
                 step: 'completed',
                 target: targetName,
-                stockRemaining: remainingStock
+                stockRemaining: remainingStock,
+                pokemon: caughtData
             });
             dispatchHumanClick(returnBtn, () => {
                 autoCatchStepInProgress = false;
@@ -2409,6 +3068,8 @@ function runAutoCatchLifecycle() {
         autoCatchStepInProgress = true;
         if (typeof masterStock === 'number') {
             try { sessionStorage.setItem('deluge_autocatch_stock', String(masterStock)); } catch (_) {}
+            lastScrapedMasterBall = masterStock;
+            checkAndSyncBallInventory(false);
         }
 
         if (!masterRadio.checked) {
@@ -2476,14 +3137,26 @@ function runAutoCatchLifecycle() {
     }
 }
 
-// Attach Auto-Catch listeners
+// Attach Auto-Catch and Ball Inventory sync listeners
 setInterval(runAutoCatchLifecycle, 400);
+setInterval(() => checkAndSyncBallInventory(false), 4000);
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', runAutoCatchLifecycle);
+    document.addEventListener('DOMContentLoaded', () => {
+        runAutoCatchLifecycle();
+        checkAndSyncBallInventory(false);
+    });
 } else {
     runAutoCatchLifecycle();
+    checkAndSyncBallInventory(false);
 }
-window.addEventListener('load', runAutoCatchLifecycle);
+window.addEventListener('load', () => {
+    runAutoCatchLifecycle();
+    checkAndSyncBallInventory(false);
+});
+
+ipcRenderer.on('request-ball-inventory', () => {
+    checkAndSyncBallInventory(true);
+});
 
 // --- GYM BATTLE TEAM BUILDER GUEST HANDLERS ---
 function parsePokemonRowsFromHtml(html) {

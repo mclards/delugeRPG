@@ -8,6 +8,19 @@ try {
   skillsMap = {};
 }
 
+let typeChartDatabase = null;
+try {
+  typeChartDatabase = require('./type_chart_database.json');
+} catch (e) {
+  typeChartDatabase = null;
+}
+
+const ALL_TYPES = [
+  'Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice',
+  'Fighting', 'Poison', 'Ground', 'Flying', 'Psychic', 'Bug',
+  'Rock', 'Ghost', 'Dragon', 'Dark', 'Steel', 'Fairy'
+];
+
 const TYPE_CHART = {
   Normal:   { Rock: 0.5, Ghost: 0, Steel: 0.5 },
   Fire:     { Fire: 0.5, Water: 0.5, Grass: 2, Ice: 2, Bug: 2, Rock: 0.5, Dragon: 0.5, Steel: 2 },
@@ -29,13 +42,44 @@ const TYPE_CHART = {
   Fairy:    { Fire: 0.5, Fighting: 2, Poison: 0.5, Dragon: 2, Dark: 2, Steel: 0.5 }
 };
 
+function normalizeType(type) {
+  if (!type || typeof type !== 'string') return 'Normal';
+  const clean = type.trim();
+  if (!clean) return 'Normal';
+  return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+}
+
+function normalizeDefenderTypes(types) {
+  if (!types) return ['Normal'];
+  if (typeof types === 'string') {
+    if (types.includes('/')) {
+      return types.split('/').map(t => normalizeType(t)).filter(Boolean);
+    }
+    return [normalizeType(types)];
+  }
+  if (Array.isArray(types)) {
+    const res = [];
+    for (const t of types) {
+      if (!t) continue;
+      if (typeof t === 'string' && t.includes('/')) {
+        res.push(...t.split('/').map(sub => normalizeType(sub)));
+      } else {
+        res.push(normalizeType(t));
+      }
+    }
+    return res.length > 0 ? res : ['Normal'];
+  }
+  return ['Normal'];
+}
+
 function getMoveEffectiveness(attackType, defenderTypes) {
-  if (!attackType || !TYPE_CHART[attackType]) return 1.0;
+  const atk = normalizeType(attackType);
+  const defs = normalizeDefenderTypes(defenderTypes);
+  if (!atk || !TYPE_CHART[atk]) return 1.0;
   let mult = 1.0;
-  const defs = Array.isArray(defenderTypes) ? defenderTypes : [defenderTypes];
   for (const def of defs) {
     if (!def) continue;
-    const chart = TYPE_CHART[attackType];
+    const chart = TYPE_CHART[atk];
     if (chart && chart[def] !== undefined) {
       mult *= chart[def];
     }
@@ -45,11 +89,44 @@ function getMoveEffectiveness(attackType, defenderTypes) {
 
 function getDefensiveResistance(defenderTypes, attackerTypes) {
   let mult = 1.0;
-  const atks = Array.isArray(attackerTypes) ? attackerTypes : [attackerTypes];
+  const atks = normalizeDefenderTypes(attackerTypes);
   for (const atk of atks) {
     mult *= getMoveEffectiveness(atk, defenderTypes);
   }
   return mult;
+}
+
+function getDefensiveProfile(defenderTypes) {
+  const defs = normalizeDefenderTypes(defenderTypes);
+  const matchups = {};
+  const quadWeaknesses = [];
+  const weaknesses = [];
+  const neutral = [];
+  const resists = [];
+  const doubleResists = [];
+  const immunities = [];
+
+  for (const atk of ALL_TYPES) {
+    const m = getMoveEffectiveness(atk, defs);
+    matchups[atk] = m;
+    if (m === 0) immunities.push(atk);
+    else if (m === 0.25) doubleResists.push(atk);
+    else if (m === 0.5) resists.push(atk);
+    else if (m === 1.0) neutral.push(atk);
+    else if (m === 2.0) weaknesses.push(atk);
+    else if (m === 4.0) quadWeaknesses.push(atk);
+  }
+
+  return {
+    types: defs,
+    matchups,
+    quadWeaknesses,
+    weaknesses,
+    neutral,
+    resists,
+    doubleResists,
+    immunities
+  };
 }
 
 const STATUS_KEYWORDS = [
@@ -127,12 +204,13 @@ function isInverseVariant(variant) {
 // super-effective <-> not-very-effective, immunities become super-effective.
 function getTypeMultiplier(attackType, defenderTypes, inverse) {
   if (!inverse) return getMoveEffectiveness(attackType, defenderTypes);
-  if (!attackType || !TYPE_CHART[attackType]) return 1.0;
-  const defs = Array.isArray(defenderTypes) ? defenderTypes : [defenderTypes];
+  const atk = normalizeType(attackType);
+  const defs = normalizeDefenderTypes(defenderTypes);
+  if (!atk || !TYPE_CHART[atk]) return 1.0;
   let mult = 1.0;
   for (const def of defs) {
     if (!def) continue;
-    const raw = TYPE_CHART[attackType][def];
+    const raw = TYPE_CHART[atk][def];
     if (raw === undefined || raw === 1) continue;
     mult *= (raw === 0 || raw < 1) ? 2.0 : 0.5;
   }
@@ -145,17 +223,20 @@ function getTypeMultiplier(attackType, defenderTypes, inverse) {
 // mis-recommend, Negative Pokemon are evaluated PESSIMISTICALLY: the weaker of
 // normal/inverse for offense and the stronger of normal/inverse for defense.
 function outgoingEffectiveness(poke, moveType, oppTypes) {
-  const normal = getMoveEffectiveness(moveType, oppTypes);
+  const mType = normalizeType(moveType);
+  const defs = normalizeDefenderTypes(oppTypes);
+  const normal = getMoveEffectiveness(mType, defs);
   if (!isInverseVariant(poke && poke.variant)) return normal;
-  return Math.min(normal, getTypeMultiplier(moveType, oppTypes, true));
+  return Math.min(normal, getTypeMultiplier(mType, defs, true));
 }
 
 // Damage multiplier of an opponent attack type against OUR Pokemon
 function incomingEffectiveness(poke, attackType) {
-  const defTypes = (poke && poke.types) || ['Normal'];
-  const normal = getMoveEffectiveness(attackType, defTypes);
+  const defTypes = normalizeDefenderTypes((poke && poke.types) || ['Normal']);
+  const atk = normalizeType(attackType);
+  const normal = getMoveEffectiveness(atk, defTypes);
   if (!isInverseVariant(poke && poke.variant)) return normal;
-  return Math.max(normal, getTypeMultiplier(attackType, defTypes, true));
+  return Math.max(normal, getTypeMultiplier(atk, defTypes, true));
 }
 
 // Defensive exposure of a Pokemon across a trainer's whole roster.
@@ -317,14 +398,17 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50) {
   let bestMove = null;
   let maxOffense = 0;
 
+  const normalizedOppTypes = normalizeDefenderTypes(oppTypes);
   const vMultipliers = getVariantMultipliers(poke.variant);
+  const pokeTypes = normalizeDefenderTypes(poke.types || ['Normal']);
+
   const rawMoves = (poke.moves && poke.moves.length > 0) ? poke.moves : [];
   const moves = rawMoves.map(resolveMove).filter(m => !m.isStatus && m.power > 0);
 
   if (moves.length > 0) {
     for (const m of moves) {
-      const eff = outgoingEffectiveness(poke, m.type, oppTypes);
-      const isStab = poke.types && poke.types.some(t => t.toLowerCase() === m.type.toLowerCase());
+      const eff = outgoingEffectiveness(poke, m.type, normalizedOppTypes);
+      const isStab = pokeTypes.includes(normalizeType(m.type));
       const totalMult = eff * (isStab ? 1.5 : 1.0);
       const effectivePower = m.power * eff * (isStab ? 1.5 : 1.0) * vMultipliers.offense;
 
@@ -332,7 +416,7 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50) {
         maxOffense = effectivePower;
         bestMove = {
           name: m.name,
-          type: m.type,
+          type: normalizeType(m.type),
           power: m.power,
           multiplier: eff,
           isStab: isStab,
@@ -342,8 +426,8 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50) {
       }
     }
   } else if (rawMoves.length === 0) {
-    for (const pType of (poke.types || ['Normal'])) {
-      const eff = outgoingEffectiveness(poke, pType, oppTypes);
+    for (const pType of pokeTypes) {
+      const eff = outgoingEffectiveness(poke, pType, normalizedOppTypes);
       const totalMult = eff * 1.5;
       const effectivePower = 40 * totalMult * vMultipliers.offense;
       if (effectivePower > maxOffense) {
@@ -364,7 +448,7 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50) {
   if (!bestMove || maxOffense === 0) {
     bestMove = {
       name: (rawMoves[0] && rawMoves[0].name) ? rawMoves[0].name : 'Tackle',
-      type: (rawMoves[0] && rawMoves[0].type) ? rawMoves[0].type : 'Normal',
+      type: (rawMoves[0] && rawMoves[0].type) ? normalizeType(rawMoves[0].type) : 'Normal',
       power: 0,
       multiplier: 0.0,
       isStab: false,
@@ -373,28 +457,33 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50) {
     };
   }
 
-  let worstDefRisk = (oppTypes && oppTypes.length > 0) ? 0 : 1.0;
+  // Defensive evaluation against opponent's single or dual STAB attack types
+  let worstDefRisk = (normalizedOppTypes && normalizedOppTypes.length > 0) ? 0 : 1.0;
   let hasImmunity = false;
   let hasResistance = false;
+  let resistsAll = true;
   let isMutualSelfTrap = false;
-  for (const ot of oppTypes) {
+
+  for (const ot of normalizedOppTypes) {
     const risk = incomingEffectiveness(poke, ot);
     if (risk > worstDefRisk) worstDefRisk = risk;
+    if (risk > 0.5) resistsAll = false;
     if (risk === 0.0) hasImmunity = true;
     if (risk <= 0.5) hasResistance = true;
-    if ((ot === 'Dragon' || ot === 'Ghost') && (poke.types || []).includes(ot) && risk >= 1.5) {
+    if ((ot === 'Dragon' || ot === 'Ghost') && pokeTypes.includes(ot) && risk >= 1.5) {
       isMutualSelfTrap = true;
     }
   }
 
-  // Score by the WORST incoming STAB: immune to one STAB but neutral to the
-  // other (e.g. Steel vs Ghost/Poison) is not a full wall.
+  // Score by worst incoming STAB
   let defScore = 0;
-  if (worstDefRisk >= 4.0) defScore = -250;
-  else if (worstDefRisk >= 2.0) defScore = -150;
-  else if (worstDefRisk === 0.0) defScore = +80;
-  else if (worstDefRisk <= 0.5) defScore = +40;
-  else if (hasImmunity || hasResistance) defScore = +15;
+  if (worstDefRisk >= 4.0) defScore = -350; // Fatal quad weakness (OHKO risk)
+  else if (worstDefRisk >= 2.0) defScore = -150; // Super-effective weakness
+  else if (worstDefRisk === 0.0) defScore = +120; // Complete immunity to all opponent STABs
+  else if (worstDefRisk <= 0.25) defScore = +85; // Double resistance wall
+  else if (worstDefRisk <= 0.5) defScore = +50; // Resists all opponent STABs
+  else if (hasImmunity) defScore = +25; // Immune to one STAB, neutral to other
+  else if (hasResistance) defScore = +15; // Resists one STAB, neutral to other
 
   if (isMutualSelfTrap) defScore -= 150;
 
@@ -404,8 +493,8 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50) {
   if (vMultipliers.flinch) defScore += 5;
 
   const offenseScore = (bestMove.effectivePower > 0)
-    ? (bestMove.effectivePower / 40) * 35 + (bestMove.multiplier >= 2.0 ? 30 : 0) + (bestMove.multiplier >= 4.0 ? 25 : 0)
-    : -100;
+    ? (bestMove.effectivePower / 40) * 35 + (bestMove.multiplier >= 2.0 ? 30 : 0) + (bestMove.multiplier >= 4.0 ? 25 : 0) + (bestMove.isStab ? 15 : 0)
+    : -200;
 
   // Universal Level Scaling: level contributes to combat stats and survivability
   const pokeLevel = typeof poke.level === 'number' ? poke.level : 50;
@@ -425,6 +514,7 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50) {
     bestMove: bestMove,
     maxOffense: maxOffense,
     worstDefRisk: worstDefRisk,
+    resistsAll: resistsAll,
     totalScore: totalScore
   };
 }
@@ -454,10 +544,11 @@ function buildBestTeam(trainer, collection) {
     for (let i = 0; i < trainer.roster.length; i++) {
       const opp = trainer.roster[i];
       const oppTypes = (opp.types && opp.types.length > 0) ? opp.types : ['Normal'];
+      const oppLevel = opp.level || trainer.avgLevel || 50;
 
       const available = collection.filter(p => !chosenIds.has(p.id));
       const scored = available
-        .map(p => ({ opp, ...scoreVsSingleOpponent(p, oppTypes) }));
+        .map(p => ({ opp, ...scoreVsSingleOpponent(p, oppTypes, oppLevel) }));
 
       // Prefer unique species to eliminate duplicate clones and field diverse teams
       const diverseScored = scored.filter(s => !chosenSpecies.has(getBaseSpecies(s.pokemon.name)));
@@ -506,9 +597,10 @@ function buildBestTeam(trainer, collection) {
     const targetCount = Math.min(6, collection.length);
     if (chosen.length < targetCount) {
       const trainerTypes = (trainer.types && trainer.types.length > 0) ? trainer.types : ['Normal'];
+      const trainerAvgLvl = trainer.avgLevel || 50;
       const available = collection.filter(p => !chosenIds.has(p.id));
       const remainingScored = available
-        .map(p => scoreVsSingleOpponent(p, trainerTypes));
+        .map(p => scoreVsSingleOpponent(p, trainerTypes, trainerAvgLvl));
 
       const diverseRemaining = remainingScored.filter(s => !chosenSpecies.has(getBaseSpecies(s.pokemon.name)));
       const pool = (diverseRemaining.length >= (targetCount - chosen.length) && diverseRemaining.some(s => s.totalScore > 0))
@@ -557,7 +649,8 @@ function buildBestTeam(trainer, collection) {
 
   // 2. Gym theme type matching
   const trainerTypes = trainer.types && trainer.types.length > 0 ? trainer.types : ['Normal'];
-  const scored = collection.map(p => scoreVsSingleOpponent(p, trainerTypes));
+  const trainerAvgLvl = trainer.avgLevel || 50;
+  const scored = collection.map(p => scoreVsSingleOpponent(p, trainerTypes, trainerAvgLvl));
   scored.sort((a, b) => b.totalScore - a.totalScore);
 
   const selected = [];
@@ -613,7 +706,7 @@ function canSoloTrainer(poke, trainer) {
   const pokeMoves = (poke.moves || []).map(resolveMove).filter(m => !m.isStatus && m.power > 0);
   if (pokeMoves.length === 0) return false;
 
-  const pokeTypes = poke.types || ['Normal'];
+  const pokeTypes = normalizeDefenderTypes(poke.types || ['Normal']);
   const trainerAvgLvl = trainer.avgLevel || 30;
   const pokeLvl = typeof poke.level === 'number' ? poke.level : 1;
 
@@ -622,8 +715,9 @@ function canSoloTrainer(poke, trainer) {
   let isMutualSelfTrap = false;
 
   for (const opp of oppList) {
+    const oppAttackTypes = [].concat(normalizeDefenderTypes(opp.types || ['Normal']), opp.knownMoveTypes || []);
     let oppMaxDamage = 0;
-    for (const ot of (opp.types || [])) {
+    for (const ot of oppAttackTypes) {
       const inc = incomingEffectiveness(poke, ot);
       if (inc > worstIncoming) worstIncoming = inc;
       if (inc > oppMaxDamage) oppMaxDamage = inc;
@@ -661,7 +755,7 @@ function canSoloTrainer(poke, trainer) {
   let seCount = 0;
   for (let i = 0; i < oppList.length; i++) {
     const opp = oppList[i];
-    const oppTypes = opp.types || ['Normal'];
+    const oppTypes = normalizeDefenderTypes(opp.types || ['Normal']);
     let bestEff = 0;
     let maxPower = 0;
 
@@ -696,21 +790,23 @@ function getBestMoveVsTrainer(poke, trainer) {
 
   const pokeMoves = (poke.moves || []).map(resolveMove).filter(m => !m.isStatus && m.power > 0);
   if (pokeMoves.length === 0) {
-    const primaryType = (poke.types && poke.types[0]) ? poke.types[0] : 'Normal';
+    const primaryType = (poke.types && poke.types[0]) ? normalizeType(poke.types[0]) : 'Normal';
     return { name: 'Tackle', type: primaryType, power: 40, multiplier: 1.0, effectivePower: 40 };
   }
 
   const vMultipliers = getVariantMultipliers(poke.variant);
+  const pokeTypes = normalizeDefenderTypes(poke.types || ['Normal']);
   let best = null;
   let maxScore = -1;
 
   for (const m of pokeMoves) {
-    const isStab = poke.types && poke.types.some(t => t.toLowerCase() === m.type.toLowerCase());
+    const mType = normalizeType(m.type);
+    const isStab = pokeTypes.includes(mType);
 
     let minEff = 999;
     let sumEff = 0;
     for (const opp of oppList) {
-      const eff = outgoingEffectiveness(poke, m.type, opp.types || ['Normal']);
+      const eff = outgoingEffectiveness(poke, mType, opp.types || ['Normal']);
       if (eff < minEff) minEff = eff;
       sumEff += eff;
     }
@@ -727,7 +823,7 @@ function getBestMoveVsTrainer(poke, trainer) {
       maxScore = score;
       best = {
         name: m.name,
-        type: m.type,
+        type: mType,
         power: m.power,
         multiplier: minEff >= 2.0 ? minEff : avgEff,
         effectivePower: effectivePower
@@ -735,12 +831,17 @@ function getBestMoveVsTrainer(poke, trainer) {
     }
   }
 
-  return best || { name: pokeMoves[0].name, type: pokeMoves[0].type, power: pokeMoves[0].power, multiplier: 1.0, effectivePower: 40 };
+  return best || { name: pokeMoves[0].name, type: normalizeType(pokeMoves[0].type), power: pokeMoves[0].power, multiplier: 1.0, effectivePower: 40 };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     TYPE_CHART,
+    ALL_TYPES,
+    typeChartDatabase,
+    normalizeType,
+    normalizeDefenderTypes,
+    getDefensiveProfile,
     getMoveEffectiveness,
     getDefensiveResistance,
     resolveMove,

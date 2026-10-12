@@ -72,7 +72,7 @@ assert(brockTeam[0].score > 0, 'Top counter must have positive score');
 console.log(`[PASS] Team Engine: Verified top 6 counters for ${brock.name} (${brockTeam[0].name} scored ${brockTeam[0].score.toFixed(1)}).`);
 
 // 5. Verify 100% clean ASCII across all client files
-const files = ['main.js', 'app.js', 'game-preload.js', 'targets.js', 'team_engine.js', 'config.json', 'package.json', 'app.html', 'test_client.js', 'test_deep_verification.js'];
+const files = ['main.js', 'app.js', 'game-preload.js', 'targets.js', 'team_engine.js', 'config.json', 'package.json', 'app.html', 'type_chart_database.json', 'test_client.js', 'test_deep_verification.js'];
 for (const file of files) {
   const content = fs.readFileSync(path.join(__dirname, file), 'utf8');
   for (let i = 0; i < content.length; i++) {

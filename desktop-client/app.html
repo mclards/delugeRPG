@@ -1461,18 +1461,8 @@
   <!-- 1. TARGET FILTER CONFIGURATION MODAL -->
   <div id="targetModal" class="modal-box modal-targets">
     <div class="modal-header-row" style="margin-bottom: 8px;">
-      <div class="modal-title" style="font-size: 13.5px;">&#127919; Target Filters &amp; Presets</div>
+      <div class="modal-title" style="font-size: 13.5px;">&#127919; Target Filters</div>
       <button id="closeTargetBtn" class="modal-close-icon" title="Close">&#10005;</button>
-    </div>
-
-    <!-- 1-Click Global Presets (Configures All Tabs) -->
-    <div class="preset-pill-group" title="1-Click Quick Presets across all tabs">
-      <button id="presetAllBtn" type="button" class="btn preset-pill-btn btn-active">All</button>
-      <button id="presetLegBtn" type="button" class="btn preset-pill-btn">Legendaries</button>
-      <button id="presetMegaBtn" type="button" class="btn preset-pill-btn">Megas &amp; Rare</button>
-      <button id="presetVarBtn" type="button" class="btn preset-pill-btn">Variants</button>
-      <button id="presetShinyBtn" type="button" class="btn preset-pill-btn">&#9733; Shinies</button>
-      <button id="presetLegMegaBtn" type="button" class="btn preset-pill-btn">Leg+Mega</button>
     </div>
 
     <!-- Segmented Navigation Tabs -->
@@ -1488,25 +1478,25 @@
       <!-- Species Targets -->
       <div class="filter-group-title">Species Targets</div>
 
-      <!-- Tier 3: Legendaries, Mythicals, Ultra Beasts & Paradox -->
+      <!-- Legendaries: 3 Direct Category Checkboxes -->
       <div class="filter-item">
-        <label class="filter-row">
-          <input type="checkbox" id="filterLegendariesCheckbox" checked>
-          <span class="filter-label">Legendaries, Mythicals &amp; Paradox</span>
-        </label>
-        <div id="subLegendaryWrap" class="sub-inline-row">
-          <label class="sub-inline-label">
-            <input type="checkbox" id="subClassicLegCheckbox" checked>
-            <span>Classic</span>
-          </label>
-          <label class="sub-inline-label">
-            <input type="checkbox" id="subUltraBeastsCheckbox" checked>
-            <span>Ultra Beasts</span>
-          </label>
-          <label class="sub-inline-label">
-            <input type="checkbox" id="subParadoxCheckbox" checked>
-            <span>Paradox</span>
-          </label>
+        <input type="checkbox" id="filterLegendariesCheckbox" style="display:none;" checked>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span class="filter-label">Legendaries &amp; Special:</span>
+          <div id="subLegendaryWrap" style="display: flex; gap: 14px; align-items: center;">
+            <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
+              <input type="checkbox" id="subClassicLegCheckbox" checked>
+              <span>Classic</span>
+            </label>
+            <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
+              <input type="checkbox" id="subUltraBeastsCheckbox" checked>
+              <span>Ultra Beasts</span>
+            </label>
+            <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
+              <input type="checkbox" id="subParadoxCheckbox" checked>
+              <span>Paradox</span>
+            </label>
+          </div>
         </div>
       </div>
 

@@ -957,10 +957,11 @@ function calculateTargetSummary(leg, megas, vars, enableLevel, levelMode, levelV
 }
 
 function updateTargetUI() {
-  const isLeg = config.settings && config.settings.findLegendaries !== false;
-  const classicLeg = config.settings && config.settings.legendaryClassic !== false;
-  const ubLeg = config.settings && config.settings.legendaryUltraBeasts !== false;
-  const paradoxLeg = config.settings && config.settings.legendaryParadox !== false;
+  const isLegConfig = config.settings && config.settings.findLegendaries !== false;
+  const classicLeg = isLegConfig && (config.settings.legendaryClassic !== false);
+  const ubLeg = isLegConfig && (config.settings.legendaryUltraBeasts !== false);
+  const paradoxLeg = isLegConfig && (config.settings.legendaryParadox !== false);
+  const isLeg = isLegConfig && (classicLeg || ubLeg || paradoxLeg);
 
   const isMega = config.settings && config.settings.findMegasAndGigantamax !== false;
   const isVar = config.settings && config.settings.findAnySpecialVariant !== false;
@@ -1099,9 +1100,9 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
   }
 
   if (filterLegendariesCheckbox) filterLegendariesCheckbox.checked = isLeg;
-  if (subClassicLegCheckbox) subClassicLegCheckbox.checked = isClassic;
-  if (subUltraBeastsCheckbox) subUltraBeastsCheckbox.checked = isUB;
-  if (subParadoxCheckbox) subParadoxCheckbox.checked = isParadox;
+  if (subClassicLegCheckbox) subClassicLegCheckbox.checked = isLeg && isClassic;
+  if (subUltraBeastsCheckbox) subUltraBeastsCheckbox.checked = isLeg && isUB;
+  if (subParadoxCheckbox) subParadoxCheckbox.checked = isLeg && isParadox;
 
   if (filterMegasCheckbox) filterMegasCheckbox.checked = isMega;
   if (filterVariantsCheckbox) filterVariantsCheckbox.checked = isVar;
@@ -1155,9 +1156,9 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
   if (saveImmediately) {
     config.settings.targetPreset = presetKey;
     config.settings.findLegendaries = isLeg;
-    config.settings.legendaryClassic = isClassic;
-    config.settings.legendaryUltraBeasts = isUB;
-    config.settings.legendaryParadox = isParadox;
+    config.settings.legendaryClassic = isLeg && isClassic;
+    config.settings.legendaryUltraBeasts = isLeg && isUB;
+    config.settings.legendaryParadox = isLeg && isParadox;
     config.settings.findMegasAndGigantamax = isMega;
     config.settings.findAnySpecialVariant = isVar;
     config.settings.enableVariantFilter = isVar;
@@ -2897,10 +2898,11 @@ document.querySelectorAll('.quick-tag-btn[data-add-blacklist]').forEach(btn => {
 
 // Live checkbox and input change updates summary text
 function refreshModalSummary() {
-  const isLeg = filterLegendariesCheckbox ? filterLegendariesCheckbox.checked : false;
-  const classicLeg = subClassicLegCheckbox ? subClassicLegCheckbox.checked : true;
-  const ubLeg = subUltraBeastsCheckbox ? subUltraBeastsCheckbox.checked : true;
-  const paradoxLeg = subParadoxCheckbox ? subParadoxCheckbox.checked : true;
+  const classicLeg = subClassicLegCheckbox ? subClassicLegCheckbox.checked : false;
+  const ubLeg = subUltraBeastsCheckbox ? subUltraBeastsCheckbox.checked : false;
+  const paradoxLeg = subParadoxCheckbox ? subParadoxCheckbox.checked : false;
+  const isLeg = (classicLeg || ubLeg || paradoxLeg);
+  if (filterLegendariesCheckbox) filterLegendariesCheckbox.checked = isLeg;
 
   const isMega = filterMegasCheckbox ? filterMegasCheckbox.checked : false;
   const isVar = filterVariantsCheckbox ? filterVariantsCheckbox.checked : false;
@@ -3039,10 +3041,11 @@ if (saveTargetsBtn) {
     const isAvoid = avoidDuplicatesCheck ? avoidDuplicatesCheck.checked : true;
     config.settings.avoidDuplicates = isAvoid;
 
-    const isLeg = filterLegendariesCheckbox ? filterLegendariesCheckbox.checked : false;
-    const classicLeg = subClassicLegCheckbox ? subClassicLegCheckbox.checked : true;
-    const ubLeg = subUltraBeastsCheckbox ? subUltraBeastsCheckbox.checked : true;
-    const paradoxLeg = subParadoxCheckbox ? subParadoxCheckbox.checked : true;
+    const classicLeg = subClassicLegCheckbox ? subClassicLegCheckbox.checked : false;
+    const ubLeg = subUltraBeastsCheckbox ? subUltraBeastsCheckbox.checked : false;
+    const paradoxLeg = subParadoxCheckbox ? subParadoxCheckbox.checked : false;
+    const isLeg = (classicLeg || ubLeg || paradoxLeg);
+    if (filterLegendariesCheckbox) filterLegendariesCheckbox.checked = isLeg;
 
     const isMega = filterMegasCheckbox ? filterMegasCheckbox.checked : false;
     const isVar = filterVariantsCheckbox ? filterVariantsCheckbox.checked : false;

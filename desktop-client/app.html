@@ -6,11 +6,55 @@
   <title>DelugeRPG Desktop Client [Hardened]</title>
   <style>
     :root {
-      --palette-teal: #114e60;
-      --palette-navy: #325288;
-      --palette-peach: #f5cebe;
-      --palette-cream: #f4eee8;
-      --bg-deep: #0a242c;
+      /* Inverter-Dashboard Classic Palette */
+      --bg: #040a14;
+      --bg2: #070e1a;
+      --surface: #0b1424;
+      --surface2: #0e1b30;
+      --surface3: #14233c;
+      --border: #1a283e;
+      --border2: #243856;
+      --text: #e0ecfa;
+      --text2: #8eaad0;
+      --text3: #566e96;
+      --accent: #388bfd;
+      --accent2: #1f6feb;
+      --green: #238636;
+      --green2: #196c2e;
+      --red: #da3633;
+      --red2: #a82324;
+      --amber: #d29922;
+
+      /* Button tokens matching Inverter-Dashboard: flat, zero-glow */
+      --btn-base-color: #e5efff;
+      --btn-base-border: rgba(70, 90, 120, 0.5);
+      --btn-base-border-hover: rgba(100, 130, 175, 0.75);
+      --btn-base-1: rgba(35, 45, 62, 0.96);
+      --btn-base-2: rgba(22, 30, 44, 0.98);
+
+      --btn-outline-color: #8eaad0;
+      --btn-outline-border: rgba(80, 105, 145, 0.4);
+      --btn-outline-border-hover: rgba(110, 145, 200, 0.6);
+      --btn-outline-1: rgba(26, 34, 50, 0.94);
+      --btn-outline-2: rgba(18, 24, 36, 0.96);
+
+      --btn-accent-color: #ffffff;
+      --btn-accent-border: rgba(80, 150, 240, 0.7);
+      --btn-accent-border-hover: rgba(110, 175, 255, 0.85);
+      --btn-accent-1: #388bfd;
+      --btn-accent-2: #1f6feb;
+
+      --btn-green-color: #ffffff;
+      --btn-green-border: rgba(56, 180, 100, 0.7);
+      --btn-green-border-hover: rgba(70, 210, 130, 0.85);
+      --btn-green-1: #238636;
+      --btn-green-2: #196c2e;
+
+      --btn-red-color: #ffffff;
+      --btn-red-border: rgba(220, 80, 95, 0.7);
+      --btn-red-border-hover: rgba(240, 110, 125, 0.85);
+      --btn-red-1: #da3633;
+      --btn-red-2: #a82324;
     }
     * {
       box-sizing: border-box;
@@ -36,8 +80,8 @@
       flex-direction: column;
       height: 100vh;
       width: 100vw;
-      background: #0a242c;
-      color: #f4eee8;
+      background: var(--bg);
+      color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       overflow: hidden;
     }
@@ -48,13 +92,13 @@
       align-items: center;
       justify-content: space-between;
       height: 44px;
-      background: #114e60;
-      border-bottom: 1px solid #325288;
+      background: #091322;
+      border-bottom: 1px solid #1a283e;
       padding: 0 14px;
       gap: 8px;
       flex-shrink: 0;
       z-index: 10000;
-      box-shadow: none;
+      box-shadow: none !important;
       position: relative;
     }
     .nav-section {
@@ -85,9 +129,9 @@
       width: 20px;
       height: 20px;
       border-radius: 50%;
-      background: linear-gradient(180deg, #f5cebe 48%, #114e60 48%, #114e60 52%, #f4eee8 52%);
-      border: 2px solid #325288;
-      box-shadow: none;
+      background: linear-gradient(180deg, #da3633 48%, #1a283e 48%, #1a283e 52%, #ffffff 52%);
+      border: 2px solid #243856;
+      box-shadow: none !important;
       position: relative;
       flex-shrink: 0;
     }
@@ -100,9 +144,9 @@
       width: 5px;
       height: 5px;
       border-radius: 50%;
-      background: #f4eee8;
-      border: 1.5px solid #114e60;
-      box-shadow: none;
+      background: #ffffff;
+      border: 1.5px solid #1a283e;
+      box-shadow: none !important;
     }
     .title-badge {
       display: flex;
@@ -112,50 +156,62 @@
     .title-badge .app-name {
       font-weight: 800;
       font-size: 12px;
-      color: #f4eee8;
+      color: #e0ecfa;
       letter-spacing: 0.2px;
     }
     .title-badge .app-sub {
       font-size: 8.5px;
       font-weight: 700;
-      color: #f5cebe;
+      color: #388bfd;
       letter-spacing: 0.6px;
       text-transform: uppercase;
     }
 
-    /* Buttons */
+    /* Buttons - Directly matching Inverter-Dashboard: 4px border-radius, flat beveled, zero shadows */
     .btn {
-      height: 28px;
-      padding: 0 9px;
-      border-radius: 6px;
-      border: 1px solid #325288;
-      background: #114e60;
-      color: #f4eee8;
+      height: 26px;
+      min-height: 26px;
+      padding: 0 10px;
+      border-radius: 4px !important;
+      border: 1px solid var(--btn-base-border) !important;
+      background: linear-gradient(180deg, var(--btn-base-1) 0%, var(--btn-base-2) 100%) !important;
+      color: var(--btn-base-color) !important;
+      font-family: inherit;
       font-size: 11px;
       font-weight: 600;
+      letter-spacing: 0.02em;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 4px;
-      transition: all 0.15s ease;
+      gap: 5px;
+      transition: transform 0.08s ease, filter 0.12s ease, border-color 0.12s ease;
       white-space: nowrap;
       outline: none;
       box-shadow: none !important;
     }
     .btn:hover {
-      background: #325288;
-      border-color: #f5cebe;
-      color: #f4eee8;
+      border-color: var(--btn-base-border-hover) !important;
+      filter: brightness(1.12) !important;
+      box-shadow: none !important;
     }
     .btn:active {
-      transform: translateY(1px);
+      transform: scale(0.98);
+      filter: brightness(0.92) !important;
+      box-shadow: none !important;
+    }
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+      filter: saturate(0.7) brightness(0.92);
     }
     .btn-icon {
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
       padding: 0;
-      border-radius: 6px;
+      border-radius: 4px !important;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -165,12 +221,12 @@
       cursor: pointer;
     }
 
-    /* Primary Action Toggle Button (Hunting / Paused) - Plain, No Shadow, Beveled */
+    /* Primary Action Toggle Button (Hunting / Paused) */
     .btn-toggle-main {
-      height: 28px;
+      height: 26px;
       min-width: 80px;
       padding: 0 10px;
-      border-radius: 6px;
+      border-radius: 4px !important;
       font-size: 11px;
       font-weight: 700;
       display: inline-flex;
@@ -179,84 +235,108 @@
       gap: 5px;
       cursor: pointer;
       box-shadow: none !important;
-      transition: all 0.1s ease;
+      transition: transform 0.08s ease, filter 0.12s ease;
       flex-shrink: 0;
       letter-spacing: 0.3px;
       line-height: 1;
     }
     .btn-toggle-main.btn-active {
-      background: #114e60;
-      border: 1px solid #f5cebe;
-      border-bottom: 2px solid #0a242c;
-      color: #f4eee8;
+      background: linear-gradient(180deg, var(--btn-green-1) 0%, var(--btn-green-2) 100%) !important;
+      border: 1px solid var(--btn-green-border) !important;
+      color: #ffffff !important;
       box-shadow: none !important;
     }
     .btn-toggle-main.btn-active:hover {
-      background: #165e73;
-      border-color: #f4eee8;
-      color: #ffffff;
+      border-color: var(--btn-green-border-hover) !important;
+      filter: brightness(1.08) !important;
       box-shadow: none !important;
     }
     .btn-toggle-main.btn-active:active {
-      transform: translateY(1px);
-      border-bottom-width: 1px;
+      filter: brightness(0.92) !important;
     }
     .btn-toggle-main.btn-paused {
-      background: #325288;
-      border: 1px solid #f5cebe;
-      border-bottom: 2px solid #114e60;
-      color: #f5cebe;
+      background: linear-gradient(180deg, var(--btn-red-1) 0%, var(--btn-red-2) 100%) !important;
+      border: 1px solid var(--btn-red-border) !important;
+      color: #ffffff !important;
       box-shadow: none !important;
     }
     .btn-toggle-main.btn-paused:hover {
-      background: #3d63a4;
-      border-color: #f4eee8;
-      color: #ffffff;
+      border-color: var(--btn-red-border-hover) !important;
+      filter: brightness(1.08) !important;
       box-shadow: none !important;
     }
     .btn-toggle-main.btn-paused:active {
-      transform: translateY(1px);
-      border-bottom-width: 1px;
+      filter: brightness(0.92) !important;
     }
 
     .btn-active {
-      background: #114e60;
-      border: 1px solid #f5cebe;
-      color: #f4eee8;
+      background: linear-gradient(180deg, var(--btn-green-1) 0%, var(--btn-green-2) 100%) !important;
+      border: 1px solid var(--btn-green-border) !important;
+      color: #ffffff !important;
       box-shadow: none !important;
     }
     .btn-active:hover {
-      background: #165e73;
-      border-color: #f4eee8;
+      border-color: var(--btn-green-border-hover) !important;
+      filter: brightness(1.08) !important;
       box-shadow: none !important;
     }
     .btn-paused {
-      background: #325288;
-      border: 1px solid #f5cebe;
-      color: #f5cebe;
+      background: linear-gradient(180deg, var(--btn-red-1) 0%, var(--btn-red-2) 100%) !important;
+      border: 1px solid var(--btn-red-border) !important;
+      color: #ffffff !important;
+      box-shadow: none !important;
+    }
+    .btn-paused:hover {
+      border-color: var(--btn-red-border-hover) !important;
+      filter: brightness(1.08) !important;
       box-shadow: none !important;
     }
 
     /* Secondary Specialized Button Variants */
     .btn-accent {
-      background: rgba(245, 206, 190, 0.15);
-      border-color: rgba(245, 206, 190, 0.4);
-      color: #f5cebe;
+      border: 1px solid var(--btn-accent-border) !important;
+      background: linear-gradient(180deg, var(--btn-accent-1) 0%, var(--btn-accent-2) 100%) !important;
+      color: var(--btn-accent-color) !important;
+      box-shadow: none !important;
     }
     .btn-accent:hover {
-      background: rgba(245, 206, 190, 0.28);
-      border-color: #f5cebe;
-      color: #f4eee8;
+      border-color: var(--btn-accent-border-hover) !important;
+      filter: brightness(1.08) !important;
+      box-shadow: none !important;
     }
+    .btn-accent:active {
+      filter: brightness(0.92) !important;
+    }
+
     .btn-danger {
-      background: rgba(50, 82, 136, 0.35);
-      border-color: rgba(245, 206, 190, 0.4);
-      color: #f5cebe;
+      border: 1px solid var(--btn-red-border) !important;
+      background: linear-gradient(180deg, var(--btn-red-1) 0%, var(--btn-red-2) 100%) !important;
+      color: #ffffff !important;
+      box-shadow: none !important;
     }
     .btn-danger:hover {
-      background: #325288;
-      border-color: #f5cebe;
-      color: #f4eee8;
+      border-color: var(--btn-red-border-hover) !important;
+      filter: brightness(1.08) !important;
+      box-shadow: none !important;
+    }
+
+    .btn-green {
+      border: 1px solid var(--btn-green-border) !important;
+      background: linear-gradient(180deg, var(--btn-green-1) 0%, var(--btn-green-2) 100%) !important;
+      color: var(--btn-green-color) !important;
+      box-shadow: none !important;
+    }
+    .btn-green:hover {
+      border-color: var(--btn-green-border-hover) !important;
+      filter: brightness(1.08) !important;
+      box-shadow: none !important;
+    }
+
+    .btn-outline {
+      border: 1px solid var(--btn-outline-border) !important;
+      background: linear-gradient(180deg, var(--btn-outline-1) 0%, var(--btn-outline-2) 100%) !important;
+      color: var(--btn-outline-color) !important;
+      box-shadow: none !important;
     }
 
     /* Custom Dropdowns */
@@ -265,40 +345,41 @@
       display: inline-block;
     }
     select {
-      height: 30px;
-      background: #0a242c;
-      border: 1px solid #325288;
-      color: #f4eee8;
-      padding: 0 22px 0 8px;
-      border-radius: 7px;
+      height: 26px;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #e0ecfa;
+      padding: 0 20px 0 8px;
+      border-radius: 4px !important;
       font-size: 11px;
       font-weight: 500;
       outline: none;
       cursor: pointer;
       appearance: none;
       -webkit-appearance: none;
-      transition: all 0.15s ease;
+      transition: all 0.12s ease;
+      box-shadow: none !important;
     }
     #walkModeSelect {
       width: 100%;
     }
     select:hover {
-      border-color: #f5cebe;
-      background: #114e60;
+      border-color: #243856;
+      background: #0e1b30;
     }
     select:focus {
-      border-color: #f5cebe;
+      border-color: #388bfd;
       outline: none;
-      box-shadow: none;
+      box-shadow: none !important;
     }
     .select-arrow {
       position: absolute;
-      right: 8px;
+      right: 7px;
       top: 50%;
       transform: translateY(-50%);
       pointer-events: none;
       font-size: 8px;
-      color: #f5cebe;
+      color: #8eaad0;
     }
 
     /* Telemetry & Status Badges */
@@ -307,17 +388,17 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      height: 28px;
+      height: 26px;
       width: 360px;
       min-width: 320px;
       max-width: 420px;
       padding: 0 14px;
-      border-radius: 9999px;
+      border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
-      background: rgba(10, 36, 44, 0.85);
-      border: 1px solid #325288;
-      box-shadow: none;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      box-shadow: none !important;
       box-sizing: border-box;
       flex-shrink: 0;
     }
@@ -325,12 +406,12 @@
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: #f5cebe;
+      background: #388bfd;
       flex-shrink: 0;
-      box-shadow: none;
+      box-shadow: none !important;
     }
     .status-text {
-      color: #f4eee8;
+      color: #e0ecfa;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -338,63 +419,66 @@
       max-width: 375px;
     }
     .counter {
-      height: 28px;
+      height: 26px;
       padding: 0 8px;
-      border-radius: 6px;
-      background: rgba(50, 82, 136, 0.35);
-      border: 1px solid #325288;
-      color: #f5cebe;
+      border-radius: 4px !important;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #8eaad0;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 11px;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
       letter-spacing: 0.3px;
+      box-shadow: none !important;
     }
 
     /* Zoom Controls Cluster */
     .zoom-cluster {
       display: inline-flex;
       align-items: center;
-      height: 28px;
-      border-radius: 6px;
-      background: rgba(50, 82, 136, 0.35);
-      border: 1px solid #325288;
+      height: 26px;
+      border-radius: 4px !important;
+      background: #070e1a;
+      border: 1px solid #1a283e;
       overflow: hidden;
       flex-shrink: 0;
+      box-shadow: none !important;
     }
     .btn-zoom-icon {
       width: 26px;
       height: 100%;
       border: none;
       background: transparent;
-      color: #f4eee8;
-      font-size: 15px;
+      color: #8eaad0;
+      font-size: 14px;
       font-weight: 700;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.15s ease;
+      transition: all 0.12s ease;
       outline: none;
       user-select: none;
+      box-shadow: none !important;
     }
     .btn-zoom-icon:hover {
-      background: #325288;
-      color: #f5cebe;
+      background: #0e1b30;
+      color: #e0ecfa;
     }
     .btn-zoom-icon:active {
-      background: #114e60;
+      background: #14233c;
     }
     .btn-zoom-val {
       min-width: 44px;
       height: 100%;
       padding: 0 4px;
       border: none;
-      border-left: 1px solid #325288;
-      border-right: 1px solid #325288;
+      border-left: 1px solid #1a283e;
+      border-right: 1px solid #1a283e;
       background: transparent;
-      color: #f5cebe;
+      color: #e0ecfa;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 11px;
       font-weight: 700;
@@ -402,13 +486,14 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.15s ease;
+      transition: all 0.12s ease;
       outline: none;
       user-select: none;
+      box-shadow: none !important;
     }
     .btn-zoom-val:hover {
-      background: #325288;
-      color: #f4eee8;
+      background: #0e1b30;
+      color: #ffffff;
     }
 
     /* Quick Action Cluster */
@@ -424,19 +509,20 @@
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      height: 28px;
+      height: 26px;
       padding: 0 8px;
-      border-radius: 6px;
+      border-radius: 4px !important;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       text-decoration: none;
-      transition: all 0.15s ease;
+      transition: all 0.12s ease;
       max-width: 145px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       flex-shrink: 0;
+      box-shadow: none !important;
     }
     #netText {
       overflow: hidden;
@@ -444,45 +530,46 @@
       white-space: nowrap;
     }
     .network-starlink {
-      background: rgba(245, 206, 190, 0.15);
-      border: 1px solid #f5cebe;
-      color: #f5cebe;
+      background: rgba(210, 153, 34, 0.15);
+      border: 1px solid #d29922;
+      color: #d29922;
     }
     .network-starlink:hover {
-      background: rgba(245, 206, 190, 0.28);
-      border-color: #f4eee8;
+      background: rgba(210, 153, 34, 0.25);
+      border-color: #e0ecfa;
     }
     .network-warning {
-      background: rgba(50, 82, 136, 0.35);
-      border: 1px solid #f5cebe;
-      color: #f5cebe;
+      background: rgba(218, 54, 51, 0.15);
+      border: 1px solid #da3633;
+      color: #f85149;
     }
     .network-warning:hover {
-      background: #325288;
-      border-color: #f4eee8;
+      background: rgba(218, 54, 51, 0.25);
+      border-color: #e0ecfa;
     }
     .network-direct {
-      background: rgba(50, 82, 136, 0.25);
-      border: 1px solid #325288;
-      color: #f4eee8;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #8eaad0;
     }
     .network-direct:hover {
-      background: rgba(50, 82, 136, 0.45);
-      border-color: #f5cebe;
+      background: #0e1b30;
+      border-color: #243856;
+      color: #e0ecfa;
     }
     .network-proxied {
-      background: rgba(245, 206, 190, 0.15);
-      border: 1px solid #f5cebe;
-      color: #f5cebe;
+      background: rgba(56, 139, 253, 0.15);
+      border: 1px solid #388bfd;
+      color: #388bfd;
     }
     .network-proxied:hover {
-      background: rgba(245, 206, 190, 0.28);
-      border-color: #f4eee8;
+      background: rgba(56, 139, 253, 0.25);
+      border-color: #e0ecfa;
     }
     .network-checking {
-      background: rgba(50, 82, 136, 0.2);
-      border: 1px solid #325288;
-      color: #f4eee8;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #8eaad0;
     }
 
     /* Daily Auto-Catch & Master Ball Badge */
@@ -490,66 +577,66 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      height: 28px;
+      height: 26px;
       padding: 0 10px;
-      border-radius: 6px;
+      border-radius: 4px !important;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       text-decoration: none;
-      transition: all 0.15s ease;
-      background: rgba(50, 82, 136, 0.35);
-      border: 1px solid #325288;
-      color: #f4eee8;
+      transition: all 0.12s ease;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #e0ecfa;
       box-shadow: none !important;
       flex-shrink: 0;
       white-space: nowrap;
     }
     .daily-caught-badge:hover {
-      background: #325288;
-      border-color: #f5cebe;
+      background: #0e1b30;
+      border-color: #243856;
     }
     .daily-caught-badge:active {
       transform: translateY(1px);
     }
     .caught-badge-icon {
       font-size: 12px;
-      color: #f5cebe;
+      color: #388bfd;
     }
     .caught-badge-sep {
-      color: #325288;
+      color: #243856;
       font-size: 13px;
     }
     .mb-badge-icon {
       font-size: 11px;
-      color: #f5cebe;
+      color: #d29922;
     }
     .caught-pokemon-card {
-      background: rgba(50, 82, 136, 0.25);
-      border: 1px solid #325288;
-      border-radius: 6px;
+      background: #0e1b30;
+      border: 1px solid #1a283e;
+      border-radius: 4px;
       padding: 8px 10px;
       display: flex;
       align-items: center;
       gap: 10px;
       box-shadow: none !important;
-      transition: background 0.1s ease;
+      transition: background 0.12s ease;
     }
     .caught-pokemon-card:hover {
-      background: rgba(50, 82, 136, 0.45);
-      border-color: #f5cebe;
+      background: #14233c;
+      border-color: #243856;
     }
     .caught-card-thumb {
       width: 40px;
       height: 40px;
-      background: #0a242c;
-      border-radius: 6px;
+      background: #070e1a;
+      border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
       overflow: hidden;
-      border: 1px solid #325288;
+      border: 1px solid #1a283e;
     }
     .caught-card-thumb img {
       width: 36px;
@@ -566,19 +653,19 @@
     }
     .nav-dropdown {
       position: absolute;
-      top: calc(100% + 8px);
+      top: calc(100% + 6px);
       right: 0;
       width: 235px;
-      background: #114e60;
-      border: 1px solid #325288;
-      border-radius: 10px;
-      box-shadow: none;
+      background: #0b1424;
+      border: 1px solid #1a283e;
+      border-radius: 6px;
+      box-shadow: none !important;
       padding: 6px;
       z-index: 90;
       display: flex;
       flex-direction: column;
       gap: 2px;
-      animation: dropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: dropdownFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .nav-dropdown.hidden {
       display: none;
@@ -586,7 +673,7 @@
     @keyframes dropdownFadeIn {
       from {
         opacity: 0;
-        transform: translateY(-5px);
+        transform: translateY(-4px);
       }
       to {
         opacity: 1;
@@ -596,7 +683,7 @@
     .nav-dropdown-header {
       font-size: 10px;
       font-weight: 700;
-      color: #f5cebe;
+      color: #8eaad0;
       text-transform: uppercase;
       letter-spacing: 0.8px;
       padding: 6px 8px 4px 8px;
@@ -606,10 +693,10 @@
       align-items: center;
       gap: 10px;
       padding: 7px 10px;
-      border-radius: 6px;
+      border-radius: 4px;
       border: none;
       background: transparent;
-      color: #f4eee8;
+      color: #e0ecfa;
       font-size: 11.5px;
       font-weight: 500;
       cursor: pointer;
@@ -618,14 +705,15 @@
       transition: background 0.12s ease, color 0.12s ease;
       outline: none;
       box-sizing: border-box;
+      box-shadow: none !important;
     }
     .dropdown-item:hover {
-      background: #325288;
-      color: #f5cebe;
+      background: #14233c;
+      color: #ffffff;
     }
     .dropdown-danger:hover {
-      background: rgba(50, 82, 136, 0.45);
-      color: #f5cebe;
+      background: rgba(218, 54, 51, 0.2);
+      color: #f85149;
     }
     .dropdown-icon {
       font-size: 13px;
@@ -645,18 +733,18 @@
       letter-spacing: 0.3px;
     }
     .dropdown-badge-on {
-      background: rgba(245, 206, 190, 0.2);
-      color: #f5cebe;
-      border: none;
+      background: rgba(35, 134, 54, 0.2);
+      color: #3fb950;
+      border: 1px solid rgba(56, 180, 100, 0.4);
     }
     .dropdown-badge-off {
-      background: rgba(50, 82, 136, 0.35);
-      color: #f4eee8;
-      border: none;
+      background: rgba(110, 118, 129, 0.15);
+      color: #8eaad0;
+      border: 1px solid #1a283e;
     }
     .dropdown-divider {
       height: 1px;
-      background: #325288;
+      background: #1a283e;
       margin: 4px 0;
     }
     .nav-version-footer {
@@ -669,7 +757,7 @@
     .nav-version-label {
       font-size: 10px;
       font-weight: 600;
-      color: rgba(244, 238, 232, 0.65);
+      color: #566e96;
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
@@ -677,9 +765,9 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 10.5px;
       font-weight: 700;
-      color: #f5cebe;
-      background: rgba(50, 82, 136, 0.4);
-      border: none;
+      color: #8eaad0;
+      background: #070e1a;
+      border: 1px solid #1a283e;
       border-radius: 4px;
       padding: 1px 6px;
       letter-spacing: 0.3px;
@@ -693,7 +781,7 @@
       width: 100%;
       height: calc(100vh - 44px);
       position: relative;
-      background: #0a242c;
+      background: #040a14;
       overflow: hidden;
     }
     #delugeView {
@@ -718,26 +806,27 @@
       height: 100%;
       display: none;
       flex-direction: column;
-      background: #114e60;
-      border-left: 1px solid #325288;
+      background: #0b1424;
+      border-left: 1px solid #1a283e;
       padding: 12px 14px;
       box-sizing: border-box;
       box-shadow: none !important;
-      color: #f4eee8;
+      color: #e0ecfa;
       overflow: hidden;
       flex-shrink: 0;
       z-index: 10;
     }
     .ad-telemetry-card {
-      background: rgba(50, 82, 136, 0.25);
-      border: 1px solid #325288;
-      border-radius: 6px;
+      background: #0e1b30;
+      border: 1px solid #1a283e;
+      border-radius: 4px;
       padding: 7px 9px;
       box-shadow: none !important;
-      transition: background 0.15s ease;
+      transition: background 0.12s ease;
     }
     .ad-telemetry-card:hover {
-      background: #325288;
+      background: #14233c;
+      border-color: #243856;
     }
     .ad-type-badge {
       display: inline-block;
@@ -749,14 +838,14 @@
       letter-spacing: 0.3px;
       box-shadow: none !important;
     }
-    .badge-adsense { background: #325288; color: #f4eee8; }
-    .badge-gpt { background: #114e60; color: #f5cebe; }
-    .badge-vignette { background: #325288; color: #f5cebe; }
-    .badge-anchor { background: #114e60; color: #f4eee8; }
-    .badge-video { background: #325288; color: #f4eee8; }
-    .badge-thirdparty { background: #114e60; color: #f5cebe; }
-    .badge-container { background: #325288; color: #f4eee8; }
-    .badge-label { background: #0a242c; color: #f4eee8; }
+    .badge-adsense { background: #1a283e; color: #8eaad0; border: 1px solid #243856; }
+    .badge-gpt { background: #172844; color: #388bfd; border: 1px solid #243856; }
+    .badge-vignette { background: #241a2e; color: #d29922; border: 1px solid #3c2a4e; }
+    .badge-anchor { background: #1a283e; color: #8eaad0; border: 1px solid #243856; }
+    .badge-video { background: #1a283e; color: #8eaad0; border: 1px solid #243856; }
+    .badge-thirdparty { background: #172844; color: #388bfd; border: 1px solid #243856; }
+    .badge-container { background: #1a283e; color: #8eaad0; border: 1px solid #243856; }
+    .badge-label { background: #070e1a; color: #8eaad0; border: 1px solid #1a283e; }
 
     /* --- MODAL BACKDROP & CENTERING --- */
     #modalBackdrop {
@@ -766,7 +855,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(10, 36, 44, 0.8);
+      background: rgba(4, 10, 20, 0.8);
       backdrop-filter: blur(5px);
       z-index: 9998;
     }
@@ -785,13 +874,13 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: #114e60;
-      border: 1px solid #325288;
-      border-radius: 14px;
+      background: #0b1424;
+      border: 1px solid #1a283e;
+      border-radius: 6px;
       padding: 18px 22px;
-      box-shadow: none;
+      box-shadow: none !important;
       z-index: 9999;
-      color: #f4eee8;
+      color: #e0ecfa;
       box-sizing: border-box;
       pointer-events: auto !important;
     }
@@ -804,7 +893,7 @@
     .modal-title {
       font-weight: 700;
       font-size: 15px;
-      color: #f5cebe;
+      color: #e0ecfa;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -812,21 +901,22 @@
     .modal-close-icon {
       background: transparent;
       border: none;
-      color: #f5cebe;
+      color: #8eaad0;
       font-size: 16px;
       cursor: pointer;
       padding: 4px;
       line-height: 1;
       border-radius: 4px;
-      transition: color 0.15s;
+      transition: color 0.12s;
+      box-shadow: none !important;
     }
     .modal-close-icon:hover {
-      color: #f4eee8;
-      background: rgba(50, 82, 136, 0.35);
+      color: #ffffff;
+      background: #14233c;
     }
     .modal-desc {
       font-size: 12px;
-      color: rgba(244, 238, 232, 0.75);
+      color: #8eaad0;
       margin-bottom: 14px;
       line-height: 1.45;
     }
@@ -851,32 +941,33 @@
       display: flex;
       gap: 6px;
       margin-bottom: 14px;
-      border-bottom: 1px solid #325288;
+      border-bottom: 1px solid #1a283e;
       padding-bottom: 8px;
     }
     .modal-tab-btn {
       padding: 6px 12px;
-      border-radius: 7px;
-      border: 1px solid #325288;
-      background: rgba(50, 82, 136, 0.3);
-      color: #f4eee8;
+      border-radius: 4px !important;
+      border: 1px solid #1a283e;
+      background: #0e1b30;
+      color: #8eaad0;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.12s ease;
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      box-shadow: none !important;
     }
     .modal-tab-btn:hover {
-      background: #325288;
-      color: #f5cebe;
-      border-color: #f5cebe;
+      background: #14233c;
+      color: #e0ecfa;
+      border-color: #243856;
     }
     .modal-tab-btn.active {
-      background: #325288;
-      border-color: #f5cebe;
-      color: #f4eee8;
+      background: #14233c;
+      border-color: #388bfd;
+      color: #ffffff;
       box-shadow: none !important;
     }
     .modal-tab-content {
@@ -895,44 +986,45 @@
       width: 5px;
     }
     .modal-tab-content::-webkit-scrollbar-thumb {
-      background: #325288;
-      border-radius: 4px;
+      background: #1a283e;
+      border-radius: 3px;
     }
 
     /* Segmented Preset Controls */
     .preset-pill-group {
       display: flex;
       gap: 4px;
-      background: #0a242c;
+      background: #070e1a;
       padding: 4px;
-      border-radius: 8px;
-      border: 1px solid #325288;
+      border-radius: 4px;
+      border: 1px solid #1a283e;
       margin-bottom: 2px;
     }
     .preset-pill-btn {
       flex: 1;
-      height: 28px;
+      height: 26px;
       padding: 0 6px;
       font-size: 10.5px;
       font-weight: 600;
       justify-content: center;
       text-align: center;
       white-space: nowrap;
-      border: none;
+      border: 1px solid transparent;
       background: transparent;
-      color: rgba(244, 238, 232, 0.7);
-      border-radius: 6px;
+      color: #8eaad0;
+      border-radius: 4px !important;
       cursor: pointer;
       transition: all 0.12s ease;
+      box-shadow: none !important;
     }
     .preset-pill-btn:hover {
-      background: rgba(50, 82, 136, 0.4);
-      color: #f4eee8;
+      background: #0e1b30;
+      color: #e0ecfa;
     }
     .preset-pill-btn.btn-active {
-      background: #325288;
-      border: 1px solid #f5cebe;
-      color: #f4eee8;
+      background: #14233c;
+      border: 1px solid #388bfd;
+      color: #ffffff;
       box-shadow: none !important;
     }
 
@@ -941,14 +1033,15 @@
       display: flex;
       flex-direction: column;
       padding: 12px 14px;
-      border-radius: 9px;
-      background: rgba(50, 82, 136, 0.25);
-      border: 1px solid #325288;
-      transition: border-color 0.15s ease;
+      border-radius: 4px;
+      background: #0e1b30;
+      border: 1px solid #1a283e;
+      transition: border-color 0.12s ease;
       position: relative;
+      box-shadow: none !important;
     }
     .filter-card:hover {
-      border-color: #f5cebe;
+      border-color: #243856;
     }
     .filter-card-row {
       display: flex;
@@ -966,19 +1059,19 @@
       width: 16px;
       height: 16px;
       cursor: pointer;
-      accent-color: #f5cebe;
+      accent-color: #388bfd;
       margin: 0;
       flex-shrink: 0;
     }
     .filter-title {
       font-size: 12px;
       font-weight: 700;
-      color: #f4eee8;
+      color: #e0ecfa;
       margin-bottom: 2px;
     }
     .filter-sub {
       font-size: 11px;
-      color: rgba(244, 238, 232, 0.65);
+      color: #8eaad0;
       line-height: 1.35;
     }
     .filter-card-header-flex {
@@ -994,7 +1087,7 @@
       gap: 6px;
       margin-top: 10px;
       padding-top: 8px;
-      border-top: 1px solid #325288;
+      border-top: 1px solid #1a283e;
     }
     .variant-grid {
       display: grid;
@@ -1002,7 +1095,7 @@
       gap: 8px;
       margin-top: 10px;
       padding-top: 8px;
-      border-top: 1px solid #325288;
+      border-top: 1px solid #1a283e;
     }
     .variant-chip {
       display: inline-flex;
@@ -1011,24 +1104,25 @@
       font-size: 11px;
       font-weight: 600;
       padding: 5px 9px;
-      border-radius: 6px;
-      background: rgba(50, 82, 136, 0.25);
-      border: 1px solid #325288;
-      color: #f4eee8;
+      border-radius: 4px;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #8eaad0;
       cursor: pointer;
       user-select: none;
       transition: all 0.12s ease;
+      box-shadow: none !important;
     }
     .variant-chip:hover {
-      border-color: #f5cebe;
-      color: #f4eee8;
-      background: #325288;
+      border-color: #243856;
+      color: #e0ecfa;
+      background: #0e1b30;
     }
     .variant-chip input {
       margin: 0;
       width: 13px;
       height: 13px;
-      accent-color: #f5cebe;
+      accent-color: #388bfd;
       cursor: pointer;
     }
 
@@ -1042,20 +1136,21 @@
       font-size: 10px;
       font-weight: 600;
       padding: 3px 8px;
-      border-radius: 5px;
-      background: rgba(50, 82, 136, 0.35);
-      border: 1px solid #325288;
-      color: #f5cebe;
+      border-radius: 4px;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #8eaad0;
       cursor: pointer;
       transition: all 0.12s ease;
       display: inline-flex;
       align-items: center;
       user-select: none;
+      box-shadow: none !important;
     }
     .quick-tag-btn:hover {
-      background: #325288;
-      border-color: #f5cebe;
-      color: #f4eee8;
+      background: #0e1b30;
+      border-color: #388bfd;
+      color: #e0ecfa;
     }
     .quick-add-cluster {
       display: flex;
@@ -1066,7 +1161,7 @@
     }
     .quick-add-label {
       font-size: 10px;
-      color: #f5cebe;
+      color: #8eaad0;
       font-weight: 700;
       letter-spacing: 0.5px;
       margin-right: 2px;
@@ -1076,23 +1171,24 @@
     .input-field {
       width: 100%;
       box-sizing: border-box;
-      background: #0a242c;
-      border: 1px solid #325288;
-      color: #f4eee8;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #e0ecfa;
       padding: 8px 12px;
-      border-radius: 7px;
+      border-radius: 4px;
       font-size: 11.5px;
       font-family: inherit;
       outline: none;
-      transition: all 0.15s ease;
+      transition: all 0.12s ease;
+      box-shadow: none !important;
     }
     .input-field:focus {
-      border-color: #f5cebe;
+      border-color: #388bfd;
       outline: none;
-      box-shadow: none;
+      box-shadow: none !important;
     }
     .input-field::placeholder {
-      color: rgba(244, 238, 232, 0.4);
+      color: #566e96;
     }
 
     /* Level Controls */
@@ -1103,48 +1199,51 @@
       gap: 8px;
       margin-top: 10px;
       padding-top: 8px;
-      border-top: 1px solid #325288;
-      transition: opacity 0.15s ease;
+      border-top: 1px solid #1a283e;
+      transition: opacity 0.12s ease;
     }
     .level-controls-row.dimmed {
       opacity: 0.45;
     }
     .clean-select {
-      height: 28px;
+      height: 26px;
       font-size: 11px;
-      background: #0a242c;
-      border: 1px solid #325288;
-      color: #f4eee8;
-      border-radius: 6px;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #e0ecfa;
+      border-radius: 4px;
       padding: 0 8px;
       cursor: pointer;
+      box-shadow: none !important;
     }
     .clean-num-input {
       width: 55px;
-      height: 28px;
-      background: #0a242c;
-      border: 1px solid #325288;
-      color: #f4eee8;
-      border-radius: 6px;
+      height: 26px;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #e0ecfa;
+      border-radius: 4px;
       padding: 0 6px;
       font-size: 11px;
       font-weight: 700;
       text-align: center;
+      box-shadow: none !important;
     }
 
     /* Summary & Footer Actions */
     .target-summary-callout {
       font-size: 11px;
-      color: #f4eee8;
+      color: #8eaad0;
       font-weight: 600;
       padding: 8px 12px;
-      background: rgba(50, 82, 136, 0.25);
-      border: 1px solid #325288;
-      border-radius: 8px;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      border-radius: 4px;
       margin-top: 12px;
       margin-bottom: 12px;
       white-space: normal;
       word-break: break-word;
+      box-shadow: none !important;
     }
     .modal-footer-actions {
       display: flex;
@@ -1159,13 +1258,13 @@
       margin-bottom: 14px;
       font-size: 12px;
       font-weight: 600;
-      color: #f4eee8;
+      color: #e0ecfa;
       cursor: pointer;
     }
     .checkbox-row input {
       width: 15px;
       height: 15px;
-      accent-color: #f5cebe;
+      accent-color: #388bfd;
       cursor: pointer;
     }
   </style>
@@ -1256,8 +1355,8 @@
             <span id="autoStartMapBadge" class="dropdown-badge dropdown-badge-on">ON</span>
           </button>
           <div id="autoStartDelayRow" style="padding: 2px 10px 4px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-            <label for="autoStartDelaySelect" style="font-size: 11px; color: #f5cebe; font-weight: 500;">Safety Delay:</label>
-            <select id="autoStartDelaySelect" style="height: 24px; background: #0a242c; border: 1px solid #325288; color: #f4eee8; border-radius: 4px; font-size: 11px; padding: 0 4px;" title="Delay before auto-starting on maps to allow DelugeRPG scripts and captcha checks to settle">
+            <label for="autoStartDelaySelect" style="font-size: 11px; color: #8eaad0; font-weight: 500;">Safety Delay:</label>
+            <select id="autoStartDelaySelect" style="height: 24px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; font-size: 11px; padding: 0 4px;" title="Delay before auto-starting on maps to allow DelugeRPG scripts and captcha checks to settle">
               <option value="3">3 sec</option>
               <option value="5" selected>5 sec (Safe)</option>
               <option value="8">8 sec</option>
@@ -1288,7 +1387,7 @@
 
           <div class="nav-dropdown-header">Walking Movement Mode</div>
           <div style="padding: 2px 8px 4px 8px;">
-            <select id="walkModeSelect" style="width: 100%; height: 28px; background: #0a242c; border: 1px solid #325288; color: #f4eee8; font-size: 11px;" title="Select Walking Movement Pattern">
+            <select id="walkModeSelect" style="width: 100%; height: 26px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; font-size: 11px;" title="Select Walking Movement Pattern">
               <option value="wander">Mode: Smart Wander</option>
               <option value="diagonal">Mode: Diagonal Stair</option>
               <option value="line_horizontal">Mode: Horizontal Line</option>
@@ -1297,7 +1396,7 @@
             </select>
           </div>
           <div style="padding: 2px 8px 6px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-            <label for="stepsPerDirInput" style="font-size: 11px; color: #f5cebe; font-weight: 600;">Max steps per turn:</label>
+            <label for="stepsPerDirInput" style="font-size: 11px; color: #8eaad0; font-weight: 600;">Max steps per turn:</label>
             <input type="number" id="stepsPerDirInput" class="clean-num-input" min="1" max="50" value="3" title="Maximum number of steps before changing direction (randomized 1 to max)" style="width: 52px; height: 26px;">
           </div>
           <div class="dropdown-divider"></div>
@@ -1471,7 +1570,7 @@
           </div>
         </div>
         <div id="subVariantsWrap" class="variant-grid">
-          <label class="variant-chip" style="border-color: #f5cebe;"><input type="checkbox" id="varNormal" checked><span style="color:#f5cebe;font-weight:700;">Normal</span></label>
+          <label class="variant-chip" style="border-color: #388bfd;"><input type="checkbox" id="varNormal" checked><span style="color:#388bfd;font-weight:700;">Normal</span></label>
           <label class="variant-chip"><input type="checkbox" id="varShiny" checked><span>Shiny</span></label>
           <label class="variant-chip"><input type="checkbox" id="varChrome" checked><span>Chrome</span></label>
           <label class="variant-chip"><input type="checkbox" id="varRetro" checked><span>Retro</span></label>
@@ -1493,7 +1592,7 @@
             <div class="filter-title">&#128683; Blacklist / Ignore Common Junk</div>
             <div class="filter-sub">Never alert or pause on these species under any circumstance, even if variant or level matches:</div>
           </div>
-          <button id="clearBlacklistBtn" type="button" class="quick-tag-btn" style="border-color:rgba(239,68,68,0.4);color:#f87171;">Clear All</button>
+          <button id="clearBlacklistBtn" type="button" class="quick-tag-btn" style="border-color:rgba(218,54,51,0.5);color:#f85149;">Clear All</button>
         </div>
         <input type="text" id="blacklistInput" class="input-field" placeholder="e.g. Sentret, Rattata, Pidgey, Zubat, Caterpie, Weedle, Magikarp">
         <div class="quick-add-cluster">
@@ -1530,18 +1629,18 @@
     </div>
 
     <!-- Live Real-Time Network Identity Card -->
-    <div style="background: rgba(50, 82, 136, 0.25); border: 1px solid #325288; border-radius: 9px; padding: 12px 14px; margin-bottom: 14px; font-size: 11px;">
+    <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 12px 14px; margin-bottom: 14px; font-size: 11px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-        <span style="font-weight:700; color:#f4eee8; font-size:12px;">Live Outbound Identity</span>
+        <span style="font-weight:700; color:#e0ecfa; font-size:12px;">Live Outbound Identity</span>
         <button id="refreshIpBtn" class="btn" style="height:22px; padding:0 8px; font-size:10px;" title="Re-check IP address now">&#8635; Refresh IP</button>
       </div>
-      <div style="color:rgba(244, 238, 232, 0.7); margin-bottom: 4px;">
-        Public IP: <span id="modalDetectedIp" style="font-weight:700; color:#f5cebe; font-family:monospace; font-size:12px;">Detecting...</span>
+      <div style="color:#8eaad0; margin-bottom: 4px;">
+        Public IP: <span id="modalDetectedIp" style="font-weight:700; color:#388bfd; font-family:monospace; font-size:12px;">Detecting...</span>
       </div>
-      <div style="color:rgba(244, 238, 232, 0.7); margin-bottom: 4px;">
-        Provider / ISP: <span id="modalDetectedIsp" style="font-weight:700; color:#f4eee8;">Detecting...</span>
+      <div style="color:#8eaad0; margin-bottom: 4px;">
+        Provider / ISP: <span id="modalDetectedIsp" style="font-weight:700; color:#e0ecfa;">Detecting...</span>
       </div>
-      <div id="modalSecurityNotice" style="font-size:10px; margin-top:6px; padding:4px 8px; border-radius:5px; background:rgba(50, 82, 136, 0.35); color:#f5cebe;">
+      <div id="modalSecurityNotice" style="font-size:10px; margin-top:6px; padding:4px 8px; border-radius:4px; background:#070e1a; color:#8eaad0; border:1px solid #1a283e;">
         Detecting network status...
       </div>
     </div>
@@ -1551,10 +1650,10 @@
       <span>Enable Proxy Routing</span>
     </label>
 
-    <label style="font-size:11px; font-weight:600; color:#f5cebe; display:block; margin-bottom:6px;">Proxy Server Address:</label>
+    <label style="font-size:11px; font-weight:600; color:#8eaad0; display:block; margin-bottom:6px;">Proxy Server Address:</label>
     <input type="text" id="proxyRulesInput" class="input-field" placeholder="socks5://127.0.0.1:9050 or http://ip:port">
 
-    <div style="font-size:11px; color:#64748b; margin-bottom:16px; line-height:1.4;">
+    <div style="font-size:11px; color:#566e96; margin-bottom:16px; line-height:1.4;">
       Supported protocols: SOCKS5 and HTTP. Chromium WebRTC leak prevention is active.
     </div>
 
@@ -1574,10 +1673,10 @@
       Configure your saved credentials for quick one-click auto-fill on the login screen.
     </div>
 
-    <label style="font-size:11px; font-weight:600; color:#f5cebe; display:block; margin-bottom:4px;">Nickname / Username:</label>
+    <label style="font-size:11px; font-weight:600; color:#8eaad0; display:block; margin-bottom:4px;">Nickname / Username:</label>
     <input type="text" id="accUser" class="input-field" placeholder="Username (e.g. PokeDen)">
 
-    <label style="font-size:11px; font-weight:600; color:#f5cebe; display:block; margin-bottom:4px;">Password:</label>
+    <label style="font-size:11px; font-weight:600; color:#8eaad0; display:block; margin-bottom:4px;">Password:</label>
     <input type="password" id="accPass" class="input-field" placeholder="Password">
 
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:6px;">
@@ -1589,7 +1688,7 @@
   <!-- 4. CLEAN SLATE / WIPE CONFIRMATION MODAL -->
   <div id="wipeModal" class="modal-box" style="width: 380px;">
     <div class="modal-header-row">
-      <div class="modal-title" style="color:#f5cebe;">&#9888; Clean Slate / Wipe Data</div>
+      <div class="modal-title" style="color:#e0ecfa;">&#9888; Clean Slate / Wipe Data</div>
       <button id="closeWipeBtn" class="modal-close-icon" title="Close">&#10005;</button>
     </div>
     <div class="modal-desc">
@@ -1598,14 +1697,14 @@
     </div>
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
       <button id="cancelWipeBtn" class="btn" style="width:80px;">Cancel</button>
-      <button id="confirmWipeBtn" class="btn btn-danger" style="background:#325288; border:1px solid #f5cebe; color:#f4eee8; width:140px;">Wipe &amp; Reload</button>
+      <button id="confirmWipeBtn" class="btn btn-danger" style="width:140px;">Wipe &amp; Reload</button>
     </div>
   </div>
 
   <!-- 4.5 TRAINER ROSTER INTEL & AUTO-RECORDER MODAL -->
   <div id="trainerIntelModal" class="modal-box" style="width: 440px;">
     <div class="modal-header-row">
-      <div class="modal-title" style="color:#f5cebe;">&#128737; Trainer Intel &amp; Auto-Recorder</div>
+      <div class="modal-title" style="color:#e0ecfa;">&#128737; Trainer Intel &amp; Auto-Recorder</div>
       <button id="closeTrainerIntelBtn" class="modal-close-icon" title="Close">&#10005;</button>
     </div>
     <div class="modal-desc" style="margin-bottom: 10px;">
@@ -1613,32 +1712,32 @@
     </div>
 
     <!-- Coverage Stats Card -->
-    <div style="background: rgba(50, 82, 136, 0.25); border: 1px solid #325288; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 11px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #325288; padding-bottom: 4px;">
-        <span style="font-weight: 700; color: #f4eee8; font-size: 11.5px;">Database Completeness</span>
-        <span id="modalRosterCountBadge" style="font-weight: 700; color: #f5cebe; font-size: 11px;">131/131 Gyms (100%)</span>
+    <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 10px 12px; margin-bottom: 12px; font-size: 11px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #1a283e; padding-bottom: 4px;">
+        <span style="font-weight: 700; color: #e0ecfa; font-size: 11.5px;">Database Completeness</span>
+        <span id="modalRosterCountBadge" style="font-weight: 700; color: #388bfd; font-size: 11px;">131/131 Gyms (100%)</span>
       </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; color: rgba(244, 238, 232, 0.7); font-size: 10.5px;">
-        <div>&#10003; <strong>Gym Leagues:</strong> <span style="color:#f5cebe;">131 / 131</span> (Kanto-Paldea)</div>
-        <div>&#10003; <strong>VIP / Special:</strong> <span style="color:#f5cebe;">46 / 132</span> (Ash, Red, etc.)</div>
-        <div>&#10003; <strong>Total Opponents:</strong> <span style="color:#f5cebe;">449 Opponents</span></div>
-        <div>&#10003; <strong>Auto-Learner:</strong> <span style="color:#f4eee8; font-weight: 700;">Always Active</span></div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; color: #8eaad0; font-size: 10.5px;">
+        <div>&#10003; <strong>Gym Leagues:</strong> <span style="color:#388bfd;">131 / 131</span> (Kanto-Paldea)</div>
+        <div>&#10003; <strong>VIP / Special:</strong> <span style="color:#388bfd;">46 / 132</span> (Ash, Red, etc.)</div>
+        <div>&#10003; <strong>Total Opponents:</strong> <span style="color:#388bfd;">449 Opponents</span></div>
+        <div>&#10003; <strong>Auto-Learner:</strong> <span style="color:#e0ecfa; font-weight: 700;">Always Active</span></div>
       </div>
     </div>
 
     <!-- How It Works Card -->
-    <div style="background: rgba(10, 36, 44, 0.6); border: 1px solid #325288; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 11px; line-height: 1.45; color: #f4eee8;">
-      <div style="font-weight: 700; color: #f5cebe; margin-bottom: 4px; font-size: 11.5px;">How DelugeRPG Auto-Recording Works</div>
-      <div style="color: rgba(244, 238, 232, 0.7); font-size: 10.5px; margin-bottom: 6px;">
-        DelugeRPG protects trainer privacy by hiding team rosters on public profile pages (<code style="color:#f5cebe;">/npc/</code>), preventing mass web scrapers.
+    <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 10px 12px; margin-bottom: 14px; font-size: 11px; line-height: 1.45; color: #e0ecfa;">
+      <div style="font-weight: 700; color: #388bfd; margin-bottom: 4px; font-size: 11.5px;">How DelugeRPG Auto-Recording Works</div>
+      <div style="color: #8eaad0; font-size: 10.5px; margin-bottom: 6px;">
+        DelugeRPG protects trainer privacy by hiding team rosters on public profile pages (<code style="color:#388bfd;">/npc/</code>), preventing mass web scrapers.
       </div>
       <div style="font-size: 10.5px;">
-        &#9889; <strong>Live Battle Detector:</strong> The client automatically listens to all live battles (<code style="color:#f5cebe;">#teamleft</code>, <code style="color:#f5cebe;">#opponent</code>, and <code style="color:#f5cebe;">#viewpokes</code>). The instant you face an opponent, their entire team is captured and permanently saved to your offline database!
+        &#9889; <strong>Live Battle Detector:</strong> The client automatically listens to all live battles (<code style="color:#388bfd;">#teamleft</code>, <code style="color:#388bfd;">#opponent</code>, and <code style="color:#388bfd;">#viewpokes</code>). The instant you face an opponent, their entire team is captured and permanently saved to your offline database!
       </div>
     </div>
 
     <!-- Active Battle Action & Status -->
-    <div id="activeBattleStatusMsg" style="font-size: 10.5px; color: #94a3b8; margin-bottom: 12px; min-height: 16px;"></div>
+    <div id="activeBattleStatusMsg" style="font-size: 10.5px; color: #8eaad0; margin-bottom: 12px; min-height: 16px;"></div>
 
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <button id="inspectBattleBtn" class="btn btn-accent" style="height: 28px; font-size: 11px; padding: 0 12px;" title="Scan opponent roster from current battle screen">&#9876; Scan Current Battle</button>
@@ -1660,34 +1759,34 @@
 
     <!-- 5. DOCKED SIDE PANEL: TEAM BUILDER (1/4 OF WINDOW) -->
     <div id="teamBuilderModal" style="display: flex;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #325288;">
-        <div style="font-weight: 700; font-size: 13px; color: #f5cebe; display: flex; align-items: center; gap: 6px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e;">
+        <div style="font-weight: 700; font-size: 13px; color: #e0ecfa; display: flex; align-items: center; gap: 6px;">
           <span>&#9876;</span>
           <span>Team Builder</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
-          <button id="switchAdsInspectorFromTeamBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none;" title="Switch to Ads Inspector panel">&#128065; Ads (<span id="teamHeaderAdsBadge">0</span>)</button>
-          <button id="closeTeamBuilderBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none;">&#10005;</button>
+          <button id="switchAdsInspectorFromTeamBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Ads Inspector panel">&#128065; Ads (<span id="teamHeaderAdsBadge">0</span>)</button>
+          <button id="closeTeamBuilderBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
         </div>
       </div>
 
       <!-- Scan Bar -->
-      <div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; background: rgba(50, 82, 136, 0.25); border: 1px solid #325288; border-radius: 6px; margin-bottom: 6px; box-shadow: none;">
+      <div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; margin-bottom: 6px; box-shadow: none !important;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 9.5px; font-weight: 700; color: #f5cebe; text-transform: uppercase; letter-spacing: 0.5px;">Roster &amp; Data Sync</span>
-          <span id="scanStatusBadge" style="font-size: 10px; color: #f5cebe; font-weight: 600;">96 Pokemon Synced</span>
+          <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Roster &amp; Data Sync</span>
+          <span id="scanStatusBadge" style="font-size: 10px; color: #388bfd; font-weight: 600;">96 Pokemon Synced</span>
         </div>
         <div style="display: flex; gap: 6px;">
-          <button id="scanPokesBtn" type="button" class="btn" style="flex: 1; height: 24px; font-size: 10px; box-shadow: none;" title="Scan and sync your box Pokemon collection">&#8635; Scan My Box</button>
-          <button id="scanTrainersBtn" type="button" class="btn" style="flex: 1; height: 24px; font-size: 10px; box-shadow: none;" title="View trainer roster database &amp; auto-recorder status">&#128737; Trainer Intel</button>
+          <button id="scanPokesBtn" type="button" class="btn" style="flex: 1; height: 24px; font-size: 10px; box-shadow: none !important;" title="Scan and sync your box Pokemon collection">&#8635; Scan My Box</button>
+          <button id="scanTrainersBtn" type="button" class="btn" style="flex: 1; height: 24px; font-size: 10px; box-shadow: none !important;" title="View trainer roster database &amp; auto-recorder status">&#128737; Trainer Intel</button>
         </div>
       </div>
 
       <!-- Opponent Select & Tier Filter -->
       <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px;">
         <div>
-          <label for="teamCategorySelect" style="font-size: 10px; font-weight: 600; color: #f5cebe; display: block; margin-bottom: 2px;">Category / Tier Filter:</label>
-          <select id="teamCategorySelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; background: #0a242c; border: 1px solid #325288; color: #f4eee8; border-radius: 6px; padding: 0 6px; box-shadow: none;">
+          <label for="teamCategorySelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">Category / Tier Filter:</label>
+          <select id="teamCategorySelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 6px; box-shadow: none !important;">
             <option value="ALL">All Opponents (449)</option>
             <optgroup label="TRAINER TIERS">
               <option value="VIP_TRAINERS">VIP Trainers (132)</option>
@@ -1711,18 +1810,18 @@
         </div>
 
         <div>
-          <label for="teamTrainerSelect" style="font-size: 10px; font-weight: 600; color: #f5cebe; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+          <label for="teamTrainerSelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
             <span>Target Battle Opponent:</span>
-            <span id="filteredTrainerCountBadge" style="font-size: 9.5px; color: #f5cebe; font-weight: 600;"></span>
+            <span id="filteredTrainerCountBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;"></span>
           </label>
-          <select id="teamTrainerSelect" class="clean-select" style="width: 100%; height: 28px; font-size: 11px; font-weight: 600; background: #0a242c; border: 1px solid #325288; color: #f4eee8; border-radius: 6px; padding: 0 8px; box-shadow: none;"></select>
+          <select id="teamTrainerSelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; box-shadow: none !important;"></select>
         </div>
       </div>
 
       <!-- Candidate Pool Tier Filter -->
       <div style="margin-bottom: 6px;">
-        <label for="candidatePoolFilterSelect" style="font-size: 10px; font-weight: 600; color: #f5cebe; display: block; margin-bottom: 2px;">Candidate Pool Filter:</label>
-        <select id="candidatePoolFilterSelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; font-weight: 600; background: #0a242c; border: 1px solid #325288; color: #f4eee8; border-radius: 6px; padding: 0 8px; box-shadow: none;" title="Filter candidate pool by species tier">
+        <label for="candidatePoolFilterSelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">Candidate Pool Filter:</label>
+        <select id="candidatePoolFilterSelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; box-shadow: none !important;" title="Filter candidate pool by species tier">
           <option value="ANY">Any (All Pokemon)</option>
           <option value="GMAX">G-Max Only</option>
           <option value="LEGENDARY">Legendary Only</option>
@@ -1735,26 +1834,26 @@
       <!-- Team Builder Mode (All Levels vs Training < 100) -->
       <div style="display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 9.5px; font-weight: 700; color: #f5cebe; text-transform: uppercase; letter-spacing: 0.5px;">Candidate Pool</span>
-          <span id="trainingStatsBadge" style="font-size: 9.5px; color: #f5cebe; font-weight: 600;">118 in training</span>
+          <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Candidate Pool</span>
+          <span id="trainingStatsBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;">118 in training</span>
         </div>
-        <div style="display: flex; gap: 4px; background: #0a242c; border: 1px solid #325288; padding: 2px; border-radius: 6px;">
-          <button type="button" id="poolModeAllBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none; border: 1px solid #f5cebe; background: #325288; color: #f4eee8; font-weight: 700;" title="Use all Pokemon in your collection (including Level 100)">All Levels</button>
-          <button type="button" id="poolModeTrainingBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none; border: none; background: transparent; color: #f5cebe; font-weight: 500;" title="Use non-level 100 Pokemon only so you can train and max them out">&#9889; Training (&lt;100)</button>
+        <div style="display: flex; gap: 4px; background: #070e1a; border: 1px solid #1a283e; padding: 2px; border-radius: 4px;">
+          <button type="button" id="poolModeAllBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid #388bfd; background: #14233c; color: #ffffff; font-weight: 700; border-radius: 4px !important;" title="Use all Pokemon in your collection (including Level 100)">All Levels</button>
+          <button type="button" id="poolModeTrainingBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid transparent; background: transparent; color: #8eaad0; font-weight: 500; border-radius: 4px !important;" title="Use non-level 100 Pokemon only so you can train and max them out">&#9889; Training (&lt;100)</button>
         </div>
       </div>
 
       <!-- Build Action -->
-      <button id="buildTeamBtn" type="button" class="btn" style="width: 100%; height: 28px; font-size: 11px; font-weight: 700; background: #325288; border: 1px solid #f5cebe; color: #f4eee8; margin-bottom: 6px; box-shadow: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+      <button id="buildTeamBtn" type="button" class="btn btn-accent" style="width: 100%; height: 28px; font-size: 11px; font-weight: 700; margin-bottom: 6px; box-shadow: none !important; display: flex; align-items: center; justify-content: center; gap: 6px;">
         <span>&#9876;</span>
         <span>Build Best Team</span>
       </button>
 
       <!-- Empty Lineup Prompt (Shown when no active team built) -->
-      <div id="teamEmptyPrompt" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px 10px; background: rgba(10, 36, 44, 0.6); border: 1px solid #325288; border-radius: 8px; color: rgba(244, 238, 232, 0.75); font-size: 11px; margin-bottom: 6px;">
-        <div style="font-size: 20px; color: #f5cebe; margin-bottom: 6px; opacity: 0.85;">&#9876;</div>
-        <div style="font-weight: 700; color: #f4eee8; font-size: 11.5px; margin-bottom: 3px;">No Active Lineup</div>
-        <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px;">Select an opponent above and click <b>Build Best Team</b>, or fight a trainer on DelugeRPG to counter them live.</div>
+      <div id="teamEmptyPrompt" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px 10px; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; color: #8eaad0; font-size: 11px; margin-bottom: 6px;">
+        <div style="font-size: 20px; color: #388bfd; margin-bottom: 6px; opacity: 0.9;">&#9876;</div>
+        <div style="font-weight: 700; color: #e0ecfa; font-size: 11.5px; margin-bottom: 3px;">No Active Lineup</div>
+        <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px; color: #8eaad0;">Select an opponent above and click <b>Build Best Team</b>, or fight a trainer on DelugeRPG to counter them live.</div>
       </div>
 
       <!-- Lineup Results -->
@@ -1763,12 +1862,12 @@
       </div>
 
       <!-- Action Bar -->
-      <div id="teamActionRow" style="display: none; flex-direction: column; gap: 5px; border-top: 1px solid #325288; padding-top: 8px; margin-top: auto; flex-shrink: 0;">
-        <span id="teamActionStatus" style="font-size: 10.5px; color: #f5cebe; font-weight: 600; text-align: center;"></span>
+      <div id="teamActionRow" style="display: none; flex-direction: column; gap: 5px; border-top: 1px solid #1a283e; padding-top: 8px; margin-top: auto; flex-shrink: 0;">
+        <span id="teamActionStatus" style="font-size: 10.5px; color: #8eaad0; font-weight: 600; text-align: center;"></span>
         <div style="display: flex; gap: 6px;">
-          <button id="copyTeamBtn" type="button" class="btn" style="flex: 1; height: 27px; font-size: 10.5px; background: rgba(50, 82, 136, 0.35); border: 1px solid #325288; color: #f4eee8; box-shadow: none;" title="Copy lineup summary to clipboard">Copy</button>
-          <button id="applyTeamBtn" type="button" class="btn" style="flex: 1.2; height: 27px; font-size: 10.5px; font-weight: 700; background: #114e60; border: 1px solid #f5cebe; color: #f4eee8; box-shadow: none;" title="Equip this lineup in DelugeRPG">Change Team</button>
-          <button id="battleOpponentBtn" type="button" class="btn" style="flex: 1.1; height: 27px; font-size: 10.5px; font-weight: 700; background: #325288; border: 1px solid #f5cebe; color: #f4eee8; box-shadow: none;" title="Go directly to this opponent's battle arena on DelugeRPG">&#9876; Battle Now</button>
+          <button id="copyTeamBtn" type="button" class="btn" style="flex: 1; height: 27px; font-size: 10.5px; box-shadow: none !important;" title="Copy lineup summary to clipboard">Copy</button>
+          <button id="applyTeamBtn" type="button" class="btn btn-green" style="flex: 1.2; height: 27px; font-size: 10.5px; font-weight: 700; box-shadow: none !important;" title="Equip this lineup in DelugeRPG">Change Team</button>
+          <button id="battleOpponentBtn" type="button" class="btn btn-accent" style="flex: 1.1; height: 27px; font-size: 10.5px; font-weight: 700; box-shadow: none !important;" title="Go directly to this opponent's battle arena on DelugeRPG">&#9876; Battle Now</button>
         </div>
       </div>
     </div>
@@ -1776,52 +1875,52 @@
     <!-- 6. DOCKED SIDE PANEL: ADS INSPECTOR (1/4 OF WINDOW) -->
     <div id="adsInspectorModal" style="display: none;">
       <!-- Header with title and tab switcher -->
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #325288;">
-        <div style="font-weight: 700; font-size: 13px; color: #f5cebe; display: flex; align-items: center; gap: 6px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e;">
+        <div style="font-weight: 700; font-size: 13px; color: #e0ecfa; display: flex; align-items: center; gap: 6px;">
           <span>&#128065;</span>
           <span>Ads Inspector</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
-          <button id="switchTeamBuilderFromAdsBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
-          <button id="closeAdsInspectorBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none;">&#10005;</button>
+          <button id="switchTeamBuilderFromAdsBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
+          <button id="closeAdsInspectorBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
         </div>
       </div>
 
       <!-- Overview & Mode Banner -->
-      <div style="background: #0a242c; border: 1px solid #325288; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; box-shadow: none;">
+      <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; box-shadow: none !important;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <span style="font-size: 10px; font-weight: 700; color: rgba(244, 238, 232, 0.65); text-transform: uppercase; letter-spacing: 0.5px;">Adblock Simulation</span>
-          <span id="adsInspectorStatusBadge" style="font-size: 10.5px; font-weight: 700; color: #f5cebe;">Active (Network Intact)</span>
+          <span style="font-size: 10px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Adblock Simulation</span>
+          <span id="adsInspectorStatusBadge" style="font-size: 10.5px; font-weight: 700; color: #388bfd;">Active (Network Intact)</span>
         </div>
-        <div style="font-size: 10px; color: rgba(244, 238, 232, 0.8); line-height: 1.4;">
+        <div style="font-size: 10px; color: #8eaad0; line-height: 1.4;">
           Cosmetic zero-shift hiding active. DelugeRPG ad verification scripts execute safely while banners, wrappers, and interstitials are smoothly collapsed without blank gaps.
         </div>
       </div>
 
       <!-- Summary Stats Badges Grid -->
       <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
-        <div style="background: #0a242c; border: 1px solid #325288; border-radius: 5px; padding: 4px 6px; text-align: center;">
-          <div style="font-size: 9px; color: rgba(244, 238, 232, 0.65); font-weight: 600;">TOTAL</div>
-          <div id="adsStatTotal" style="font-size: 13px; font-weight: 700; color: #f4eee8;">0</div>
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 9px; color: #566e96; font-weight: 600;">TOTAL</div>
+          <div id="adsStatTotal" style="font-size: 13px; font-weight: 700; color: #e0ecfa;">0</div>
         </div>
-        <div style="background: #0a242c; border: 1px solid #325288; border-radius: 5px; padding: 4px 6px; text-align: center;">
-          <div style="font-size: 9px; color: rgba(244, 238, 232, 0.65); font-weight: 600;">ADSENSE</div>
-          <div id="adsStatAdsense" style="font-size: 13px; font-weight: 700; color: #f5cebe;">0</div>
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 9px; color: #566e96; font-weight: 600;">ADSENSE</div>
+          <div id="adsStatAdsense" style="font-size: 13px; font-weight: 700; color: #388bfd;">0</div>
         </div>
-        <div style="background: #0a242c; border: 1px solid #325288; border-radius: 5px; padding: 4px 6px; text-align: center;">
-          <div style="font-size: 9px; color: rgba(244, 238, 232, 0.65); font-weight: 600;">GPT/SLOT</div>
-          <div id="adsStatGpt" style="font-size: 13px; font-weight: 700; color: #f4eee8;">0</div>
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 9px; color: #566e96; font-weight: 600;">GPT/SLOT</div>
+          <div id="adsStatGpt" style="font-size: 13px; font-weight: 700; color: #e0ecfa;">0</div>
         </div>
-        <div style="background: #0a242c; border: 1px solid #325288; border-radius: 5px; padding: 4px 6px; text-align: center;">
-          <div style="font-size: 9px; color: rgba(244, 238, 232, 0.65); font-weight: 600;">VIGNETTE</div>
-          <div id="adsStatVignette" style="font-size: 13px; font-weight: 700; color: #f5cebe;">0</div>
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 9px; color: #566e96; font-weight: 600;">VIGNETTE</div>
+          <div id="adsStatVignette" style="font-size: 13px; font-weight: 700; color: #d29922;">0</div>
         </div>
       </div>
 
       <!-- Action Bar: Rescan & Clear -->
       <div style="display: flex; gap: 6px; margin-bottom: 8px;">
-        <button id="rescanAdsBtn" type="button" class="btn btn-accent" style="flex: 1; height: 26px; font-size: 10.5px; box-shadow: none;" title="Trigger immediate full-page DOM ad scan">&#8635; Rescan Page Ads</button>
-        <button id="clearAdsLogBtn" type="button" class="btn" style="height: 26px; font-size: 10.5px; padding: 0 10px; box-shadow: none;" title="Clear detected ads list">Clear Log</button>
+        <button id="rescanAdsBtn" type="button" class="btn btn-accent" style="flex: 1; height: 26px; font-size: 10.5px; box-shadow: none !important;" title="Trigger immediate full-page DOM ad scan">&#8635; Rescan Page Ads</button>
+        <button id="clearAdsLogBtn" type="button" class="btn" style="height: 26px; font-size: 10.5px; padding: 0 10px; box-shadow: none !important;" title="Clear detected ads list">Clear Log</button>
       </div>
 
       <!-- Filter Tabs -->
@@ -1836,10 +1935,10 @@
 
       <!-- Scrollable Live Ad Feed -->
       <div id="adsFeedList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
-        <div id="adsEmptyPrompt" style="text-align: center; color: rgba(244, 238, 232, 0.65); font-size: 11px; padding: 30px 10px;">
-          <div style="font-size: 20px; margin-bottom: 6px; color: #f5cebe;">&#128065;</div>
-          <div style="color: #f4eee8;">Listening for DelugeRPG ads...</div>
-          <div style="font-size: 10px; margin-top: 4px; color: rgba(244, 238, 232, 0.5);">Ads detected during browsing will appear here with type, slot, and smooth collapse telemetry.</div>
+        <div id="adsEmptyPrompt" style="text-align: center; color: #8eaad0; font-size: 11px; padding: 30px 10px;">
+          <div style="font-size: 20px; margin-bottom: 6px; color: #388bfd;">&#128065;</div>
+          <div style="color: #e0ecfa;">Listening for DelugeRPG ads...</div>
+          <div style="font-size: 10px; margin-top: 4px; color: #566e96;">Ads detected during browsing will appear here with type, slot, and smooth collapse telemetry.</div>
         </div>
       </div>
     </div>
@@ -1847,8 +1946,8 @@
     <!-- 7. DOCKED SIDE PANEL: TODAY'S AUTO-CATCH & MASTER BALL LOG (1/4 OF WINDOW) -->
     <div id="catchLogModal" style="display: none;">
       <!-- Header with title and tab switcher -->
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #325288;">
-        <div style="font-weight: 700; font-size: 13px; color: #f5cebe; display: flex; align-items: center; gap: 6px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e;">
+        <div style="font-weight: 700; font-size: 13px; color: #e0ecfa; display: flex; align-items: center; gap: 6px;">
           <span>&#9918;</span>
           <span>Today's Auto-Catch</span>
         </div>
@@ -1859,36 +1958,36 @@
       </div>
 
       <!-- Overview Banner -->
-      <div style="background: #0a242c; border: 1px solid #325288; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; box-shadow: none !important;">
+      <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; box-shadow: none !important;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <span style="font-size: 10px; font-weight: 700; color: rgba(244, 238, 232, 0.65); text-transform: uppercase; letter-spacing: 0.5px;">Auto-Catch Telemetry</span>
-          <span id="catchDateBadge" style="font-size: 10px; font-weight: 700; color: #f5cebe;">Today</span>
+          <span style="font-size: 10px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Auto-Catch Telemetry</span>
+          <span id="catchDateBadge" style="font-size: 10px; font-weight: 700; color: #388bfd;">Today</span>
         </div>
-        <div style="font-size: 10px; color: rgba(244, 238, 232, 0.8); line-height: 1.4;">
+        <div style="font-size: 10px; color: #8eaad0; line-height: 1.4;">
           Persistent log of target Pokemon automatically caught today. Synchronized live with in-game inventory.
         </div>
       </div>
 
       <!-- Summary Stats Badges Grid -->
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px;">
-        <div style="background: #0a242c; border: 1px solid #325288; border-radius: 5px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
-          <div style="font-size: 9px; color: rgba(244, 238, 232, 0.65); font-weight: 600;">CAUGHT TODAY</div>
-          <div id="catchStatCount" style="font-size: 13px; font-weight: 700; color: #f5cebe;">0</div>
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 9px; color: #566e96; font-weight: 600;">CAUGHT TODAY</div>
+          <div id="catchStatCount" style="font-size: 13px; font-weight: 700; color: #388bfd;">0</div>
         </div>
-        <div style="background: #0a242c; border: 1px solid #325288; border-radius: 5px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
-          <div style="font-size: 9px; color: rgba(244, 238, 232, 0.65); font-weight: 600;">MB STOCK</div>
-          <div id="catchStatMbStock" style="font-size: 13px; font-weight: 700; color: #f4eee8;">--</div>
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 9px; color: #566e96; font-weight: 600;">MB STOCK</div>
+          <div id="catchStatMbStock" style="font-size: 13px; font-weight: 700; color: #e0ecfa;">--</div>
         </div>
-        <div style="background: #0a242c; border: 1px solid #325288; border-radius: 5px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
-          <div style="font-size: 9px; color: rgba(244, 238, 232, 0.65); font-weight: 600;">MB USED TODAY</div>
-          <div id="catchStatMbUsed" style="font-size: 13px; font-weight: 700; color: #f5cebe;">0</div>
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 9px; color: #566e96; font-weight: 600;">MB USED TODAY</div>
+          <div id="catchStatMbUsed" style="font-size: 13px; font-weight: 700; color: #388bfd;">0</div>
         </div>
       </div>
 
       <!-- Poke Balls in Bag Stock Strip -->
-      <div id="ballStockStrip" style="background: #0a242c; border: 1px solid #325288; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; font-size: 10px; color: #f4eee8; display: flex; justify-content: space-between; align-items: center; box-shadow: none !important;">
-        <span style="font-weight: 600; color: rgba(244, 238, 232, 0.65);">Bag Balls:</span>
-        <span id="ballStockDetails" style="color: #f4eee8;">Syncing bag inventory...</span>
+      <div id="ballStockStrip" style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; margin-bottom: 8px; font-size: 10px; color: #e0ecfa; display: flex; justify-content: space-between; align-items: center; box-shadow: none !important;">
+        <span style="font-weight: 600; color: #8eaad0;">Bag Balls:</span>
+        <span id="ballStockDetails" style="color: #e0ecfa;">Syncing bag inventory...</span>
       </div>
 
       <!-- Action Bar: Sync & Clear -->
@@ -1899,10 +1998,10 @@
 
       <!-- Scrollable Live Caught Feed -->
       <div id="catchFeedList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
-        <div id="catchEmptyPrompt" style="text-align: center; color: rgba(244, 238, 232, 0.65); font-size: 11px; padding: 30px 10px;">
-          <div style="font-size: 20px; margin-bottom: 6px; color: #f5cebe;">&#9918;</div>
-          <div style="font-weight: 600; color: #f4eee8;">No Pokemon caught yet today</div>
-          <div style="font-size: 10px; margin-top: 4px; color: rgba(244, 238, 232, 0.5);">Target Pokemon automatically caught during hunts will appear here with sprite, variant, level, and timestamp.</div>
+        <div id="catchEmptyPrompt" style="text-align: center; color: #8eaad0; font-size: 11px; padding: 30px 10px;">
+          <div style="font-size: 20px; margin-bottom: 6px; color: #388bfd;">&#9918;</div>
+          <div style="font-weight: 600; color: #e0ecfa;">No Pokemon caught yet today</div>
+          <div style="font-size: 10px; margin-top: 4px; color: #566e96;">Target Pokemon automatically caught during hunts will appear here with sprite, variant, level, and timestamp.</div>
         </div>
       </div>
     </div>

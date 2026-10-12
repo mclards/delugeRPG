@@ -2795,6 +2795,7 @@ document.querySelectorAll('.modal-tab-btn').forEach(tabBtn => {
 
 // Target Filter Modal Management
 function openTargetModal() {
+  closeNavDropdown();
   document.querySelectorAll('.modal-tab-btn').forEach(b => {
     b.classList.toggle('active', b.getAttribute('data-tab') === 'tabSpecies');
   });
@@ -2845,29 +2846,6 @@ if (presetMegaBtn) presetMegaBtn.addEventListener('click', () => applyTargetPres
 if (presetVarBtn) presetVarBtn.addEventListener('click', () => applyTargetPreset('variants', true));
 if (presetShinyBtn) presetShinyBtn.addEventListener('click', () => applyTargetPreset('shinies', true));
 if (presetLegMegaBtn) presetLegMegaBtn.addEventListener('click', () => applyTargetPreset('legend_megas', true));
-
-// Quick Variant Helper Buttons
-if (btnAllVariants) {
-  btnAllVariants.addEventListener('click', () => {
-    if (filterVariantsCheckbox) filterVariantsCheckbox.checked = true;
-    variantIds.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.checked = true;
-    });
-    refreshModalSummary();
-  });
-}
-
-if (btnShiniesOnly) {
-  btnShiniesOnly.addEventListener('click', () => {
-    if (filterVariantsCheckbox) filterVariantsCheckbox.checked = true;
-    variantIds.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.checked = (id === 'varShiny');
-    });
-    refreshModalSummary();
-  });
-}
 
 // Quick Add Species Tag Buttons
 document.querySelectorAll('.quick-tag-btn[data-add-target]').forEach(btn => {
@@ -3262,6 +3240,7 @@ if (autoCatchBtn) {
 
 if (openLogsBtn) {
   openLogsBtn.addEventListener('click', () => {
+    closeNavDropdown();
     const { ipcRenderer } = require('electron');
     if (ipcRenderer) {
       ipcRenderer.invoke('open-log-file').catch(err => {
@@ -3270,8 +3249,6 @@ if (openLogsBtn) {
     }
   });
 }
-
-
 
 if (refreshBtn) {
   refreshBtn.addEventListener('click', async () => {
@@ -3301,6 +3278,7 @@ if (refreshBtn) {
 
 // Clean Slate / Wipe Session Storage (In-DOM confirmation to prevent Windows focus loss)
 function openWipeModal() {
+  closeNavDropdown();
   if (wipeModal) showModal(wipeModal);
 }
 
@@ -3383,6 +3361,7 @@ saveProxyBtn.addEventListener('click', async () => {
 
 // Account Modal Management
 loginHelperBtn.addEventListener('click', () => {
+  closeNavDropdown();
   if (accountModal.style.display === 'block') {
     closeAllModals();
   } else {

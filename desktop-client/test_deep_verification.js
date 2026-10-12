@@ -46,6 +46,7 @@ const clientFiles = [
   'type_chart_database.json',
   'test_client.js',
   'test_duplicate_and_catch.js',
+  'test_buttons_verification.js',
   'test_deep_verification.js'
 ];
 
@@ -932,6 +933,10 @@ runTest('test_client.js execution', () => {
 
 runTest('test_duplicate_and_catch.js execution', () => {
   require('./test_duplicate_and_catch.js');
+});
+
+runTest('test_buttons_verification.js execution', () => {
+  require('./test_buttons_verification.js');
 });
 
 // -----------------------------------------------------------------------------

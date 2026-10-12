@@ -3567,6 +3567,12 @@ function executeSlotAssignment(ids, pokes) {
                                 if (closeBtn) dispatchHumanClick(closeBtn);
                             } catch (_) {}
                             ipcRenderer.sendToHost('team-apply-complete', { success: true });
+                            // Automatically reload page so DelugeRPG cleanly re-binds native jQuery UI droppable & sortable handlers
+                            setTimeout(() => {
+                                try {
+                                    window.location.reload();
+                                } catch (_) {}
+                            }, 350);
                         }, dismissDelay);
                     }
                 }, 150);

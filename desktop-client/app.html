@@ -655,10 +655,10 @@
       position: absolute;
       top: calc(100% + 6px);
       right: 0;
-      width: 235px;
+      width: 245px;
       background: #0b1424;
       border: 1px solid #1a283e;
-      border-radius: 6px;
+      border-radius: 4px;
       box-shadow: none !important;
       padding: 6px;
       z-index: 90;
@@ -940,16 +940,17 @@
     .modal-tab-bar {
       display: flex;
       gap: 6px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       border-bottom: 1px solid #1a283e;
       padding-bottom: 8px;
     }
     .modal-tab-btn {
-      padding: 6px 12px;
+      padding: 5px 12px;
+      height: 28px;
       border-radius: 4px !important;
-      border: 1px solid #1a283e;
-      background: #0e1b30;
-      color: #8eaad0;
+      border: 1px solid rgba(70, 90, 120, 0.5) !important;
+      background: linear-gradient(180deg, rgba(35, 45, 62, 0.96) 0%, rgba(22, 30, 44, 0.98) 100%) !important;
+      color: #8eaad0 !important;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
@@ -960,14 +961,14 @@
       box-shadow: none !important;
     }
     .modal-tab-btn:hover {
-      background: #14233c;
-      color: #e0ecfa;
-      border-color: #243856;
+      filter: brightness(1.12) !important;
+      color: #ffffff !important;
+      border-color: rgba(80, 110, 150, 0.7) !important;
     }
     .modal-tab-btn.active {
-      background: #14233c;
-      border-color: #388bfd;
-      color: #ffffff;
+      background: linear-gradient(180deg, #388bfd 0%, #1f6feb 100%) !important;
+      border: 1px solid rgba(80, 150, 240, 0.7) !important;
+      color: #ffffff !important;
       box-shadow: none !important;
     }
     .modal-tab-content {
@@ -998,41 +999,55 @@
       padding: 4px;
       border-radius: 4px;
       border: 1px solid #1a283e;
-      margin-bottom: 2px;
+      margin-bottom: 12px;
     }
     .preset-pill-btn {
       flex: 1;
       height: 26px;
-      padding: 0 6px;
+      padding: 0 4px;
       font-size: 10.5px;
       font-weight: 600;
       justify-content: center;
       text-align: center;
       white-space: nowrap;
-      border: 1px solid transparent;
-      background: transparent;
-      color: #8eaad0;
+      border: 1px solid rgba(70, 90, 120, 0.5) !important;
+      background: linear-gradient(180deg, rgba(35, 45, 62, 0.96) 0%, rgba(22, 30, 44, 0.98) 100%) !important;
+      color: #8eaad0 !important;
       border-radius: 4px !important;
       cursor: pointer;
       transition: all 0.12s ease;
       box-shadow: none !important;
     }
     .preset-pill-btn:hover {
-      background: #0e1b30;
-      color: #e0ecfa;
+      filter: brightness(1.12) !important;
+      color: #ffffff !important;
+      border-color: rgba(80, 110, 150, 0.7) !important;
+    }
+    .preset-pill-btn:active {
+      transform: scale(0.98);
+      filter: brightness(0.92) !important;
     }
     .preset-pill-btn.btn-active {
-      background: #14233c;
-      border: 1px solid #388bfd;
-      color: #ffffff;
+      background: linear-gradient(180deg, #388bfd 0%, #1f6feb 100%) !important;
+      border: 1px solid rgba(80, 150, 240, 0.7) !important;
+      color: #ffffff !important;
       box-shadow: none !important;
     }
 
-    /* Filter Cards */
+    /* Filter Cards & Section Titles */
+    .filter-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #566e96;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin: 4px 0 2px 0;
+      padding-left: 2px;
+    }
     .filter-card {
       display: flex;
       flex-direction: column;
-      padding: 12px 14px;
+      padding: 10px 12px;
       border-radius: 4px;
       background: #0e1b30;
       border: 1px solid #1a283e;
@@ -1056,21 +1071,21 @@
       flex: 1;
     }
     .filter-card input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
+      width: 15px;
+      height: 15px;
       cursor: pointer;
       accent-color: #388bfd;
       margin: 0;
       flex-shrink: 0;
     }
     .filter-title {
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 700;
       color: #e0ecfa;
       margin-bottom: 2px;
     }
     .filter-sub {
-      font-size: 11px;
+      font-size: 10.5px;
       color: #8eaad0;
       line-height: 1.35;
     }
@@ -1085,15 +1100,15 @@
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      margin-top: 10px;
+      margin-top: 8px;
       padding-top: 8px;
       border-top: 1px solid #1a283e;
     }
     .variant-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-top: 10px;
+      gap: 6px;
+      margin-top: 8px;
       padding-top: 8px;
       border-top: 1px solid #1a283e;
     }
@@ -1104,7 +1119,7 @@
       font-size: 11px;
       font-weight: 600;
       padding: 5px 9px;
-      border-radius: 4px;
+      border-radius: 4px !important;
       background: #070e1a;
       border: 1px solid #1a283e;
       color: #8eaad0;
@@ -1135,11 +1150,12 @@
     .quick-tag-btn {
       font-size: 10px;
       font-weight: 600;
-      padding: 3px 8px;
-      border-radius: 4px;
-      background: #070e1a;
-      border: 1px solid #1a283e;
-      color: #8eaad0;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 4px !important;
+      background: linear-gradient(180deg, rgba(35, 45, 62, 0.96) 0%, rgba(22, 30, 44, 0.98) 100%) !important;
+      border: 1px solid rgba(70, 90, 120, 0.5) !important;
+      color: #8eaad0 !important;
       cursor: pointer;
       transition: all 0.12s ease;
       display: inline-flex;
@@ -1148,9 +1164,13 @@
       box-shadow: none !important;
     }
     .quick-tag-btn:hover {
-      background: #0e1b30;
-      border-color: #388bfd;
-      color: #e0ecfa;
+      filter: brightness(1.15) !important;
+      border-color: #388bfd !important;
+      color: #ffffff !important;
+    }
+    .quick-tag-btn:active {
+      transform: scale(0.98);
+      filter: brightness(0.92) !important;
     }
     .quick-add-cluster {
       display: flex;
@@ -1334,12 +1354,8 @@
       <div class="nav-menu-wrapper">
         <button id="navMenuBtn" class="btn btn-icon" title="Tools &amp; Settings Menu">&#9776;</button>
         <div id="navDropdown" class="nav-dropdown hidden">
-          <div class="nav-dropdown-header">Targeting &amp; Detection</div>
-          <button id="teamBuilderMenuBtn" class="dropdown-item dropdown-toggle-item" title="Team Builder">
-            <span class="dropdown-icon">&#9876;</span>
-            <span class="dropdown-label">Team Builder</span>
-            <span id="teamBuilderBadge" class="dropdown-badge dropdown-badge-on">ON</span>
-          </button>
+          <!-- 1. Hunting & Targets -->
+          <div class="nav-dropdown-header">Hunting &amp; Targets</div>
           <button id="targetModalBtn" class="dropdown-item" title="Configure Target Pokemon Filters &amp; Presets">
             <span class="dropdown-icon">&#127919;</span>
             <span class="dropdown-label">Target Pokemon Filters</span>
@@ -1349,6 +1365,20 @@
             <span class="dropdown-label">Avoid Duplicates</span>
             <span id="avoidDupesBadge" class="dropdown-badge dropdown-badge-on">ON</span>
           </button>
+          <button id="autoCatchBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Catch (Master Ball): Automatically catch detected target Pokemon using Master Ball (Requires Hide Ads ON)">
+            <span class="dropdown-icon">&#128080;</span>
+            <span class="dropdown-label">Auto-Catch (Master Ball)</span>
+            <span id="autoCatchBadge" class="dropdown-badge dropdown-badge-off">OFF</span>
+          </button>
+          <button id="catchLogMenuBtn" class="dropdown-item" title="View Today's Auto-Catch Log &amp; Master Ball Stock">
+            <span class="dropdown-icon">&#9918;</span>
+            <span class="dropdown-label">Today's Catch Log</span>
+            <span id="navCaughtCountBadge" class="dropdown-badge dropdown-badge-on">0 Caught</span>
+          </button>
+          <div class="dropdown-divider"></div>
+
+          <!-- 2. Map & Movement Automation -->
+          <div class="nav-dropdown-header">Map &amp; Automation</div>
           <button id="autoStartMapBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Start Hunting: Automatically begin walking whenever the game map is loaded">
             <span class="dropdown-icon">&#9654;</span>
             <span class="dropdown-label">Auto-Start on Maps</span>
@@ -1363,29 +1393,6 @@
               <option value="10">10 sec</option>
             </select>
           </div>
-          <button id="hideAdsBtn" class="dropdown-item dropdown-toggle-item" title="Cosmetic Ad Hiding: Visually collapse ad banners while letting scripts run safely">
-            <span class="dropdown-icon">&#128065;</span>
-            <span class="dropdown-label">Hide Ads</span>
-            <span id="hideAdsBadge" class="dropdown-badge dropdown-badge-on">ON</span>
-          </button>
-          <button id="adsInspectorMenuBtn" class="dropdown-item" title="Open Ads Inspector &amp; Live Telemetry Panel">
-            <span class="dropdown-icon">&#128065;</span>
-            <span class="dropdown-label">Ads Inspector</span>
-            <span id="navAdsCountBadge" class="dropdown-badge dropdown-badge-on">0 Hidden</span>
-          </button>
-          <button id="autoCatchBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Catch (Master Ball): Automatically catch detected target Pokemon using Master Ball (Requires Hide Ads ON)">
-            <span class="dropdown-icon">&#128080;</span>
-            <span class="dropdown-label">Auto-Catch (Master Ball)</span>
-            <span id="autoCatchBadge" class="dropdown-badge dropdown-badge-off">OFF</span>
-          </button>
-          <button id="catchLogMenuBtn" class="dropdown-item" title="View Today's Auto-Catch Log &amp; Master Ball Stock">
-            <span class="dropdown-icon">&#9918;</span>
-            <span class="dropdown-label">Today's Auto-Catch</span>
-            <span id="navCaughtCountBadge" class="dropdown-badge dropdown-badge-on">0 Caught</span>
-          </button>
-          <div class="dropdown-divider"></div>
-
-          <div class="nav-dropdown-header">Walking Movement Mode</div>
           <div style="padding: 2px 8px 4px 8px;">
             <select id="walkModeSelect" style="width: 100%; height: 26px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; font-size: 11px;" title="Select Walking Movement Pattern">
               <option value="wander">Mode: Smart Wander</option>
@@ -1401,7 +1408,31 @@
           </div>
           <div class="dropdown-divider"></div>
 
-          <div class="nav-dropdown-header">Tools &amp; Settings</div>
+          <!-- 3. Battle Roster -->
+          <div class="nav-dropdown-header">Battle Roster</div>
+          <button id="teamBuilderMenuBtn" class="dropdown-item dropdown-toggle-item" title="Toggle Gym Team Builder Docked Panel">
+            <span class="dropdown-icon">&#9876;</span>
+            <span class="dropdown-label">Gym Team Builder</span>
+            <span id="teamBuilderBadge" class="dropdown-badge dropdown-badge-on">ON</span>
+          </button>
+          <div class="dropdown-divider"></div>
+
+          <!-- 4. Ad Protection -->
+          <div class="nav-dropdown-header">Ad Protection</div>
+          <button id="hideAdsBtn" class="dropdown-item dropdown-toggle-item" title="Cosmetic Ad Hiding: Visually collapse ad banners while letting scripts run safely">
+            <span class="dropdown-icon">&#128065;</span>
+            <span class="dropdown-label">Hide Ads</span>
+            <span id="hideAdsBadge" class="dropdown-badge dropdown-badge-on">ON</span>
+          </button>
+          <button id="adsInspectorMenuBtn" class="dropdown-item" title="Open Ads Inspector &amp; Live Telemetry Panel">
+            <span class="dropdown-icon">&#128065;</span>
+            <span class="dropdown-label">Ads Inspector</span>
+            <span id="navAdsCountBadge" class="dropdown-badge dropdown-badge-on">0 Hidden</span>
+          </button>
+          <div class="dropdown-divider"></div>
+
+          <!-- 5. System & Identity -->
+          <div class="nav-dropdown-header">System &amp; Identity</div>
           <div style="padding: 2px 8px 6px 8px;">
             <button id="networkBadge" class="network-badge network-checking" style="width: 100%; max-width: 100%; box-sizing: border-box; justify-content: center; box-shadow: none !important;" title="Current Network Connection">
               <span id="netIcon">&#8635;</span>
@@ -1443,7 +1474,7 @@
     </div>
 
     <!-- 1-Click Global Presets (Configures All Tabs) -->
-    <div class="preset-pill-group" style="margin-bottom: 10px;" title="1-Click Quick Presets across all tabs">
+    <div class="preset-pill-group" title="1-Click Quick Presets across all tabs">
       <button id="presetAllBtn" type="button" class="btn preset-pill-btn btn-active">All</button>
       <button id="presetLegBtn" type="button" class="btn preset-pill-btn">Legendaries</button>
       <button id="presetMegaBtn" type="button" class="btn preset-pill-btn">Megas &amp; Rare</button>
@@ -1454,76 +1485,16 @@
 
     <!-- Segmented Navigation Tabs -->
     <div class="modal-tab-bar">
-      <button type="button" class="modal-tab-btn active" data-tab="tabSpecies">&#127919; 1. Pokemon Tiers</button>
-      <button type="button" class="modal-tab-btn" data-tab="tabVariants">&#10024; 2. Sprite Variants (10)</button>
-      <button type="button" class="modal-tab-btn" data-tab="tabCustom">&#128683; 3. Blacklist Only</button>
+      <button type="button" class="modal-tab-btn active" data-tab="tabSpecies">&#127919; Pokemon Tiers</button>
+      <button type="button" class="modal-tab-btn" data-tab="tabVariants">&#10024; Sprite Variants (10)</button>
+      <button type="button" class="modal-tab-btn" data-tab="tabCustom">&#128683; Blacklist</button>
     </div>
 
-    <!-- TAB 1: POKEMON TIERS (FROM COMMON TO RAREST) -->
+    <!-- TAB 1: POKEMON TIERS & ENCOUNTER RULES -->
     <div id="tabSpecies" class="modal-tab-content active">
 
-      <!-- Duplication Avoidance (Skip Already Caught Pokemon) -->
-      <div class="filter-card">
-        <label class="filter-card-row">
-          <input type="checkbox" id="avoidDuplicatesCheck" checked>
-          <div class="filter-card-text">
-            <div class="filter-title">&#128260; Duplication Avoidance (Skip Already Owned)</div>
-            <div class="filter-sub">Do not pause or catch if the Pokemon is already registered in your Pokedex (has red Pokeball indicator)</div>
-          </div>
-        </label>
-      </div>
-
-
-
-      <!-- Tier 1: Common / Custom Whitelist Targets -->
-      <div class="filter-card">
-        <div class="filter-title">&#128269; Tier 1: Custom Whitelist Targets</div>
-        <div class="filter-sub" style="margin-bottom:8px;">Target specific species by name (comma-separated):</div>
-        <input type="text" id="customTargetInput" class="input-field" placeholder="e.g. Ditto, Eevee, Lucario, Gengar, Bagon, Dratini">
-        <div class="quick-add-cluster">
-          <span class="quick-add-label">QUICK ADD:</span>
-          <button type="button" class="quick-tag-btn" data-add-target="Ditto">+ Ditto</button>
-          <button type="button" class="quick-tag-btn" data-add-target="Eevee">+ Eevee</button>
-          <button type="button" class="quick-tag-btn" data-add-target="Lucario">+ Lucario</button>
-          <button type="button" class="quick-tag-btn" data-add-target="Gengar">+ Gengar</button>
-          <button type="button" class="quick-tag-btn" data-add-target="Bagon">+ Bagon</button>
-          <button type="button" class="quick-tag-btn" data-add-target="Dratini">+ Dratini</button>
-        </div>
-      </div>
-
-      <!-- Tier 1B: Wild Level Filter Gatekeeper -->
-      <div class="filter-card">
-        <label class="filter-card-row">
-          <input type="checkbox" id="filterLevelCheckbox">
-          <div class="filter-card-text">
-            <div class="filter-title">Wild Pokemon Level Filter</div>
-            <div class="filter-sub">Halt only when wild encounter satisfies level criteria</div>
-          </div>
-        </label>
-        <div id="levelControlsWrap" class="level-controls-row dimmed">
-          <select id="levelModeSelect" class="clean-select">
-            <option value="min">Level At Least (&gt;=)</option>
-            <option value="exact">Exact Level (==)</option>
-            <option value="max">Level At Most (&lt;=)</option>
-          </select>
-          <input type="number" id="levelValueInput" class="clean-num-input" min="1" max="100" value="50">
-          <select id="levelScopeSelect" class="clean-select" title="Choose whether level requirement applies to selected target categories or all wild encounters">
-            <option value="targets">Filter: Targets Only</option>
-            <option value="all">Filter: All Wild Encounters</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Tier 2: Mega Evolution Families & Rare Lines -->
-      <div class="filter-card">
-        <label class="filter-card-row">
-          <input type="checkbox" id="filterMegasCheckbox" checked>
-          <div class="filter-card-text">
-            <div class="filter-title">Tier 2: Mega Evolution Families &amp; Rare Lines</div>
-            <div class="filter-sub">All 46 evolutionary families (Aron, Meditite, Absol, Beldum, Riolu, Larvitar...)</div>
-          </div>
-        </label>
-      </div>
+      <!-- SECTION: POKEMON RARITY TIERS -->
+      <div class="filter-section-title">Pokemon Rarity Tiers</div>
 
       <!-- Tier 3: Legendaries, Mythicals, Ultra Beasts & Paradox (Rarest) -->
       <div class="filter-card">
@@ -1547,6 +1518,70 @@
             <input type="checkbox" id="subParadoxCheckbox" checked>
             <span>Gen 9 Paradox</span>
           </label>
+        </div>
+      </div>
+
+      <!-- Tier 2: Mega Evolution Families & Rare Lines -->
+      <div class="filter-card">
+        <label class="filter-card-row">
+          <input type="checkbox" id="filterMegasCheckbox" checked>
+          <div class="filter-card-text">
+            <div class="filter-title">Tier 2: Mega Evolution Families &amp; Rare Lines</div>
+            <div class="filter-sub">All 46 evolutionary families (Aron, Meditite, Absol, Beldum, Riolu, Larvitar...)</div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Tier 1: Common / Custom Whitelist Targets -->
+      <div class="filter-card">
+        <div class="filter-title">&#128269; Tier 1: Custom Whitelist Targets</div>
+        <div class="filter-sub" style="margin-bottom:6px;">Target specific species by name (comma-separated):</div>
+        <input type="text" id="customTargetInput" class="input-field" placeholder="e.g. Ditto, Eevee, Lucario, Gengar, Bagon, Dratini">
+        <div class="quick-add-cluster">
+          <span class="quick-add-label">QUICK ADD:</span>
+          <button type="button" class="quick-tag-btn" data-add-target="Ditto">+ Ditto</button>
+          <button type="button" class="quick-tag-btn" data-add-target="Eevee">+ Eevee</button>
+          <button type="button" class="quick-tag-btn" data-add-target="Lucario">+ Lucario</button>
+          <button type="button" class="quick-tag-btn" data-add-target="Gengar">+ Gengar</button>
+          <button type="button" class="quick-tag-btn" data-add-target="Bagon">+ Bagon</button>
+          <button type="button" class="quick-tag-btn" data-add-target="Dratini">+ Dratini</button>
+        </div>
+      </div>
+
+      <!-- SECTION: ENCOUNTER & CAPTURE RULES -->
+      <div class="filter-section-title" style="margin-top: 6px;">Encounter &amp; Capture Rules</div>
+
+      <!-- Duplication Avoidance (Skip Already Caught Pokemon) -->
+      <div class="filter-card">
+        <label class="filter-card-row">
+          <input type="checkbox" id="avoidDuplicatesCheck" checked>
+          <div class="filter-card-text">
+            <div class="filter-title">&#128260; Duplication Avoidance (Skip Already Owned)</div>
+            <div class="filter-sub">Do not pause or catch if the Pokemon is already registered in your Pokedex (has red Pokeball indicator)</div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Tier 1B: Wild Level Filter Gatekeeper -->
+      <div class="filter-card">
+        <label class="filter-card-row">
+          <input type="checkbox" id="filterLevelCheckbox">
+          <div class="filter-card-text">
+            <div class="filter-title">Wild Pokemon Level Filter</div>
+            <div class="filter-sub">Halt only when wild encounter satisfies level criteria</div>
+          </div>
+        </label>
+        <div id="levelControlsWrap" class="level-controls-row dimmed">
+          <select id="levelModeSelect" class="clean-select">
+            <option value="min">Level At Least (&gt;=)</option>
+            <option value="exact">Exact Level (==)</option>
+            <option value="max">Level At Most (&lt;=)</option>
+          </select>
+          <input type="number" id="levelValueInput" class="clean-num-input" min="1" max="100" value="50">
+          <select id="levelScopeSelect" class="clean-select" title="Choose whether level requirement applies to selected target categories or all wild encounters">
+            <option value="targets">Filter: Targets Only</option>
+            <option value="all">Filter: All Wild Encounters</option>
+          </select>
         </div>
       </div>
 

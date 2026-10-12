@@ -287,7 +287,7 @@ const tabVariantsBtn = document.getElementById('tabVariantsBtn');
 function updateVariantTabCount(count) {
   const el = tabVariantsBtn || document.querySelector('[data-tab="tabVariants"]');
   if (el) {
-    el.innerHTML = '&#10024; 2. Sprite Variants (' + (typeof count === 'number' ? count : 10) + ')';
+    el.innerHTML = '&#10024; Sprite Variants (' + (typeof count === 'number' ? count : 10) + ')';
   }
 }
 

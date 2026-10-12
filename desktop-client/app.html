@@ -236,6 +236,23 @@
       border-color: #656668 !important;
       filter: brightness(1.05) !important;
     }
+    .btn-icon .reload-icon {
+      width: 13px;
+      height: 13px;
+      display: block;
+      transition: transform 0.25s ease;
+      pointer-events: none;
+    }
+    #refreshBtn:active .reload-icon {
+      transform: rotate(180deg);
+    }
+    .reload-icon.spinning {
+      animation: spin-reload 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @keyframes spin-reload {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
 
     /* Primary Action Toggle Button (Hunting / Paused) */
     .btn-toggle-main {
@@ -1482,7 +1499,12 @@
       <!-- Quick Action Toggles Cluster -->
       <div class="action-cluster">
         <button id="soundBtn" class="btn btn-icon btn-accent" title="Toggle Audio Chime Alert">&#128266;</button>
-        <button id="refreshBtn" class="btn btn-icon" title="Reload Game Page &amp; Flush Battle Cache [F5]">&#8635;</button>
+        <button id="refreshBtn" class="btn btn-icon" title="Reload Game Page &amp; Flush Battle Cache [F5]">
+          <svg class="reload-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
+            <polyline points="21 3 21 8 16 8"></polyline>
+          </svg>
+        </button>
       </div>
 
       <!-- Today's Auto-Catch & Master Ball Stock Badge -->

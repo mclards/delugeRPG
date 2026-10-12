@@ -3253,6 +3253,11 @@ if (openLogsBtn) {
 if (refreshBtn) {
   refreshBtn.addEventListener('click', async () => {
     if (isRunning) stopBot();
+    const reloadSvg = refreshBtn.querySelector('.reload-icon');
+    if (reloadSvg) {
+      reloadSvg.classList.add('spinning');
+      setTimeout(() => { if (reloadSvg) reloadSvg.classList.remove('spinning'); }, 750);
+    }
     updateStatus('Flushing battle cache & reloading...', '#38bdf8');
     try {
       if (delugeView && typeof delugeView.executeJavaScript === 'function') {

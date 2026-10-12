@@ -268,6 +268,47 @@ runTest('All Modal Close and Cancel Buttons', () => {
   });
 });
 
+// -----------------------------------------------------------------------------
+// SECTION 6: CUSTOM CHECKBOXES & BEVELED PILL BUTTONS AUDIT
+// -----------------------------------------------------------------------------
+console.log('\n--- SECTION 6: CUSTOM CHECKBOXES & BEVELED PILL BUTTONS AUDIT ---');
+
+runTest('Custom Checkbox Structure & CSS Zero-Glow Audit', () => {
+  assert(appHtml.includes('.custom-checkbox {'), 'app.html must define .custom-checkbox CSS class');
+  assert(appHtml.includes('.custom-checkbox::after {'), 'app.html must define .custom-checkbox::after checkmark indicator');
+  assert(appHtml.includes('input[type="checkbox"]:checked + .custom-checkbox::after'), 'app.html must toggle checkmark on :checked');
+
+  // Verify all checkbox elements have sibling span.custom-checkbox
+  const checkboxIds = [
+    'subClassicLegCheckbox', 'subUltraBeastsCheckbox', 'subParadoxCheckbox',
+    'filterMegasCheckbox', 'avoidDuplicatesCheck', 'filterLevelCheckbox',
+    'filterVariantsCheckbox', 'varNormal', 'varShiny', 'varChrome',
+    'varRetro', 'varMetallic', 'varShadow', 'varGhostly', 'varDark',
+    'varMirage', 'varNegative', 'enableProxyCheckbox'
+  ];
+  checkboxIds.forEach(id => {
+    const idx = appHtml.indexOf(`id="${id}"`);
+    assert(idx !== -1, `Checkbox #${id} must exist in app.html`);
+    const slice = appHtml.slice(idx, idx + 120);
+    assert(slice.includes('class="custom-checkbox"'), `Checkbox #${id} must be paired with <span class="custom-checkbox"></span>`);
+  });
+});
+
+runTest('Beveled Pill Button Component & Zero Glow Audit', () => {
+  assert(appHtml.includes('border-radius: 30px !important;'), 'Button component must have 30px pill border-radius');
+  assert(appHtml.includes('linear-gradient(to top, #D8D9DB 0%, #ffffff 80%, #FDFDFD 100%)'), 'Button component must have brushed silver linear-gradient');
+  assert(appHtml.includes('border: 1px solid #8F9092'), 'Button component must have crisp beveled border');
+
+  // Verify button component has zero glowing shadows
+  const btnStart = appHtml.indexOf('/* --- BEVELED PILL BUTTON COMPONENT (ZERO GLOW) --- */');
+  assert(btnStart !== -1, 'Beveled pill button section must exist');
+  const btnEnd = appHtml.indexOf('/* Custom Dropdowns */', btnStart);
+  const btnSlice = appHtml.slice(btnStart, btnEnd);
+  assert(!btnSlice.includes('0 0 1'), 'Button CSS must not contain glowing box-shadow');
+  assert(!btnSlice.includes('0 0 20px'), 'Button CSS must not contain glowing 20px box-shadow');
+  assert(btnSlice.includes('box-shadow: none !important;'), 'Button CSS must enforce box-shadow: none !important');
+});
+
 console.log('================================================================');
 console.log(`   TOTAL TESTS: ${testsPassed + testsFailed} | PASSED: ${testsPassed} | FAILED: ${testsFailed}`);
 console.log('================================================================');
@@ -275,5 +316,6 @@ console.log('================================================================');
 if (testsFailed > 0) {
   process.exit(1);
 } else {
-  console.log('[SUCCESS] All settings save buttons and toggle buttons are 100% verified and operational.');
+  console.log('[SUCCESS] All buttons, custom checkboxes, toggles, and settings save engines are 100% verified.');
 }
+

@@ -167,51 +167,57 @@
       text-transform: uppercase;
     }
 
-    /* Buttons - Directly matching Inverter-Dashboard: 4px border-radius, flat beveled, zero shadows */
+    /* --- BEVELED PILL BUTTON COMPONENT (ZERO GLOW) --- */
     .btn {
-      height: 26px;
-      min-height: 26px;
-      padding: 0 10px;
-      border-radius: 4px !important;
-      border: 1px solid var(--btn-base-border) !important;
-      background: linear-gradient(180deg, var(--btn-base-1) 0%, var(--btn-base-2) 100%) !important;
-      color: var(--btn-base-color) !important;
-      font-family: inherit;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 5px;
-      transition: transform 0.08s ease, filter 0.12s ease, border-color 0.12s ease;
-      white-space: nowrap;
       outline: none;
+      cursor: pointer;
+      height: 28px;
+      min-height: 28px;
+      padding: 0 14px;
+      border-radius: 30px !important;
+      border: 1px solid #8F9092 !important;
+      background: linear-gradient(to top, #D8D9DB 0%, #ffffff 80%, #FDFDFD 100%) !important;
+      color: #444444 !important;
+      text-shadow: 0 1px #ffffff;
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      gap: 5px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
       box-shadow: none !important;
+      user-select: none;
     }
     .btn:hover {
-      border-color: var(--btn-base-border-hover) !important;
-      filter: brightness(1.12) !important;
+      border-color: #656668 !important;
+      filter: brightness(1.05) !important;
       box-shadow: none !important;
     }
     .btn:active {
-      transform: scale(0.98);
       filter: brightness(0.92) !important;
+      transform: translateY(1px);
+      box-shadow: none !important;
+    }
+    .btn:focus {
+      outline: none;
       box-shadow: none !important;
     }
     .btn:disabled {
-      opacity: 0.55;
+      opacity: 0.5;
       cursor: not-allowed;
       transform: none !important;
       box-shadow: none !important;
-      filter: saturate(0.7) brightness(0.92);
+      filter: grayscale(0.6);
     }
     .btn-icon {
       width: 26px;
       height: 26px;
       padding: 0;
-      border-radius: 4px !important;
+      border-radius: 50% !important;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -219,14 +225,24 @@
       line-height: 1;
       flex-shrink: 0;
       cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid #8F9092 !important;
+      background: linear-gradient(to top, #D8D9DB 0%, #ffffff 80%, #FDFDFD 100%) !important;
+      color: #444444 !important;
+      text-shadow: 0 1px #ffffff;
+      box-shadow: none !important;
+    }
+    .btn-icon:hover {
+      border-color: #656668 !important;
+      filter: brightness(1.05) !important;
     }
 
     /* Primary Action Toggle Button (Hunting / Paused) */
     .btn-toggle-main {
       height: 26px;
-      min-width: 80px;
-      padding: 0 10px;
-      border-radius: 4px !important;
+      min-width: 84px;
+      padding: 0 12px;
+      border-radius: 30px !important;
       font-size: 11px;
       font-weight: 700;
       display: inline-flex;
@@ -235,107 +251,123 @@
       gap: 5px;
       cursor: pointer;
       box-shadow: none !important;
-      transition: transform 0.08s ease, filter 0.12s ease;
+      transition: all 0.2s ease;
       flex-shrink: 0;
       letter-spacing: 0.3px;
       line-height: 1;
     }
     .btn-toggle-main.btn-active {
-      background: linear-gradient(180deg, var(--btn-green-1) 0%, var(--btn-green-2) 100%) !important;
-      border: 1px solid var(--btn-green-border) !important;
+      background: linear-gradient(to top, #196c2e 0%, #238636 80%, #2ea043 100%) !important;
+      border: 1px solid #2ea043 !important;
       color: #ffffff !important;
+      text-shadow: 0 1px rgba(0, 0, 0, 0.3);
       box-shadow: none !important;
     }
     .btn-toggle-main.btn-active:hover {
-      border-color: var(--btn-green-border-hover) !important;
+      border-color: #3fb950 !important;
       filter: brightness(1.08) !important;
       box-shadow: none !important;
     }
     .btn-toggle-main.btn-active:active {
       filter: brightness(0.92) !important;
+      transform: translateY(1px);
     }
     .btn-toggle-main.btn-paused {
-      background: linear-gradient(180deg, var(--btn-red-1) 0%, var(--btn-red-2) 100%) !important;
-      border: 1px solid var(--btn-red-border) !important;
+      background: linear-gradient(to top, #a82324 0%, #da3633 80%, #f85149 100%) !important;
+      border: 1px solid #f85149 !important;
       color: #ffffff !important;
+      text-shadow: 0 1px rgba(0, 0, 0, 0.3);
       box-shadow: none !important;
     }
     .btn-toggle-main.btn-paused:hover {
-      border-color: var(--btn-red-border-hover) !important;
+      border-color: #ff7b72 !important;
       filter: brightness(1.08) !important;
       box-shadow: none !important;
     }
     .btn-toggle-main.btn-paused:active {
       filter: brightness(0.92) !important;
+      transform: translateY(1px);
     }
 
     .btn-active {
-      background: linear-gradient(180deg, var(--btn-green-1) 0%, var(--btn-green-2) 100%) !important;
-      border: 1px solid var(--btn-green-border) !important;
+      background: linear-gradient(to top, #196c2e 0%, #238636 80%, #2ea043 100%) !important;
+      border: 1px solid #2ea043 !important;
       color: #ffffff !important;
+      text-shadow: 0 1px rgba(0, 0, 0, 0.3);
       box-shadow: none !important;
     }
     .btn-active:hover {
-      border-color: var(--btn-green-border-hover) !important;
+      border-color: #3fb950 !important;
       filter: brightness(1.08) !important;
       box-shadow: none !important;
     }
     .btn-paused {
-      background: linear-gradient(180deg, var(--btn-red-1) 0%, var(--btn-red-2) 100%) !important;
-      border: 1px solid var(--btn-red-border) !important;
+      background: linear-gradient(to top, #a82324 0%, #da3633 80%, #f85149 100%) !important;
+      border: 1px solid #f85149 !important;
       color: #ffffff !important;
+      text-shadow: 0 1px rgba(0, 0, 0, 0.3);
       box-shadow: none !important;
     }
     .btn-paused:hover {
-      border-color: var(--btn-red-border-hover) !important;
+      border-color: #ff7b72 !important;
       filter: brightness(1.08) !important;
       box-shadow: none !important;
     }
 
     /* Secondary Specialized Button Variants */
     .btn-accent {
-      border: 1px solid var(--btn-accent-border) !important;
-      background: linear-gradient(180deg, var(--btn-accent-1) 0%, var(--btn-accent-2) 100%) !important;
-      color: var(--btn-accent-color) !important;
+      border: 1px solid #388bfd !important;
+      background: linear-gradient(to top, #1f6feb 0%, #388bfd 80%, #58a6ff 100%) !important;
+      color: #ffffff !important;
+      text-shadow: 0 1px rgba(0, 0, 0, 0.3);
       box-shadow: none !important;
     }
     .btn-accent:hover {
-      border-color: var(--btn-accent-border-hover) !important;
+      border-color: #79c0ff !important;
       filter: brightness(1.08) !important;
       box-shadow: none !important;
     }
     .btn-accent:active {
       filter: brightness(0.92) !important;
+      transform: translateY(1px);
     }
 
     .btn-danger {
-      border: 1px solid var(--btn-red-border) !important;
-      background: linear-gradient(180deg, var(--btn-red-1) 0%, var(--btn-red-2) 100%) !important;
+      border: 1px solid #f85149 !important;
+      background: linear-gradient(to top, #a82324 0%, #da3633 80%, #f85149 100%) !important;
       color: #ffffff !important;
+      text-shadow: 0 1px rgba(0, 0, 0, 0.3);
       box-shadow: none !important;
     }
     .btn-danger:hover {
-      border-color: var(--btn-red-border-hover) !important;
+      border-color: #ff7b72 !important;
       filter: brightness(1.08) !important;
       box-shadow: none !important;
     }
 
     .btn-green {
-      border: 1px solid var(--btn-green-border) !important;
-      background: linear-gradient(180deg, var(--btn-green-1) 0%, var(--btn-green-2) 100%) !important;
-      color: var(--btn-green-color) !important;
+      border: 1px solid #2ea043 !important;
+      background: linear-gradient(to top, #196c2e 0%, #238636 80%, #2ea043 100%) !important;
+      color: #ffffff !important;
+      text-shadow: 0 1px rgba(0, 0, 0, 0.3);
       box-shadow: none !important;
     }
     .btn-green:hover {
-      border-color: var(--btn-green-border-hover) !important;
+      border-color: #3fb950 !important;
       filter: brightness(1.08) !important;
       box-shadow: none !important;
     }
 
     .btn-outline {
-      border: 1px solid var(--btn-outline-border) !important;
-      background: linear-gradient(180deg, var(--btn-outline-1) 0%, var(--btn-outline-2) 100%) !important;
-      color: var(--btn-outline-color) !important;
+      border: 1px solid #385072 !important;
+      background: linear-gradient(to top, #131c2b 0%, #1c2b42 100%) !important;
+      color: #8eaad0 !important;
+      text-shadow: none !important;
+      box-shadow: none !important;
+    }
+    .btn-outline:hover {
+      border-color: #5574a0 !important;
+      color: #e0ecfa !important;
       box-shadow: none !important;
     }
 
@@ -725,22 +757,84 @@
       flex: 1;
       white-space: nowrap;
     }
-    .dropdown-badge {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 1px 6px;
-      border-radius: 4px;
-      letter-spacing: 0.3px;
+    /* Toggle Switch Component (Zero Glow) */
+    .switch input {
+      display: none;
     }
-    .dropdown-badge-on {
-      background: rgba(35, 134, 54, 0.2);
-      color: #3fb950;
-      border: 1px solid rgba(56, 180, 100, 0.4);
+    .switch {
+      width: 36px;
+      height: 18px;
+      position: relative;
+      display: inline-block;
+      flex-shrink: 0;
+      pointer-events: none;
+      vertical-align: middle;
     }
-    .dropdown-badge-off {
-      background: rgba(110, 118, 129, 0.15);
-      color: #8eaad0;
-      border: 1px solid #1a283e;
+    .slider {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      border-radius: 18px;
+      border: 2px solid #556277;
+      box-shadow: none !important;
+      cursor: pointer;
+      overflow: hidden;
+      transition: 0.2s;
+      background: #0d1520;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      width: 100%;
+      height: 100%;
+      background-color: #777;
+      border-radius: 18px;
+      transform: translateX(-18px);
+      /*translateX(-(w-h))*/
+      transition: 0.2s;
+    }
+    input:checked + .slider:before,
+    .switch.is-on .slider:before {
+      transform: translateX(18px);
+      /*translateX(w-h)*/
+      background-color: limeGreen;
+    }
+    input:checked + .slider,
+    .switch.is-on .slider {
+      border-color: limeGreen;
+      box-shadow: none !important;
+    }
+
+    .switch-lg {
+      width: 60px;
+      height: 30px;
+    }
+    .switch-lg .slider {
+      border-radius: 30px;
+    }
+    .switch-lg .slider:before {
+      border-radius: 30px;
+      transform: translateX(-30px);
+    }
+    .switch-lg input:checked + .slider:before,
+    .switch-lg.is-on .slider:before {
+      transform: translateX(30px);
+    }
+
+    .switch200 .slider:before {
+      width: 200%;
+      transform: translateX(-82px);
+    }
+    .switch200 input:checked + .slider:before,
+    .switch200.is-on .slider:before {
+      background-color: red;
+    }
+    .switch200 input:checked + .slider,
+    .switch200.is-on .slider {
+      border-color: red;
+      box-shadow: none !important;
     }
     .dropdown-divider {
       height: 1px;
@@ -947,7 +1041,7 @@
     .modal-tab-btn {
       padding: 4px 12px;
       height: 26px;
-      border-radius: 4px !important;
+      border-radius: 20px !important;
       border: 1px solid rgba(70, 90, 120, 0.5) !important;
       background: linear-gradient(180deg, rgba(35, 45, 62, 0.96) 0%, rgba(22, 30, 44, 0.98) 100%) !important;
       color: #8eaad0 !important;
@@ -997,7 +1091,7 @@
       gap: 4px;
       background: #070e1a;
       padding: 3px;
-      border-radius: 4px;
+      border-radius: 20px;
       border: 1px solid #1a283e;
       margin-bottom: 8px;
     }
@@ -1013,7 +1107,7 @@
       border: 1px solid rgba(70, 90, 120, 0.5) !important;
       background: linear-gradient(180deg, rgba(35, 45, 62, 0.96) 0%, rgba(22, 30, 44, 0.98) 100%) !important;
       color: #8eaad0 !important;
-      border-radius: 4px !important;
+      border-radius: 20px !important;
       cursor: pointer;
       transition: all 0.12s ease;
       box-shadow: none !important;
@@ -1063,14 +1157,86 @@
       cursor: pointer;
       user-select: none;
     }
-    .filter-row input[type="checkbox"], .filter-card-row input[type="checkbox"] {
-      width: 14px;
-      height: 14px;
-      cursor: pointer;
-      accent-color: #388bfd;
-      margin: 0;
-      flex-shrink: 0;
+    /* Custom Checkbox Component (Zero Glow) */
+    .input[type="checkbox"],
+    input[type="checkbox"].input,
+    .filter-row input[type="checkbox"],
+    .filter-card-row input[type="checkbox"],
+    .sub-inline-label input[type="checkbox"],
+    .variant-cell input[type="checkbox"],
+    .variant-chip input[type="checkbox"],
+    .checkbox-row input[type="checkbox"] {
+      display: none !important;
     }
+
+    .custom-checkbox {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #385072;
+      border-radius: 4px;
+      position: relative;
+      cursor: pointer;
+      background: #070e1a;
+      flex-shrink: 0;
+      vertical-align: middle;
+      box-shadow: none !important;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+    .filter-row:hover .custom-checkbox,
+    .sub-inline-label:hover .custom-checkbox,
+    .variant-cell:hover .custom-checkbox,
+    .checkbox-row:hover .custom-checkbox,
+    .custom-checkbox:hover {
+      border-color: #5574a0;
+    }
+    .custom-checkbox::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 8px;
+      height: 8px;
+      background-color: #388bfd;
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .input[type="checkbox"]:checked + .custom-checkbox,
+    input[type="checkbox"]:checked + .custom-checkbox {
+      border-color: #388bfd;
+      background-color: #0b1728;
+    }
+    .input[type="checkbox"]:checked + .custom-checkbox::after,
+    input[type="checkbox"]:checked + .custom-checkbox::after {
+      opacity: 1;
+    }
+
+    .sub-inline-label .custom-checkbox {
+      width: 15px;
+      height: 15px;
+    }
+    .sub-inline-label .custom-checkbox::after {
+      width: 7px;
+      height: 7px;
+    }
+
+    .variant-cell .custom-checkbox {
+      width: 13px;
+      height: 13px;
+      border-width: 1.5px;
+      border-radius: 3px;
+    }
+    .variant-cell .custom-checkbox::after {
+      width: 6px;
+      height: 6px;
+    }
+    .variant-cell:has(input:checked) {
+      border-color: rgba(56, 139, 253, 0.4);
+      background: #0d192c;
+    }
+
     .filter-label, .filter-title {
       font-size: 11px;
       font-weight: 600;
@@ -1086,19 +1252,12 @@
     .sub-inline-label {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       font-size: 10.5px;
       font-weight: 500;
       color: #8eaad0;
       cursor: pointer;
       user-select: none;
-    }
-    .sub-inline-label input[type="checkbox"] {
-      width: 13px;
-      height: 13px;
-      margin: 0;
-      accent-color: #388bfd;
-      cursor: pointer;
     }
     .variant-grid-5, .variant-grid {
       display: grid;
@@ -1127,13 +1286,6 @@
       color: #e0ecfa;
       background: #0e1b30;
     }
-    .variant-cell input[type="checkbox"], .variant-chip input[type="checkbox"] {
-      margin: 0;
-      width: 12px;
-      height: 12px;
-      accent-color: #388bfd;
-      cursor: pointer;
-    }
     .quick-btn-group {
       display: flex;
       gap: 4px;
@@ -1143,8 +1295,8 @@
       font-size: 9.5px;
       font-weight: 600;
       height: 20px;
-      padding: 0 6px;
-      border-radius: 4px !important;
+      padding: 0 8px;
+      border-radius: 20px !important;
       background: linear-gradient(180deg, rgba(35, 45, 62, 0.96) 0%, rgba(22, 30, 44, 0.98) 100%) !important;
       border: 1px solid rgba(70, 90, 120, 0.5) !important;
       color: #8eaad0 !important;
@@ -1272,12 +1424,7 @@
       font-weight: 600;
       color: #e0ecfa;
       cursor: pointer;
-    }
-    .checkbox-row input {
-      width: 15px;
-      height: 15px;
-      accent-color: #388bfd;
-      cursor: pointer;
+      user-select: none;
     }
   </style>
 </head>
@@ -1355,17 +1502,22 @@
           <button id="avoidDupesBtn" class="dropdown-item dropdown-toggle-item" title="Duplication Avoidance: Never pause or alert on already caught Pokemon">
             <span class="dropdown-icon">&#128260;</span>
             <span class="dropdown-label">Avoid Duplicates</span>
-            <span id="avoidDupesBadge" class="dropdown-badge dropdown-badge-on">ON</span>
+            <label class="switch">
+              <input type="checkbox" id="avoidDupesBadge" checked>
+              <span class="slider"></span>
+            </label>
           </button>
           <button id="autoCatchBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Catch (Master Ball): Automatically catch detected target Pokemon using Master Ball (Requires Hide Ads ON)">
             <span class="dropdown-icon">&#128080;</span>
             <span class="dropdown-label">Auto-Catch (Master Ball)</span>
-            <span id="autoCatchBadge" class="dropdown-badge dropdown-badge-off">OFF</span>
+            <label class="switch">
+              <input type="checkbox" id="autoCatchBadge">
+              <span class="slider"></span>
+            </label>
           </button>
           <button id="catchLogMenuBtn" class="dropdown-item" title="View Today's Auto-Catch Log &amp; Master Ball Stock">
             <span class="dropdown-icon">&#9918;</span>
             <span class="dropdown-label">Today's Catch Log</span>
-            <span id="navCaughtCountBadge" class="dropdown-badge dropdown-badge-on">0 Caught</span>
           </button>
           <div class="dropdown-divider"></div>
 
@@ -1374,7 +1526,10 @@
           <button id="autoStartMapBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Start Hunting: Automatically begin walking whenever the game map is loaded">
             <span class="dropdown-icon">&#9654;</span>
             <span class="dropdown-label">Auto-Start on Maps</span>
-            <span id="autoStartMapBadge" class="dropdown-badge dropdown-badge-on">ON</span>
+            <label class="switch">
+              <input type="checkbox" id="autoStartMapBadge" checked>
+              <span class="slider"></span>
+            </label>
           </button>
           <div id="autoStartDelayRow" style="padding: 2px 10px 4px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
             <label for="autoStartDelaySelect" style="font-size: 11px; color: #8eaad0; font-weight: 500;">Safety Delay:</label>
@@ -1402,10 +1557,9 @@
 
           <!-- 3. Battle Roster -->
           <div class="nav-dropdown-header">Battle Roster</div>
-          <button id="teamBuilderMenuBtn" class="dropdown-item dropdown-toggle-item" title="Toggle Gym Team Builder Docked Panel">
+          <button id="teamBuilderMenuBtn" class="dropdown-item" title="Open Gym Team Builder Docked Panel">
             <span class="dropdown-icon">&#9876;</span>
             <span class="dropdown-label">Gym Team Builder</span>
-            <span id="teamBuilderBadge" class="dropdown-badge dropdown-badge-on">ON</span>
           </button>
           <div class="dropdown-divider"></div>
 
@@ -1414,12 +1568,14 @@
           <button id="hideAdsBtn" class="dropdown-item dropdown-toggle-item" title="Cosmetic Ad Hiding: Visually collapse ad banners while letting scripts run safely">
             <span class="dropdown-icon">&#128065;</span>
             <span class="dropdown-label">Hide Ads</span>
-            <span id="hideAdsBadge" class="dropdown-badge dropdown-badge-on">ON</span>
+            <label class="switch">
+              <input type="checkbox" id="hideAdsBadge" checked>
+              <span class="slider"></span>
+            </label>
           </button>
           <button id="adsInspectorMenuBtn" class="dropdown-item" title="Open Ads Inspector &amp; Live Telemetry Panel">
             <span class="dropdown-icon">&#128065;</span>
             <span class="dropdown-label">Ads Inspector</span>
-            <span id="navAdsCountBadge" class="dropdown-badge dropdown-badge-on">0 Hidden</span>
           </button>
           <div class="dropdown-divider"></div>
 
@@ -1485,15 +1641,18 @@
           <span class="filter-label">Legendaries &amp; Special:</span>
           <div id="subLegendaryWrap" style="display: flex; gap: 14px; align-items: center;">
             <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
-              <input type="checkbox" id="subClassicLegCheckbox" checked>
+              <input type="checkbox" id="subClassicLegCheckbox" class="input" checked>
+              <span class="custom-checkbox"></span>
               <span>Classic</span>
             </label>
             <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
-              <input type="checkbox" id="subUltraBeastsCheckbox" checked>
+              <input type="checkbox" id="subUltraBeastsCheckbox" class="input" checked>
+              <span class="custom-checkbox"></span>
               <span>Ultra Beasts</span>
             </label>
             <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
-              <input type="checkbox" id="subParadoxCheckbox" checked>
+              <input type="checkbox" id="subParadoxCheckbox" class="input" checked>
+              <span class="custom-checkbox"></span>
               <span>Paradox</span>
             </label>
           </div>
@@ -1503,7 +1662,8 @@
       <!-- Tier 2: Mega Evolution Families & Rare Lines -->
       <div class="filter-item">
         <label class="filter-row">
-          <input type="checkbox" id="filterMegasCheckbox" checked>
+          <input type="checkbox" id="filterMegasCheckbox" class="input" checked>
+          <span class="custom-checkbox"></span>
           <span class="filter-label">Mega Evolutions &amp; Rare Lines</span>
         </label>
       </div>
@@ -1530,7 +1690,8 @@
       <!-- Duplication Avoidance -->
       <div class="filter-item">
         <label class="filter-row">
-          <input type="checkbox" id="avoidDuplicatesCheck" checked>
+          <input type="checkbox" id="avoidDuplicatesCheck" class="input" checked>
+          <span class="custom-checkbox"></span>
           <span class="filter-label">&#128260; Avoid Duplicates (Skip Already Caught)</span>
         </label>
       </div>
@@ -1539,7 +1700,8 @@
       <div class="filter-item">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
           <label class="filter-row" style="margin: 0;">
-            <input type="checkbox" id="filterLevelCheckbox">
+            <input type="checkbox" id="filterLevelCheckbox" class="input">
+            <span class="custom-checkbox"></span>
             <span class="filter-label">Wild Level Filter</span>
           </label>
           <div id="levelControlsWrap" class="level-controls-row dimmed" style="margin: 0; padding: 0; border: none; display: flex; align-items: center; gap: 6px;">
@@ -1564,7 +1726,8 @@
       <div class="filter-item">
         <div style="display: flex; align-items: center; justify-content: space-between;">
           <label class="filter-row" style="margin: 0;">
-            <input type="checkbox" id="filterVariantsCheckbox" checked>
+            <input type="checkbox" id="filterVariantsCheckbox" class="input" checked>
+            <span class="custom-checkbox"></span>
             <span class="filter-label">Filter Sprite Variants</span>
           </label>
           <div class="quick-btn-group">
@@ -1574,16 +1737,16 @@
           </div>
         </div>
         <div id="subVariantsWrap" class="variant-grid-5">
-          <label class="variant-cell" style="border-color: #388bfd;"><input type="checkbox" id="varNormal" checked><span style="color:#388bfd;font-weight:700;">Normal</span></label>
-          <label class="variant-cell"><input type="checkbox" id="varShiny" checked><span>Shiny</span></label>
-          <label class="variant-cell"><input type="checkbox" id="varChrome" checked><span>Chrome</span></label>
-          <label class="variant-cell"><input type="checkbox" id="varRetro" checked><span>Retro</span></label>
-          <label class="variant-cell"><input type="checkbox" id="varMetallic" checked><span>Metallic</span></label>
-          <label class="variant-cell"><input type="checkbox" id="varShadow" checked><span>Shadow</span></label>
-          <label class="variant-cell"><input type="checkbox" id="varGhostly" checked><span>Ghostly</span></label>
-          <label class="variant-cell"><input type="checkbox" id="varDark" checked><span>Dark</span></label>
-          <label class="variant-cell"><input type="checkbox" id="varMirage" checked><span>Mirage</span></label>
-          <label class="variant-cell"><input type="checkbox" id="varNegative" checked><span>Negative</span></label>
+          <label class="variant-cell" style="border-color: #388bfd;"><input type="checkbox" id="varNormal" class="input" checked><span class="custom-checkbox"></span><span style="color:#388bfd;font-weight:700;">Normal</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varShiny" class="input" checked><span class="custom-checkbox"></span><span>Shiny</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varChrome" class="input" checked><span class="custom-checkbox"></span><span>Chrome</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varRetro" class="input" checked><span class="custom-checkbox"></span><span>Retro</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varMetallic" class="input" checked><span class="custom-checkbox"></span><span>Metallic</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varShadow" class="input" checked><span class="custom-checkbox"></span><span>Shadow</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varGhostly" class="input" checked><span class="custom-checkbox"></span><span>Ghostly</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varDark" class="input" checked><span class="custom-checkbox"></span><span>Dark</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varMirage" class="input" checked><span class="custom-checkbox"></span><span>Mirage</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varNegative" class="input" checked><span class="custom-checkbox"></span><span>Negative</span></label>
         </div>
       </div>
     </div>
@@ -1614,8 +1777,8 @@
     </div>
 
     <div class="modal-footer-actions">
-      <button id="cancelTargetBtn" class="btn" style="width:90px; height: 26px;">Cancel</button>
-      <button id="saveTargetsBtn" class="btn btn-active" style="width:120px; height: 26px;">Apply Targets</button>
+      <button id="cancelTargetBtn" class="btn" style="width:90px; height: 28px;">Cancel</button>
+      <button id="saveTargetsBtn" class="btn btn-active" style="width:120px; height: 28px;">Apply Targets</button>
     </div>
   </div>
 
@@ -1647,7 +1810,8 @@
     </div>
 
     <label class="checkbox-row">
-      <input type="checkbox" id="enableProxyCheckbox">
+      <input type="checkbox" id="enableProxyCheckbox" class="input">
+      <span class="custom-checkbox"></span>
       <span>Enable Proxy Routing</span>
     </label>
 
@@ -1659,8 +1823,8 @@
     </div>
 
     <div style="display:flex; justify-content:flex-end; gap:8px;">
-      <button id="cancelNetBtn" class="btn" style="width:90px;">Cancel</button>
-      <button id="saveProxyBtn" class="btn btn-active" style="width:130px;">Apply &amp; Reload</button>
+      <button id="cancelNetBtn" class="btn" style="width:90px; height:28px;">Cancel</button>
+      <button id="saveProxyBtn" class="btn btn-active" style="width:130px; height:28px;">Apply &amp; Reload</button>
     </div>
   </div>
 
@@ -1681,8 +1845,8 @@
     <input type="password" id="accPass" class="input-field" placeholder="Password">
 
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:6px;">
-      <button id="cancelAccBtn" class="btn" style="width:80px;">Cancel</button>
-      <button id="fillLoginBtn" class="btn btn-accent" style="width:110px;">Auto-Fill</button>
+      <button id="cancelAccBtn" class="btn" style="width:80px; height:28px;">Cancel</button>
+      <button id="fillLoginBtn" class="btn btn-accent" style="width:110px; height:28px;">Auto-Fill</button>
     </div>
   </div>
 
@@ -1697,8 +1861,8 @@
       This removes all lingering tokens from previously banned accounts so you start completely fresh.
     </div>
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
-      <button id="cancelWipeBtn" class="btn" style="width:80px;">Cancel</button>
-      <button id="confirmWipeBtn" class="btn btn-danger" style="width:140px;">Wipe &amp; Reload</button>
+      <button id="cancelWipeBtn" class="btn" style="width:80px; height:28px;">Cancel</button>
+      <button id="confirmWipeBtn" class="btn btn-danger" style="width:140px; height:28px;">Wipe &amp; Reload</button>
     </div>
   </div>
 
@@ -1838,9 +2002,9 @@
           <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Candidate Pool</span>
           <span id="trainingStatsBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;">118 in training</span>
         </div>
-        <div style="display: flex; gap: 4px; background: #070e1a; border: 1px solid #1a283e; padding: 2px; border-radius: 4px;">
-          <button type="button" id="poolModeAllBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid #388bfd; background: #14233c; color: #ffffff; font-weight: 700; border-radius: 4px !important;" title="Use all Pokemon in your collection (including Level 100)">All Levels</button>
-          <button type="button" id="poolModeTrainingBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid transparent; background: transparent; color: #8eaad0; font-weight: 500; border-radius: 4px !important;" title="Use non-level 100 Pokemon only so you can train and max them out">&#9889; Training (&lt;100)</button>
+        <div style="display: flex; gap: 4px; background: #070e1a; border: 1px solid #1a283e; padding: 2px; border-radius: 20px;">
+          <button type="button" id="poolModeAllBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid #388bfd; background: #14233c; color: #ffffff; font-weight: 700; border-radius: 20px !important;" title="Use all Pokemon in your collection (including Level 100)">All Levels</button>
+          <button type="button" id="poolModeTrainingBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid transparent; background: transparent; color: #8eaad0; font-weight: 500; border-radius: 20px !important;" title="Use non-level 100 Pokemon only so you can train and max them out">&#9889; Training (&lt;100)</button>
         </div>
       </div>
 

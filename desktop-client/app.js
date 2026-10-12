@@ -765,8 +765,8 @@ function detectNetworkIdentity(callback) {
 function updateAvoidDupesUI() {
   const isAvoid = config.settings && config.settings.avoidDuplicates !== false;
   if (avoidDupesBadge) {
-    avoidDupesBadge.textContent = isAvoid ? 'ON' : 'OFF';
-    avoidDupesBadge.className = isAvoid ? 'dropdown-badge dropdown-badge-on' : 'dropdown-badge dropdown-badge-off';
+    avoidDupesBadge.textContent = '';
+    avoidDupesBadge.className = isAvoid ? 'dropdown-switch switch-on dropdown-badge-on' : 'dropdown-switch switch-off dropdown-badge-off';
   }
   if (avoidDupesBtn) {
     avoidDupesBtn.title = isAvoid
@@ -782,8 +782,8 @@ function updateAutoStartMapUI() {
   const isAuto = config.settings && config.settings.autoStartOnMap !== false;
   const delaySec = (config.settings && config.settings.autoStartDelay) || 5;
   if (autoStartMapBadge) {
-    autoStartMapBadge.textContent = isAuto ? 'ON' : 'OFF';
-    autoStartMapBadge.className = isAuto ? 'dropdown-badge dropdown-badge-on' : 'dropdown-badge dropdown-badge-off';
+    autoStartMapBadge.textContent = '';
+    autoStartMapBadge.className = isAuto ? 'dropdown-switch switch-on dropdown-badge-on' : 'dropdown-switch switch-off dropdown-badge-off';
   }
   if (autoStartMapBtn) {
     autoStartMapBtn.title = isAuto
@@ -806,8 +806,8 @@ function updateHideAdsUI() {
     saveLocalConfig();
   }
   if (hideAdsBadge) {
-    hideAdsBadge.textContent = isHide ? 'ON' : 'OFF';
-    hideAdsBadge.className = isHide ? 'dropdown-badge dropdown-badge-on' : 'dropdown-badge dropdown-badge-off';
+    hideAdsBadge.textContent = '';
+    hideAdsBadge.className = isHide ? 'dropdown-switch switch-on dropdown-badge-on' : 'dropdown-switch switch-off dropdown-badge-off';
   }
   if (hideAdsBtn) {
     hideAdsBtn.title = isHide
@@ -825,8 +825,8 @@ function updateAutoCatchUI() {
     saveLocalConfig();
   }
   if (autoCatchBadge) {
-    autoCatchBadge.textContent = isCatch ? 'ON' : 'OFF';
-    autoCatchBadge.className = isCatch ? 'dropdown-badge dropdown-badge-on' : 'dropdown-badge dropdown-badge-off';
+    autoCatchBadge.textContent = '';
+    autoCatchBadge.className = isCatch ? 'dropdown-switch switch-on dropdown-badge-on' : 'dropdown-switch switch-off dropdown-badge-off';
   }
   if (autoCatchBtn) {
     if (!isHideAds) {
@@ -3761,11 +3761,7 @@ if (teamCategorySelect) {
 }
 
 function updateTeamBuilderBadge(isOpen) {
-  const badge = document.getElementById('teamBuilderBadge');
-  if (badge) {
-    badge.textContent = isOpen ? 'ON' : 'OFF';
-    badge.className = 'dropdown-badge ' + (isOpen ? 'dropdown-badge-on' : 'dropdown-badge-off');
-  }
+  // Gym Team Builder is a docked panel rather than an on/off toggle switch
 }
 
 function openTeamBuilderPanel() {

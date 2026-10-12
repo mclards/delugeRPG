@@ -359,6 +359,28 @@ const poolModeTrainingBtn = document.getElementById('poolModeTrainingBtn');
 const trainingStatsBadge = document.getElementById('trainingStatsBadge');
 const candidatePoolFilterSelect = document.getElementById('candidatePoolFilterSelect');
 let teamPoolFilter = (config && config.settings && config.settings.teamPoolFilter) || 'ANY';
+const teamModeNpcBtn = document.getElementById('teamModeNpcBtn');
+const teamModePvpBtn = document.getElementById('teamModePvpBtn');
+const teamNpcSection = document.getElementById('teamNpcSection');
+const teamPvpSection = document.getElementById('teamPvpSection');
+const pvpLiveStatusBadge = document.getElementById('pvpLiveStatusBadge');
+const pvpLiveOpponentCard = document.getElementById('pvpLiveOpponentCard');
+const pvpLiveSummary = document.getElementById('pvpLiveSummary');
+const pvpLiveRosterStrip = document.getElementById('pvpLiveRosterStrip');
+const checkLiveBattleBtn = document.getElementById('checkLiveBattleBtn');
+const pvpScoutInput = document.getElementById('pvpScoutInput');
+const pvpScoutBtn = document.getElementById('pvpScoutBtn');
+const pvpScoutStatusBadge = document.getElementById('pvpScoutStatusBadge');
+const pvpScoutResultCard = document.getElementById('pvpScoutResultCard');
+const pvpScoutedName = document.getElementById('pvpScoutedName');
+const pvpScoutClearBtn = document.getElementById('pvpScoutClearBtn');
+const pvpScoutedRosterStrip = document.getElementById('pvpScoutedRosterStrip');
+const pvpStrategySelect = document.getElementById('pvpStrategySelect');
+const pvpCandidateTierSelect = document.getElementById('pvpCandidateTierSelect');
+let teamBattleMode = (config && config.settings && config.settings.teamBattleMode) || 'NPC';
+let scoutedPlayerOpponent = null;
+let pvpStrategy = (config && config.settings && config.settings.pvpStrategy) || 'COUNTERS';
+let pvpCandidateTier = (config && config.settings && config.settings.pvpCandidateTier) || 'ANY';
 const battleOpponentBtn = document.getElementById('battleOpponentBtn');
 const adsInspectorModal = document.getElementById('adsInspectorModal');
 const adsInspectorMenuBtn = document.getElementById('adsInspectorMenuBtn');
@@ -2243,11 +2265,19 @@ delugeView.addEventListener('ipc-message', (event) => {
       if (isBuildSyncInProgress) {
         isBuildSyncInProgress = false;
         if (buildTeamBtn) {
-          buildTeamBtn.innerHTML = '<span>&#9876;</span><span>Build Best Team</span>';
+          if (teamBattleMode === 'PVP' && typeof updatePvpBuildButtonLabel === 'function') {
+            updatePvpBuildButtonLabel();
+          } else {
+            buildTeamBtn.innerHTML = '<span>&#9876;</span><span>Build Best Team</span>';
+          }
           buildTeamBtn.style.opacity = '1';
         }
-        if (pendingBuildLeader && typeof executeTeamBuild === 'function') {
-          executeTeamBuild(pendingBuildLeader);
+        if (pendingBuildLeader) {
+          if (teamBattleMode === 'PVP' && typeof executePvPTeamBuild === 'function') {
+            executePvPTeamBuild();
+          } else if (typeof executeTeamBuild === 'function') {
+            executeTeamBuild(pendingBuildLeader);
+          }
           pendingBuildLeader = null;
         }
         if (teamActionStatus) {
@@ -2261,7 +2291,11 @@ delugeView.addEventListener('ipc-message', (event) => {
       if (isBuildSyncInProgress) {
         isBuildSyncInProgress = false;
         if (buildTeamBtn) {
-          buildTeamBtn.innerHTML = '<span>&#9876;</span><span>Build Best Team</span>';
+          if (teamBattleMode === 'PVP' && typeof updatePvpBuildButtonLabel === 'function') {
+            updatePvpBuildButtonLabel();
+          } else {
+            buildTeamBtn.innerHTML = '<span>&#9876;</span><span>Build Best Team</span>';
+          }
           buildTeamBtn.style.opacity = '1';
         }
       }
@@ -2345,6 +2379,50 @@ delugeView.addEventListener('ipc-message', (event) => {
       }
       if (typeof updateTrainerIntelStats === 'function') {
         updateTrainerIntelStats();
+      }
+    }
+  }
+
+  if (event.channel === 'player-scout-status') {
+    const data = event.args[0] || {};
+    if (pvpScoutBtn) {
+      pvpScoutBtn.disabled = false;
+      pvpScoutBtn.innerHTML = '&#128269; Scout';
+    }
+    if (pvpScoutStatusBadge) {
+      if (data.step === 'error') {
+        pvpScoutStatusBadge.textContent = data.message || 'Scout failed';
+        pvpScoutStatusBadge.style.color = '#f87171';
+      } else if (data.step === 'fetching') {
+        pvpScoutStatusBadge.textContent = data.message || 'Scouting...';
+        pvpScoutStatusBadge.style.color = '#388bfd';
+      }
+    }
+  }
+
+  if (event.channel === 'player-scouted-roster') {
+    const data = event.args[0] || {};
+    if (pvpScoutBtn) {
+      pvpScoutBtn.disabled = false;
+      pvpScoutBtn.innerHTML = '&#128269; Scout';
+    }
+    if (data && Array.isArray(data.roster) && data.roster.length > 0) {
+      scoutedPlayerOpponent = {
+        name: data.username,
+        trainerName: data.username,
+        roster: data.roster,
+        types: ['Player Team'],
+        isPlayer: true
+      };
+      if (typeof renderScoutedPlayerCard === 'function') {
+        renderScoutedPlayerCard(scoutedPlayerOpponent);
+      }
+      if (pvpScoutStatusBadge) {
+        pvpScoutStatusBadge.textContent = `Scouted ${data.roster.length} Pkmn!`;
+        pvpScoutStatusBadge.style.color = '#238636';
+      }
+      if (teamBattleMode === 'PVP' && pvpStrategy === 'COUNTERS' && typeof executePvPTeamBuild === 'function') {
+        executePvPTeamBuild();
       }
     }
   }
@@ -3535,11 +3613,183 @@ function resetTeamPrompt() {
   if (teamActionRow) teamActionRow.style.display = 'none';
   if (teamEmptyPrompt) {
     teamEmptyPrompt.style.display = 'flex';
-    teamEmptyPrompt.innerHTML = `
-      <div style="font-size: 20px; color: #388bfd; margin-bottom: 6px; opacity: 0.9;">&#9876;</div>
-      <div style="font-weight: 700; color: #e0ecfa; font-size: 11.5px; margin-bottom: 3px;">Ready to Build</div>
-      <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px; color: #8eaad0;">Click <b>Build Best Team</b> to generate the optimal counter lineup.</div>
-    `;
+    if (teamBattleMode === 'PVP') {
+      const pvpSub = (pvpStrategy === 'GODSQUAD')
+        ? 'Click <b>Build God Squad</b> to generate an ultra-versatile 6-Pokemon meta team.'
+        : 'Enter a challenger username above to <b>Scout</b> their active team, or click <b>Build PvP Counters</b>.';
+      teamEmptyPrompt.innerHTML = `
+        <div style="font-size: 20px; color: #388bfd; margin-bottom: 6px; opacity: 0.9;">&#127919;</div>
+        <div style="font-weight: 700; color: #e0ecfa; font-size: 11.5px; margin-bottom: 3px;">Ready for Live Battle</div>
+        <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px; color: #8eaad0;">${pvpSub}</div>
+      `;
+    } else {
+      teamEmptyPrompt.innerHTML = `
+        <div style="font-size: 20px; color: #388bfd; margin-bottom: 6px; opacity: 0.9;">&#9876;</div>
+        <div style="font-weight: 700; color: #e0ecfa; font-size: 11.5px; margin-bottom: 3px;">Ready to Build</div>
+        <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px; color: #8eaad0;">Click <b>Build Best Team</b> to generate the optimal counter lineup.</div>
+      `;
+    }
+  }
+}
+
+function setTeamBattleMode(mode) {
+  teamBattleMode = mode;
+  if (!config.settings) config.settings = {};
+  config.settings.teamBattleMode = mode;
+  saveLocalConfig();
+
+  if (mode === 'PVP') {
+    if (teamModePvpBtn) {
+      teamModePvpBtn.style.border = '1px solid #388bfd';
+      teamModePvpBtn.style.background = '#14233c';
+      teamModePvpBtn.style.color = '#ffffff';
+      teamModePvpBtn.style.fontWeight = '700';
+    }
+    if (teamModeNpcBtn) {
+      teamModeNpcBtn.style.border = '1px solid transparent';
+      teamModeNpcBtn.style.background = 'transparent';
+      teamModeNpcBtn.style.color = '#8eaad0';
+      teamModeNpcBtn.style.fontWeight = '500';
+    }
+    if (teamNpcSection) teamNpcSection.style.display = 'none';
+    if (teamPvpSection) teamPvpSection.style.display = 'flex';
+    updatePvpBuildButtonLabel();
+  } else {
+    if (teamModeNpcBtn) {
+      teamModeNpcBtn.style.border = '1px solid #388bfd';
+      teamModeNpcBtn.style.background = '#14233c';
+      teamModeNpcBtn.style.color = '#ffffff';
+      teamModeNpcBtn.style.fontWeight = '700';
+    }
+    if (teamModePvpBtn) {
+      teamModePvpBtn.style.border = '1px solid transparent';
+      teamModePvpBtn.style.background = 'transparent';
+      teamModePvpBtn.style.color = '#8eaad0';
+      teamModePvpBtn.style.fontWeight = '500';
+    }
+    if (teamNpcSection) teamNpcSection.style.display = 'flex';
+    if (teamPvpSection) teamPvpSection.style.display = 'none';
+    if (buildTeamBtn) {
+      buildTeamBtn.innerHTML = '<span>&#9876;</span><span>Build Best Team</span>';
+    }
+  }
+  resetTeamPrompt();
+}
+
+function updatePvpBuildButtonLabel() {
+  if (!buildTeamBtn) return;
+  if (teamBattleMode !== 'PVP') {
+    buildTeamBtn.innerHTML = '<span>&#9876;</span><span>Build Best Team</span>';
+    return;
+  }
+  if (pvpStrategy === 'GODSQUAD') {
+    buildTeamBtn.innerHTML = '<span>&#9889;</span><span>Build God Squad</span>';
+  } else {
+    buildTeamBtn.innerHTML = '<span>&#9876;</span><span>Build PvP Counters</span>';
+  }
+}
+
+function updateLiveChallengerUI(data) {
+  if (!data || !Array.isArray(data.roster) || data.roster.length === 0) {
+    if (pvpLiveStatusBadge) {
+      pvpLiveStatusBadge.textContent = 'No Active Challenger';
+      pvpLiveStatusBadge.style.color = '#8eaad0';
+    }
+    if (pvpLiveSummary) {
+      pvpLiveSummary.textContent = 'Waiting for live battle invite or active arena on DelugeRPG.';
+    }
+    if (pvpLiveRosterStrip) {
+      pvpLiveRosterStrip.style.display = 'none';
+      pvpLiveRosterStrip.innerHTML = '';
+    }
+    return;
+  }
+
+  if (pvpLiveStatusBadge) {
+    pvpLiveStatusBadge.textContent = 'Active Challenger';
+    pvpLiveStatusBadge.style.color = '#238636';
+  }
+  if (pvpLiveSummary) {
+    const oppName = data.trainerTitle || data.trainerName || 'Challenger';
+    pvpLiveSummary.innerHTML = `Challenger: <b style="color:#e0ecfa;">${oppName}</b> (${data.roster.length} Pokemon)`;
+  }
+  if (pvpLiveRosterStrip) {
+    pvpLiveRosterStrip.style.display = 'flex';
+    pvpLiveRosterStrip.innerHTML = '';
+    data.roster.forEach(poke => {
+      const thumb = document.createElement('div');
+      thumb.style.cssText = 'width:36px; height:36px; background:#070e1a; border:1px solid #1a283e; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0;';
+      const typeStr = Array.isArray(poke.types) ? poke.types.join('/') : (poke.types || 'Normal');
+      thumb.title = `${poke.name} (Lv ${poke.level || 100}) - ${typeStr}`;
+      if (poke.sprite) {
+        const img = document.createElement('img');
+        img.src = poke.sprite;
+        img.style.cssText = 'max-width:32px; max-height:32px; image-rendering:pixelated;';
+        thumb.appendChild(img);
+      } else {
+        thumb.textContent = poke.name.charAt(0);
+        thumb.style.color = '#8eaad0';
+        thumb.style.fontSize = '11px';
+        thumb.style.fontWeight = '700';
+      }
+      pvpLiveRosterStrip.appendChild(thumb);
+    });
+  }
+}
+
+function renderScoutedPlayerCard(playerData) {
+  if (!pvpScoutResultCard) return;
+  if (!playerData || !Array.isArray(playerData.roster) || playerData.roster.length === 0) {
+    pvpScoutResultCard.style.display = 'none';
+    return;
+  }
+  pvpScoutResultCard.style.display = 'block';
+  if (pvpScoutedName) {
+    pvpScoutedName.textContent = `${playerData.name} (${playerData.roster.length} Pokemon)`;
+  }
+  if (pvpScoutedRosterStrip) {
+    pvpScoutedRosterStrip.innerHTML = '';
+    playerData.roster.forEach(poke => {
+      const thumb = document.createElement('div');
+      thumb.style.cssText = 'width:36px; height:36px; background:#070e1a; border:1px solid #1a283e; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0;';
+      const typeStr = Array.isArray(poke.types) ? poke.types.join('/') : (poke.types || 'Normal');
+      thumb.title = `${poke.name} (Lv ${poke.level || 100}) - ${typeStr}`;
+      if (poke.sprite) {
+        const img = document.createElement('img');
+        img.src = poke.sprite;
+        img.style.cssText = 'max-width:32px; max-height:32px; image-rendering:pixelated;';
+        thumb.appendChild(img);
+      } else {
+        thumb.textContent = poke.name.charAt(0);
+        thumb.style.color = '#8eaad0';
+        thumb.style.fontSize = '11px';
+        thumb.style.fontWeight = '700';
+      }
+      pvpScoutedRosterStrip.appendChild(thumb);
+    });
+  }
+}
+
+function triggerPlayerScout() {
+  if (!pvpScoutInput) return;
+  const username = pvpScoutInput.value.trim();
+  if (!username) {
+    if (pvpScoutStatusBadge) {
+      pvpScoutStatusBadge.textContent = 'Enter username';
+      pvpScoutStatusBadge.style.color = '#f87171';
+    }
+    return;
+  }
+  if (pvpScoutStatusBadge) {
+    pvpScoutStatusBadge.textContent = 'Scouting...';
+    pvpScoutStatusBadge.style.color = '#388bfd';
+  }
+  if (pvpScoutBtn) {
+    pvpScoutBtn.disabled = true;
+    pvpScoutBtn.innerHTML = '<span>&#8635;</span>';
+  }
+  if (delugeView && typeof delugeView.send === 'function') {
+    delugeView.send('scout-player-roster', { username });
   }
 }
 
@@ -3550,6 +3800,73 @@ function setTeamRosterMode(mode) {
   saveLocalConfig();
   updateRosterModeUI();
   resetTeamPrompt();
+}
+
+if (teamModeNpcBtn) {
+  teamModeNpcBtn.addEventListener('click', () => setTeamBattleMode('NPC'));
+}
+if (teamModePvpBtn) {
+  teamModePvpBtn.addEventListener('click', () => setTeamBattleMode('PVP'));
+}
+if (pvpScoutBtn) {
+  pvpScoutBtn.addEventListener('click', triggerPlayerScout);
+}
+if (pvpScoutInput) {
+  pvpScoutInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') triggerPlayerScout();
+  });
+}
+if (pvpScoutClearBtn) {
+  pvpScoutClearBtn.addEventListener('click', () => {
+    scoutedPlayerOpponent = null;
+    if (pvpScoutResultCard) pvpScoutResultCard.style.display = 'none';
+    if (pvpScoutInput) pvpScoutInput.value = '';
+    if (pvpScoutStatusBadge) {
+      pvpScoutStatusBadge.textContent = 'Profile Intel';
+      pvpScoutStatusBadge.style.color = '#388bfd';
+    }
+    resetTeamPrompt();
+  });
+}
+if (checkLiveBattleBtn) {
+  checkLiveBattleBtn.addEventListener('click', () => {
+    if (pvpLiveStatusBadge) {
+      pvpLiveStatusBadge.textContent = 'Scanning page...';
+      pvpLiveStatusBadge.style.color = '#388bfd';
+    }
+    if (delugeView && typeof delugeView.send === 'function') {
+      delugeView.send('check-battle-opponents');
+    }
+    setTimeout(() => {
+      if (pvpLiveStatusBadge && pvpLiveStatusBadge.textContent === 'Scanning page...') {
+        if (liveBattleOpponent && liveBattleOpponent.roster && liveBattleOpponent.roster.length > 0) {
+          updateLiveChallengerUI(liveBattleOpponent);
+        } else {
+          pvpLiveStatusBadge.textContent = 'No Active Challenger';
+          pvpLiveStatusBadge.style.color = '#8eaad0';
+        }
+      }
+    }, 2000);
+  });
+}
+if (pvpStrategySelect) {
+  pvpStrategySelect.addEventListener('change', () => {
+    pvpStrategy = pvpStrategySelect.value || 'COUNTERS';
+    if (!config.settings) config.settings = {};
+    config.settings.pvpStrategy = pvpStrategy;
+    saveLocalConfig();
+    updatePvpBuildButtonLabel();
+    resetTeamPrompt();
+  });
+}
+if (pvpCandidateTierSelect) {
+  pvpCandidateTierSelect.addEventListener('change', () => {
+    pvpCandidateTier = pvpCandidateTierSelect.value || 'ANY';
+    if (!config.settings) config.settings = {};
+    config.settings.pvpCandidateTier = pvpCandidateTier;
+    saveLocalConfig();
+    resetTeamPrompt();
+  });
 }
 
 if (poolModeAllBtn) {
@@ -3651,6 +3968,15 @@ function handleLiveBattleOpponents(data) {
   if (!lastRecommendedTeam || lastRecommendedTeam.length === 0) {
     teamTrainerSelect.value = 'LIVE__BATTLE';
   }
+
+  if (typeof updateLiveChallengerUI === 'function') {
+    updateLiveChallengerUI(data);
+  }
+  if (teamBattleMode === 'PVP' && pvpStrategy === 'COUNTERS' && (!lastRecommendedTeam || lastRecommendedTeam.length === 0)) {
+    if (typeof executePvPTeamBuild === 'function') {
+      executePvPTeamBuild();
+    }
+  }
 }
 
 function loadTeamBuilderData() {
@@ -3661,6 +3987,12 @@ function loadTeamBuilderData() {
       if (scanStatusBadge) scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced`;
       if (candidatePoolFilterSelect && teamPoolFilter) {
         candidatePoolFilterSelect.value = teamPoolFilter;
+      }
+      if (pvpStrategySelect && pvpStrategy) {
+        pvpStrategySelect.value = pvpStrategy;
+      }
+      if (pvpCandidateTierSelect && pvpCandidateTier) {
+        pvpCandidateTierSelect.value = pvpCandidateTier;
       }
       updateRosterModeUI();
     }
@@ -3785,6 +4117,9 @@ function openTeamBuilderPanel() {
   }
   updateTeamBuilderBadge(true);
   loadTeamBuilderData();
+  if (typeof setTeamBattleMode === 'function') {
+    setTeamBattleMode(teamBattleMode);
+  }
   if (!lastRecommendedTeam || lastRecommendedTeam.length === 0) {
     if (teamEmptyPrompt) teamEmptyPrompt.style.display = 'flex';
     if (teamResultContainer) teamResultContainer.style.display = 'none';
@@ -4159,10 +4494,17 @@ function renderTeamLineup(leader, team) {
   const header = document.createElement('div');
   header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 6px; font-size:10px; color:#8eaad0; border-bottom:1px solid #1a283e; margin-bottom:6px; font-weight:600;';
   const targetLabel = (leader && leader.name) ? leader.name : 'Opponent';
-  const modeBadge = teamRosterMode === 'TRAINING'
-    ? ' <span style="color:#388bfd; font-weight:700; margin-left:6px; background:rgba(56, 139, 253, 0.15); border:1px solid rgba(56, 139, 253, 0.3); padding:1px 6px; border-radius:4px;">&#9889; TRAINING (&lt;100)</span>'
-    : '';
-  header.innerHTML = `<span>YOUR COUNTER TEAM${modeBadge}</span><span>TARGET: ${targetLabel}</span>`;
+  let modeBadge = '';
+  if (teamBattleMode === 'PVP') {
+    if (pvpStrategy === 'GODSQUAD') {
+      modeBadge = ' <span style="color:#f59e0b; font-weight:700; margin-left:6px; background:rgba(245, 158, 11, 0.15); border:1px solid rgba(245, 158, 11, 0.3); padding:1px 6px; border-radius:4px;">&#9889; GOD SQUAD</span>';
+    } else {
+      modeBadge = ' <span style="color:#388bfd; font-weight:700; margin-left:6px; background:rgba(56, 139, 253, 0.15); border:1px solid rgba(56, 139, 253, 0.3); padding:1px 6px; border-radius:4px;">&#127919; PVP COUNTER</span>';
+    }
+  } else if (teamRosterMode === 'TRAINING') {
+    modeBadge = ' <span style="color:#388bfd; font-weight:700; margin-left:6px; background:rgba(56, 139, 253, 0.15); border:1px solid rgba(56, 139, 253, 0.3); padding:1px 6px; border-radius:4px;">&#9889; TRAINING (&lt;100)</span>';
+  }
+  header.innerHTML = `<span>YOUR ${teamBattleMode === 'PVP' ? 'PVP' : 'COUNTER'} TEAM${modeBadge}</span><span>TARGET: ${targetLabel}</span>`;
   teamResultList.appendChild(header);
 
   team.forEach(p => {
@@ -4208,6 +4550,18 @@ function renderTeamLineup(leader, team) {
       targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#8eaad0; background:#070e1a; border:1px solid #1a283e; border-radius:4px;">RESERVE</span>';
     } else if (p.targetName === 'Trainee' || (typeof p.targetName === 'string' && p.targetName.startsWith('Trainee'))) {
       targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#238636; background:rgba(35, 134, 54, 0.15); border:1px solid rgba(56, 180, 100, 0.3); border-radius:4px;">TRAINEE</span>';
+    } else if (p.role === 'LEAD SWEEPER') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f59e0b; background:rgba(245, 158, 11, 0.15); border:1px solid rgba(245, 158, 11, 0.3); border-radius:4px;">LEAD SWEEPER</span>';
+    } else if (p.role === 'WALLBREAKER') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f87171; background:rgba(248, 113, 113, 0.15); border:1px solid rgba(248, 113, 113, 0.3); border-radius:4px;">WALLBREAKER</span>';
+    } else if (p.role === 'IMMORTAL TANK') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid rgba(56, 139, 253, 0.3); border-radius:4px;">TANK</span>';
+    } else if (p.role === 'FAIRY DRAGON-SLAYER') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#a371f7; background:rgba(163, 113, 247, 0.15); border:1px solid rgba(163, 113, 247, 0.3); border-radius:4px;">FAIRY SLAYER</span>';
+    } else if (p.role === 'GROUND/ELECTRIC PIVOT' || p.role === 'SPEED PIVOT') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#238636; background:rgba(35, 134, 54, 0.15); border:1px solid rgba(56, 180, 100, 0.3); border-radius:4px;">PIVOT</span>';
+    } else if (p.role === 'ARMOR ANCHOR' || p.role === 'CLUTCH ANCHOR') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#e0ecfa; background:#1a283e; border:1px solid #388bfd; border-radius:4px;">ANCHOR</span>';
     } else if (p.targetName) {
       targetBadgeHtml = `<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid rgba(56, 139, 253, 0.3); border-radius:4px;">vs ${p.targetName}</span>`;
     } else {
@@ -4215,8 +4569,10 @@ function renderTeamLineup(leader, team) {
     }
 
     const cleanRole = (p.role || '').replace(/\s*\(vs\s+[^)]+\)/i, '');
+    const descHtml = p.roleDesc ? `<div style="font-size:9px; color:#8eaad0; max-width:115px; overflow:hidden; text-overflow:ellipsis;">${p.roleDesc}</div>` : '';
     right.innerHTML = targetBadgeHtml +
-                      `<div style="font-size:10px; font-weight:600; color:#8eaad0;">${cleanRole}</div>`;
+                      `<div style="font-size:10px; font-weight:600; color:#8eaad0;">${cleanRole}</div>` +
+                      descHtml;
 
     row.appendChild(left);
     row.appendChild(right);
@@ -4379,8 +4735,113 @@ function executeTeamBuild(targetLeader) {
   renderTeamLineup(targetLeader, team);
 }
 
+function executePvPTeamBuild() {
+  if (!currentCollection || currentCollection.length === 0) {
+    loadTeamBuilderData();
+  }
+
+  if (!currentCollection || currentCollection.length === 0) {
+    if (teamResultContainer) teamResultContainer.style.display = 'block';
+    if (teamResultList) {
+      teamResultList.innerHTML = '<div style="padding:10px; color:#f87171; font-size:11px; text-align:center;">No Pokemon in database. Click "Scan My Box" first.</div>';
+    }
+    if (teamActionRow) teamActionRow.style.display = 'none';
+    return;
+  }
+
+  const pvpTier = (pvpCandidateTierSelect && pvpCandidateTierSelect.value) ? pvpCandidateTierSelect.value : pvpCandidateTier;
+
+  if (pvpStrategy === 'GODSQUAD') {
+    const team = teamEngine.buildGodSquadTeam(currentCollection, pvpTier);
+    if (!team || team.length === 0) {
+      const tierLabels = {
+        ANY: 'Level 100 Pokemon',
+        LEGENDARY: 'Legendaries',
+        ULTRABEAST: 'Ultra Beasts',
+        PARADOX: 'Paradox Pokemon',
+        GMAX: 'G-Max / Mega Pokemon'
+      };
+      const label = tierLabels[pvpTier] || 'Pokemon';
+      if (teamResultContainer) teamResultContainer.style.display = 'block';
+      if (teamResultList) {
+        teamResultList.innerHTML = `<div style="padding:16px 10px; color:#8eaad0; font-size:11px; text-align:center;">Not enough ${label} to build a God Squad.<br><span style="color:#64748b; font-size:10px;">Switch Candidate Tier to <b>All Lv 100s</b> or click 'Scan My Box'.</span></div>`;
+      }
+      if (teamActionRow) teamActionRow.style.display = 'none';
+      return;
+    }
+    lastRecommendedTeam = team;
+    renderTeamLineup({ name: 'Live PvP Universal Meta', isPvpMeta: true }, team);
+  } else {
+    // Strategy: Hard-Counters
+    const targetOpponent = scoutedPlayerOpponent || liveBattleOpponent;
+    if (!targetOpponent || !Array.isArray(targetOpponent.roster) || targetOpponent.roster.length === 0) {
+      if (teamResultContainer) teamResultContainer.style.display = 'block';
+      if (teamResultList) {
+        teamResultList.innerHTML = `
+          <div style="padding:16px 10px; color:#8eaad0; font-size:11px; text-align:center;">
+            <div style="font-size:18px; margin-bottom:4px;">&#128269;</div>
+            <div style="font-weight:700; color:#e0ecfa; margin-bottom:4px;">No Challenger Scouted Yet</div>
+            <div style="font-size:10px; line-height:1.4; color:#8eaad0;">
+              Enter a challenger's username above and click <b>Scout</b> to counter their team, or switch strategy to <b>God Squad (Meta)</b>.
+            </div>
+          </div>
+        `;
+      }
+      if (teamActionRow) teamActionRow.style.display = 'none';
+      return;
+    }
+
+    const filteredPool = teamEngine.filterCandidatePool(currentCollection, pvpTier);
+    if (filteredPool.length === 0) {
+      const tierLabels = {
+        ANY: 'Level 100 Pokemon',
+        LEGENDARY: 'Legendaries',
+        ULTRABEAST: 'Ultra Beasts',
+        PARADOX: 'Paradox Pokemon',
+        GMAX: 'G-Max / Mega Pokemon'
+      };
+      const label = tierLabels[pvpTier] || 'Pokemon';
+      if (teamResultContainer) teamResultContainer.style.display = 'block';
+      if (teamResultList) {
+        teamResultList.innerHTML = `<div style="padding:16px 10px; color:#8eaad0; font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:#64748b; font-size:10px;">Switch Candidate Tier to <b>All Lv 100s</b> or click 'Scan My Box'.</span></div>`;
+      }
+      if (teamActionRow) teamActionRow.style.display = 'none';
+      return;
+    }
+
+    let candidatePool = filteredPool.filter(p => (p.level || 0) === 100);
+    if (candidatePool.length < 6) {
+      candidatePool = filteredPool.filter(p => (p.level || 0) >= 80);
+    }
+    if (candidatePool.length < 6) {
+      candidatePool = filteredPool;
+    }
+
+    const team = teamEngine.buildBestTeam(targetOpponent, candidatePool);
+    lastRecommendedTeam = team;
+    renderTeamLineup(targetOpponent, team);
+  }
+
+  if (delugeView && typeof delugeView.send === 'function' && !isBuildSyncInProgress) {
+    isBuildSyncInProgress = true;
+    pendingBuildLeader = (pvpStrategy === 'GODSQUAD')
+      ? { name: 'Live PvP Universal Meta', isPvpMeta: true, isPvp: true }
+      : (scoutedPlayerOpponent || liveBattleOpponent || { name: 'Live Challenger', isPvp: true });
+    buildTeamBtn.innerHTML = '<span>&#8635;</span><span>Syncing Box...</span>';
+    if (scanStatusBadge) {
+      scanStatusBadge.textContent = 'Syncing box...';
+      scanStatusBadge.style.color = '#388bfd';
+    }
+    delugeView.send('start-scan-pokemon');
+  }
+}
+
 if (buildTeamBtn) {
   buildTeamBtn.addEventListener('click', () => {
+    if (teamBattleMode === 'PVP') {
+      executePvPTeamBuild();
+      return;
+    }
     const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
     if (!selVal) return;
 
@@ -4484,6 +4945,9 @@ if (copyTeamBtn) {
 }
 
 function resolveTargetBattleUrl() {
+  if (teamBattleMode === 'PVP') {
+    return '/battle/live';
+  }
   if (lastSelectedBattleUrl) return lastSelectedBattleUrl;
 
   const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';

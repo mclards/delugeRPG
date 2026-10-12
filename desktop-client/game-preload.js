@@ -3973,6 +3973,147 @@ ipcRenderer.on('check-battle-opponents', () => {
     detectBattleOpponents();
 });
 
+// --- 7. LIVE PLAYER SCOUT ENGINE ---
+function extractRosterFromProfileDocument(doc) {
+    if (!doc) return [];
+    const roster = [];
+
+    const tables = doc.querySelectorAll('.viewpoketable');
+    if (tables && tables.length > 0) {
+        for (let i = 0; i < tables.length; i++) {
+            const tbl = tables[i];
+            const h4 = tbl.querySelector('h4');
+            const name = h4 ? h4.textContent.trim() : '';
+            if (!name) continue;
+
+            const types = [];
+            const typeBtns = tbl.querySelectorAll('.itype i.tbtn, i.tbtn');
+            for (let j = 0; j < typeBtns.length; j++) {
+                const t = typeBtns[j].getAttribute('title');
+                if (t && types.indexOf(t) === -1) types.push(t);
+            }
+
+            let level = 100;
+            const bEls = tbl.querySelectorAll('b');
+            for (let b = 0; b < bEls.length; b++) {
+                if (bEls[b].textContent.indexOf('Level:') !== -1 && bEls[b].nextSibling) {
+                    const lNum = parseInt(bEls[b].nextSibling.textContent.trim(), 10);
+                    if (!isNaN(lNum)) level = lNum;
+                }
+            }
+
+            const img = tbl.querySelector('.vpname img, img');
+            const sprite = img ? (img.getAttribute('src') || '') : '';
+
+            roster.push({
+                name: name,
+                types: types.length > 0 ? types : ['Normal'],
+                level: level,
+                sprite: sprite
+            });
+        }
+        if (roster.length > 0) return roster;
+    }
+
+    const items = doc.querySelectorAll('#teamlist li, .indbox');
+    if (items && items.length > 0) {
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const nameEl = item.querySelector('.name, h4, .smallcaps');
+            const name = nameEl ? nameEl.textContent.trim() : '';
+            if (!name) continue;
+
+            const types = [];
+            const row = item.querySelector('.row');
+            if (row && row.getAttribute('data-pktype')) {
+                types.push(row.getAttribute('data-pktype'));
+            }
+            const tBtns = item.querySelectorAll('i.tbtn');
+            for (let j = 0; j < tBtns.length; j++) {
+                const t = tBtns[j].getAttribute('title');
+                if (t && types.indexOf(t) === -1) types.push(t);
+            }
+
+            let level = 100;
+            const text = item.textContent || '';
+            const m = text.match(/Level:\s*(\d+)/i);
+            if (m) level = parseInt(m[1], 10);
+
+            const img = item.querySelector('img');
+            const sprite = img ? (img.getAttribute('src') || '') : '';
+
+            roster.push({
+                name: name,
+                types: types.length > 0 ? types : ['Normal'],
+                level: level,
+                sprite: sprite
+            });
+        }
+        if (roster.length > 0) return roster;
+    }
+
+    const pokes = doc.querySelectorAll('.battlelistitem, .pokemon');
+    if (pokes && pokes.length > 0) {
+        for (let i = 0; i < pokes.length; i++) {
+            const el = pokes[i];
+            const nameEl = el.querySelector('.batname span, .smallcaps, h4');
+            const name = nameEl ? nameEl.textContent.trim() : '';
+            if (!name) continue;
+
+            const types = [];
+            const tBtns = el.querySelectorAll('i.tbtn');
+            for (let j = 0; j < tBtns.length; j++) {
+                const t = tBtns[j].getAttribute('title');
+                if (t && types.indexOf(t) === -1) types.push(t);
+            }
+
+            const img = el.querySelector('img');
+            const sprite = img ? (img.getAttribute('src') || '') : '';
+
+            roster.push({
+                name: name,
+                types: types.length > 0 ? types : ['Normal'],
+                level: 100,
+                sprite: sprite
+            });
+        }
+    }
+
+    return roster;
+}
+
+ipcRenderer.on('scout-player-roster', async (event, data) => {
+    const rawUser = (data && data.username || '').trim();
+    if (!rawUser) return;
+    try {
+        console.log('[PokePreload] Scouting player roster for:', rawUser);
+        ipcRenderer.sendToHost('player-scout-status', { step: 'fetching', message: `Scouting ${rawUser}...` });
+
+        const userUrl = `/user/${encodeURIComponent(rawUser)}`;
+        const res = await fetch(userUrl, { credentials: 'include' });
+        if (!res.ok) {
+            ipcRenderer.sendToHost('player-scout-status', { step: 'error', message: `Player "${rawUser}" not found (${res.status}).` });
+            return;
+        }
+
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const roster = extractRosterFromProfileDocument(doc);
+
+        if (roster.length > 0) {
+            ipcRenderer.sendToHost('player-scouted-roster', {
+                username: rawUser,
+                roster: roster
+            });
+        } else {
+            ipcRenderer.sendToHost('player-scout-status', { step: 'error', message: `No active team displayed on ${rawUser}'s profile.` });
+        }
+    } catch (err) {
+        console.error('[PokePreload] Scout player error:', err);
+        ipcRenderer.sendToHost('player-scout-status', { step: 'error', message: `Scout error: ${err.message}` });
+    }
+});
+
 window.addEventListener('DOMContentLoaded', () => {
     const path = (window.location.pathname || '').toLowerCase();
     if (path.indexOf('/team/edit') !== -1) {

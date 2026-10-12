@@ -932,6 +932,155 @@ function getBestMoveVsTrainer(poke, trainer) {
   return best || { name: pokeMoves[0].name, type: normalizeType(pokeMoves[0].type), power: pokeMoves[0].power, multiplier: 1.0, effectivePower: 40 };
 }
 
+// Build a Universal 6-Pokemon PvP "God Squad" with role & type diversity
+function buildGodSquadTeam(collection, tierFilter) {
+  if (!collection || !Array.isArray(collection) || collection.length === 0) return [];
+  const pool = filterCandidatePool(collection, tierFilter || 'ANY');
+  const sorted = pool.slice().sort((a, b) => (b.level || 0) - (a.level || 0));
+  if (sorted.length === 0) return [];
+
+  const roles = [
+    {
+      role: 'LEAD SWEEPER',
+      desc: 'High-speed fast starter & offensive breaker',
+      evaluator: (p) => {
+        let s = (p.level || 0);
+        const name = (p.name || '').toLowerCase();
+        if (/calyrex|pheromosa|regieleki|rayquaza|deoxys|dragapult|mewtwo|darkrai|koraidon|miraidon/i.test(name)) s += 80;
+        const v = getVariantMultipliers(p.variant);
+        if (v.offense > 1) s += 25;
+        if (v.flinch) s += 25;
+        return s;
+      }
+    },
+    {
+      role: 'WALLBREAKER',
+      desc: 'High physical attack nuke',
+      evaluator: (p) => {
+        let s = (p.level || 0);
+        const name = (p.name || '').toLowerCase();
+        if (/kartana|groudon|zacian|urshifu|buzzwole|hoopa|kyurem|roaring moon|slither wing/i.test(name)) s += 80;
+        const v = getVariantMultipliers(p.variant);
+        if (v.offense > 1) s += 30;
+        if (v.crit > 1) s += 20;
+        return s;
+      }
+    },
+    {
+      role: 'IMMORTAL TANK',
+      desc: 'Massive bulk with status immunity',
+      evaluator: (p) => {
+        let s = (p.level || 0);
+        const name = (p.name || '').toLowerCase();
+        if (/eternatus|zygarde|melmetal|blissey|giratina|kyogre|regigigas|dondozo|ting-lu/i.test(name)) s += 80;
+        const v = getVariantMultipliers(p.variant);
+        if (v.statusImmune) s += 40;
+        if (v.hp > 1) s += 25;
+        return s;
+      }
+    },
+    {
+      role: 'FAIRY DRAGON-SLAYER',
+      desc: 'Dragon immunity & fairy STAB check',
+      evaluator: (p) => {
+        let s = (p.level || 0);
+        const types = (p.types || []).map(t => normalizeType(t));
+        if (types.includes('fairy')) s += 60;
+        const name = (p.name || '').toLowerCase();
+        if (/xerneas|diancie|iron valiant|tapu lele|tapu koko|flutter mane|enamorus|magearna|zacian/i.test(name)) s += 60;
+        const v = getVariantMultipliers(p.variant);
+        if (v.statusImmune) s += 25;
+        return s;
+      }
+    },
+    {
+      role: 'GROUND/ELECTRIC PIVOT',
+      desc: 'Immunities to ground & electric with high crit',
+      evaluator: (p) => {
+        let s = (p.level || 0);
+        const types = (p.types || []).map(t => normalizeType(t));
+        const prof = getDefensiveProfile(types);
+        if (prof.immunities.includes('Ground') || prof.immunities.includes('Electric')) s += 50;
+        const name = (p.name || '').toLowerCase();
+        if (/landorus|thundurus|gliscor|zapdos|rotom|garchomp|ting-lu|great tusk/i.test(name)) s += 60;
+        const v = getVariantMultipliers(p.variant);
+        if (v.crit > 1) s += 30;
+        if (v.hp > 1) s += 20;
+        return s;
+      }
+    },
+    {
+      role: 'ARMOR ANCHOR',
+      desc: 'Heavy steel resistance wall',
+      evaluator: (p) => {
+        let s = (p.level || 0);
+        const types = (p.types || []).map(t => normalizeType(t));
+        if (types.includes('steel')) s += 60;
+        const name = (p.name || '').toLowerCase();
+        if (/dialga|melmetal|celesteela|iron crown|cobalion|registeel|heatran|corviknight/i.test(name)) s += 60;
+        const v = getVariantMultipliers(p.variant);
+        if (v.statusImmune) s += 25;
+        return s;
+      }
+    }
+  ];
+
+  const chosen = [];
+  const chosenIds = new Set();
+  const chosenSpecies = new Set();
+
+  for (let i = 0; i < roles.length; i++) {
+    const roleDef = roles[i];
+    let best = null;
+    let bestScore = -Infinity;
+
+    for (const p of sorted) {
+      if (chosenIds.has(p.id)) continue;
+      const baseSp = getBaseSpecies(p.name);
+      if (chosenSpecies.has(baseSp)) continue;
+
+      const score = roleDef.evaluator(p);
+      if (score > bestScore) {
+        bestScore = score;
+        best = p;
+      }
+    }
+
+    if (!best) {
+      for (const p of sorted) {
+        if (!chosenIds.has(p.id) && !chosenSpecies.has(getBaseSpecies(p.name))) {
+          best = p;
+          break;
+        }
+      }
+    }
+
+    if (best) {
+      chosenIds.add(best.id);
+      chosenSpecies.add(getBaseSpecies(best.name));
+      const pTypes = (best.types && best.types.length > 0) ? best.types : ['Normal'];
+      const dummyTrainer = { types: ['Normal'], avgLevel: 100 };
+      const bestMove = getBestMoveVsTrainer(best, dummyTrainer);
+
+      chosen.push({
+        slot: chosen.length + 1,
+        id: best.id,
+        name: best.name,
+        variant: best.variant || 'Normal',
+        level: best.level || 100,
+        types: pTypes,
+        sprite: best.sprite || '',
+        role: roleDef.role,
+        roleDesc: roleDef.desc,
+        bestMove: bestMove ? `${bestMove.name} (${bestMove.type})` : `${pTypes[0]} Attack`,
+        targetOpponentName: 'Universal Meta'
+      });
+    }
+  }
+
+  return chosen;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     TYPE_CHART,
@@ -947,6 +1096,7 @@ if (typeof module !== 'undefined' && module.exports) {
     extractPokemonFromHtml,
     scoreVsSingleOpponent,
     buildBestTeam,
+    buildGodSquadTeam,
     canSoloTrainer,
     getBestMoveVsTrainer,
     getVariantMultipliers,

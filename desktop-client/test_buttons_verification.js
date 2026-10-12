@@ -215,6 +215,19 @@ runTest('catchLogMenuBtn, dailyCaughtBtn & closeCatchLogBtn: Docked Catch Log Pa
   assert(appJs.includes("closeCatchLogBtn.addEventListener('click', closeCatchLogPanel)"), 'closeCatchLogBtn must have click listener');
 });
 
+runTest('PvP Mode & Scout Buttons: teamModeNpcBtn, teamModePvpBtn, pvpScoutBtn, checkLiveBattleBtn, pvpScoutClearBtn', () => {
+  assert(appHtml.includes('id="teamModeNpcBtn"'), 'app.html must define teamModeNpcBtn');
+  assert(appHtml.includes('id="teamModePvpBtn"'), 'app.html must define teamModePvpBtn');
+  assert(appHtml.includes('id="pvpScoutBtn"'), 'app.html must define pvpScoutBtn');
+  assert(appHtml.includes('id="checkLiveBattleBtn"'), 'app.html must define checkLiveBattleBtn');
+  assert(appHtml.includes('id="pvpScoutClearBtn"'), 'app.html must define pvpScoutClearBtn');
+  assert(appJs.includes("teamModeNpcBtn.addEventListener('click'"), 'teamModeNpcBtn must have click listener');
+  assert(appJs.includes("teamModePvpBtn.addEventListener('click'"), 'teamModePvpBtn must have click listener');
+  assert(appJs.includes("pvpScoutBtn.addEventListener('click'"), 'pvpScoutBtn must have click listener');
+  assert(appJs.includes("checkLiveBattleBtn.addEventListener('click'"), 'checkLiveBattleBtn must have click listener');
+  assert(appJs.includes("pvpScoutClearBtn.addEventListener('click'"), 'pvpScoutClearBtn must have click listener');
+});
+
 // -----------------------------------------------------------------------------
 // SECTION 4: TARGET MODAL CHECKBOXES & QUICK BUTTONS AUDIT
 // -----------------------------------------------------------------------------

@@ -548,6 +548,29 @@ runTest('Candidate Pool Categorization & List Accuracy Audit', () => {
   assert(comPokes.length > 0 && comPokes.every(teamEngine.isCommonPokemon), 'COMMON must return only Commons');
 });
 
+runTest('PvP God Squad Algorithm & Universal Meta Coverage Audit', () => {
+  assert(typeof teamEngine.buildGodSquadTeam === 'function', 'teamEngine must export buildGodSquadTeam');
+  const godSquad = teamEngine.buildGodSquadTeam(userCollection, 'ANY');
+  assert.strictEqual(godSquad.length, 6, 'God Squad must assemble 6 Pokemon');
+
+  // Verify 6 distinct species
+  const species = new Set(godSquad.map(p => teamEngine.getBaseSpecies(p.name)));
+  assert.strictEqual(species.size, 6, 'God Squad must contain 6 unique base species');
+
+  // Verify all 6 distinct roles
+  const roles = godSquad.map(p => p.role);
+  assert(roles.includes('LEAD SWEEPER'), 'God Squad must include LEAD SWEEPER');
+  assert(roles.includes('WALLBREAKER'), 'God Squad must include WALLBREAKER');
+  assert(roles.includes('IMMORTAL TANK'), 'God Squad must include IMMORTAL TANK');
+  assert(roles.includes('FAIRY DRAGON-SLAYER'), 'God Squad must include FAIRY DRAGON-SLAYER');
+  assert(roles.includes('GROUND/ELECTRIC PIVOT'), 'God Squad must include GROUND/ELECTRIC PIVOT');
+  assert(roles.includes('ARMOR ANCHOR'), 'God Squad must include ARMOR ANCHOR');
+
+  // Verify tier-restricted God Squad assembly
+  const legSquad = teamEngine.buildGodSquadTeam(userCollection, 'LEGENDARY');
+  assert(legSquad.length > 0 && legSquad.every(p => teamEngine.isLegendaryPokemon(p.name)), 'LEGENDARY God Squad must contain only Legendaries');
+});
+
 // -----------------------------------------------------------------------------
 // PIPELINE 5: UI DOM ELEMENTS & ZERO-GLOW CSS AUDIT
 // -----------------------------------------------------------------------------
@@ -565,12 +588,30 @@ runTest('app.html: All Team Builder DOM elements present', () => {
     'id="scanStatusBadge"',
     'id="trainerIntelModal"',
     'id="closeTrainerIntelBtn"',
+    'id="teamModeNpcBtn"',
+    'id="teamModePvpBtn"',
+    'id="teamNpcSection"',
+    'id="teamPvpSection"',
     'id="teamCategorySelect"',
     'id="teamTrainerSelect"',
     'id="poolModeAllBtn"',
     'id="poolModeTrainingBtn"',
     'id="candidatePoolFilterSelect"',
     'id="trainingStatsBadge"',
+    'id="pvpLiveStatusBadge"',
+    'id="pvpLiveOpponentCard"',
+    'id="pvpLiveSummary"',
+    'id="pvpLiveRosterStrip"',
+    'id="checkLiveBattleBtn"',
+    'id="pvpScoutInput"',
+    'id="pvpScoutBtn"',
+    'id="pvpScoutStatusBadge"',
+    'id="pvpScoutResultCard"',
+    'id="pvpScoutedName"',
+    'id="pvpScoutClearBtn"',
+    'id="pvpScoutedRosterStrip"',
+    'id="pvpStrategySelect"',
+    'id="pvpCandidateTierSelect"',
     'id="buildTeamBtn"',
     'id="teamResultContainer"',
     'id="teamResultList"',
@@ -583,6 +624,23 @@ runTest('app.html: All Team Builder DOM elements present', () => {
   for (const el of requiredElements) {
     assert(appHtml.includes(el), `Element ${el} must exist in app.html`);
   }
+});
+
+runTest('app.html & app.js: Live Battle PvP & Pre-Battle Player Scout UI Audit', () => {
+  const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  assert(appJsContent.includes('function setTeamBattleMode('), 'app.js must define setTeamBattleMode');
+  assert(appJsContent.includes('function updatePvpBuildButtonLabel('), 'app.js must define updatePvpBuildButtonLabel');
+  assert(appJsContent.includes('function updateLiveChallengerUI('), 'app.js must define updateLiveChallengerUI');
+  assert(appJsContent.includes('function renderScoutedPlayerCard('), 'app.js must define renderScoutedPlayerCard');
+  assert(appJsContent.includes('function triggerPlayerScout('), 'app.js must define triggerPlayerScout');
+  assert(appJsContent.includes('function executePvPTeamBuild('), 'app.js must define executePvPTeamBuild');
+  assert(appJsContent.includes("teamModeNpcBtn.addEventListener('click'"), 'teamModeNpcBtn must have click listener');
+  assert(appJsContent.includes("teamModePvpBtn.addEventListener('click'"), 'teamModePvpBtn must have click listener');
+  assert(appJsContent.includes("pvpScoutBtn.addEventListener('click'"), 'pvpScoutBtn must have click listener');
+  assert(appJsContent.includes("checkLiveBattleBtn.addEventListener('click'"), 'checkLiveBattleBtn must have click listener');
+  assert(appJsContent.includes("pvpStrategySelect.addEventListener('change'"), 'pvpStrategySelect must have change listener');
+  assert(appJsContent.includes("pvpCandidateTierSelect.addEventListener('change'"), 'pvpCandidateTierSelect must have change listener');
+  assert(appJsContent.includes("return '/battle/live'"), 'resolveTargetBattleUrl must route to /battle/live in PvP mode');
 });
 
 runTest('app.html & app.js: Smart Matchmaker fully removed with zero residue', () => {
@@ -787,6 +845,16 @@ runTest('IPC Channel: battle-opponents-detected parity', () => {
 runTest('IPC Channel: check-battle-opponents parity', () => {
   assert(appJs.includes("delugeView.send('check-battle-opponents')"), 'app.js must send check-battle-opponents');
   assert(preloadJs.includes("ipcRenderer.on('check-battle-opponents'"), 'game-preload.js must listen for check-battle-opponents');
+});
+
+runTest('IPC Channel: scout-player-roster & player-scouted-roster parity', () => {
+  assert(preloadJs.includes("ipcRenderer.on('scout-player-roster'"), 'game-preload.js must listen for scout-player-roster');
+  assert(appJs.includes("delugeView.send('scout-player-roster'"), 'app.js must send scout-player-roster');
+  assert(preloadJs.includes("ipcRenderer.sendToHost('player-scouted-roster'"), 'game-preload.js must emit player-scouted-roster');
+  assert(appJs.includes("event.channel === 'player-scouted-roster'"), 'app.js must handle player-scouted-roster');
+  assert(preloadJs.includes("ipcRenderer.sendToHost('player-scout-status'"), 'game-preload.js must emit player-scout-status');
+  assert(appJs.includes("event.channel === 'player-scout-status'"), 'app.js must handle player-scout-status');
+  assert(preloadJs.includes("function extractRosterFromProfileDocument("), 'game-preload.js must define extractRosterFromProfileDocument');
 });
 
 runTest('IPC Channel: soft-session-flush parity (Zero-Logout Battle Cache Flush)', () => {

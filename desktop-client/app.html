@@ -1987,64 +1987,129 @@
         </div>
       </div>
 
-      <!-- Opponent Select & Tier Filter -->
-      <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px;">
+      <!-- Battle Mode Switcher (NPC Gyms vs Live Battle PvP) -->
+      <div style="display: flex; gap: 4px; background: #070e1a; border: 1px solid #1a283e; padding: 2px; border-radius: 20px; margin-bottom: 6px;">
+        <button type="button" id="teamModeNpcBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid #388bfd; background: #14233c; color: #ffffff; font-weight: 700; border-radius: 20px !important;" title="Build counter teams for Regional Gym Leaders and Computer Trainers">&#9876; Gym &amp; NPC Battles</button>
+        <button type="button" id="teamModePvpBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid transparent; background: transparent; color: #8eaad0; font-weight: 500; border-radius: 20px !important;" title="Build teams and scout rosters for Live Player Battles &amp; Invites">&#127919; Live Battle (PvP)</button>
+      </div>
+
+      <!-- Section A: NPC Gyms & Computer Trainers (Active when teamModeNpcBtn is selected) -->
+      <div id="teamNpcSection" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px;">
+        <!-- Opponent Select & Tier Filter -->
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div>
+            <label for="teamCategorySelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">Category / Tier Filter:</label>
+            <select id="teamCategorySelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 6px; box-shadow: none !important;">
+              <option value="ALL">All Opponents (449)</option>
+              <optgroup label="TRAINER TIERS">
+                <option value="VIP_TRAINERS">VIP Trainers (132)</option>
+                <option value="ULTIMATE_TRAINERS">Ultimate Trainers (6)</option>
+                <option value="STRONG_TRAINERS">Strong Trainers (72)</option>
+                <option value="STANDARD_TRAINERS">Standard Trainers (108)</option>
+              </optgroup>
+              <optgroup label="REGIONAL GYM LEAGUES">
+                <option value="GYM_LEAGUES">All Gym Leagues (131 Leaders)</option>
+                <option value="KANTO">Kanto League (15 Leaders)</option>
+                <option value="JOHTO">Johto League (15 Leaders)</option>
+                <option value="HOENN">Hoenn League (15 Leaders)</option>
+                <option value="SINNOH">Sinnoh League (14 Leaders)</option>
+                <option value="UNOVA">Unova League (16 Leaders)</option>
+                <option value="KALOS">Kalos League (15 Leaders)</option>
+                <option value="ALOLA">Alola League (14 Leaders)</option>
+                <option value="GALAR">Galar League (14 Leaders)</option>
+                <option value="PALDEA">Paldea League (13 Leaders)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div>
+            <label for="teamTrainerSelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+              <span>Target Battle Opponent:</span>
+              <span id="filteredTrainerCountBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;"></span>
+            </label>
+            <select id="teamTrainerSelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; box-shadow: none !important;"></select>
+          </div>
+        </div>
+
+        <!-- Candidate Pool Tier Filter -->
         <div>
-          <label for="teamCategorySelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">Category / Tier Filter:</label>
-          <select id="teamCategorySelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 6px; box-shadow: none !important;">
-            <option value="ALL">All Opponents (449)</option>
-            <optgroup label="TRAINER TIERS">
-              <option value="VIP_TRAINERS">VIP Trainers (132)</option>
-              <option value="ULTIMATE_TRAINERS">Ultimate Trainers (6)</option>
-              <option value="STRONG_TRAINERS">Strong Trainers (72)</option>
-              <option value="STANDARD_TRAINERS">Standard Trainers (108)</option>
-            </optgroup>
-            <optgroup label="REGIONAL GYM LEAGUES">
-              <option value="GYM_LEAGUES">All Gym Leagues (131 Leaders)</option>
-              <option value="KANTO">Kanto League (15 Leaders)</option>
-              <option value="JOHTO">Johto League (15 Leaders)</option>
-              <option value="HOENN">Hoenn League (15 Leaders)</option>
-              <option value="SINNOH">Sinnoh League (14 Leaders)</option>
-              <option value="UNOVA">Unova League (16 Leaders)</option>
-              <option value="KALOS">Kalos League (15 Leaders)</option>
-              <option value="ALOLA">Alola League (14 Leaders)</option>
-              <option value="GALAR">Galar League (14 Leaders)</option>
-              <option value="PALDEA">Paldea League (13 Leaders)</option>
-            </optgroup>
+          <label for="candidatePoolFilterSelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">Candidate Pool Filter:</label>
+          <select id="candidatePoolFilterSelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; box-shadow: none !important;" title="Filter candidate pool by species tier">
+            <option value="ANY">Any (All Pokemon)</option>
+            <option value="GMAX">G-Max Only</option>
+            <option value="LEGENDARY">Legendary Only</option>
+            <option value="ULTRABEAST">Ultra Beast Only</option>
+            <option value="PARADOX">Paradox Only</option>
+            <option value="COMMON">Common Pokemon Only</option>
           </select>
         </div>
 
-        <div>
-          <label for="teamTrainerSelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-            <span>Target Battle Opponent:</span>
-            <span id="filteredTrainerCountBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;"></span>
-          </label>
-          <select id="teamTrainerSelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; box-shadow: none !important;"></select>
+        <!-- Team Builder Mode (All Levels vs Training < 100) -->
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Candidate Pool</span>
+            <span id="trainingStatsBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;">118 in training</span>
+          </div>
+          <div style="display: flex; gap: 4px; background: #070e1a; border: 1px solid #1a283e; padding: 2px; border-radius: 20px;">
+            <button type="button" id="poolModeAllBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid #388bfd; background: #14233c; color: #ffffff; font-weight: 700; border-radius: 20px !important;" title="Use all Pokemon in your collection (including Level 100)">All Levels</button>
+            <button type="button" id="poolModeTrainingBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid transparent; background: transparent; color: #8eaad0; font-weight: 500; border-radius: 20px !important;" title="Use non-level 100 Pokemon only so you can train and max them out">&#9889; Training (&lt;100)</button>
+          </div>
         </div>
       </div>
 
-      <!-- Candidate Pool Tier Filter -->
-      <div style="margin-bottom: 6px;">
-        <label for="candidatePoolFilterSelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">Candidate Pool Filter:</label>
-        <select id="candidatePoolFilterSelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; box-shadow: none !important;" title="Filter candidate pool by species tier">
-          <option value="ANY">Any (All Pokemon)</option>
-          <option value="GMAX">G-Max Only</option>
-          <option value="LEGENDARY">Legendary Only</option>
-          <option value="ULTRABEAST">Ultra Beast Only</option>
-          <option value="PARADOX">Paradox Only</option>
-          <option value="COMMON">Common Pokemon Only</option>
-        </select>
-      </div>
-
-      <!-- Team Builder Mode (All Levels vs Training < 100) -->
-      <div style="display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Candidate Pool</span>
-          <span id="trainingStatsBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;">118 in training</span>
+      <!-- Section B: Live Battle & Player PvP (Active when teamModePvpBtn is selected) -->
+      <div id="teamPvpSection" style="display: none; flex-direction: column; gap: 6px; margin-bottom: 6px;">
+        <!-- 1. Live Arena / Challenger Telemetry Card -->
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+            <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Live Opponent</span>
+            <span id="pvpLiveStatusBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;">No Active Challenger</span>
+          </div>
+          <div id="pvpLiveOpponentCard" style="font-size: 10px; color: #8eaad0; line-height: 1.3;">
+            <div id="pvpLiveSummary">Waiting for live battle invite or active arena on DelugeRPG.</div>
+            <div id="pvpLiveRosterStrip" style="display: none; gap: 4px; margin-top: 4px; overflow-x: auto; padding-bottom: 2px;"></div>
+          </div>
+          <button type="button" id="checkLiveBattleBtn" class="btn" style="width: 100%; height: 22px; font-size: 9.5px; margin-top: 5px; box-shadow: none !important;" title="Scan active page for live challenger or PvP arena">&#8635; Check Active Screen</button>
         </div>
-        <div style="display: flex; gap: 4px; background: #070e1a; border: 1px solid #1a283e; padding: 2px; border-radius: 20px;">
-          <button type="button" id="poolModeAllBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid #388bfd; background: #14233c; color: #ffffff; font-weight: 700; border-radius: 20px !important;" title="Use all Pokemon in your collection (including Level 100)">All Levels</button>
-          <button type="button" id="poolModeTrainingBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid transparent; background: transparent; color: #8eaad0; font-weight: 500; border-radius: 20px !important;" title="Use non-level 100 Pokemon only so you can train and max them out">&#9889; Training (&lt;100)</button>
+
+        <!-- 2. Player Scout Tool (Pre-Battle Intel) -->
+        <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+            <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Scout Live Challenger</span>
+            <span id="pvpScoutStatusBadge" style="font-size: 9.5px; color: #388bfd; font-weight: 600;">Profile Intel</span>
+          </div>
+          <div style="display: flex; gap: 4px; margin-bottom: 4px;">
+            <input type="text" id="pvpScoutInput" placeholder="Enter challenger's username..." style="flex: 1; height: 24px; font-size: 10.5px; background: #0e1b30; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 6px; outline: none; box-shadow: none !important;">
+            <button type="button" id="pvpScoutBtn" class="btn btn-accent" style="height: 24px; font-size: 10px; padding: 0 8px; box-shadow: none !important; font-weight: 700;" title="Scout player's active team from their public profile">&#128269; Scout</button>
+          </div>
+          <div id="pvpScoutResultCard" style="display: none; font-size: 10px; color: #e0ecfa; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+              <span id="pvpScoutedName" style="font-weight: 700; color: #388bfd; font-size: 10.5px;"></span>
+              <button type="button" id="pvpScoutClearBtn" class="btn" style="height: 18px; font-size: 9px; padding: 0 6px; box-shadow: none !important;">Clear</button>
+            </div>
+            <div id="pvpScoutedRosterStrip" style="display: flex; gap: 4px; overflow-x: auto; padding: 2px 0;"></div>
+          </div>
+        </div>
+
+        <!-- 3. PvP Strategy & Candidate Tier Filters -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+          <div>
+            <label for="pvpStrategySelect" style="font-size: 9.5px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">PvP Strategy:</label>
+            <select id="pvpStrategySelect" class="clean-select" style="width: 100%; height: 25px; font-size: 10px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 4px; box-shadow: none !important;">
+              <option value="COUNTERS" selected>Hard-Counters</option>
+              <option value="GODSQUAD">God Squad (Meta)</option>
+            </select>
+          </div>
+          <div>
+            <label for="pvpCandidateTierSelect" style="font-size: 9.5px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">Candidate Tier:</label>
+            <select id="pvpCandidateTierSelect" class="clean-select" style="width: 100%; height: 25px; font-size: 10px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 4px; box-shadow: none !important;">
+              <option value="ANY" selected>All Lv 100s</option>
+              <option value="LEGENDARY">Legendaries</option>
+              <option value="ULTRABEAST">Ultra Beasts</option>
+              <option value="PARADOX">Paradox</option>
+              <option value="GMAX">G-Max &amp; Megas</option>
+            </select>
+          </div>
         </div>
       </div>
 

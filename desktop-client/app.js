@@ -466,20 +466,24 @@ function updateNetworkBadgeUI() {
   }
   if (modalSecurityNotice) {
     if (currentNetworkInfo.isStarlink) {
-      modalSecurityNotice.style.background = 'rgba(16, 185, 129, 0.15)';
-      modalSecurityNotice.style.color = '#34d399';
+      modalSecurityNotice.style.background = 'rgba(17, 78, 96, 0.4)';
+      modalSecurityNotice.style.color = '#f5cebe';
+      modalSecurityNotice.style.border = '1px solid #325288';
       modalSecurityNotice.textContent = 'VERIFIED SAFE: Connected via Starlink (AS14593 SpaceX). Clean satellite IP isolated from banned home accounts.';
     } else if (currentNetworkInfo.isPLDT) {
-      modalSecurityNotice.style.background = 'rgba(239, 68, 68, 0.15)';
-      modalSecurityNotice.style.color = '#f87171';
+      modalSecurityNotice.style.background = 'rgba(17, 78, 96, 0.6)';
+      modalSecurityNotice.style.color = '#f5cebe';
+      modalSecurityNotice.style.border = '1px solid #f5cebe';
       modalSecurityNotice.textContent = 'DANGER: Connected via PLDT (' + (currentNetworkInfo.ip || 'Home IP') + '). This ISP is shared with banned accounts! Connect Tailscale Starlink exit node!';
     } else if (isProxied) {
-      modalSecurityNotice.style.background = 'rgba(16, 185, 129, 0.15)';
-      modalSecurityNotice.style.color = '#34d399';
+      modalSecurityNotice.style.background = 'rgba(50, 82, 136, 0.4)';
+      modalSecurityNotice.style.color = '#f4eee8';
+      modalSecurityNotice.style.border = '1px solid #325288';
       modalSecurityNotice.textContent = 'PROXIED: Traffic routed securely through ' + config.network.proxyRules;
     } else {
-      modalSecurityNotice.style.background = 'rgba(56, 189, 248, 0.1)';
-      modalSecurityNotice.style.color = '#38bdf8';
+      modalSecurityNotice.style.background = 'rgba(50, 82, 136, 0.25)';
+      modalSecurityNotice.style.color = '#f4eee8';
+      modalSecurityNotice.style.border = '1px solid #325288';
       modalSecurityNotice.textContent = 'Direct connection active (' + (currentNetworkInfo.isp || 'Direct') + ').';
     }
   }
@@ -1228,7 +1232,7 @@ function playAlarmSound() {
 }
 
 // Status UI Helpers
-function updateStatus(text, color = '#94a3b8') {
+function updateStatus(text, color = '#f5cebe') {
   statusText.textContent = text;
   statusText.title = text;
   if (statusChip) statusChip.title = text;
@@ -2247,7 +2251,7 @@ delugeView.addEventListener('ipc-message', (event) => {
         }
         if (teamActionStatus) {
           teamActionStatus.textContent = 'Freshest box synced & lineup updated!';
-          teamActionStatus.style.color = '#10b981';
+          teamActionStatus.style.color = '#f5cebe';
           setTimeout(() => { if (teamActionStatus) teamActionStatus.textContent = ''; }, 2500);
         }
       }
@@ -2267,7 +2271,7 @@ delugeView.addEventListener('ipc-message', (event) => {
     const data = event.args[0] || {};
     if (teamActionStatus && data.message) {
       teamActionStatus.textContent = data.message;
-      teamActionStatus.style.color = '#38bdf8';
+      teamActionStatus.style.color = '#f5cebe';
     }
   }
 
@@ -2286,7 +2290,7 @@ delugeView.addEventListener('ipc-message', (event) => {
     if (teamActionStatus) {
       if (data.success) {
         teamActionStatus.textContent = 'Team updated successfully on DelugeRPG!';
-        teamActionStatus.style.color = '#10b981';
+        teamActionStatus.style.color = '#f5cebe';
       } else {
         teamActionStatus.textContent = 'Failed: ' + (data.error || 'Check game window');
         teamActionStatus.style.color = '#f87171';
@@ -2299,20 +2303,20 @@ delugeView.addEventListener('ipc-message', (event) => {
     if (scanStatusBadge) {
       if (data.step === 'probing') {
         scanStatusBadge.textContent = data.message || 'Testing /npc/ endpoint...';
-        scanStatusBadge.style.color = '#38bdf8';
+        scanStatusBadge.style.color = '#f5cebe';
       } else if (data.step === 'probe-failed') {
         scanStatusBadge.textContent = `${currentCollection ? currentCollection.length : 0} Pokemon Synced`;
-        scanStatusBadge.style.color = '#38bdf8';
+        scanStatusBadge.style.color = '#f4eee8';
         if (activeBattleStatusMsg) {
-          activeBattleStatusMsg.style.color = '#38bdf8';
+          activeBattleStatusMsg.style.color = '#f5cebe';
           activeBattleStatusMsg.textContent = 'Auto-recording is active in live battles!';
         }
       } else if (data.step === 'harvesting') {
         scanStatusBadge.textContent = `Harvesting ${data.current}/${data.total} (${data.trainerName})...`;
-        scanStatusBadge.style.color = '#38bdf8';
+        scanStatusBadge.style.color = '#f5cebe';
       } else if (data.step === 'completed') {
         scanStatusBadge.textContent = 'All trainers harvested!';
-        scanStatusBadge.style.color = '#10b981';
+        scanStatusBadge.style.color = '#f4eee8';
       } else if (data.step === 'error') {
         scanStatusBadge.textContent = 'Harvest error';
         scanStatusBadge.style.color = '#f87171';
@@ -2326,16 +2330,16 @@ delugeView.addEventListener('ipc-message', (event) => {
       handleLiveBattleOpponents(data);
       if (scanStatusBadge) {
         scanStatusBadge.textContent = `Captured ${data.trainerName}! (${data.roster.length} Pkmn)`;
-        scanStatusBadge.style.color = '#34d399';
+        scanStatusBadge.style.color = '#f5cebe';
         setTimeout(() => {
           if (scanStatusBadge) {
             scanStatusBadge.textContent = `${currentCollection ? currentCollection.length : 0} Pokemon Synced`;
-            scanStatusBadge.style.color = '#38bdf8';
+            scanStatusBadge.style.color = '#f4eee8';
           }
         }, 5000);
       }
       if (activeBattleStatusMsg) {
-        activeBattleStatusMsg.style.color = '#34d399';
+        activeBattleStatusMsg.style.color = '#f5cebe';
         activeBattleStatusMsg.textContent = `Successfully captured ${data.trainerName}'s ${data.roster.length}-Pokemon team into database!`;
       }
       if (typeof updateTrainerIntelStats === 'function') {
@@ -3485,14 +3489,14 @@ function updateRosterModeUI() {
   if (poolModeAllBtn) {
     poolModeAllBtn.textContent = `All Levels (${totalCount})`;
     if (teamRosterMode === 'ALL') {
-      poolModeAllBtn.style.border = 'none';
-      poolModeAllBtn.style.background = 'rgba(56, 189, 248, 0.2)';
-      poolModeAllBtn.style.color = '#38bdf8';
+      poolModeAllBtn.style.border = '1px solid #f5cebe';
+      poolModeAllBtn.style.background = '#325288';
+      poolModeAllBtn.style.color = '#f4eee8';
       poolModeAllBtn.style.fontWeight = '700';
     } else {
-      poolModeAllBtn.style.border = 'none';
+      poolModeAllBtn.style.border = '1px solid transparent';
       poolModeAllBtn.style.background = 'transparent';
-      poolModeAllBtn.style.color = '#94a3b8';
+      poolModeAllBtn.style.color = 'rgba(244, 238, 232, 0.65)';
       poolModeAllBtn.style.fontWeight = '500';
     }
   }
@@ -3500,14 +3504,14 @@ function updateRosterModeUI() {
   if (poolModeTrainingBtn) {
     poolModeTrainingBtn.innerHTML = `&#9889; Training &lt;100 (${inTrainingCount})`;
     if (teamRosterMode === 'TRAINING') {
-      poolModeTrainingBtn.style.border = 'none';
-      poolModeTrainingBtn.style.background = 'rgba(16, 185, 129, 0.25)';
-      poolModeTrainingBtn.style.color = '#34d399';
+      poolModeTrainingBtn.style.border = '1px solid #f5cebe';
+      poolModeTrainingBtn.style.background = '#114e60';
+      poolModeTrainingBtn.style.color = '#f5cebe';
       poolModeTrainingBtn.style.fontWeight = '700';
     } else {
-      poolModeTrainingBtn.style.border = 'none';
+      poolModeTrainingBtn.style.border = '1px solid transparent';
       poolModeTrainingBtn.style.background = 'transparent';
-      poolModeTrainingBtn.style.color = '#94a3b8';
+      poolModeTrainingBtn.style.color = 'rgba(244, 238, 232, 0.65)';
       poolModeTrainingBtn.style.fontWeight = '500';
     }
   }
@@ -3525,10 +3529,10 @@ function updateRosterModeUI() {
   if (trainingStatsBadge) {
     if (teamRosterMode === 'TRAINING') {
       trainingStatsBadge.textContent = `${inTrainingCount} ${label} in training (<100)`;
-      trainingStatsBadge.style.color = '#34d399';
+      trainingStatsBadge.style.color = '#f5cebe';
     } else {
       trainingStatsBadge.textContent = `${totalCount} ${label} in pool`;
-      trainingStatsBadge.style.color = '#38bdf8';
+      trainingStatsBadge.style.color = '#f4eee8';
     }
   }
 
@@ -3545,9 +3549,9 @@ function resetTeamPrompt() {
   if (teamEmptyPrompt) {
     teamEmptyPrompt.style.display = 'flex';
     teamEmptyPrompt.innerHTML = `
-      <div style="font-size: 20px; color: #38bdf8; margin-bottom: 6px; opacity: 0.7;">&#9876;</div>
-      <div style="font-weight: 700; color: #94a3b8; font-size: 11.5px; margin-bottom: 3px;">Ready to Build</div>
-      <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px;">Click <b>Build Best Team</b> to generate the optimal counter lineup.</div>
+      <div style="font-size: 20px; color: #f5cebe; margin-bottom: 6px; opacity: 0.9;">&#9876;</div>
+      <div style="font-weight: 700; color: #f4eee8; font-size: 11.5px; margin-bottom: 3px;">Ready to Build</div>
+      <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px; color: rgba(244, 238, 232, 0.75);">Click <b>Build Best Team</b> to generate the optimal counter lineup.</div>
     `;
   }
 }
@@ -3925,25 +3929,25 @@ function renderAdsInspectorUI() {
     const dimStr = item.dimensions ? `${item.dimensions.width}&times;${item.dimensions.height}` : '0&times;0';
     const idStr = item.elementId ? `#${item.elementId}` : '';
     const slotStr = item.slotId ? `Slot: ${item.slotId}` : '';
-    const srcStr = item.src ? `<div style="font-size: 9.5px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px;">Src: ${item.src}</div>` : '';
+    const srcStr = item.src ? `<div style="font-size: 9.5px; color: rgba(244, 238, 232, 0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px;">Src: ${item.src}</div>` : '';
 
     html += `
       <div class="ad-telemetry-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
           <span class="ad-type-badge ${badgeCls}">${item.type}</span>
-          <span style="font-size: 9.5px; color: #64748b; font-family: monospace;">${item.detectedAt || ''}</span>
+          <span style="font-size: 9.5px; color: rgba(244, 238, 232, 0.6); font-family: monospace;">${item.detectedAt || ''}</span>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 4px;">
-          <span style="font-size: 11px; font-weight: 700; color: #f1f5f9; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <span style="font-size: 11px; font-weight: 700; color: #f4eee8; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
             ${item.tag}${idStr}
           </span>
-          <span style="font-size: 10px; color: #38bdf8; font-weight: 600; flex-shrink: 0;">${dimStr}</span>
+          <span style="font-size: 10px; color: #f5cebe; font-weight: 600; flex-shrink: 0;">${dimStr}</span>
         </div>
-        ${slotStr ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 1px;">${slotStr}</div>` : ''}
+        ${slotStr ? `<div style="font-size: 10px; color: rgba(244, 238, 232, 0.7); margin-top: 1px;">${slotStr}</div>` : ''}
         ${srcStr}
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 1px solid #1e293b; font-size: 9.5px;">
-          <span style="color: #64748b;">Container: <code style="color: #94a3b8;">${item.parentContainer || 'None'}</code></span>
-          <span style="color: #34d399; font-weight: 600;">${item.status || 'Smoothly Collapsed'}</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 1px solid #325288; font-size: 9.5px;">
+          <span style="color: rgba(244, 238, 232, 0.65);">Container: <code style="color: #f4eee8;">${item.parentContainer || 'None'}</code></span>
+          <span style="color: #f5cebe; font-weight: 600;">${item.status || 'Smoothly Collapsed'}</span>
         </div>
       </div>
     `;
@@ -4023,14 +4027,14 @@ if (switchAdsInspectorFromTeamBtn) {
 }
 if (rescanAdsBtn) {
   rescanAdsBtn.addEventListener('click', () => {
-    updateStatus('Scanning DelugeRPG page ads...', '#38bdf8');
+    updateStatus('Scanning DelugeRPG page ads...', '#f5cebe');
     try {
       if (delugeView && typeof delugeView.send === 'function') {
         delugeView.send('scan-page-ads');
       }
     } catch (_) {}
     setTimeout(() => {
-      updateStatus('Ads scan complete', '#10b981');
+      updateStatus('Ads scan complete', '#f5cebe');
     }, 500);
   });
 }
@@ -4111,10 +4115,10 @@ if (scanTrainersBtn) {
           const curUrl = delugeView.getURL() || '';
           if (curUrl.includes('/battle')) {
             delugeView.send('check-battle-opponents');
-            activeBattleStatusMsg.style.color = '#38bdf8';
+            activeBattleStatusMsg.style.color = '#f5cebe';
             activeBattleStatusMsg.textContent = 'Active battle detected! Scanning arena for opponent team...';
           } else {
-            activeBattleStatusMsg.style.color = '#94a3b8';
+            activeBattleStatusMsg.style.color = 'rgba(244, 238, 232, 0.7)';
             activeBattleStatusMsg.textContent = 'Auto-recorder active. Opponent teams are saved automatically when battles begin!';
           }
         } catch (_) {
@@ -4137,12 +4141,12 @@ if (inspectBattleBtn) {
       if (curUrl.includes('/battle')) {
         delugeView.send('check-battle-opponents');
         if (activeBattleStatusMsg) {
-          activeBattleStatusMsg.style.color = '#38bdf8';
+          activeBattleStatusMsg.style.color = '#f5cebe';
           activeBattleStatusMsg.textContent = 'Scanning active battle for opponent roster...';
         }
       } else {
         if (activeBattleStatusMsg) {
-          activeBattleStatusMsg.style.color = '#fbbf24';
+          activeBattleStatusMsg.style.color = '#f5cebe';
           activeBattleStatusMsg.textContent = 'No battle active on screen. Enter a battle on the left to capture!';
         }
       }
@@ -4160,29 +4164,29 @@ function renderTeamLineup(leader, team) {
     const emptyMsg = teamRosterMode === 'TRAINING'
       ? 'No eligible training counters (&lt; Lv 100) found in your collection for this opponent.'
       : 'No eligible counters found.';
-    teamResultList.innerHTML = `<div style="padding:16px 10px; color:#94a3b8; font-size:11px; text-align:center;">${emptyMsg}</div>`;
+    teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">${emptyMsg}</div>`;
     if (teamActionRow) teamActionRow.style.display = 'none';
     return;
   }
 
   const header = document.createElement('div');
-  header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 6px; font-size:10px; color:#94a3b8; border-bottom:1px solid #1e293b; margin-bottom:6px; font-weight:600;';
+  header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 6px; font-size:10px; color:rgba(244, 238, 232, 0.7); border-bottom:1px solid #325288; margin-bottom:6px; font-weight:600;';
   const targetLabel = (leader && leader.name) ? leader.name : 'Opponent';
   const modeBadge = teamRosterMode === 'TRAINING'
-    ? ' <span style="color:#34d399; font-weight:700; margin-left:6px; background:rgba(16,185,129,0.15); padding:1px 6px; border-radius:4px;">&#9889; TRAINING (&lt;100)</span>'
+    ? ' <span style="color:#f5cebe; font-weight:700; margin-left:6px; background:rgba(245, 206, 190, 0.15); border:1px solid rgba(245, 206, 190, 0.3); padding:1px 6px; border-radius:4px;">&#9889; TRAINING (&lt;100)</span>'
     : '';
   header.innerHTML = `<span>YOUR COUNTER TEAM${modeBadge}</span><span>TARGET: ${targetLabel}</span>`;
   teamResultList.appendChild(header);
 
   team.forEach(p => {
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:#0f172a; border:1px solid #1e293b; border-radius:6px; font-size:11px; gap:8px;';
+    row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:#0a242c; border:1px solid #325288; border-radius:6px; font-size:11px; gap:8px;';
 
     const left = document.createElement('div');
     left.style.cssText = 'display:flex; align-items:center; gap:8px; min-width:0; flex:1;';
 
     const slotBadge = document.createElement('span');
-    slotBadge.style.cssText = 'font-weight:700; color:#38bdf8; width:14px; flex-shrink:0;';
+    slotBadge.style.cssText = 'font-weight:700; color:#f5cebe; width:14px; flex-shrink:0;';
     slotBadge.textContent = `${p.slot}.`;
     left.appendChild(slotBadge);
 
@@ -4195,9 +4199,9 @@ function renderTeamLineup(leader, team) {
 
     const info = document.createElement('div');
     info.style.cssText = 'min-width:0; overflow:hidden;';
-    const varColor = (p.variant && p.variant !== 'Normal') ? '#fbbf24' : '#f8fafc';
-    info.innerHTML = `<div style="font-weight:700; color:${varColor}; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name} <span style="font-weight:500; color:#94a3b8;">(Lv ${p.level})</span></div>` +
-                     `<div style="font-size:10px; color:#38bdf8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Attack: <b>${p.bestMove}</b></div>`;
+    const varColor = (p.variant && p.variant !== 'Normal') ? '#f5cebe' : '#f4eee8';
+    info.innerHTML = `<div style="font-weight:700; color:${varColor}; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name} <span style="font-weight:500; color:rgba(244, 238, 232, 0.65);">(Lv ${p.level})</span></div>` +
+                     `<div style="font-size:10px; color:#f5cebe; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Attack: <b>${p.bestMove}</b></div>`;
     left.appendChild(info);
 
     const right = document.createElement('div');
@@ -4205,22 +4209,22 @@ function renderTeamLineup(leader, team) {
 
     let targetBadgeHtml = '';
     if (p.targetName === 'Safety Anchor & Carry') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.15); border-radius:4px;">CARRY ANCHOR</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f5cebe; background:rgba(50, 82, 136, 0.35); border:1px solid rgba(245, 206, 190, 0.3); border-radius:4px;">CARRY ANCHOR</span>';
     } else if (p.targetName === 'Lead Solo Sweeper') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#fbbf24; background:rgba(251,191,36,0.15); border-radius:4px;">SOLO SWEEPER</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f5cebe; background:rgba(245, 206, 190, 0.15); border:1px solid rgba(245, 206, 190, 0.3); border-radius:4px;">SOLO SWEEPER</span>';
     } else if (p.targetName === 'Gym Anchor' || p.targetName === 'Reserve Anchor') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#94a3b8; background:rgba(148,163,184,0.15); border-radius:4px;">RESERVE</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f4eee8; background:rgba(50, 82, 136, 0.25); border:1px solid rgba(50, 82, 136, 0.4); border-radius:4px;">RESERVE</span>';
     } else if (p.targetName === 'Trainee' || (typeof p.targetName === 'string' && p.targetName.startsWith('Trainee'))) {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#34d399; background:rgba(16,185,129,0.15); border-radius:4px;">TRAINEE</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f5cebe; background:rgba(17, 78, 96, 0.45); border:1px solid rgba(245, 206, 190, 0.3); border-radius:4px;">TRAINEE</span>';
     } else if (p.targetName) {
-      targetBadgeHtml = `<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f87171; background:rgba(248,113,113,0.15); border-radius:4px;">vs ${p.targetName}</span>`;
+      targetBadgeHtml = `<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f5cebe; background:rgba(50, 82, 136, 0.3); border:1px solid rgba(245, 206, 190, 0.3); border-radius:4px;">vs ${p.targetName}</span>`;
     } else {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.15); border-radius:4px;">COUNTER</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f4eee8; background:rgba(50, 82, 136, 0.3); border:1px solid rgba(50, 82, 136, 0.5); border-radius:4px;">COUNTER</span>';
     }
 
     const cleanRole = (p.role || '').replace(/\s*\(vs\s+[^)]+\)/i, '');
     right.innerHTML = targetBadgeHtml +
-                      `<div style="font-size:10px; font-weight:600; color:#10b981;">${cleanRole}</div>`;
+                      `<div style="font-size:10px; font-weight:600; color:#f5cebe;">${cleanRole}</div>`;
 
     row.appendChild(left);
     row.appendChild(right);
@@ -4263,7 +4267,7 @@ function executeTeamBuild(targetLeader) {
       const label = filterLabels[teamPoolFilter] || 'training candidates (< Lv 100)';
       if (teamResultContainer) teamResultContainer.style.display = 'block';
       if (teamResultList) {
-        teamResultList.innerHTML = `<div style="padding:16px 10px; color:#94a3b8; font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:#64748b; font-size:10px;">Switch to <b>All Levels</b> or switch pool filter to <b>Any</b>.</span></div>`;
+        teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:rgba(244, 238, 232, 0.5); font-size:10px;">Switch to <b>All Levels</b> or switch pool filter to <b>Any</b>.</span></div>`;
       }
       if (teamActionRow) teamActionRow.style.display = 'none';
       return;
@@ -4372,7 +4376,7 @@ function executeTeamBuild(targetLeader) {
     const label = filterLabels[teamPoolFilter] || 'Pokemon';
     if (teamResultContainer) teamResultContainer.style.display = 'block';
     if (teamResultList) {
-      teamResultList.innerHTML = `<div style="padding:16px 10px; color:#94a3b8; font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:#64748b; font-size:10px;">Switch pool filter to <b>Any</b> or click 'Scan My Box'.</span></div>`;
+      teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:rgba(244, 238, 232, 0.5); font-size:10px;">Switch pool filter to <b>Any</b> or click 'Scan My Box'.</span></div>`;
     }
     if (teamActionRow) teamActionRow.style.display = 'none';
     return;
@@ -4443,7 +4447,7 @@ if (buildTeamBtn) {
       buildTeamBtn.innerHTML = '<span>&#8635;</span><span>Syncing Box...</span>';
       if (scanStatusBadge) {
         scanStatusBadge.textContent = 'Syncing box...';
-        scanStatusBadge.style.color = '#38bdf8';
+        scanStatusBadge.style.color = '#f5cebe';
       }
       delugeView.send('start-scan-pokemon');
     }
@@ -4459,7 +4463,7 @@ if (applyTeamBtn) {
     applyTeamBtn.innerHTML = '<span>&#8635;</span> <span>Saving...</span>';
     if (teamActionStatus) {
       teamActionStatus.textContent = 'Applying team on DelugeRPG...';
-      teamActionStatus.style.color = '#38bdf8';
+      teamActionStatus.style.color = '#f5cebe';
     }
     delugeView.send('apply-team-slots', { pokemonIds: ids, pokemons: lastRecommendedTeam });
     setTimeout(() => {
@@ -4480,7 +4484,7 @@ if (copyTeamBtn) {
       navigator.clipboard.writeText(text);
       if (teamActionStatus) {
         teamActionStatus.textContent = 'Copied lineup to clipboard!';
-        teamActionStatus.style.color = '#10b981';
+        teamActionStatus.style.color = '#f5cebe';
         setTimeout(() => { if (teamActionStatus) teamActionStatus.textContent = ''; }, 2500);
       }
     } catch (_) {}
@@ -4544,7 +4548,7 @@ if (battleOpponentBtn) {
     battleOpponentBtn.innerHTML = '<span>&#8635;</span> <span>Entering...</span>';
     if (teamActionStatus) {
       teamActionStatus.textContent = 'Entering battle arena on DelugeRPG...';
-      teamActionStatus.style.color = '#38bdf8';
+      teamActionStatus.style.color = '#f5cebe';
     }
 
     // Natural human click-to-navigation pacing
@@ -4573,7 +4577,7 @@ if (battleOpponentBtn) {
         }
         if (teamActionStatus && teamActionStatus.textContent === 'Entering battle arena on DelugeRPG...') {
           teamActionStatus.textContent = 'In Battle Arena';
-          teamActionStatus.style.color = '#10b981';
+          teamActionStatus.style.color = '#f5cebe';
           setTimeout(() => {
             if (teamActionStatus && teamActionStatus.textContent === 'In Battle Arena') {
               teamActionStatus.textContent = '';
@@ -4743,10 +4747,10 @@ function renderCatchLogUI() {
 
   if (count === 0) {
     catchFeedList.innerHTML = `
-      <div id="catchEmptyPrompt" style="text-align: center; color: #64748b; font-size: 11px; padding: 30px 10px;">
-        <div style="font-size: 20px; margin-bottom: 6px; color: #34d399;">&#9918;</div>
-        <div style="font-weight: 600; color: #94a3b8;">No Pokemon caught yet today</div>
-        <div style="font-size: 10px; margin-top: 4px; color: #475569;">Target Pokemon automatically caught during hunts will appear here with sprite, variant, level, and timestamp.</div>
+      <div id="catchEmptyPrompt" style="text-align: center; color: rgba(244, 238, 232, 0.65); font-size: 11px; padding: 30px 10px;">
+        <div style="font-size: 20px; margin-bottom: 6px; color: #f5cebe;">&#9918;</div>
+        <div style="font-weight: 600; color: #f4eee8;">No Pokemon caught yet today</div>
+        <div style="font-size: 10px; margin-top: 4px; color: rgba(244, 238, 232, 0.5);">Target Pokemon automatically caught during hunts will appear here with sprite, variant, level, and timestamp.</div>
       </div>
     `;
     return;
@@ -4755,19 +4759,19 @@ function renderCatchLogUI() {
   let html = '';
   for (let i = 0; i < dailyCatchData.caught.length; i++) {
     const p = dailyCatchData.caught[i];
-    const spriteTag = p.sprite ? `<img src="${p.sprite}" alt="${p.name}">` : `<span style="font-size: 18px; color: #34d399;">&#9918;</span>`;
+    const spriteTag = p.sprite ? `<img src="${p.sprite}" alt="${p.name}">` : `<span style="font-size: 18px; color: #f5cebe;">&#9918;</span>`;
     html += `
       <div class="caught-pokemon-card">
         <div class="caught-card-thumb">${spriteTag}</div>
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-            <span style="font-size: 11.5px; font-weight: 700; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
-            <span style="font-size: 9.5px; color: #64748b; font-weight: 600;">${p.timestamp || ''}</span>
+            <span style="font-size: 11.5px; font-weight: 700; color: #f4eee8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
+            <span style="font-size: 9.5px; color: rgba(244, 238, 232, 0.65); font-weight: 600;">${p.timestamp || ''}</span>
           </div>
           <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-weight: 600;">${p.variant || 'Normal'}</span>
-            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); font-weight: 600;">Lv ${p.level || '?'}</span>
-            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(192, 132, 252, 0.15); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.3); font-weight: 600;">${p.ball || 'Master Ball'}</span>
+            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(245, 206, 190, 0.15); color: #f5cebe; border: 1px solid rgba(245, 206, 190, 0.3); font-weight: 600;">${p.variant || 'Normal'}</span>
+            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(50, 82, 136, 0.25); color: #f4eee8; border: 1px solid rgba(50, 82, 136, 0.5); font-weight: 600;">Lv ${p.level || '?'}</span>
+            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(17, 78, 96, 0.35); color: #f5cebe; border: 1px solid rgba(245, 206, 190, 0.3); font-weight: 600;">${p.ball || 'Master Ball'}</span>
           </div>
         </div>
       </div>
@@ -4882,19 +4886,19 @@ if (clearCatchLogBtn) {
     saveDailyCatchLog();
     updateCatchLogBadge();
     renderCatchLogUI();
-    updateStatus("Today's catch log cleared", '#10b981');
+    updateStatus("Today's catch log cleared", '#f5cebe');
   });
 }
 if (refreshCatchLogBtn) {
   refreshCatchLogBtn.addEventListener('click', () => {
-    updateStatus('Syncing ball inventory...', '#38bdf8');
+    updateStatus('Syncing ball inventory...', '#f5cebe');
     try {
       if (delugeView && typeof delugeView.send === 'function') {
         delugeView.send('request-ball-inventory');
       }
     } catch (_) {}
     setTimeout(() => {
-      updateStatus('Inventory synced', '#10b981');
+      updateStatus('Inventory synced', '#f5cebe');
     }, 500);
   });
 }

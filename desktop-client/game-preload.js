@@ -2012,22 +2012,19 @@ function scanForTargets() {
     }
 
     // 4. Tier 4: Special Sprite Variants (Generic Wild Pokemon)
-    // Generic wild common Pokemon (e.g. Swablu, Rattata, Bidoof) are ONLY caught if:
-    // - Preset is 'all' (catch all targets + all variants)
-    // - Preset is 'variants' (catch any wild variant)
-    // - Preset is 'shinies' and the encounter is specifically Shiny
-    // - Or custom mode with NO species tiers selected (pure variant hunting)
-    // When species tiers (Legendaries, Megas, or Custom Whitelist) are active, common wild Pokemon are NEVER halted!
-    const hasActiveSpeciesTiers = findLegend || findMegas || (config.customTargetList && config.customTargetList.trim().length > 0);
-    const isSpeciesRestricted = hasActiveSpeciesTiers || config.targetPreset === 'legendaries' || config.targetPreset === 'megas' || config.targetPreset === 'legend_megas';
+    // Generic wild common Pokemon (e.g. Swablu, Rattata, Bidoof) are caught if:
+    // - findAnySpecialVariant is enabled in Tab 2 and the variant is in allowedVariants
+    // - If preset is 'shinies', only Shiny encounters are allowed
+    // - When an explicit species-only preset ('legendaries', 'megas', 'legend_megas') is active, generic wild Pokemon are skipped
+    const isSpeciesOnlyPreset = config.targetPreset === 'legendaries' || config.targetPreset === 'megas' || config.targetPreset === 'legend_megas';
 
     let allowGenericVariants = false;
-    if (config.targetPreset === 'all' || config.targetPreset === 'variants') {
-        allowGenericVariants = findAnyVariant;
-    } else if (config.targetPreset === 'shinies') {
-        allowGenericVariants = findAnyVariant && (detectedVariant === 'shiny');
-    } else if (!hasActiveSpeciesTiers) {
-        allowGenericVariants = findAnyVariant;
+    if (findAnyVariant && !isSpeciesOnlyPreset) {
+        if (config.targetPreset === 'shinies') {
+            allowGenericVariants = (detectedVariant === 'shiny');
+        } else {
+            allowGenericVariants = true;
+        }
     }
 
     if (allowGenericVariants && detectedVariant !== 'normal') {
@@ -2041,8 +2038,8 @@ function scanForTargets() {
             triggerTargetFound(foundName, 'Special Variant');
             return;
         }
-    } else if (isNewEncounter && detectedVariant !== 'normal' && hasActiveSpeciesTiers) {
-        console.log('[TargetEngine] IGNORED: Wild ' + detectedVariant.toUpperCase() + ' encounter skipped (Species-restricted hunting active)');
+    } else if (isNewEncounter && detectedVariant !== 'normal' && !allowGenericVariants) {
+        console.log('[TargetEngine] IGNORED: Wild ' + detectedVariant.toUpperCase() + ' encounter skipped (' + (isSpeciesOnlyPreset ? 'Species-only preset active' : 'Special Variant hunting disabled') + ')');
     }
 
     // 5. Tier 5: Fallback Level Filter (If user explicitly selected Scope: All Wild Encounters, or no categories selected)
@@ -2267,15 +2264,43 @@ function getBlockedNavDirections() {
 }
 
 // Target Encounter Movement Guard: Prevent accidentally walking away ONLY when an active target encounter is on screen!
+// Manual Keyboard Navigation Hook: Notify host when user navigates manually to prevent step conflicts
 window.addEventListener('keydown', (e) => {
     if (isGuestInputField(e.target)) return;
+    const moveKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Up', 'Down', 'Left', 'Right'];
+    const isMoveKey = moveKeys.includes(e.code) || moveKeys.includes(e.key);
+    if (!isMoveKey) return;
+
     if (lastFoundTarget && isEncounterOrCatchUIPresent()) {
-        const moveKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Up', 'Down', 'Left', 'Right'];
-        if (moveKeys.includes(e.code) || moveKeys.includes(e.key)) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-        }
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return;
+    }
+
+    if (isHuntingActive) {
+        const moveKeyMap = {
+            'ArrowUp': 'Up', 'KeyW': 'Up', 'Up': 'Up',
+            'ArrowDown': 'Down', 'KeyS': 'Down', 'Down': 'Down',
+            'ArrowLeft': 'Left', 'KeyA': 'Left', 'Left': 'Left',
+            'ArrowRight': 'Right', 'KeyD': 'Right', 'Right': 'Right'
+        };
+        const dir = moveKeyMap[e.code] || moveKeyMap[e.key] || 'Manual';
+        ipcRenderer.sendToHost('manual-step', { direction: dir });
+    }
+}, true);
+
+// Manual D-pad Click Hook: If user physically clicks directional buttons on screen
+window.addEventListener('pointerdown', (e) => {
+    if (!e.isTrusted) return;
+    const btn = e.target && e.target.closest ? e.target.closest('#dr-n, #dr-s, #dr-w, #dr-e, #dr-nw, #dr-ne, #dr-sw, #dr-se') : null;
+    if (btn && isHuntingActive) {
+        const idToDir = {
+            'dr-n': 'Up', 'dr-s': 'Down', 'dr-w': 'Left', 'dr-e': 'Right',
+            'dr-nw': 'Up-Left', 'dr-ne': 'Up-Right', 'dr-sw': 'Down-Left', 'dr-se': 'Down-Right'
+        };
+        const dir = (btn.id && idToDir[btn.id]) || 'Manual';
+        ipcRenderer.sendToHost('manual-step', { direction: dir });
     }
 }, true);
 
@@ -2658,7 +2683,13 @@ window.addEventListener('hashchange', () => {
 function isGuestInputField(el) {
     if (!el) return false;
     const tag = (el.tagName || '').toUpperCase();
-    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!el.isContentEditable;
+    if (tag === 'TEXTAREA' || !!el.isContentEditable) return true;
+    if (tag === 'INPUT') {
+        const type = (el.type || 'text').toLowerCase();
+        const nonTextTypes = ['checkbox', 'radio', 'button', 'submit', 'reset', 'hidden', 'image', 'range', 'color'];
+        return !nonTextTypes.includes(type);
+    }
+    return false;
 }
 
 // Forward guest input focus states to host to ensure physical keyboard focus and prevent roaming interference
@@ -3560,13 +3591,22 @@ function injectTeamSaveSpy() {
         return origSetHeader.apply(this, arguments);
     };
 
+    function isDelugeTeamRequest(u, m) {
+        if (!u || typeof u !== 'string') return false;
+        var lower = u.toLowerCase();
+        if (lower.indexOf('google') !== -1 || lower.indexOf('rubicon') !== -1 || lower.indexOf('optad360') !== -1 || lower.indexOf('doubleclick') !== -1) {
+            return false;
+        }
+        return (lower.indexOf('/team/edit') !== -1 || lower.indexOf('/team/save') !== -1 || (lower.indexOf('/team') !== -1 && m === 'POST'));
+    }
+
     XMLHttpRequest.prototype.send = function(data) {
         var xhr = this;
-        var method = xhr._spyMethod;
-        var url = xhr._spyUrl;
+        var method = (xhr._spyMethod || 'GET').toUpperCase();
+        var url = xhr._spyUrl || '';
         var body = data;
 
-        var isTeamReq = (url && (url.indexOf('team') !== -1 || url.indexOf('edit') !== -1)) || method === 'POST';
+        var isTeamReq = isDelugeTeamRequest(url, method);
 
         if (isTeamReq) {
             console.log('[TEAM_SPY] Intercepted XHR send to:', url, 'method:', method, 'body:', body);
@@ -3622,11 +3662,16 @@ function injectTeamSaveSpy() {
     // B. Intercept window.fetch
     var origFetch = window.fetch;
     window.fetch = function(input, init) {
-        var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
-        var method = (init && init.method) ? init.method : 'GET';
+        var url = '';
+        try {
+            if (typeof input === 'string') url = input;
+            else if (input && typeof input.url === 'string') url = input.url;
+            else if (input && input.href) url = input.href;
+        } catch (_) {}
+        var method = (init && init.method) ? init.method.toUpperCase() : 'GET';
         var body = (init && init.body) ? init.body : null;
 
-        var isTeamReq = (url && (url.indexOf('team') !== -1 || url.indexOf('edit') !== -1)) || method === 'POST';
+        var isTeamReq = isDelugeTeamRequest(url, method);
         if (isTeamReq) {
             console.log('[TEAM_SPY] Intercepted fetch to:', url, 'method:', method, 'body:', body);
         }

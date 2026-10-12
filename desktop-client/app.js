@@ -35,6 +35,34 @@ try {
   console.warn('Fallback to local config.json path:', e);
 }
 
+function getWritableDataPath(filename) {
+  try {
+    const userDataDir = path.dirname(CONFIG_PATH);
+    if (!fs.existsSync(userDataDir)) {
+      fs.mkdirSync(userDataDir, { recursive: true });
+    }
+    return path.join(userDataDir, filename);
+  } catch (_) {
+    return path.join(__dirname, filename);
+  }
+}
+
+function readDataFile(filename) {
+  const userPath = getWritableDataPath(filename);
+  if (fs.existsSync(userPath)) {
+    try {
+      return fs.readFileSync(userPath, 'utf8');
+    } catch (_) {}
+  }
+  const bundledPath = path.join(__dirname, filename);
+  if (fs.existsSync(bundledPath)) {
+    try {
+      return fs.readFileSync(bundledPath, 'utf8');
+    } catch (_) {}
+  }
+  return null;
+}
+
 let config = {
   dummyAccount: { username: "PokeDen", password: "sacups2026", autoLogin: false },
   network: { useProxy: false, proxyRules: "", proxyBypass: "<local>" },
@@ -806,7 +834,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.3.0';
+    let appVer = '1.3.1';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -998,14 +1026,11 @@ function updateTargetUI() {
 
   let presetKey = 'custom';
   if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'all';
-  else if (isLeg && !isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'legendaries';
-  else if (!isLeg && isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'megas';
+  else if (isLeg && !isMega && !isVar && !isLevel && !hasCustom) presetKey = 'legendaries';
+  else if (!isLeg && isMega && !isVar && !isLevel && !hasCustom) presetKey = 'megas';
+  else if (isLeg && isMega && !isVar && !isLevel && !hasCustom) presetKey = 'legend_megas';
   else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) presetKey = 'shinies';
   else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) presetKey = 'variants';
-  else if (isLeg && isMega && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'legend_megas';
-  else if (isLeg && !isMega && !isLevel && !hasCustom) presetKey = 'legendaries';
-  else if (!isLeg && isMega && !isLevel && !hasCustom) presetKey = 'megas';
-  else if (isLeg && isMega && !isLevel && !hasCustom) presetKey = 'legend_megas';
 
   const pills = [
     { btn: presetAllBtn, key: 'all' },
@@ -2184,7 +2209,7 @@ delugeView.addEventListener('ipc-message', (event) => {
     if (data.success && Array.isArray(data.pokemons)) {
       currentCollection = data.pokemons;
       try {
-        fs.writeFileSync(path.join(__dirname, 'user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
+        fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
       } catch (_) {}
       if (scanStatusBadge) scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced (${data.pageCount || 1} pgs)`;
       if (typeof updateRosterModeUI === 'function') updateRosterModeUI();
@@ -2336,9 +2361,33 @@ delugeView.addEventListener('ipc-message', (event) => {
   }
 
   if (event.channel === 'guest-input-focused') {
+    const prev = isGuestInputFocused;
     isGuestInputFocused = !!(event.args[0]);
+    if (prev !== isGuestInputFocused) {
+      backendLog('GuestInput', `Guest input focus changed: ${isGuestInputFocused ? 'Focused (Bot movement suspended for user typing)' : 'Blurred (Bot movement resuming)'}`);
+      if (isGuestInputFocused) {
+        updateStatus('Typing in Page (Paused)', '#f59e0b');
+      } else if (isRunning) {
+        updateStatus('Hunting Active', '#22c55e');
+      }
+    }
     if (isGuestInputFocused) {
       ipcRenderer.send('restore-window-focus');
+    } else if (isRunning) {
+      scheduleNextStep(300);
+    }
+  }
+
+  if (event.channel === 'manual-step') {
+    const data = event.args[0] || {};
+    const dir = data.direction || 'Manual';
+    backendLog('ManualNavigation', `Manual user movement detected (${dir}). Gracefully yielding step scheduling.`);
+    isStepPending = false;
+    stepPendingTicks = 0;
+    currentDirectionKey = dir;
+    wanderStepsLeft = 0;
+    if (isRunning) {
+      scheduleNextStep(1200);
     }
   }
 
@@ -3016,14 +3065,11 @@ if (saveTargetsBtn) {
 
     let preset = 'custom';
     if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'all';
-    else if (isLeg && !isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'legendaries';
-    else if (!isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'megas';
-    else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) preset = 'shinies';
+    else if (isLeg && !isMega && !isVar && !isLevel && !hasCustom) preset = 'legendaries';
+    else if (!isLeg && isMega && !isVar && !isLevel && !hasCustom) preset = 'megas';
+    else if (isLeg && isMega && !isVar && !isLevel && !hasCustom) preset = 'legend_megas';
+    else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) preset = 'shinies';
     else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) preset = 'variants';
-    else if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'legend_megas';
-    else if (isLeg && !isMega && !isLevel && !hasCustom) preset = 'legendaries';
-    else if (!isLeg && isMega && !isLevel && !hasCustom) preset = 'megas';
-    else if (isLeg && isMega && !isLevel && !hasCustom) preset = 'legend_megas';
 
     config.settings.targetPreset = preset;
     saveLocalConfig();
@@ -3395,6 +3441,7 @@ let currentCollection = [];
 let gymLeadersData = {};
 let lastRecommendedTeam = [];
 let liveBattleOpponent = null;
+let lastLoggedBattleOpponentSig = '';
 let teamRosterMode = (config.settings && config.settings.teamRosterMode) || 'ALL';
 let isBuildSyncInProgress = false;
 let pendingBuildLeader = null;
@@ -3480,7 +3527,11 @@ function handleLiveBattleOpponents(data) {
   if (data.battleUrl) {
     lastSelectedBattleUrl = data.battleUrl;
   }
-  backendLog('BATTLE_DETECTOR', `Opponent detected: ${data.trainerName} (${data.roster.length} Pokemon)`);
+  const oppSig = `${data.trainerName}:${data.battleUrl || ''}:${data.roster.map(p => p.name).join(',')}`;
+  if (lastLoggedBattleOpponentSig !== oppSig) {
+    lastLoggedBattleOpponentSig = oppSig;
+    backendLog('BATTLE_DETECTOR', `Opponent detected: ${data.trainerName} (${data.roster.length} Pokemon)`);
+  }
 
   // Auto-learn into gymLeadersData and persist to gym_leaders.json
   if (gymLeadersData && data.trainerName) {
@@ -3522,7 +3573,7 @@ function handleLiveBattleOpponents(data) {
       }
       if (updated) {
         try {
-          const gymPath = path.join(__dirname, 'gym_leaders.json');
+          const gymPath = getWritableDataPath('gym_leaders.json');
           fs.writeFileSync(gymPath, JSON.stringify(gymLeadersData, null, 2), 'utf8');
           backendLog('ROSTER_HARVESTER', `Updated ${targetTrainer.name} roster (${targetTrainer.roster.length}/6 known)`);
           populateGymTrainerSelect();
@@ -3556,18 +3607,18 @@ function handleLiveBattleOpponents(data) {
 
 function loadTeamBuilderData() {
   try {
-    const collPath = path.join(__dirname, 'user_collection.json');
-    if (fs.existsSync(collPath)) {
-      currentCollection = JSON.parse(fs.readFileSync(collPath, 'utf8'));
+    const rawColl = readDataFile('user_collection.json');
+    if (rawColl) {
+      currentCollection = JSON.parse(rawColl);
       if (scanStatusBadge) scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced`;
       updateRosterModeUI();
     }
   } catch (_) {}
 
   try {
-    const gymPath = path.join(__dirname, 'gym_leaders.json');
-    if (fs.existsSync(gymPath)) {
-      gymLeadersData = JSON.parse(fs.readFileSync(gymPath, 'utf8'));
+    const rawGym = readDataFile('gym_leaders.json');
+    if (rawGym) {
+      gymLeadersData = JSON.parse(rawGym);
       const activeCategory = (teamCategorySelect && teamCategorySelect.value) ? teamCategorySelect.value : 'ALL';
       const activeSearch = (trainerSearchInput && trainerSearchInput.value) ? trainerSearchInput.value : '';
       populateGymTrainerSelect(activeCategory, activeSearch);
@@ -4553,11 +4604,8 @@ function loadDailyCatchLog() {
   let loaded = null;
 
   try {
-    const filePath = path.join(__dirname, 'daily_catch_log.json');
-    if (fs.existsSync(filePath)) {
-      const raw = fs.readFileSync(filePath, 'utf8');
-      if (raw) loaded = JSON.parse(raw);
-    }
+    const raw = readDataFile('daily_catch_log.json');
+    if (raw) loaded = JSON.parse(raw);
   } catch (_) {}
 
   if (!loaded) {
@@ -4597,7 +4645,7 @@ function saveDailyCatchLog() {
   try {
     const jsonStr = JSON.stringify(dailyCatchData, null, 2);
     localStorage.setItem(DAILY_CATCH_STORAGE_KEY, jsonStr);
-    const filePath = path.join(__dirname, 'daily_catch_log.json');
+    const filePath = getWritableDataPath('daily_catch_log.json');
     fs.writeFileSync(filePath, jsonStr, 'utf8');
   } catch (_) {}
 }

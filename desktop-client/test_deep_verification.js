@@ -41,6 +41,7 @@ const clientFiles = [
   'app.html',
   'gym_leaders.json',
   'user_collection.json',
+  'daily_catch_log.json',
   'skills_database.json',
   'type_chart_database.json',
   'test_client.js',
@@ -775,6 +776,12 @@ runTest('IPC Channel: ball-inventory-update & request-ball-inventory parity', ()
   assert(preloadJs.includes("ipcRenderer.on('request-ball-inventory'"), 'game-preload.js must listen for request-ball-inventory');
 });
 
+runTest('IPC Channel: manual-step parity & guest input safety', () => {
+  assert(preloadJs.includes("ipcRenderer.sendToHost('manual-step'"), 'game-preload.js must emit manual-step');
+  assert(appJs.includes("event.channel === 'manual-step'"), 'app.js must handle manual-step');
+  assert(preloadJs.includes("const nonTextTypes = ['checkbox', 'radio', 'button'"), 'game-preload.js must exclude checkboxes/buttons from guest input focus traps');
+});
+
 // -----------------------------------------------------------------------------
 // PIPELINE 7: TEAM APPLY STATE MACHINE & DOM MANIPULATION AUDIT
 // -----------------------------------------------------------------------------
@@ -786,6 +793,13 @@ runTest('Team Save Spy & Interceptor: Active on /team/edit', () => {
   assert(preloadJs.includes("team-intercept-captured"), 'Must send team-intercept-captured to host');
   assert(appJs.includes("team-intercept-captured"), 'app.js must handle team-intercept-captured');
   assert(mainJs.includes("NETWORK_POST"), 'main.js must intercept raw network POST requests');
+});
+
+runTest('Writable Data Path & Team Endpoint Security Audit', () => {
+  assert(appJs.includes('function getWritableDataPath('), 'app.js must define getWritableDataPath');
+  assert(appJs.includes('function readDataFile('), 'app.js must define readDataFile');
+  assert(preloadJs.includes('function isDelugeTeamRequest('), 'game-preload.js must filter team requests');
+  assert(preloadJs.includes('isSpeciesOnlyPreset'), 'game-preload.js must evaluate isSpeciesOnlyPreset');
 });
 
 runTest('Smooth Adblock Simulation & Parent Wrapper Collapse Engine Audit', () => {

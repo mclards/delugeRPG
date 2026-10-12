@@ -848,6 +848,36 @@ runTest('Map Presence Synchronization: Active in preload', () => {
   assert(preloadJs.includes('hunting-auto-pause'), 'hunting-auto-pause must trigger outside map');
 });
 
+runTest('NSIS Data Protection & Canonical AppData Isolation Audit', () => {
+  const pkgJson = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+  assert(pkgJson.build && pkgJson.build.nsis, 'package.json must contain build.nsis configuration');
+  assert.strictEqual(pkgJson.build.nsis.deleteAppDataOnUninstall, false, 'deleteAppDataOnUninstall must be false to prevent data loss on update/uninstall');
+  assert(mainJs.includes("app.setName('delugerpg-desktop-client')"), 'main.js must set canonical app name for unified userData path');
+  assert(mainJs.includes('copyFileSync(CONFIG_PATH, bakPath)'), 'main.js must create .bak atomic backup before writing config.json');
+  assert(mainJs.includes('user_collection.json') && mainJs.includes('gym_leaders.json') && mainJs.includes('daily_catch_log.json'), 'main.js must auto-migrate user data files to userData');
+  assert(appJs.includes('copyFileSync(CONFIG_PATH, bakPath)'), 'app.js must create .bak atomic backup before writing config.json');
+  assert(appJs.includes('copyFileSync(filePath, bakPath)'), 'app.js must create .bak atomic backup before writing daily_catch_log.json');
+});
+
+runTest('Target Preset Engine & Immediate Configuration Rescan Audit', () => {
+  assert(appJs.includes("presetKey === 'legendaries'"), 'app.js must handle legendaries preset');
+  assert(appJs.includes("presetKey === 'megas'"), 'app.js must handle megas preset');
+  assert(appJs.includes("presetKey === 'legend_megas'"), 'app.js must handle legend_megas preset');
+  assert(appJs.includes("isLeg = true;\n    isMega = false;\n    isVar = false;") || appJs.includes("isLeg = true;\r\n    isMega = false;\r\n    isVar = false;"), 'applyTargetPreset(legendaries) must set isLeg=true, isMega=false, isVar=false');
+  assert(appJs.includes("delugeView.send('update-config', config.settings)"), 'applyTargetPreset must send update-config to preload immediately');
+  assert(appJs.includes("syncHuntingState()"), 'applyTargetPreset and saveTargetsBtn must invoke syncHuntingState immediately');
+  assert(preloadJs.includes("lastEvaluatedEncounterSignature = ''"), 'preload update-config listener must clear lastEvaluatedEncounterSignature');
+  assert(preloadJs.includes("lastFoundTarget = ''"), 'preload update-config listener must clear lastFoundTarget');
+});
+
+runTest('Strict Mega and Legendary Exclusion Guards Audit', () => {
+  assert(preloadJs.includes('if (!findMegas) {'), 'game-preload.js must enforce strict Mega exclusion guard');
+  assert(preloadJs.includes('MEGAS_LOWER.some(m => textLower.indexOf(m) !== -1)'), 'game-preload.js must detect Mega line species');
+  assert(preloadJs.includes('if (!findLegend) {'), 'game-preload.js must enforce strict Legendary exclusion guard');
+  assert(preloadJs.includes('LEGENDARY_LOWER.some(l => textLower.indexOf(l) !== -1)'), 'game-preload.js must detect Legendary species in exclusion guard');
+  assert(preloadJs.includes('isSpeciesOnlyPreset'), 'game-preload.js must evaluate isSpeciesOnlyPreset in Tier 4');
+});
+
 // -----------------------------------------------------------------------------
 // PIPELINE 9: EXISTING TEST SUITES INTEGRATION
 // -----------------------------------------------------------------------------

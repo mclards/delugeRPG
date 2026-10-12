@@ -153,12 +153,14 @@ const PARADOX = [
 
 // Runtime Configuration synced with host
 let config = {
+    targetPreset: 'legendaries',
     findLegendaries: true,
     legendaryClassic: true,
     legendaryUltraBeasts: true,
     legendaryParadox: true,
-    findMegasAndGigantamax: true,
-    findAnySpecialVariant: true,
+    findMegasAndGigantamax: false,
+    findAnySpecialVariant: false,
+    enableVariantFilter: false,
     selectedVariants: ['normal', ...VARIANTS],
     customTargetList: '',
     blacklistList: '',
@@ -850,11 +852,20 @@ ipcRenderer.on('update-config', (event, newSettings) => {
     if (newSettings) {
         config = Object.assign({}, config, newSettings);
         configSynced = true;
+        lastFoundTarget = '';
+        lastEvaluatedEncounterSignature = '';
         applyCosmeticAdHiding();
         const currentStr = JSON.stringify(config);
         if (currentStr !== lastSyncedConfigStr) {
             lastSyncedConfigStr = currentStr;
-            console.log('[PokePreload] Configuration synchronized successfully');
+            console.log('[PokePreload] Target filters synchronized immediately:',
+                'Legendaries=' + (config.findLegendaries !== false),
+                'Megas=' + (!!config.findMegasAndGigantamax),
+                'Preset=' + (config.targetPreset || 'custom')
+            );
+        }
+        if (isHuntingActive) {
+            scanForTargets();
         }
     }
 });
@@ -1782,8 +1793,8 @@ function scanForTargets() {
     const textLower = pageText.trim().toLowerCase();
     if (!textLower) return;
 
-    const findAnyVariant = config.findAnySpecialVariant !== false;
-    const findMegas = config.findMegasAndGigantamax !== false;
+    const findAnyVariant = !!config.findAnySpecialVariant;
+    const findMegas = !!config.findMegasAndGigantamax;
     const findLegend = config.findLegendaries !== false;
 
     // Parse wild encounter level directly from encounter container, then fallback to page
@@ -2012,11 +2023,39 @@ function scanForTargets() {
     }
 
     // 4. Tier 4: Special Sprite Variants (Generic Wild Pokemon)
+    // CRITICAL GUARD: If Megas are disabled (!findMegas), NEVER catch any Mega form or Mega line species!
+    if (!findMegas) {
+        const isMegaFamily = MEGAS_LOWER.some(m => textLower.indexOf(m) !== -1);
+        const isMegaForm = FORMS.some(f => textLower.match(new RegExp('\\b' + f + '[- ]+([a-z0-9\\-\':]+)', 'i')));
+        if (isMegaFamily || isMegaForm) {
+            const isLegendary = LEGENDARY_LOWER.some(l => textLower.indexOf(l) !== -1);
+            if (!isLegendary || !findLegend) {
+                if (isNewEncounter) {
+                    console.log('[TargetEngine] IGNORED: Mega encounter skipped (Megas hunting is disabled in target filters)');
+                }
+                return;
+            }
+        }
+    }
+
+    // CRITICAL GUARD: If Legendaries are disabled (!findLegend), NEVER catch any Legendary in Tier 4!
+    if (!findLegend) {
+        const isLegendary = LEGENDARY_LOWER.some(l => textLower.indexOf(l) !== -1);
+        if (isLegendary) {
+            if (isNewEncounter) {
+                console.log('[TargetEngine] IGNORED: Legendary encounter skipped (Legendaries hunting is disabled in target filters)');
+            }
+            return;
+        }
+    }
+
     // Generic wild common Pokemon (e.g. Swablu, Rattata, Bidoof) are caught if:
     // - findAnySpecialVariant is enabled in Tab 2 and the variant is in allowedVariants
     // - If preset is 'shinies', only Shiny encounters are allowed
     // - When an explicit species-only preset ('legendaries', 'megas', 'legend_megas') is active, generic wild Pokemon are skipped
-    const isSpeciesOnlyPreset = config.targetPreset === 'legendaries' || config.targetPreset === 'megas' || config.targetPreset === 'legend_megas';
+    const isSpeciesOnlyPreset = config.targetPreset === 'legendaries' || config.targetPreset === 'megas' || config.targetPreset === 'legend_megas' ||
+        (findLegend && !findMegas && !config.findAnySpecialVariant) ||
+        (findLegend && !findMegas && config.targetPreset !== 'all' && config.targetPreset !== 'variants' && config.targetPreset !== 'shinies');
 
     let allowGenericVariants = false;
     if (findAnyVariant && !isSpeciesOnlyPreset) {

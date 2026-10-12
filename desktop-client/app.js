@@ -126,7 +126,12 @@ function saveLocalConfig() {
       fs.mkdirSync(dir, { recursive: true });
     }
     const tempPath = CONFIG_PATH + '.tmp';
-    fs.writeFileSync(tempPath, JSON.stringify(config, null, 2), 'utf8');
+    const bakPath = CONFIG_PATH + '.bak';
+    const jsonStr = JSON.stringify(config, null, 2);
+    fs.writeFileSync(tempPath, jsonStr, 'utf8');
+    if (fs.existsSync(CONFIG_PATH)) {
+      try { fs.copyFileSync(CONFIG_PATH, bakPath); } catch (_) {}
+    }
     fs.renameSync(tempPath, CONFIG_PATH);
   } catch (err) {
     try {
@@ -1026,11 +1031,12 @@ function updateTargetUI() {
 
   let presetKey = 'custom';
   if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'all';
-  else if (isLeg && !isMega && !isVar && !isLevel && !hasCustom) presetKey = 'legendaries';
-  else if (!isLeg && isMega && !isVar && !isLevel && !hasCustom) presetKey = 'megas';
-  else if (isLeg && isMega && !isVar && !isLevel && !hasCustom) presetKey = 'legend_megas';
   else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) presetKey = 'shinies';
   else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) presetKey = 'variants';
+  else if (isLeg && isMega && !isLevel && !hasCustom && !isVar) presetKey = 'legend_megas';
+  else if (isLeg && !isMega && !isLevel && !hasCustom) presetKey = 'legendaries';
+  else if (!isLeg && isMega && !isLevel && !hasCustom) presetKey = 'megas';
+  else if (isLeg && isMega && !isLevel && !hasCustom) presetKey = 'legend_megas';
 
   const pills = [
     { btn: presetAllBtn, key: 'all' },
@@ -1049,30 +1055,42 @@ function updateTargetUI() {
 
 function applyTargetPreset(presetKey, saveImmediately = true) {
   let isLeg = true;
-  let isMega = true;
-  let isVar = true;
+  let isMega = false;
+  let isVar = false;
   let isClassic = true;
   let isUB = true;
   let isParadox = true;
   let selectedVars = Object.values(variantMap);
 
   if (presetKey === 'legendaries') {
-    isLeg = true; isMega = false; isVar = true;
+    isLeg = true;
+    isMega = false;
+    isVar = false;
     selectedVars = Object.values(variantMap);
   } else if (presetKey === 'megas') {
-    isLeg = false; isMega = true; isVar = true;
+    isLeg = false;
+    isMega = true;
+    isVar = false;
     selectedVars = Object.values(variantMap);
-  } else if (presetKey === 'variants') {
-    isLeg = false; isMega = false; isVar = true;
-    selectedVars = Object.values(variantMap).filter(v => v !== 'Normal');
-  } else if (presetKey === 'shinies') {
-    isLeg = true; isMega = true; isVar = true;
-    selectedVars = ['Shiny'];
   } else if (presetKey === 'legend_megas') {
-    isLeg = true; isMega = true; isVar = true;
+    isLeg = true;
+    isMega = true;
+    isVar = false;
     selectedVars = Object.values(variantMap);
+  } else if (presetKey === 'shinies') {
+    isLeg = true;
+    isMega = true;
+    isVar = true;
+    selectedVars = ['Shiny'];
+  } else if (presetKey === 'variants') {
+    isLeg = false;
+    isMega = false;
+    isVar = true;
+    selectedVars = Object.values(variantMap).filter(v => v !== 'Normal');
   } else if (presetKey === 'all') {
-    isLeg = true; isMega = true; isVar = true;
+    isLeg = true;
+    isMega = true;
+    isVar = true;
     selectedVars = Object.values(variantMap);
   }
 
@@ -1143,6 +1161,7 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
     saveLocalConfig();
     updateTargetUI();
     delugeView.send('update-config', config.settings);
+    syncHuntingState();
     updateStatus('Target filter: ' + presetKey.toUpperCase(), '#10b981');
   }
 }
@@ -2127,7 +2146,7 @@ delugeView.addEventListener('ipc-message', (event) => {
   if (event.channel === 'capture-dom-dump') {
     const data = event.args[0] || {};
     try {
-      const dumpsDir = path.join(__dirname, 'dom_dumps');
+      const dumpsDir = path.join(path.dirname(CONFIG_PATH), 'dom_dumps');
       if (!fs.existsSync(dumpsDir)) {
         fs.mkdirSync(dumpsDir, { recursive: true });
       }
@@ -2328,7 +2347,7 @@ delugeView.addEventListener('ipc-message', (event) => {
   if (event.channel === 'team-intercept-captured') {
     const data = event.args[0] || {};
     try {
-      const dumpDir = path.join(__dirname, 'dom_dumps');
+      const dumpDir = path.join(path.dirname(CONFIG_PATH), 'dom_dumps');
       if (!fs.existsSync(dumpDir)) fs.mkdirSync(dumpDir, { recursive: true });
       const filePath = path.join(dumpDir, 'team_save_intercept.json');
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
@@ -3065,11 +3084,12 @@ if (saveTargetsBtn) {
 
     let preset = 'custom';
     if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'all';
-    else if (isLeg && !isMega && !isVar && !isLevel && !hasCustom) preset = 'legendaries';
-    else if (!isLeg && isMega && !isVar && !isLevel && !hasCustom) preset = 'megas';
-    else if (isLeg && isMega && !isVar && !isLevel && !hasCustom) preset = 'legend_megas';
-    else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) preset = 'shinies';
+    else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) preset = 'shinies';
     else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) preset = 'variants';
+    else if (isLeg && isMega && !isLevel && !hasCustom && !isVar) preset = 'legend_megas';
+    else if (isLeg && !isMega && !isLevel && !hasCustom) preset = 'legendaries';
+    else if (!isLeg && isMega && !isLevel && !hasCustom) preset = 'megas';
+    else if (isLeg && isMega && !isLevel && !hasCustom) preset = 'legend_megas';
 
     config.settings.targetPreset = preset;
     saveLocalConfig();
@@ -3077,6 +3097,7 @@ if (saveTargetsBtn) {
     closeTargetModal();
 
     delugeView.send('update-config', config.settings);
+    syncHuntingState();
     updateStatus('Targets: ' + preset.toUpperCase() + ' applied', '#10b981');
   });
 }
@@ -4646,7 +4667,15 @@ function saveDailyCatchLog() {
     const jsonStr = JSON.stringify(dailyCatchData, null, 2);
     localStorage.setItem(DAILY_CATCH_STORAGE_KEY, jsonStr);
     const filePath = getWritableDataPath('daily_catch_log.json');
-    fs.writeFileSync(filePath, jsonStr, 'utf8');
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const tempPath = filePath + '.tmp';
+    const bakPath = filePath + '.bak';
+    fs.writeFileSync(tempPath, jsonStr, 'utf8');
+    if (fs.existsSync(filePath)) {
+      try { fs.copyFileSync(filePath, bakPath); } catch (_) {}
+    }
+    fs.renameSync(tempPath, filePath);
   } catch (_) {}
 }
 

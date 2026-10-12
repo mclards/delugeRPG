@@ -5,6 +5,9 @@ const { app, BrowserWindow, globalShortcut, Menu, session, ipcMain } = require('
 const path = require('path');
 const fs = require('fs');
 
+// Ensure unified application name so userData path is canonical across dev, portable, and installer updates
+app.setName('delugerpg-desktop-client');
+
 // 1. Anti-Detection Switches
 // Disable Chromium automation flags so navigator.webdriver is undefined natively
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
@@ -17,23 +20,8 @@ app.userAgentFallback = CLEAN_CHROME_USER_AGENT;
 
 let mainWindow = null;
 
-// Resolve a writable configuration path across packaged and development environments
+// Resolve a writable configuration path across packaged, portable, and development environments
 function getResolvedConfigPath() {
-  if (!app.isPackaged) {
-    return path.join(__dirname, 'config.json');
-  }
-
-  // Check if a portable config.json exists next to the executable
-  try {
-    const exeDir = path.dirname(process.execPath);
-    const portableConfig = path.join(exeDir, 'config.json');
-    if (fs.existsSync(portableConfig)) {
-      fs.accessSync(portableConfig, fs.constants.W_OK);
-      return portableConfig;
-    }
-  } catch (_) {}
-
-  // Production packaged / unpacked mode: use app.getPath('userData')
   const userDataDir = app.getPath('userData');
   try {
     if (!fs.existsSync(userDataDir)) {
@@ -41,15 +29,45 @@ function getResolvedConfigPath() {
     }
   } catch (_) {}
 
+  // Check if a portable config.json exists next to the executable
+  try {
+    const portableDir = process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath);
+    const portableConfig = path.join(portableDir, 'config.json');
+    if (app.isPackaged && fs.existsSync(portableConfig)) {
+      fs.accessSync(portableConfig, fs.constants.W_OK);
+      return portableConfig;
+    }
+  } catch (_) {}
+
   const userConfigPath = path.join(userDataDir, 'config.json');
+
+  // Automatic Migration: Seed config.json to userData if not present
   if (!fs.existsSync(userConfigPath)) {
     try {
-      const bundled = fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8');
-      fs.writeFileSync(userConfigPath, bundled, 'utf8');
+      const devPath = path.join(__dirname, 'config.json');
+      if (fs.existsSync(devPath)) {
+        const bundled = fs.readFileSync(devPath, 'utf8');
+        fs.writeFileSync(userConfigPath, bundled, 'utf8');
+      }
     } catch (err) {
       console.error('Failed to seed default config.json to userData:', err);
     }
   }
+
+  // Automatic Migration: Seed user collection, gym leaders, and daily catch log if missing in userData
+  const migrateFiles = ['user_collection.json', 'gym_leaders.json', 'daily_catch_log.json'];
+  for (const f of migrateFiles) {
+    const targetPath = path.join(userDataDir, f);
+    if (!fs.existsSync(targetPath)) {
+      try {
+        const sourcePath = path.join(__dirname, f);
+        if (fs.existsSync(sourcePath)) {
+          fs.copyFileSync(sourcePath, targetPath);
+        }
+      } catch (_) {}
+    }
+  }
+
   return userConfigPath;
 }
 
@@ -155,8 +173,18 @@ function saveConfig(cfg) {
       fs.mkdirSync(dir, { recursive: true });
     }
     const tempPath = CONFIG_PATH + '.tmp';
-    fs.writeFileSync(tempPath, JSON.stringify(cfg, null, 2), 'utf8');
+    const bakPath = CONFIG_PATH + '.bak';
+    const jsonStr = JSON.stringify(cfg, null, 2);
+    fs.writeFileSync(tempPath, jsonStr, 'utf8');
+    if (fs.existsSync(CONFIG_PATH)) {
+      try { fs.copyFileSync(CONFIG_PATH, bakPath); } catch (_) {}
+    }
     fs.renameSync(tempPath, CONFIG_PATH);
+    if (!app.isPackaged) {
+      try {
+        fs.writeFileSync(path.join(__dirname, 'config.json'), jsonStr, 'utf8');
+      } catch (_) {}
+    }
   } catch (err) {
     try {
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf8');
@@ -250,7 +278,7 @@ function setupSessionHardening(ses, config) {
         }
         backendLog('NETWORK_POST', `${details.url} -> ${postBody}`);
 
-        const dumpDir = path.join(__dirname, 'dom_dumps');
+        const dumpDir = path.join(path.dirname(CONFIG_PATH), 'dom_dumps');
         if (!fs.existsSync(dumpDir)) fs.mkdirSync(dumpDir, { recursive: true });
         const filePath = path.join(dumpDir, 'team_save_network_post.json');
         fs.writeFileSync(filePath, JSON.stringify({

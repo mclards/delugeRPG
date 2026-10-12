@@ -359,6 +359,8 @@ const teamEmptyPrompt = document.getElementById('teamEmptyPrompt');
 const poolModeAllBtn = document.getElementById('poolModeAllBtn');
 const poolModeTrainingBtn = document.getElementById('poolModeTrainingBtn');
 const trainingStatsBadge = document.getElementById('trainingStatsBadge');
+const candidatePoolFilterSelect = document.getElementById('candidatePoolFilterSelect');
+let teamPoolFilter = (config && config.settings && config.settings.teamPoolFilter) || 'ANY';
 const battleOpponentBtn = document.getElementById('battleOpponentBtn');
 const adsInspectorModal = document.getElementById('adsInspectorModal');
 const adsInspectorMenuBtn = document.getElementById('adsInspectorMenuBtn');
@@ -3470,15 +3472,17 @@ let lastSelectedBattleUrl = null;
 
 function getActiveCandidates() {
   if (!currentCollection || currentCollection.length === 0) return [];
+  const filtered = teamEngine.filterCandidatePool(currentCollection, teamPoolFilter);
   if (teamRosterMode === 'TRAINING') {
-    return currentCollection.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
+    return filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
   }
-  return currentCollection;
+  return filtered;
 }
 
 function updateRosterModeUI() {
-  const inTrainingCount = (currentCollection || []).filter(p => (typeof p.level === 'number' ? p.level : 100) < 100).length;
-  const totalCount = (currentCollection || []).length;
+  const filtered = teamEngine.filterCandidatePool(currentCollection || [], teamPoolFilter);
+  const inTrainingCount = filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100).length;
+  const totalCount = filtered.length;
 
   if (poolModeAllBtn) {
     poolModeAllBtn.textContent = `All Levels (${totalCount})`;
@@ -3510,14 +3514,28 @@ function updateRosterModeUI() {
     }
   }
 
+  const filterLabels = {
+    ANY: 'Pokemon',
+    GMAX: 'G-Max',
+    LEGENDARY: 'Legendaries',
+    ULTRABEAST: 'Ultra Beasts',
+    PARADOX: 'Paradox',
+    COMMON: 'Common'
+  };
+  const label = filterLabels[teamPoolFilter] || 'Pokemon';
+
   if (trainingStatsBadge) {
     if (teamRosterMode === 'TRAINING') {
-      trainingStatsBadge.textContent = `${inTrainingCount} in training (<100)`;
+      trainingStatsBadge.textContent = `${inTrainingCount} ${label} in training (<100)`;
       trainingStatsBadge.style.color = '#34d399';
     } else {
-      trainingStatsBadge.textContent = `${inTrainingCount} in training`;
+      trainingStatsBadge.textContent = `${totalCount} ${label} in pool`;
       trainingStatsBadge.style.color = '#38bdf8';
     }
+  }
+
+  if (candidatePoolFilterSelect && candidatePoolFilterSelect.value !== teamPoolFilter) {
+    candidatePoolFilterSelect.value = teamPoolFilter;
   }
 }
 
@@ -3540,6 +3558,19 @@ if (poolModeAllBtn) {
 }
 if (poolModeTrainingBtn) {
   poolModeTrainingBtn.addEventListener('click', () => setTeamRosterMode('TRAINING'));
+}
+if (candidatePoolFilterSelect) {
+  candidatePoolFilterSelect.addEventListener('change', () => {
+    teamPoolFilter = candidatePoolFilterSelect.value || 'ANY';
+    if (!config.settings) config.settings = {};
+    config.settings.teamPoolFilter = teamPoolFilter;
+    saveLocalConfig();
+    updateRosterModeUI();
+    const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
+    if (selVal && buildTeamBtn) {
+      buildTeamBtn.click();
+    }
+  });
 }
 
 function handleLiveBattleOpponents(data) {
@@ -3632,6 +3663,9 @@ function loadTeamBuilderData() {
     if (rawColl) {
       currentCollection = JSON.parse(rawColl);
       if (scanStatusBadge) scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced`;
+      if (candidatePoolFilterSelect && teamPoolFilter) {
+        candidatePoolFilterSelect.value = teamPoolFilter;
+      }
       updateRosterModeUI();
     }
   } catch (_) {}
@@ -4249,24 +4283,34 @@ function executeTeamBuild(targetLeader) {
   }
 
   if (teamRosterMode === 'TRAINING') {
-    const trainees = (currentCollection || []).filter(p => (p.level || 100) < 100);
-    const lvl100Pokes = (currentCollection || []).filter(p => (p.level || 0) === 100);
-    const highLvlPokes = (currentCollection || []).filter(p => (p.level || 0) >= 70);
+    const effectivePool = teamEngine.filterCandidatePool(currentCollection || [], teamPoolFilter);
+    const trainees = effectivePool.filter(p => (p.level || 100) < 100);
+    const lvl100Pokes = effectivePool.filter(p => (p.level || 0) === 100);
+    const highLvlPokes = effectivePool.filter(p => (p.level || 0) >= 70);
 
     if (trainees.length === 0) {
+      const filterLabels = {
+        ANY: 'training candidates (< Lv 100)',
+        GMAX: 'G-Max training candidates (< Lv 100)',
+        LEGENDARY: 'Legendary training candidates (< Lv 100)',
+        ULTRABEAST: 'Ultra Beast training candidates (< Lv 100)',
+        PARADOX: 'Paradox training candidates (< Lv 100)',
+        COMMON: 'Common training candidates (< Lv 100)'
+      };
+      const label = filterLabels[teamPoolFilter] || 'training candidates (< Lv 100)';
       if (teamResultContainer) teamResultContainer.style.display = 'block';
       if (teamResultList) {
-        teamResultList.innerHTML = '<div style="padding:16px 10px; color:#94a3b8; font-size:11px; text-align:center;">No training candidates (&lt; Lv 100) available in your collection.<br><span style="color:#64748b; font-size:10px;">Switch to <b>All Levels</b> or catch/scan more Pokemons.</span></div>';
+        teamResultList.innerHTML = `<div style="padding:16px 10px; color:#94a3b8; font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:#64748b; font-size:10px;">Switch to <b>All Levels</b> or switch pool filter to <b>Any</b>.</span></div>`;
       }
       if (teamActionRow) teamActionRow.style.display = 'none';
       return;
     }
 
-    // 1. Pick the Level 100 carry DEFENSE-FIRST: it must survive the roster's STAB
-    //    attacks (resists / immunities), not just hit hard.
-    let rankedCarries = teamEngine.rankCarries(lvl100Pokes.filter(p => teamEngine.canSoloTrainer(p, targetLeader)), targetLeader);
+    // 1. Pick carry defense-first: prefer from effectivePool if high-level exists, fallback to all lvl100s to protect trainees
+    const carryPool = lvl100Pokes.length > 0 ? lvl100Pokes : (highLvlPokes.length > 0 ? highLvlPokes : (currentCollection || []).filter(p => (p.level || 0) === 100));
+    let rankedCarries = teamEngine.rankCarries(carryPool.filter(p => teamEngine.canSoloTrainer(p, targetLeader)), targetLeader);
     if (rankedCarries.length === 0) {
-      rankedCarries = teamEngine.rankCarries(lvl100Pokes.length > 0 ? lvl100Pokes : highLvlPokes, targetLeader);
+      rankedCarries = teamEngine.rankCarries(carryPool.length > 0 ? carryPool : (currentCollection || []).filter(p => (p.level || 0) >= 70), targetLeader);
     }
     const carryPoke = rankedCarries.length > 0 ? rankedCarries[0].poke : null;
     const bestCarries = carryPoke ? teamEngine.buildBestTeam(targetLeader, [carryPoke]) : [];
@@ -4354,9 +4398,18 @@ function executeTeamBuild(targetLeader) {
 
   const candidates = getActiveCandidates();
   if (candidates.length === 0) {
+    const filterLabels = {
+      ANY: 'Pokemon',
+      GMAX: 'G-Max Pokemon',
+      LEGENDARY: 'Legendaries',
+      ULTRABEAST: 'Ultra Beasts',
+      PARADOX: 'Paradox Pokemon',
+      COMMON: 'Common Pokemon'
+    };
+    const label = filterLabels[teamPoolFilter] || 'Pokemon';
     if (teamResultContainer) teamResultContainer.style.display = 'block';
     if (teamResultList) {
-      teamResultList.innerHTML = '<div style="padding:10px; color:#f87171; font-size:11px; text-align:center;">No Pokemon in database. Click "Scan My Box" first.</div>';
+      teamResultList.innerHTML = `<div style="padding:16px 10px; color:#94a3b8; font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:#64748b; font-size:10px;">Switch pool filter to <b>Any</b> or click 'Scan My Box'.</span></div>`;
     }
     if (teamActionRow) teamActionRow.style.display = 'none';
     return;

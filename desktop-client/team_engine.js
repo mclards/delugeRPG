@@ -532,6 +532,104 @@ function getBaseSpecies(name) {
     .toLowerCase();
 }
 
+const ULTRA_BEASTS = [
+  'nihilego', 'buzzwole', 'pheromosa', 'xurkitree', 'celesteela', 'kartana',
+  'guzzlord', 'poipole', 'naganadel', 'stakataka', 'blacephalon'
+];
+
+const PARADOX_SPECIES = [
+  'great tusk', 'scream tail', 'brute bonnet', 'flutter mane', 'slither wing', 'sandy shocks',
+  'iron treads', 'iron bundle', 'iron hands', 'iron jugulis', 'iron moth', 'iron thorns',
+  'roaring moon', 'iron valiant', 'walking wake', 'iron leaves',
+  'gouging fire', 'raging bolt', 'iron boulder', 'iron crown'
+];
+
+const GMAX_SPECIES = [
+  'venusaur', 'charizard', 'blastoise', 'butterfree', 'pikachu', 'meowth', 'machamp', 'gengar',
+  'kingler', 'lapras', 'eevee', 'snorlax', 'garbodor', 'melmetal', 'rillaboom', 'cinderace',
+  'inteleon', 'corviknight', 'orbeetle', 'drednaw', 'coalossal', 'flapple', 'appletun',
+  'sandaconda', 'toxtricity', 'centiskorch', 'hatterene', 'grimmsnarl', 'alcremie', 'copperajah',
+  'duraludon', 'urshifu',
+  // Pre-evolutions capable of evolving into G-Max forms
+  'bulbasaur', 'ivysaur', 'charmander', 'charmeleon', 'squirtle', 'wartortle',
+  'caterpie', 'metapod', 'pichu', 'machop', 'machoke',
+  'gastly', 'haunter', 'krabby', 'munchlax', 'trubbish', 'meltan',
+  'grookey', 'thwackey', 'scorbunny', 'raboot', 'sobble', 'drizzile',
+  'rookidee', 'corvisquire', 'blipbug', 'dottler', 'chewtle', 'rolycoly', 'carkol',
+  'applin', 'silicobra', 'toxel', 'sizzlipede', 'hatenna', 'hattrem',
+  'impidimp', 'morgrem', 'milcery', 'cufant', 'kubfu'
+];
+
+const LEGENDARY_SPECIES = [
+  'articuno', 'zapdos', 'moltres', 'mewtwo', 'mew', 'raikou', 'entei', 'suicune', 'lugia', 'ho-oh', 'celebi',
+  'regirock', 'regice', 'registeel', 'latias', 'latios', 'kyogre', 'groudon', 'rayquaza', 'jirachi', 'deoxys',
+  'uxie', 'mesprit', 'azelf', 'dialga', 'palkia', 'heatran', 'regigigas', 'giratina', 'cresselia', 'phione', 'manaphy',
+  'darkrai', 'shaymin', 'arceus', 'victini', 'cobalion', 'terrakion', 'virizion', 'tornadus', 'thundurus', 'reshiram',
+  'zekrom', 'landorus', 'kyurem', 'keldeo', 'meloetta', 'genesect', 'xerneas', 'yveltal', 'zygarde', 'diancie', 'hoopa',
+  'volcanion', 'type: null', 'type null', 'silvally', 'tapu koko', 'tapu lele', 'tapu bulu', 'tapu fini', 'cosmog',
+  'cosmoem', 'solgaleo', 'lunala', 'necrozma', 'magearna', 'marshadow', 'zeraora', 'meltan', 'melmetal', 'zacian',
+  'zamazenta', 'eternatus', 'kubfu', 'urshifu', 'zarude', 'regieleki', 'regidrago', 'glastrier', 'spectrier', 'calyrex',
+  'enamorus', 'wo-chien', 'chien-pao', 'ting-lu', 'chi-yu', 'koraidon', 'miraidon', 'okidogi', 'munkidori', 'fezandipiti',
+  'ogerpon', 'terapagos', 'pecharunt'
+];
+
+function isUltraBeast(pokeOrName) {
+  if (!pokeOrName) return false;
+  const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
+  const base = getBaseSpecies(raw);
+  return ULTRA_BEASTS.some(u => base.includes(u));
+}
+
+function isParadoxPokemon(pokeOrName) {
+  if (!pokeOrName) return false;
+  const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
+  const base = getBaseSpecies(raw);
+  return PARADOX_SPECIES.some(p => base === p || base.includes(p));
+}
+
+function isLegendaryPokemon(pokeOrName) {
+  if (!pokeOrName) return false;
+  const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
+  if (isUltraBeast(raw) || isParadoxPokemon(raw)) return false;
+  const base = getBaseSpecies(raw);
+  return LEGENDARY_SPECIES.some(l => base === l || base.includes(l));
+}
+
+function isCommonPokemon(pokeOrName) {
+  if (!pokeOrName) return false;
+  return !isLegendaryPokemon(pokeOrName) && !isUltraBeast(pokeOrName) && !isParadoxPokemon(pokeOrName);
+}
+
+function isGmaxPokemon(pokeOrName) {
+  if (!pokeOrName) return false;
+  const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
+  const lower = raw.toLowerCase();
+  if (lower.includes('g-max') || lower.includes('gigantamax') || lower.includes('gmax')) return true;
+  if (lower.includes('mega ')) return false;
+  const base = getBaseSpecies(raw);
+  return GMAX_SPECIES.includes(base);
+}
+
+function filterCandidatePool(collection, filterType) {
+  if (!collection || !Array.isArray(collection)) return [];
+  const type = (filterType || 'ANY').toUpperCase();
+  switch (type) {
+    case 'GMAX':
+      return collection.filter(isGmaxPokemon);
+    case 'LEGENDARY':
+      return collection.filter(isLegendaryPokemon);
+    case 'ULTRABEAST':
+      return collection.filter(isUltraBeast);
+    case 'PARADOX':
+      return collection.filter(isParadoxPokemon);
+    case 'COMMON':
+      return collection.filter(isCommonPokemon);
+    case 'ANY':
+    default:
+      return collection;
+  }
+}
+
 function buildBestTeam(trainer, collection) {
   if (!trainer || !collection || collection.length === 0) return [];
 
@@ -856,6 +954,16 @@ if (typeof module !== 'undefined' && module.exports) {
     outgoingEffectiveness,
     incomingEffectiveness,
     getRosterExposure,
-    rankCarries
+    rankCarries,
+    ULTRA_BEASTS,
+    PARADOX_SPECIES,
+    GMAX_SPECIES,
+    LEGENDARY_SPECIES,
+    isUltraBeast,
+    isParadoxPokemon,
+    isLegendaryPokemon,
+    isCommonPokemon,
+    isGmaxPokemon,
+    filterCandidatePool
   };
 }

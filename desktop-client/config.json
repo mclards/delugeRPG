@@ -51,6 +51,7 @@
     ],
     "customTargetList": "",
     "blacklistList": "",
-    "teamRosterMode": "TRAINING"
+    "teamRosterMode": "TRAINING",
+    "teamPoolFilter": "ANY"
   }
 }

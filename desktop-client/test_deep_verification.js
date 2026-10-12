@@ -505,8 +505,50 @@ runTest('Hardened Skill Analysis & False Judgement Elimination Audit', () => {
   }
 });
 
+runTest('Candidate Pool Categorization & List Accuracy Audit', () => {
+  assert(Array.isArray(teamEngine.ULTRA_BEASTS) && teamEngine.ULTRA_BEASTS.length === 11, 'Must have 11 Ultra Beasts');
+  assert(Array.isArray(teamEngine.PARADOX_SPECIES) && teamEngine.PARADOX_SPECIES.length === 20, 'Must have 20 Paradox species');
+  assert(Array.isArray(teamEngine.GMAX_SPECIES) && teamEngine.GMAX_SPECIES.length >= 32, 'Must have all G-Max species');
+  assert(Array.isArray(teamEngine.LEGENDARY_SPECIES) && teamEngine.LEGENDARY_SPECIES.length >= 70, 'Must have all Legendaries');
+
+  // Verify sample classifications
+  assert.strictEqual(teamEngine.isGmaxPokemon('Venusaur'), true, 'Venusaur must be G-Max capable');
+  assert.strictEqual(teamEngine.isGmaxPokemon('G-Max Charizard'), true, 'G-Max Charizard must be G-Max');
+  assert.strictEqual(teamEngine.isGmaxPokemon('Metallic Melmetal'), true, 'Melmetal must be G-Max capable');
+  assert.strictEqual(teamEngine.isGmaxPokemon('Ghostly Mega Charizard Y'), false, 'Mega forms must not be G-Max candidates');
+
+  assert.strictEqual(teamEngine.isUltraBeast('Dark Buzzwole'), true, 'Buzzwole must be Ultra Beast');
+  assert.strictEqual(teamEngine.isUltraBeast('Celesteela'), true, 'Celesteela must be Ultra Beast');
+
+  assert.strictEqual(teamEngine.isParadoxPokemon('Iron Moth'), true, 'Iron Moth must be Paradox');
+  assert.strictEqual(teamEngine.isParadoxPokemon('Roaring Moon'), true, 'Roaring Moon must be Paradox');
+
+  assert.strictEqual(teamEngine.isLegendaryPokemon('Calyrex (Shadow Rider)'), true, 'Calyrex must be Legendary');
+  assert.strictEqual(teamEngine.isLegendaryPokemon('Zamazenta (Hero)'), true, 'Zamazenta must be Legendary');
+  assert.strictEqual(teamEngine.isLegendaryPokemon('Buzzwole'), false, 'Ultra Beasts must not be in Legendary category');
+  assert.strictEqual(teamEngine.isLegendaryPokemon('Iron Moth'), false, 'Paradox must not be in Legendary category');
+
+  assert.strictEqual(teamEngine.isCommonPokemon('Dark Chesnaught'), true, 'Chesnaught must be Common');
+  assert.strictEqual(teamEngine.isCommonPokemon('Comfey'), true, 'Comfey must be Common');
+  assert.strictEqual(teamEngine.isCommonPokemon('Calyrex'), false, 'Legendary must not be Common');
+
+  // Test pool filtering function
+  const allPokes = teamEngine.filterCandidatePool(userCollection, 'ANY');
+  assert.strictEqual(allPokes.length, userCollection.length, 'ANY must return all collection');
+  const gmaxPokes = teamEngine.filterCandidatePool(userCollection, 'GMAX');
+  assert(gmaxPokes.length > 0 && gmaxPokes.every(teamEngine.isGmaxPokemon), 'GMAX must return only G-Max');
+  const ubPokes = teamEngine.filterCandidatePool(userCollection, 'ULTRABEAST');
+  assert(ubPokes.length > 0 && ubPokes.every(teamEngine.isUltraBeast), 'ULTRABEAST must return only UBs');
+  const paraPokes = teamEngine.filterCandidatePool(userCollection, 'PARADOX');
+  assert(paraPokes.length > 0 && paraPokes.every(teamEngine.isParadoxPokemon), 'PARADOX must return only Paradox');
+  const legPokes = teamEngine.filterCandidatePool(userCollection, 'LEGENDARY');
+  assert(legPokes.length > 0 && legPokes.every(teamEngine.isLegendaryPokemon), 'LEGENDARY must return only Legendaries');
+  const comPokes = teamEngine.filterCandidatePool(userCollection, 'COMMON');
+  assert(comPokes.length > 0 && comPokes.every(teamEngine.isCommonPokemon), 'COMMON must return only Commons');
+});
+
 // -----------------------------------------------------------------------------
-// PIPELINE 5: UI DOM ELEMENTS & CSS AUDIT (ZERO GLOW, CLEAN DESIGN)
+// PIPELINE 5: UI DOM ELEMENTS & ZERO-GLOW CSS AUDIT
 // -----------------------------------------------------------------------------
 console.log('\n--- PIPELINE 5: UI DOM ELEMENTS & ZERO-GLOW CSS AUDIT ---');
 
@@ -526,6 +568,7 @@ runTest('app.html: All Team Builder DOM elements present', () => {
     'id="teamTrainerSelect"',
     'id="poolModeAllBtn"',
     'id="poolModeTrainingBtn"',
+    'id="candidatePoolFilterSelect"',
     'id="trainingStatsBadge"',
     'id="buildTeamBtn"',
     'id="teamResultContainer"',

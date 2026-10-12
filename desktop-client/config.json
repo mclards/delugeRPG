@@ -22,17 +22,17 @@
     "autoPauseOnTarget": true,
     "avoidDuplicates": true,
     "autoStartOnMap": true,
-    "autoStartDelay": 5,
+    "autoStartDelay": 3,
     "hideAdsCosmetically": true,
     "autoCatchMasterBall": true,
     "targetPreset": "legendaries",
     "findLegendaries": true,
     "findMegasAndGigantamax": false,
-    "findAnySpecialVariant": false,
+    "findAnySpecialVariant": true,
     "enableLevelFilter": false,
     "levelFilterMode": "min",
     "levelFilterValue": 12,
-    "zoomFactor": 0.8,
+    "zoomFactor": 0.7,
     "levelFilterScope": "targets",
     "legendaryClassic": true,
     "legendaryUltraBeasts": true,
@@ -51,7 +51,8 @@
     ],
     "customTargetList": "",
     "blacklistList": "",
-    "teamRosterMode": "TRAINING",
-    "teamPoolFilter": "ANY"
+    "teamRosterMode": "ALL",
+    "teamPoolFilter": "GMAX",
+    "enableVariantFilter": true
   }
 }

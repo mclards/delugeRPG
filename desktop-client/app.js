@@ -3539,18 +3539,28 @@ function updateRosterModeUI() {
   }
 }
 
+function resetTeamPrompt() {
+  lastRecommendedTeam = null;
+  if (teamResultContainer) teamResultContainer.style.display = 'none';
+  if (teamResultList) teamResultList.innerHTML = '';
+  if (teamActionRow) teamActionRow.style.display = 'none';
+  if (teamEmptyPrompt) {
+    teamEmptyPrompt.style.display = 'flex';
+    teamEmptyPrompt.innerHTML = `
+      <div style="font-size: 20px; color: #38bdf8; margin-bottom: 6px; opacity: 0.7;">&#9876;</div>
+      <div style="font-weight: 700; color: #94a3b8; font-size: 11.5px; margin-bottom: 3px;">Ready to Build</div>
+      <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px;">Click <b>Build Best Team</b> to generate the optimal counter lineup.</div>
+    `;
+  }
+}
+
 function setTeamRosterMode(mode) {
   teamRosterMode = mode;
   if (!config.settings) config.settings = {};
   config.settings.teamRosterMode = mode;
   saveLocalConfig();
   updateRosterModeUI();
-  if (lastRecommendedTeam && lastRecommendedTeam.length > 0) {
-    const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
-    if (selVal && buildTeamBtn) {
-      buildTeamBtn.click();
-    }
-  }
+  resetTeamPrompt();
 }
 
 if (poolModeAllBtn) {
@@ -3566,10 +3576,7 @@ if (candidatePoolFilterSelect) {
     config.settings.teamPoolFilter = teamPoolFilter;
     saveLocalConfig();
     updateRosterModeUI();
-    const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
-    if (selVal && buildTeamBtn) {
-      buildTeamBtn.click();
-    }
+    resetTeamPrompt();
   });
 }
 

@@ -1715,6 +1715,20 @@
           <select id="teamTrainerSelect" class="clean-select" style="width: 100%; height: 28px; font-size: 11px; font-weight: 600; background: #0f172a; border: 1px solid #334155; color: #f8fafc; border-radius: 6px; padding: 0 8px; box-shadow: none;"></select>
         </div>
       </div>
+
+      <!-- Candidate Pool Tier Filter -->
+      <div style="margin-bottom: 6px;">
+        <label for="candidatePoolFilterSelect" style="font-size: 10px; font-weight: 600; color: #94a3b8; display: block; margin-bottom: 2px;">Candidate Pool Filter:</label>
+        <select id="candidatePoolFilterSelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; font-weight: 600; background: #0f172a; border: 1px solid #334155; color: #f8fafc; border-radius: 6px; padding: 0 8px; box-shadow: none;" title="Filter candidate pool by species tier">
+          <option value="ANY">Any (All Pokemon)</option>
+          <option value="GMAX">G-Max Only</option>
+          <option value="LEGENDARY">Legendary Only</option>
+          <option value="ULTRABEAST">Ultra Beast Only</option>
+          <option value="PARADOX">Paradox Only</option>
+          <option value="COMMON">Common Pokemon Only</option>
+        </select>
+      </div>
+
       <!-- Team Builder Mode (All Levels vs Training < 100) -->
       <div style="display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1724,16 +1738,6 @@
         <div style="display: flex; gap: 4px; background: #0b1120; padding: 2px; border-radius: 6px;">
           <button type="button" id="poolModeAllBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none; border: none; background: rgba(56, 189, 248, 0.18); color: #38bdf8; font-weight: 700;" title="Use all Pokemon in your collection (including Level 100)">All Levels</button>
           <button type="button" id="poolModeTrainingBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none; border: none; background: transparent; color: #94a3b8; font-weight: 500;" title="Use non-level 100 Pokemon only so you can train and max them out">&#9889; Training (&lt;100)</button>
-        </div>
-        <div>
-          <select id="candidatePoolFilterSelect" class="clean-select" style="width: 100%; height: 25px; font-size: 10.5px; font-weight: 600; background: #0f172a; border: 1px solid #334155; color: #f8fafc; border-radius: 6px; padding: 0 6px; margin-top: 3px; box-shadow: none;" title="Filter candidate pool by species tier">
-            <option value="ANY">Pool: Any (All Pokemon)</option>
-            <option value="GMAX">Pool: G-Max Only</option>
-            <option value="LEGENDARY">Pool: Legendary Only</option>
-            <option value="ULTRABEAST">Pool: Ultra Beast Only</option>
-            <option value="PARADOX">Pool: Paradox Only</option>
-            <option value="COMMON">Pool: Common Pokemon Only</option>
-          </select>
         </div>
       </div>
 

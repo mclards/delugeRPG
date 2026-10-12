@@ -658,23 +658,34 @@
       background: #14233c;
       border-color: #243856;
     }
+    /* High Visibility Sprite Thumbnails (Crisp Pixel Art & Contrast Spotlight) */
+    .team-sprite-thumb,
     .caught-card-thumb {
-      width: 40px;
-      height: 40px;
-      background: #070e1a;
-      border-radius: 4px;
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
+      background: radial-gradient(circle at center, rgba(100, 145, 210, 0.35) 0%, rgba(14, 27, 48, 0.95) 75%), #0a1424;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
       overflow: hidden;
-      border: 1px solid #1a283e;
+      border: 1px solid rgba(70, 115, 175, 0.45);
+      box-shadow: none !important;
     }
+    .team-sprite-thumb img,
     .caught-card-thumb img {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
+      max-width: 100%;
+      max-height: 100%;
       object-fit: contain;
       image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
     }
 
     /* Collapsible Navigation Dropdown Menu */

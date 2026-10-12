@@ -4172,12 +4172,17 @@ function renderTeamLineup(leader, team) {
     slotBadge.textContent = `${p.slot}.`;
     left.appendChild(slotBadge);
 
+    const thumb = document.createElement('div');
+    thumb.className = 'team-sprite-thumb';
     if (p.sprite) {
       const img = document.createElement('img');
       img.src = p.sprite;
-      img.style.cssText = 'width:28px; height:28px; object-fit:contain; flex-shrink:0;';
-      left.appendChild(img);
+      img.alt = p.name;
+      thumb.appendChild(img);
+    } else {
+      thumb.innerHTML = '<span style="font-size:16px; color:#388bfd;">&#9876;</span>';
     }
+    left.appendChild(thumb);
 
     const info = document.createElement('div');
     info.style.cssText = 'min-width:0; overflow:hidden;';

@@ -1867,46 +1867,53 @@
   </div>
 
   <!-- 4.5 TRAINER ROSTER INTEL & AUTO-RECORDER MODAL -->
-  <div id="trainerIntelModal" class="modal-box" style="width: 440px;">
+  <!-- 4.5 TRAINER ROSTER INTEL & AUTO-RECORDER MODAL -->
+  <div id="trainerIntelModal" class="modal-box" style="width: 420px;">
     <div class="modal-header-row">
-      <div class="modal-title" style="color:#e0ecfa;">&#128737; Trainer Intel &amp; Auto-Recorder</div>
+      <div class="modal-title" style="color:#e0ecfa;">&#128737; Trainer Intel</div>
       <button id="closeTrainerIntelBtn" class="modal-close-icon" title="Close">&#10005;</button>
     </div>
-    <div class="modal-desc" style="margin-bottom: 10px;">
-      Live opponent battle telemetry and offline trainer roster coverage.
+    <div class="modal-desc" style="margin-bottom: 12px;">
+      Offline battle roster database and live opponent telemetry.
     </div>
 
     <!-- Coverage Stats Card -->
-    <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 10px 12px; margin-bottom: 12px; font-size: 11px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #1a283e; padding-bottom: 4px;">
-        <span style="font-weight: 700; color: #e0ecfa; font-size: 11.5px;">Database Completeness</span>
-        <span id="modalRosterCountBadge" style="font-weight: 700; color: #388bfd; font-size: 11px;">131/131 Gyms (100%)</span>
+    <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-size: 10px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Roster Database</span>
+        <span id="modalRosterCountBadge" style="font-weight: 700; color: #388bfd; font-size: 11px;">131/131 Gyms (100%) - 287/449 Total</span>
       </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; color: #8eaad0; font-size: 10.5px;">
-        <div>&#10003; <strong>Gym Leagues:</strong> <span style="color:#388bfd;">131 / 131</span> (Kanto-Paldea)</div>
-        <div>&#10003; <strong>VIP / Special:</strong> <span style="color:#388bfd;">46 / 132</span> (Ash, Red, etc.)</div>
-        <div>&#10003; <strong>Total Opponents:</strong> <span style="color:#388bfd;">449 Opponents</span></div>
-        <div>&#10003; <strong>Auto-Learner:</strong> <span style="color:#e0ecfa; font-weight: 700;">Always Active</span></div>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+        <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 4px; text-align: center;">
+          <div style="font-size: 9px; color: #566e96; font-weight: 700; text-transform: uppercase;">GYM LEAGUES</div>
+          <div id="modalIntelGymsStat" style="font-size: 12.5px; font-weight: 700; color: #388bfd; margin-top: 2px;">131 / 131</div>
+        </div>
+        <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 4px; text-align: center;">
+          <div style="font-size: 9px; color: #566e96; font-weight: 700; text-transform: uppercase;">TOTAL ROSTERS</div>
+          <div id="modalIntelTotalStat" style="font-size: 12.5px; font-weight: 700; color: #e0ecfa; margin-top: 2px;">287 / 449</div>
+        </div>
+        <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 4px; text-align: center;">
+          <div style="font-size: 9px; color: #566e96; font-weight: 700; text-transform: uppercase;">AUTO-LEARNER</div>
+          <div style="font-size: 12.5px; font-weight: 700; color: #3fb950; margin-top: 2px;">Active</div>
+        </div>
       </div>
     </div>
 
-    <!-- How It Works Card -->
-    <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 10px 12px; margin-bottom: 14px; font-size: 11px; line-height: 1.45; color: #e0ecfa;">
-      <div style="font-weight: 700; color: #388bfd; margin-bottom: 4px; font-size: 11.5px;">How DelugeRPG Auto-Recording Works</div>
-      <div style="color: #8eaad0; font-size: 10.5px; margin-bottom: 6px;">
-        DelugeRPG protects trainer privacy by hiding team rosters on public profile pages (<code style="color:#388bfd;">/npc/</code>), preventing mass web scrapers.
-      </div>
-      <div style="font-size: 10.5px;">
-        &#9889; <strong>Live Battle Detector:</strong> The client automatically listens to all live battles (<code style="color:#388bfd;">#teamleft</code>, <code style="color:#388bfd;">#opponent</code>, and <code style="color:#388bfd;">#viewpokes</code>). The instant you face an opponent, their entire team is captured and permanently saved to your offline database!
+    <!-- Live Auto-Recorder Status Callout -->
+    <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; font-size: 11px; line-height: 1.45; color: #8eaad0; display: flex; align-items: flex-start; gap: 8px;">
+      <span style="color: #388bfd; font-size: 13px; line-height: 1; flex-shrink: 0; margin-top: 2px;">&#9889;</span>
+      <div>
+        <strong style="color: #e0ecfa;">Live Battle Auto-Recorder:</strong>
+        <span>Opponent lineups are automatically captured and saved whenever you encounter trainers in battles.</span>
       </div>
     </div>
 
     <!-- Active Battle Action & Status -->
-    <div id="activeBattleStatusMsg" style="font-size: 10.5px; color: #8eaad0; margin-bottom: 12px; min-height: 16px;"></div>
+    <div id="activeBattleStatusMsg" style="font-size: 11px; color: #8eaad0; margin-bottom: 14px; min-height: 16px;"></div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <button id="inspectBattleBtn" class="btn btn-accent" style="height: 28px; font-size: 11px; padding: 0 12px;" title="Scan opponent roster from current battle screen">&#9876; Scan Current Battle</button>
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
       <button id="cancelTrainerIntelBtn" class="btn" style="width: 80px; height: 28px;">Close</button>
+      <button id="inspectBattleBtn" class="btn btn-accent" style="height: 28px; font-size: 11px; padding: 0 14px;" title="Scan opponent roster from current battle screen">&#9876; Scan Current Battle</button>
     </div>
   </div>
 

@@ -4077,6 +4077,10 @@ function updateTrainerIntelStats() {
   if (modalRosterCountBadge) {
     modalRosterCountBadge.textContent = `${gymKnown}/${gymTotal} Gyms (${Math.round((gymKnown / (gymTotal || 1)) * 100)}%) - ${oppKnown}/${oppTotal} Total`;
   }
+  const gymsTile = document.getElementById('modalIntelGymsStat');
+  if (gymsTile) gymsTile.textContent = `${gymKnown} / ${gymTotal}`;
+  const totalTile = document.getElementById('modalIntelTotalStat');
+  if (totalTile) totalTile.textContent = `${oppKnown} / ${oppTotal}`;
 }
 
 function probeTrainerRostersDirectly(targetTrainers) {

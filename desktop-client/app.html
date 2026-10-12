@@ -929,24 +929,24 @@
     }
     .modal-targets {
       display: none;
-      width: 550px;
+      width: 530px;
       max-height: 86vh;
       flex-direction: column;
       scrollbar-width: thin;
-      padding: 18px 20px;
+      padding: 14px 16px;
     }
 
     /* Modal Navigation Tab Bar */
     .modal-tab-bar {
       display: flex;
       gap: 6px;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
       border-bottom: 1px solid #1a283e;
-      padding-bottom: 8px;
+      padding-bottom: 6px;
     }
     .modal-tab-btn {
-      padding: 5px 12px;
-      height: 28px;
+      padding: 4px 12px;
+      height: 26px;
       border-radius: 4px !important;
       border: 1px solid rgba(70, 90, 120, 0.5) !important;
       background: linear-gradient(180deg, rgba(35, 45, 62, 0.96) 0%, rgba(22, 30, 44, 0.98) 100%) !important;
@@ -981,14 +981,14 @@
     .modal-tab-content.active {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 5px;
     }
     .modal-tab-content::-webkit-scrollbar {
-      width: 5px;
+      width: 4px;
     }
     .modal-tab-content::-webkit-scrollbar-thumb {
       background: #1a283e;
-      border-radius: 3px;
+      border-radius: 2px;
     }
 
     /* Segmented Preset Controls */
@@ -996,14 +996,14 @@
       display: flex;
       gap: 4px;
       background: #070e1a;
-      padding: 4px;
+      padding: 3px;
       border-radius: 4px;
       border: 1px solid #1a283e;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
     .preset-pill-btn {
       flex: 1;
-      height: 26px;
+      height: 24px;
       padding: 0 4px;
       font-size: 10.5px;
       font-weight: 600;
@@ -1034,91 +1034,85 @@
       box-shadow: none !important;
     }
 
-    /* Filter Cards & Section Titles */
-    .filter-section-title {
-      font-size: 10px;
+    /* Streamlined Filter Items & Groups */
+    .filter-group-title {
+      font-size: 9.5px;
       font-weight: 700;
       color: #566e96;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      margin: 4px 0 2px 0;
-      padding-left: 2px;
+      margin: 4px 0 1px 2px;
     }
-    .filter-card {
+    .filter-item, .filter-card {
       display: flex;
       flex-direction: column;
-      padding: 10px 12px;
+      padding: 6px 9px;
       border-radius: 4px;
       background: #0e1b30;
       border: 1px solid #1a283e;
       transition: border-color 0.12s ease;
-      position: relative;
       box-shadow: none !important;
     }
-    .filter-card:hover {
+    .filter-item:hover, .filter-card:hover {
       border-color: #243856;
     }
-    .filter-card-row {
+    .filter-row, .filter-card-row {
       display: flex;
-      flex-direction: row;
       align-items: center;
-      gap: 12px;
+      gap: 9px;
       cursor: pointer;
       user-select: none;
-      width: 100%;
     }
-    .filter-card-text {
-      flex: 1;
-    }
-    .filter-card input[type="checkbox"] {
-      width: 15px;
-      height: 15px;
+    .filter-row input[type="checkbox"], .filter-card-row input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
       cursor: pointer;
       accent-color: #388bfd;
       margin: 0;
       flex-shrink: 0;
     }
-    .filter-title {
-      font-size: 11.5px;
-      font-weight: 700;
-      color: #e0ecfa;
-      margin-bottom: 2px;
-    }
-    .filter-sub {
-      font-size: 10.5px;
-      color: #8eaad0;
-      line-height: 1.35;
-    }
-    .filter-card-header-flex {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    /* Sub Options & Chips */
-    .sub-options-wrap {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px solid #1a283e;
-    }
-    .variant-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px solid #1a283e;
-    }
-    .variant-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
+    .filter-label, .filter-title {
       font-size: 11px;
       font-weight: 600;
-      padding: 5px 9px;
+      color: #e0ecfa;
+    }
+    .sub-inline-row, .sub-options-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 4px;
+      padding-left: 23px;
+    }
+    .sub-inline-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10.5px;
+      font-weight: 500;
+      color: #8eaad0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .sub-inline-label input[type="checkbox"] {
+      width: 13px;
+      height: 13px;
+      margin: 0;
+      accent-color: #388bfd;
+      cursor: pointer;
+    }
+    .variant-grid-5, .variant-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .variant-cell, .variant-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 4px 6px;
       border-radius: 4px !important;
       background: #070e1a;
       border: 1px solid #1a283e;
@@ -1128,30 +1122,28 @@
       transition: all 0.12s ease;
       box-shadow: none !important;
     }
-    .variant-chip:hover {
+    .variant-cell:hover, .variant-chip:hover {
       border-color: #243856;
       color: #e0ecfa;
       background: #0e1b30;
     }
-    .variant-chip input {
+    .variant-cell input[type="checkbox"], .variant-chip input[type="checkbox"] {
       margin: 0;
-      width: 13px;
-      height: 13px;
+      width: 12px;
+      height: 12px;
       accent-color: #388bfd;
       cursor: pointer;
     }
-
-    /* Quick Tag Buttons */
     .quick-btn-group {
       display: flex;
-      gap: 5px;
+      gap: 4px;
       flex-shrink: 0;
     }
     .quick-tag-btn {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 600;
-      height: 22px;
-      padding: 0 8px;
+      height: 20px;
+      padding: 0 6px;
       border-radius: 4px !important;
       background: linear-gradient(180deg, rgba(35, 45, 62, 0.96) 0%, rgba(22, 30, 44, 0.98) 100%) !important;
       border: 1px solid rgba(70, 90, 120, 0.5) !important;
@@ -1468,8 +1460,8 @@
 
   <!-- 1. TARGET FILTER CONFIGURATION MODAL -->
   <div id="targetModal" class="modal-box modal-targets">
-    <div class="modal-header-row">
-      <div class="modal-title">&#127919; Target Filters &amp; Presets</div>
+    <div class="modal-header-row" style="margin-bottom: 8px;">
+      <div class="modal-title" style="font-size: 13.5px;">&#127919; Target Filters &amp; Presets</div>
       <button id="closeTargetBtn" class="modal-close-icon" title="Close">&#10005;</button>
     </div>
 
@@ -1493,110 +1485,97 @@
     <!-- TAB 1: POKEMON TIERS & ENCOUNTER RULES -->
     <div id="tabSpecies" class="modal-tab-content active">
 
-      <!-- SECTION: POKEMON RARITY TIERS -->
-      <div class="filter-section-title">Pokemon Rarity Tiers</div>
+      <!-- Species Targets -->
+      <div class="filter-group-title">Species Targets</div>
 
-      <!-- Tier 3: Legendaries, Mythicals, Ultra Beasts & Paradox (Rarest) -->
-      <div class="filter-card">
-        <label class="filter-card-row">
+      <!-- Tier 3: Legendaries, Mythicals, Ultra Beasts & Paradox -->
+      <div class="filter-item">
+        <label class="filter-row">
           <input type="checkbox" id="filterLegendariesCheckbox" checked>
-          <div class="filter-card-text">
-            <div class="filter-title">Tier 3: Legendaries, Mythicals, Ultra Beasts &amp; Paradox</div>
-            <div class="filter-sub">All 135 Dex targets (Rayquaza, Mewtwo, Arceus, Koraidon, Slither Wing...)</div>
-          </div>
+          <span class="filter-label">Legendaries, Mythicals &amp; Paradox</span>
         </label>
-        <div id="subLegendaryWrap" class="sub-options-wrap">
-          <label class="variant-chip">
+        <div id="subLegendaryWrap" class="sub-inline-row">
+          <label class="sub-inline-label">
             <input type="checkbox" id="subClassicLegCheckbox" checked>
-            <span>Classic (Gen 1-8)</span>
+            <span>Classic</span>
           </label>
-          <label class="variant-chip">
+          <label class="sub-inline-label">
             <input type="checkbox" id="subUltraBeastsCheckbox" checked>
-            <span>Ultra Beasts (Gen 7)</span>
+            <span>Ultra Beasts</span>
           </label>
-          <label class="variant-chip">
+          <label class="sub-inline-label">
             <input type="checkbox" id="subParadoxCheckbox" checked>
-            <span>Gen 9 Paradox</span>
+            <span>Paradox</span>
           </label>
         </div>
       </div>
 
       <!-- Tier 2: Mega Evolution Families & Rare Lines -->
-      <div class="filter-card">
-        <label class="filter-card-row">
+      <div class="filter-item">
+        <label class="filter-row">
           <input type="checkbox" id="filterMegasCheckbox" checked>
-          <div class="filter-card-text">
-            <div class="filter-title">Tier 2: Mega Evolution Families &amp; Rare Lines</div>
-            <div class="filter-sub">All 46 evolutionary families (Aron, Meditite, Absol, Beldum, Riolu, Larvitar...)</div>
-          </div>
+          <span class="filter-label">Mega Evolutions &amp; Rare Lines</span>
         </label>
       </div>
 
-      <!-- Tier 1: Common / Custom Whitelist Targets -->
-      <div class="filter-card">
-        <div class="filter-title">&#128269; Tier 1: Custom Whitelist Targets</div>
-        <div class="filter-sub" style="margin-bottom:6px;">Target specific species by name (comma-separated):</div>
-        <input type="text" id="customTargetInput" class="input-field" placeholder="e.g. Ditto, Eevee, Lucario, Gengar, Bagon, Dratini">
-        <div class="quick-add-cluster">
-          <span class="quick-add-label">QUICK ADD:</span>
-          <button type="button" class="quick-tag-btn" data-add-target="Ditto">+ Ditto</button>
-          <button type="button" class="quick-tag-btn" data-add-target="Eevee">+ Eevee</button>
-          <button type="button" class="quick-tag-btn" data-add-target="Lucario">+ Lucario</button>
-          <button type="button" class="quick-tag-btn" data-add-target="Gengar">+ Gengar</button>
-          <button type="button" class="quick-tag-btn" data-add-target="Bagon">+ Bagon</button>
-          <button type="button" class="quick-tag-btn" data-add-target="Dratini">+ Dratini</button>
+      <!-- Tier 1: Custom Whitelist Targets -->
+      <div class="filter-item">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+          <span class="filter-label">&#128269; Custom Target Species</span>
+          <div class="quick-btn-group">
+            <button type="button" class="quick-tag-btn" data-add-target="Ditto">+ Ditto</button>
+            <button type="button" class="quick-tag-btn" data-add-target="Eevee">+ Eevee</button>
+            <button type="button" class="quick-tag-btn" data-add-target="Lucario">+ Lucario</button>
+            <button type="button" class="quick-tag-btn" data-add-target="Gengar">+ Gengar</button>
+            <button type="button" class="quick-tag-btn" data-add-target="Bagon">+ Bagon</button>
+            <button type="button" class="quick-tag-btn" data-add-target="Dratini">+ Dratini</button>
+          </div>
         </div>
+        <input type="text" id="customTargetInput" class="input-field" placeholder="Comma-separated (e.g. Ditto, Eevee, Lucario, Gengar, Bagon, Dratini)">
       </div>
 
-      <!-- SECTION: ENCOUNTER & CAPTURE RULES -->
-      <div class="filter-section-title" style="margin-top: 6px;">Encounter &amp; Capture Rules</div>
+      <!-- Encounter Rules -->
+      <div class="filter-group-title">Encounter Rules</div>
 
-      <!-- Duplication Avoidance (Skip Already Caught Pokemon) -->
-      <div class="filter-card">
-        <label class="filter-card-row">
+      <!-- Duplication Avoidance -->
+      <div class="filter-item">
+        <label class="filter-row">
           <input type="checkbox" id="avoidDuplicatesCheck" checked>
-          <div class="filter-card-text">
-            <div class="filter-title">&#128260; Duplication Avoidance (Skip Already Owned)</div>
-            <div class="filter-sub">Do not pause or catch if the Pokemon is already registered in your Pokedex (has red Pokeball indicator)</div>
-          </div>
+          <span class="filter-label">&#128260; Avoid Duplicates (Skip Already Caught)</span>
         </label>
       </div>
 
-      <!-- Tier 1B: Wild Level Filter Gatekeeper -->
-      <div class="filter-card">
-        <label class="filter-card-row">
-          <input type="checkbox" id="filterLevelCheckbox">
-          <div class="filter-card-text">
-            <div class="filter-title">Wild Pokemon Level Filter</div>
-            <div class="filter-sub">Halt only when wild encounter satisfies level criteria</div>
+      <!-- Wild Level Filter -->
+      <div class="filter-item">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <label class="filter-row" style="margin: 0;">
+            <input type="checkbox" id="filterLevelCheckbox">
+            <span class="filter-label">Wild Level Filter</span>
+          </label>
+          <div id="levelControlsWrap" class="level-controls-row dimmed" style="margin: 0; padding: 0; border: none; display: flex; align-items: center; gap: 6px;">
+            <select id="levelModeSelect" class="clean-select">
+              <option value="min">Level &gt;=</option>
+              <option value="exact">Level ==</option>
+              <option value="max">Level &lt;=</option>
+            </select>
+            <input type="number" id="levelValueInput" class="clean-num-input" min="1" max="100" value="50">
+            <select id="levelScopeSelect" class="clean-select">
+              <option value="targets">Targets Only</option>
+              <option value="all">All Wild</option>
+            </select>
           </div>
-        </label>
-        <div id="levelControlsWrap" class="level-controls-row dimmed">
-          <select id="levelModeSelect" class="clean-select">
-            <option value="min">Level At Least (&gt;=)</option>
-            <option value="exact">Exact Level (==)</option>
-            <option value="max">Level At Most (&lt;=)</option>
-          </select>
-          <input type="number" id="levelValueInput" class="clean-num-input" min="1" max="100" value="50">
-          <select id="levelScopeSelect" class="clean-select" title="Choose whether level requirement applies to selected target categories or all wild encounters">
-            <option value="targets">Filter: Targets Only</option>
-            <option value="all">Filter: All Wild Encounters</option>
-          </select>
         </div>
       </div>
 
     </div>
 
-    <!-- TAB 2: SPECIFIC SPRITE VARIANTS SELECTOR FOR TAB 1 TARGETS -->
+    <!-- TAB 2: SPECIFIC SPRITE VARIANTS SELECTOR -->
     <div id="tabVariants" class="modal-tab-content">
-      <div class="filter-card">
-        <div class="filter-card-header-flex">
-          <label class="filter-card-row" style="margin-bottom:0;">
+      <div class="filter-item">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <label class="filter-row" style="margin: 0;">
             <input type="checkbox" id="filterVariantsCheckbox" checked>
-            <div class="filter-card-text">
-              <div class="filter-title">Specific Variants Selector</div>
-              <div class="filter-sub">Choose which variant forms to catch for your Tab 1 targets:</div>
-            </div>
+            <span class="filter-label">Filter Sprite Variants</span>
           </label>
           <div class="quick-btn-group">
             <button id="btnAllVariants" type="button" class="quick-tag-btn">All (10)</button>
@@ -1604,41 +1583,38 @@
             <button id="btnShiniesOnly" type="button" class="quick-tag-btn">&#9733; Shiny Only</button>
           </div>
         </div>
-        <div id="subVariantsWrap" class="variant-grid">
-          <label class="variant-chip" style="border-color: #388bfd;"><input type="checkbox" id="varNormal" checked><span style="color:#388bfd;font-weight:700;">Normal</span></label>
-          <label class="variant-chip"><input type="checkbox" id="varShiny" checked><span>Shiny</span></label>
-          <label class="variant-chip"><input type="checkbox" id="varChrome" checked><span>Chrome</span></label>
-          <label class="variant-chip"><input type="checkbox" id="varRetro" checked><span>Retro</span></label>
-          <label class="variant-chip"><input type="checkbox" id="varMetallic" checked><span>Metallic</span></label>
-          <label class="variant-chip"><input type="checkbox" id="varShadow" checked><span>Shadow</span></label>
-          <label class="variant-chip"><input type="checkbox" id="varGhostly" checked><span>Ghostly</span></label>
-          <label class="variant-chip"><input type="checkbox" id="varDark" checked><span>Dark</span></label>
-          <label class="variant-chip"><input type="checkbox" id="varMirage" checked><span>Mirage</span></label>
-          <label class="variant-chip"><input type="checkbox" id="varNegative" checked><span>Negative</span></label>
+        <div id="subVariantsWrap" class="variant-grid-5">
+          <label class="variant-cell" style="border-color: #388bfd;"><input type="checkbox" id="varNormal" checked><span style="color:#388bfd;font-weight:700;">Normal</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varShiny" checked><span>Shiny</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varChrome" checked><span>Chrome</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varRetro" checked><span>Retro</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varMetallic" checked><span>Metallic</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varShadow" checked><span>Shadow</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varGhostly" checked><span>Ghostly</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varDark" checked><span>Dark</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varMirage" checked><span>Mirage</span></label>
+          <label class="variant-cell"><input type="checkbox" id="varNegative" checked><span>Negative</span></label>
         </div>
       </div>
     </div>
 
     <!-- TAB 3: BLACKLIST ONLY -->
     <div id="tabCustom" class="modal-tab-content">
-      <div class="filter-card">
-        <div class="filter-card-header-flex" style="margin-bottom:6px;">
-          <div>
-            <div class="filter-title">&#128683; Blacklist / Ignore Common Junk</div>
-            <div class="filter-sub">Never alert or pause on these species under any circumstance, even if variant or level matches:</div>
+      <div class="filter-item">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+          <span class="filter-label">&#128683; Blacklist / Ignore Species</span>
+          <div style="display: flex; gap: 4px; align-items: center;">
+            <div class="quick-btn-group">
+              <button type="button" class="quick-tag-btn" data-add-blacklist="Sentret">+ Sentret</button>
+              <button type="button" class="quick-tag-btn" data-add-blacklist="Rattata">+ Rattata</button>
+              <button type="button" class="quick-tag-btn" data-add-blacklist="Pidgey">+ Pidgey</button>
+              <button type="button" class="quick-tag-btn" data-add-blacklist="Zubat">+ Zubat</button>
+              <button type="button" class="quick-tag-btn" data-add-blacklist="Magikarp">+ Magikarp</button>
+            </div>
+            <button id="clearBlacklistBtn" type="button" class="quick-tag-btn" style="border-color:rgba(218,54,51,0.5);color:#f85149;">Clear</button>
           </div>
-          <button id="clearBlacklistBtn" type="button" class="quick-tag-btn" style="border-color:rgba(218,54,51,0.5);color:#f85149;">Clear All</button>
         </div>
-        <input type="text" id="blacklistInput" class="input-field" placeholder="e.g. Sentret, Rattata, Pidgey, Zubat, Caterpie, Weedle, Magikarp">
-        <div class="quick-add-cluster">
-          <span class="quick-add-label">QUICK ADD:</span>
-          <button type="button" class="quick-tag-btn" data-add-blacklist="Sentret">+ Sentret</button>
-          <button type="button" class="quick-tag-btn" data-add-blacklist="Rattata">+ Rattata</button>
-          <button type="button" class="quick-tag-btn" data-add-blacklist="Pidgey">+ Pidgey</button>
-          <button type="button" class="quick-tag-btn" data-add-blacklist="Zubat">+ Zubat</button>
-          <button type="button" class="quick-tag-btn" data-add-blacklist="Caterpie">+ Caterpie</button>
-          <button type="button" class="quick-tag-btn" data-add-blacklist="Magikarp">+ Magikarp</button>
-        </div>
+        <input type="text" id="blacklistInput" class="input-field" placeholder="Comma-separated (e.g. Sentret, Rattata, Pidgey, Zubat, Caterpie, Weedle, Magikarp)">
       </div>
     </div>
 
@@ -1648,8 +1624,8 @@
     </div>
 
     <div class="modal-footer-actions">
-      <button id="cancelTargetBtn" class="btn" style="width:90px;">Cancel</button>
-      <button id="saveTargetsBtn" class="btn btn-active" style="width:130px;">Apply Targets</button>
+      <button id="cancelTargetBtn" class="btn" style="width:90px; height: 26px;">Cancel</button>
+      <button id="saveTargetsBtn" class="btn btn-active" style="width:120px; height: 26px;">Apply Targets</button>
     </div>
   </div>
 

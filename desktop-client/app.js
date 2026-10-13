@@ -121,11 +121,28 @@ function loadLocalConfig() {
     config.settings.findAnySpecialVariant = false;
     config.settings.enableVariantFilter = false;
   }
-  if (!config.settings.favoriteTrainers) {
+  if (!Array.isArray(config.settings.favoriteTrainers) || config.settings.favoriteTrainers.length === 0) {
     try {
-      const rawFav = localStorage.getItem('deluge_fav_trainers');
-      if (rawFav) config.settings.favoriteTrainers = JSON.parse(rawFav);
+      const favFilePath = getWritableDataPath('favorite_trainers.json');
+      if (fs.existsSync(favFilePath)) {
+        const fileData = JSON.parse(fs.readFileSync(favFilePath, 'utf8'));
+        if (Array.isArray(fileData) && fileData.length > 0) {
+          config.settings.favoriteTrainers = fileData;
+        }
+      }
     } catch (_) {}
+
+    if (!Array.isArray(config.settings.favoriteTrainers) || config.settings.favoriteTrainers.length === 0) {
+      try {
+        const rawFav = localStorage.getItem('deluge_fav_trainers');
+        if (rawFav) {
+          const parsed = JSON.parse(rawFav);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            config.settings.favoriteTrainers = parsed;
+          }
+        }
+      } catch (_) {}
+    }
   }
   if (!Array.isArray(config.settings.favoriteTrainers)) {
     config.settings.favoriteTrainers = [];
@@ -146,6 +163,14 @@ function saveLocalConfig() {
       try { fs.copyFileSync(CONFIG_PATH, bakPath); } catch (_) {}
     }
     fs.renameSync(tempPath, CONFIG_PATH);
+
+    // Development workspace sync
+    try {
+      const devPath = path.join(__dirname, 'config.json');
+      if (devPath !== CONFIG_PATH && fs.existsSync(devPath)) {
+        fs.writeFileSync(devPath, jsonStr, 'utf8');
+      }
+    } catch (_) {}
   } catch (err) {
     try {
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
@@ -944,7 +969,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.3.4';
+    let appVer = '1.3.5';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -4444,16 +4469,58 @@ function loadTeamBuilderData() {
     const rawGym = readDataFile('gym_leaders.json');
     if (rawGym) {
       gymLeadersData = JSON.parse(rawGym);
+      const savedCategory = (config && config.settings && config.settings.teamCategoryFilter) || 'ALL';
+      if (teamCategorySelect && savedCategory) {
+        teamCategorySelect.value = savedCategory;
+      }
       const activeCategory = (teamCategorySelect && teamCategorySelect.value) ? teamCategorySelect.value : 'ALL';
       populateGymTrainerSelect(activeCategory);
+      if (config && config.settings && config.settings.lastSelectedTrainer && teamTrainerSelect) {
+        const targetVal = config.settings.lastSelectedTrainer;
+        if (teamTrainerSelect.querySelector(`option[value="${targetVal}"]`)) {
+          teamTrainerSelect.value = targetVal;
+          const parts = targetVal.split('__');
+          const group = gymLeadersData[parts[0]] || [];
+          const leader = /^\d+$/.test(parts[1]) ? group[parseInt(parts[1], 10)] : group.find(l => l.name === parts[1]);
+          if (leader) {
+            if (leader.battleUrl) lastSelectedBattleUrl = leader.battleUrl;
+            else if (leader.npcId) lastSelectedBattleUrl = '/battle/trainer/' + leader.npcId;
+          }
+          updateFavTrainerButton();
+        }
+      }
     }
   } catch (_) {}
 }
 
 function getFavoriteTrainersList() {
   if (!config.settings) config.settings = {};
-  if (!Array.isArray(config.settings.favoriteTrainers)) {
-    config.settings.favoriteTrainers = [];
+  if (!Array.isArray(config.settings.favoriteTrainers) || config.settings.favoriteTrainers.length === 0) {
+    try {
+      const favFilePath = getWritableDataPath('favorite_trainers.json');
+      if (fs.existsSync(favFilePath)) {
+        const fileData = JSON.parse(fs.readFileSync(favFilePath, 'utf8'));
+        if (Array.isArray(fileData) && fileData.length > 0) {
+          config.settings.favoriteTrainers = fileData;
+          return config.settings.favoriteTrainers;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      const stored = localStorage.getItem('deluge_fav_trainers');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          config.settings.favoriteTrainers = parsed;
+          return config.settings.favoriteTrainers;
+        }
+      }
+    } catch (_) {}
+
+    if (!Array.isArray(config.settings.favoriteTrainers)) {
+      config.settings.favoriteTrainers = [];
+    }
   }
   return config.settings.favoriteTrainers;
 }
@@ -4547,9 +4614,27 @@ function toggleTrainerFavorite(trainerName) {
   }
   config.settings.favoriteTrainers = list;
   saveLocalConfig();
+
+  // Multi-tier permanent persistence:
+  // Tier 1: Dedicated file in user data
+  try {
+    const favFilePath = getWritableDataPath('favorite_trainers.json');
+    fs.writeFileSync(favFilePath, JSON.stringify(list, null, 2), 'utf8');
+  } catch (_) {}
+
+  // Tier 2: LocalStorage cache
   try {
     localStorage.setItem('deluge_fav_trainers', JSON.stringify(list));
   } catch (_) {}
+
+  // Tier 3: Dev workspace copy
+  try {
+    const devFav = path.join(__dirname, 'favorite_trainers.json');
+    if (devFav !== getWritableDataPath('favorite_trainers.json') && fs.existsSync(devFav)) {
+      fs.writeFileSync(devFav, JSON.stringify(list, null, 2), 'utf8');
+    }
+  } catch (_) {}
+
   updateFavTrainerButton();
   updateCategoryFavoritesCount();
   if (teamCategorySelect && teamCategorySelect.value === 'FAVORITES') {
@@ -4714,6 +4799,9 @@ function populateGymTrainerSelect(categoryFilter = null) {
 
 if (teamCategorySelect) {
   teamCategorySelect.addEventListener('change', () => {
+    if (!config.settings) config.settings = {};
+    config.settings.teamCategoryFilter = teamCategorySelect.value;
+    saveLocalConfig();
     populateGymTrainerSelect(teamCategorySelect.value);
   });
 }
@@ -5649,6 +5737,9 @@ if (teamTrainerSelect) {
   teamTrainerSelect.addEventListener('change', () => {
     lastSelectedBattleUrl = null;
     const selVal = teamTrainerSelect.value;
+    if (!config.settings) config.settings = {};
+    config.settings.lastSelectedTrainer = selVal;
+    saveLocalConfig();
     if (selVal && selVal !== 'LIVE__BATTLE' && gymLeadersData) {
       const parts = selVal.split('__');
       const group = gymLeadersData[parts[0]] || [];

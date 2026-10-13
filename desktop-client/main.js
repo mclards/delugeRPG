@@ -54,8 +54,8 @@ function getResolvedConfigPath() {
     }
   }
 
-  // Automatic Migration: Seed user collection, gym leaders, and daily catch log if missing in userData
-  const migrateFiles = ['user_collection.json', 'gym_leaders.json', 'daily_catch_log.json'];
+  // Automatic Migration: Seed user collection, gym leaders, daily catch log, and favorite trainers if missing in userData
+  const migrateFiles = ['user_collection.json', 'gym_leaders.json', 'daily_catch_log.json', 'favorite_trainers.json'];
   for (const f of migrateFiles) {
     const targetPath = path.join(userDataDir, f);
     if (!fs.existsSync(targetPath)) {

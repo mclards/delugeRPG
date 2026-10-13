@@ -29,9 +29,9 @@
     "findLegendaries": true,
     "findMegasAndGigantamax": true,
     "findAnySpecialVariant": false,
-    "enableLevelFilter": false,
+    "enableLevelFilter": true,
     "levelFilterMode": "min",
-    "levelFilterValue": 12,
+    "levelFilterValue": 15,
     "zoomFactor": 0.8,
     "levelFilterScope": "targets",
     "legendaryClassic": true,
@@ -62,17 +62,19 @@
     ],
     "megaVariants": [
       "Chrome",
-      "Retro",
-      "Metallic",
-      "Dark"
+      "Retro"
     ],
     "customTargetList": "",
     "blacklistList": "",
-    "teamRosterMode": "ALL",
-    "teamPoolFilter": "LEGENDARY",
+    "teamRosterMode": "TRAINING",
+    "teamPoolFilter": "ANY",
     "enableVariantFilter": false,
     "teamBattleMode": "NPC",
     "pvpStrategy": "GODSQUAD",
-    "favoriteTrainers": []
+    "teamCategoryFilter": "ALL",
+    "lastSelectedTrainer": "",
+    "favoriteTrainers": [
+      "Veteran Tamaki"
+    ]
   }
 }

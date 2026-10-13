@@ -42,6 +42,7 @@ const clientFiles = [
   'gym_leaders.json',
   'user_collection.json',
   'daily_catch_log.json',
+  'favorite_trainers.json',
   'skills_database.json',
   'type_chart_database.json',
   'test_client.js',
@@ -752,6 +753,9 @@ runTest('app.html & app.js: Favorite Opponents Star Button & Preset Filtering Au
   assert(appJsContent.includes('function updateCategoryFavoritesCount()'), 'updateCategoryFavoritesCount must exist in app.js');
   assert(appJsContent.includes("favTrainerBtn.addEventListener('click'"), 'favTrainerBtn click listener must exist in app.js');
   assert(appJsContent.includes("categoryFilter === 'FAVORITES'"), 'FAVORITES filter branch must exist in populateGymTrainerSelect');
+  assert(appJsContent.includes('config.settings.teamCategoryFilter = teamCategorySelect.value'), 'app.js must persist teamCategoryFilter on change');
+  assert(appJsContent.includes('config.settings.lastSelectedTrainer = selVal'), 'app.js must persist lastSelectedTrainer on change');
+  assert(appJsContent.includes("getWritableDataPath('favorite_trainers.json')"), 'app.js must persist favorites to dedicated favorite_trainers.json file');
 });
 
 runTest('app.js: Training Mode Carry Anchor Leads in Slot 1 Audit', () => {
@@ -1010,6 +1014,73 @@ runTest('NSIS Data Protection & Canonical AppData Isolation Audit', () => {
   assert(mainJs.includes('user_collection.json') && mainJs.includes('gym_leaders.json') && mainJs.includes('daily_catch_log.json'), 'main.js must auto-migrate user data files to userData');
   assert(appJs.includes('copyFileSync(CONFIG_PATH, bakPath)'), 'app.js must create .bak atomic backup before writing config.json');
   assert(appJs.includes('copyFileSync(filePath, bakPath)'), 'app.js must create .bak atomic backup before writing daily_catch_log.json');
+});
+
+runTest('Full Configurations & Settings Parameters Pipelines Audit', () => {
+  const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
+
+  // 1. Account & Network Pipelines
+  assert(cfg.dummyAccount && typeof cfg.dummyAccount.username === 'string', 'dummyAccount.username must exist');
+  assert(cfg.dummyAccount && typeof cfg.dummyAccount.password === 'string', 'dummyAccount.password must exist');
+  assert(cfg.dummyAccount && typeof cfg.dummyAccount.autoLogin === 'boolean', 'dummyAccount.autoLogin must exist');
+  assert(cfg.network && typeof cfg.network.useProxy === 'boolean', 'network.useProxy must exist');
+  assert(cfg.network && typeof cfg.network.proxyRules === 'string', 'network.proxyRules must exist');
+  assert(cfg.network && typeof cfg.network.proxyBypass === 'string', 'network.proxyBypass must exist');
+
+  // 2. Movement & Delay Parameters
+  const s = cfg.settings;
+  assert(typeof s.profile === 'string', 'settings.profile must exist');
+  assert(['wander', 'patrol'].includes(s.walkMode), 'settings.walkMode must be valid');
+  assert(typeof s.stepsPerDirection === 'number' && s.stepsPerDirection >= 1, 'settings.stepsPerDirection must be >= 1');
+  assert(typeof s.baseDelay === 'number' && s.baseDelay >= 1700, 'settings.baseDelay must be >= 1700');
+  assert(typeof s.jitter === 'number', 'settings.jitter must exist');
+  assert(typeof s.minSafetyFloor === 'number' && s.minSafetyFloor >= 1700, 'settings.minSafetyFloor must be >= 1700');
+  assert(typeof s.enableMicroBreaks === 'boolean', 'settings.enableMicroBreaks must exist');
+  assert(typeof s.enableIdlePauses === 'boolean', 'settings.enableIdlePauses must exist');
+  assert(typeof s.soundAlert === 'boolean', 'settings.soundAlert must exist');
+  assert(typeof s.autoPauseOnTarget === 'boolean', 'settings.autoPauseOnTarget must exist');
+  assert(typeof s.zoomFactor === 'number' && s.zoomFactor > 0, 'settings.zoomFactor must be > 0');
+
+  // 3. Automation Toggles
+  assert(typeof s.avoidDuplicates === 'boolean', 'settings.avoidDuplicates must exist');
+  assert(typeof s.autoStartOnMap === 'boolean', 'settings.autoStartOnMap must exist');
+  assert(typeof s.autoStartDelay === 'number' && s.autoStartDelay >= 1, 'settings.autoStartDelay must be >= 1');
+  assert(typeof s.hideAdsCosmetically === 'boolean', 'settings.hideAdsCosmetically must exist');
+  assert(typeof s.autoCatchMasterBall === 'boolean', 'settings.autoCatchMasterBall must exist');
+
+  // 4. Target & Variant Engine
+  assert(typeof s.targetPreset === 'string', 'settings.targetPreset must exist');
+  assert(typeof s.findLegendaries === 'boolean', 'settings.findLegendaries must exist');
+  assert(typeof s.legendaryClassic === 'boolean', 'settings.legendaryClassic must exist');
+  assert(typeof s.legendaryUltraBeasts === 'boolean', 'settings.legendaryUltraBeasts must exist');
+  assert(typeof s.legendaryParadox === 'boolean', 'settings.legendaryParadox must exist');
+  assert(typeof s.findMegasAndGigantamax === 'boolean', 'settings.findMegasAndGigantamax must exist');
+  assert(typeof s.findAnySpecialVariant === 'boolean', 'settings.findAnySpecialVariant must exist');
+  assert(typeof s.enableVariantFilter === 'boolean', 'settings.enableVariantFilter must exist');
+  assert(typeof s.enableLevelFilter === 'boolean', 'settings.enableLevelFilter must exist');
+  assert(['min', 'max', 'exact'].includes(s.levelFilterMode), 'settings.levelFilterMode must be valid');
+  assert(typeof s.levelFilterValue === 'number', 'settings.levelFilterValue must exist');
+  assert(['targets', 'all'].includes(s.levelFilterScope), 'settings.levelFilterScope must be valid');
+  assert(Array.isArray(s.selectedVariants), 'settings.selectedVariants must be an array');
+  assert(Array.isArray(s.legendaryVariants), 'settings.legendaryVariants must be an array');
+  assert(Array.isArray(s.megaVariants), 'settings.megaVariants must be an array');
+  assert(typeof s.customTargetList === 'string', 'settings.customTargetList must exist');
+  assert(typeof s.blacklistList === 'string', 'settings.blacklistList must exist');
+
+  // 5. Team Builder & Combat Engine Pipelines
+  assert(['ALL', 'TRAINING'].includes(s.teamRosterMode), 'settings.teamRosterMode must be ALL or TRAINING');
+  assert(typeof s.teamPoolFilter === 'string', 'settings.teamPoolFilter must exist');
+  assert(['NPC', 'PVP'].includes(s.teamBattleMode), 'settings.teamBattleMode must be NPC or PVP');
+  assert(typeof s.pvpStrategy === 'string', 'settings.pvpStrategy must exist');
+  assert(Array.isArray(s.favoriteTrainers), 'settings.favoriteTrainers must be an array');
+  assert(typeof s.teamCategoryFilter === 'string', 'settings.teamCategoryFilter must exist');
+  assert(typeof s.lastSelectedTrainer === 'string', 'settings.lastSelectedTrainer must exist');
+
+  // 6. Persistence & Migration Engine Parity
+  assert(mainJs.includes('favorite_trainers.json'), 'main.js must migrate favorite_trainers.json');
+  assert(appJs.includes("getWritableDataPath('favorite_trainers.json')"), 'app.js must write favorite_trainers.json');
+  assert(appJs.includes('config.settings.teamCategoryFilter = teamCategorySelect.value'), 'app.js must save teamCategoryFilter');
+  assert(appJs.includes('config.settings.lastSelectedTrainer = selVal'), 'app.js must save lastSelectedTrainer');
 });
 
 runTest('Target Preset Engine & Immediate Configuration Rescan Audit', () => {

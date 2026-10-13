@@ -121,6 +121,15 @@ function loadLocalConfig() {
     config.settings.findAnySpecialVariant = false;
     config.settings.enableVariantFilter = false;
   }
+  if (!config.settings.favoriteTrainers) {
+    try {
+      const rawFav = localStorage.getItem('deluge_fav_trainers');
+      if (rawFav) config.settings.favoriteTrainers = JSON.parse(rawFav);
+    } catch (_) {}
+  }
+  if (!Array.isArray(config.settings.favoriteTrainers)) {
+    config.settings.favoriteTrainers = [];
+  }
 }
 
 function saveLocalConfig() {
@@ -413,6 +422,7 @@ const scanStatusDot = document.getElementById('scanStatusDot');
 const scanStatusBadge = document.getElementById('scanStatusBadge');
 const teamCategorySelect = document.getElementById('teamCategorySelect');
 const teamTrainerSelect = document.getElementById('teamTrainerSelect');
+const favTrainerBtn = document.getElementById('favTrainerBtn');
 const buildTeamBtn = document.getElementById('buildTeamBtn');
 const teamResultContainer = document.getElementById('teamResultContainer');
 const teamResultList = document.getElementById('teamResultList');
@@ -4440,6 +4450,139 @@ function loadTeamBuilderData() {
   } catch (_) {}
 }
 
+function getFavoriteTrainersList() {
+  if (!config.settings) config.settings = {};
+  if (!Array.isArray(config.settings.favoriteTrainers)) {
+    config.settings.favoriteTrainers = [];
+  }
+  return config.settings.favoriteTrainers;
+}
+
+function isTrainerFavorite(trainerName) {
+  if (!trainerName) return false;
+  const list = getFavoriteTrainersList();
+  return list.includes(trainerName);
+}
+
+function getSelectedTrainerInfo() {
+  if (!teamTrainerSelect || !gymLeadersData) return null;
+  const selVal = teamTrainerSelect.value;
+  if (!selVal || selVal === 'LIVE__BATTLE') {
+    if (liveBattleOpponent) {
+      return {
+        name: liveBattleOpponent.trainerName || liveBattleOpponent.trainerTitle,
+        isLive: true,
+        leader: liveBattleOpponent
+      };
+    }
+    return null;
+  }
+  const parts = selVal.split('__');
+  if (parts.length >= 2) {
+    const groupKey = parts[0];
+    const group = gymLeadersData[groupKey] || [];
+    const leader = /^\d+$/.test(parts[1]) ? group[parseInt(parts[1], 10)] : group.find(l => l.name === parts[1]);
+    if (leader) {
+      return {
+        name: leader.name,
+        groupKey,
+        leader
+      };
+    }
+  }
+  return null;
+}
+
+function updateFavTrainerButton() {
+  if (!favTrainerBtn) return;
+  const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
+  if (!selVal || selVal === 'LIVE__BATTLE') {
+    favTrainerBtn.disabled = true;
+    favTrainerBtn.innerHTML = '&#9734;';
+    favTrainerBtn.classList.remove('is-fav');
+    favTrainerBtn.title = (selVal === 'LIVE__BATTLE') ? 'Live battle opponents cannot be saved as preset favorites' : 'Select an opponent to favorite';
+    return;
+  }
+  const info = getSelectedTrainerInfo();
+  if (!info || !info.name) {
+    favTrainerBtn.disabled = true;
+    favTrainerBtn.innerHTML = '&#9734;';
+    favTrainerBtn.classList.remove('is-fav');
+    favTrainerBtn.title = 'Select an opponent to favorite';
+    return;
+  }
+  favTrainerBtn.disabled = false;
+  const isFav = isTrainerFavorite(info.name);
+  if (isFav) {
+    favTrainerBtn.innerHTML = '&#9733;';
+    favTrainerBtn.classList.add('is-fav');
+    favTrainerBtn.title = `Favorited: ${info.name} (Click to remove from favorites)`;
+  } else {
+    favTrainerBtn.innerHTML = '&#9734;';
+    favTrainerBtn.classList.remove('is-fav');
+    favTrainerBtn.title = `Add ${info.name} to Favorites`;
+  }
+}
+
+function updateCategoryFavoritesCount() {
+  if (!teamCategorySelect) return;
+  const favCount = getFavoriteTrainersList().length;
+  const favOpt = teamCategorySelect.querySelector('option[value="FAVORITES"]');
+  if (favOpt) {
+    favOpt.textContent = `\u2605 Favorite Opponents (${favCount})`;
+  }
+}
+
+function toggleTrainerFavorite(trainerName) {
+  if (!trainerName) return false;
+  const list = getFavoriteTrainersList();
+  const idx = list.indexOf(trainerName);
+  let isNowFav = false;
+  if (idx >= 0) {
+    list.splice(idx, 1);
+    isNowFav = false;
+  } else {
+    list.push(trainerName);
+    isNowFav = true;
+  }
+  config.settings.favoriteTrainers = list;
+  saveLocalConfig();
+  try {
+    localStorage.setItem('deluge_fav_trainers', JSON.stringify(list));
+  } catch (_) {}
+  updateFavTrainerButton();
+  updateCategoryFavoritesCount();
+  if (teamCategorySelect && teamCategorySelect.value === 'FAVORITES') {
+    populateGymTrainerSelect('FAVORITES');
+  } else {
+    if (teamTrainerSelect) {
+      Array.from(teamTrainerSelect.options).forEach(opt => {
+        if (!opt.value || opt.value === 'LIVE__BATTLE') return;
+        const parts = opt.value.split('__');
+        const grp = gymLeadersData[parts[0]] || [];
+        const ldr = /^\d+$/.test(parts[1]) ? grp[parseInt(parts[1], 10)] : grp.find(l => l.name === parts[1]);
+        if (ldr && ldr.name === trainerName) {
+          const typeStr = (ldr.types || []).join('/');
+          const lvlStr = ldr.avgLevel ? `Lv ${ldr.avgLevel}` : '';
+          const rosterBadge = (Array.isArray(ldr.roster) && ldr.roster.length > 0) ? ` [${ldr.roster.length}/6]` : '';
+          const prefix = isNowFav ? '\u2605 ' : '';
+          opt.textContent = `${prefix}${ldr.name} (${typeStr}${lvlStr ? ' - ' + lvlStr : ''})${rosterBadge}`;
+        }
+      });
+    }
+  }
+  return isNowFav;
+}
+
+if (favTrainerBtn) {
+  favTrainerBtn.addEventListener('click', () => {
+    const info = getSelectedTrainerInfo();
+    if (!info || !info.name) return;
+    const isNowFav = toggleTrainerFavorite(info.name);
+    updateStatus(isNowFav ? `\u2605 ${info.name} saved to Favorites` : `Removed ${info.name} from Favorites`, isNowFav ? '#d29922' : '#8eaad0');
+  });
+}
+
 function populateGymTrainerSelect(categoryFilter = null) {
   if (!teamTrainerSelect || !gymLeadersData) return;
 
@@ -4463,50 +4606,93 @@ function populateGymTrainerSelect(categoryFilter = null) {
     matchCount++;
   }
 
-  const groupOrder = [
-    { key: 'VIP_TRAINERS', label: 'VIP TRAINERS (Gym Leaders & Champions)' },
-    { key: 'ULTIMATE_TRAINERS', label: 'ULTIMATE TRAINERS (Lvl 100 Masters)' },
-    { key: 'STRONG_TRAINERS', label: 'STRONG TRAINERS (Bosses & Veterans)' },
-    { key: 'STANDARD_TRAINERS', label: 'STANDARD TRAINERS' },
-    { key: 'KANTO', label: 'KANTO LEAGUE' },
-    { key: 'JOHTO', label: 'JOHTO LEAGUE' },
-    { key: 'HOENN', label: 'HOENN LEAGUE' },
-    { key: 'SINNOH', label: 'SINNOH LEAGUE' },
-    { key: 'UNOVA', label: 'UNOVA LEAGUE' },
-    { key: 'KALOS', label: 'KALOS LEAGUE' },
-    { key: 'ALOLA', label: 'ALOLA LEAGUE' },
-    { key: 'GALAR', label: 'GALAR LEAGUE' },
-    { key: 'PALDEA', label: 'PALDEA LEAGUE' }
-  ];
+  const favList = getFavoriteTrainersList();
 
-  for (const item of groupOrder) {
-    const groupKey = item.key;
-    const trainers = gymLeadersData[groupKey];
-    if (!trainers || !Array.isArray(trainers)) continue;
+  if (categoryFilter === 'FAVORITES') {
+    const favGroup = document.createElement('optgroup');
+    favGroup.label = `FAVORITE OPPONENTS (${favList.length})`;
+    const seenNames = new Set();
+    const allTierKeys = [
+      'VIP_TRAINERS', 'ULTIMATE_TRAINERS', 'STRONG_TRAINERS', 'STANDARD_TRAINERS',
+      'KANTO', 'JOHTO', 'HOENN', 'SINNOH', 'UNOVA', 'KALOS', 'ALOLA', 'GALAR', 'PALDEA'
+    ];
 
-    if (categoryFilter === 'GYM_LEAGUES') {
-      if (groupKey.endsWith('_TRAINERS')) continue;
-    } else if (categoryFilter !== 'ALL') {
-      if (groupKey !== categoryFilter) continue;
-    }
-
-    if (trainers.length === 0) continue;
-
-    const group = document.createElement('optgroup');
-    group.label = `${item.label} (${trainers.length})`;
-
-    trainers.forEach((leader, idx) => {
-      const opt = document.createElement('option');
-      opt.value = `${groupKey}__${idx}`;
-      const typeStr = (leader.types || []).join('/');
-      const lvlStr = leader.avgLevel ? `Lv ${leader.avgLevel}` : '';
-      const rosterBadge = (Array.isArray(leader.roster) && leader.roster.length > 0) ? ` [${leader.roster.length}/6]` : '';
-      opt.textContent = `${leader.name} (${typeStr}${lvlStr ? ' - ' + lvlStr : ''})${rosterBadge}`;
-      group.appendChild(opt);
-      matchCount++;
+    allTierKeys.forEach(groupKey => {
+      const trainers = gymLeadersData[groupKey];
+      if (!Array.isArray(trainers)) return;
+      trainers.forEach((leader, idx) => {
+        if (favList.includes(leader.name) && !seenNames.has(leader.name)) {
+          seenNames.add(leader.name);
+          const opt = document.createElement('option');
+          opt.value = `${groupKey}__${idx}`;
+          const typeStr = (leader.types || []).join('/');
+          const lvlStr = leader.avgLevel ? `Lv ${leader.avgLevel}` : '';
+          const rosterBadge = (Array.isArray(leader.roster) && leader.roster.length > 0) ? ` [${leader.roster.length}/6]` : '';
+          opt.textContent = `\u2605 ${leader.name} (${typeStr}${lvlStr ? ' - ' + lvlStr : ''})${rosterBadge}`;
+          favGroup.appendChild(opt);
+          matchCount++;
+        }
+      });
     });
 
-    teamTrainerSelect.appendChild(group);
+    if (matchCount === 0) {
+      const emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.disabled = true;
+      emptyOpt.selected = true;
+      emptyOpt.textContent = 'No favorite opponents saved yet (Click \u2606 to favorite)';
+      favGroup.appendChild(emptyOpt);
+    }
+
+    teamTrainerSelect.appendChild(favGroup);
+  } else {
+    const groupOrder = [
+      { key: 'VIP_TRAINERS', label: 'VIP TRAINERS (Gym Leaders & Champions)' },
+      { key: 'ULTIMATE_TRAINERS', label: 'ULTIMATE TRAINERS (Lvl 100 Masters)' },
+      { key: 'STRONG_TRAINERS', label: 'STRONG TRAINERS (Bosses & Veterans)' },
+      { key: 'STANDARD_TRAINERS', label: 'STANDARD TRAINERS' },
+      { key: 'KANTO', label: 'KANTO LEAGUE' },
+      { key: 'JOHTO', label: 'JOHTO LEAGUE' },
+      { key: 'HOENN', label: 'HOENN LEAGUE' },
+      { key: 'SINNOH', label: 'SINNOH LEAGUE' },
+      { key: 'UNOVA', label: 'UNOVA LEAGUE' },
+      { key: 'KALOS', label: 'KALOS LEAGUE' },
+      { key: 'ALOLA', label: 'ALOLA LEAGUE' },
+      { key: 'GALAR', label: 'GALAR LEAGUE' },
+      { key: 'PALDEA', label: 'PALDEA LEAGUE' }
+    ];
+
+    for (const item of groupOrder) {
+      const groupKey = item.key;
+      const trainers = gymLeadersData[groupKey];
+      if (!trainers || !Array.isArray(trainers)) continue;
+
+      if (categoryFilter === 'GYM_LEAGUES') {
+        if (groupKey.endsWith('_TRAINERS')) continue;
+      } else if (categoryFilter !== 'ALL') {
+        if (groupKey !== categoryFilter) continue;
+      }
+
+      if (trainers.length === 0) continue;
+
+      const group = document.createElement('optgroup');
+      group.label = `${item.label} (${trainers.length})`;
+
+      trainers.forEach((leader, idx) => {
+        const opt = document.createElement('option');
+        opt.value = `${groupKey}__${idx}`;
+        const typeStr = (leader.types || []).join('/');
+        const lvlStr = leader.avgLevel ? `Lv ${leader.avgLevel}` : '';
+        const rosterBadge = (Array.isArray(leader.roster) && leader.roster.length > 0) ? ` [${leader.roster.length}/6]` : '';
+        const isFav = favList.includes(leader.name);
+        const favPrefix = isFav ? '\u2605 ' : '';
+        opt.textContent = `${favPrefix}${leader.name} (${typeStr}${lvlStr ? ' - ' + lvlStr : ''})${rosterBadge}`;
+        group.appendChild(opt);
+        matchCount++;
+      });
+
+      teamTrainerSelect.appendChild(group);
+    }
   }
 
   if (filteredTrainerCountBadge) {
@@ -4521,6 +4707,9 @@ function populateGymTrainerSelect(categoryFilter = null) {
   } else if (teamTrainerSelect.options.length > 0) {
     teamTrainerSelect.selectedIndex = 0;
   }
+
+  updateFavTrainerButton();
+  updateCategoryFavoritesCount();
 }
 
 if (teamCategorySelect) {
@@ -5466,6 +5655,7 @@ if (teamTrainerSelect) {
         else if (leader.npcId) lastSelectedBattleUrl = '/battle/trainer/' + leader.npcId;
       }
     }
+    updateFavTrainerButton();
   });
 }
 

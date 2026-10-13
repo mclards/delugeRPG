@@ -260,6 +260,45 @@
       border-color: #656668 !important;
       filter: brightness(1.05) !important;
     }
+    .btn-fav-star {
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border-radius: 4px !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13.5px;
+      line-height: 1;
+      flex-shrink: 0;
+      cursor: pointer;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #8eaad0;
+      transition: all 0.15s ease;
+      box-shadow: none !important;
+      user-select: none;
+      outline: none;
+    }
+    .btn-fav-star:hover {
+      border-color: #243856;
+      background: #0e1b30;
+      color: #e0ecfa;
+    }
+    .btn-fav-star.is-fav {
+      background: rgba(210, 153, 34, 0.15) !important;
+      border-color: #d29922 !important;
+      color: #d29922 !important;
+    }
+    .btn-fav-star.is-fav:hover {
+      background: rgba(210, 153, 34, 0.25) !important;
+      border-color: #f59e0b !important;
+      color: #f59e0b !important;
+    }
+    .btn-fav-star:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
     .btn-icon .reload-icon {
       width: 13px;
       height: 13px;
@@ -2183,6 +2222,7 @@
             <label for="teamCategorySelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">Category / Tier Filter:</label>
             <select id="teamCategorySelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 6px; box-shadow: none !important;">
               <option value="ALL">All Opponents (449)</option>
+              <option value="FAVORITES">&#9733; Favorite Opponents (0)</option>
               <optgroup label="TRAINER TIERS">
                 <option value="VIP_TRAINERS">VIP Trainers (132)</option>
                 <option value="ULTIMATE_TRAINERS">Ultimate Trainers (6)</option>
@@ -2209,7 +2249,10 @@
               <span>Target Battle Opponent:</span>
               <span id="filteredTrainerCountBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;"></span>
             </label>
-            <select id="teamTrainerSelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; box-shadow: none !important;"></select>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              <select id="teamTrainerSelect" class="clean-select" style="flex: 1; min-width: 0; height: 26px; font-size: 11px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; box-shadow: none !important;"></select>
+              <button type="button" id="favTrainerBtn" class="btn-fav-star" title="Mark as Favorite Opponent">&#9734;</button>
+            </div>
           </div>
         </div>
 

@@ -738,6 +738,22 @@ runTest('app.html & app.js: Regional Filtering & DOM Clean Slate Audit', () => {
   assert(dumps.includes('dump_pokemon_page_2.html'), 'dump_pokemon_page_2.html must remain');
 });
 
+runTest('app.html & app.js: Favorite Opponents Star Button & Preset Filtering Audit', () => {
+  assert(appHtml.includes('id="favTrainerBtn"'), 'favTrainerBtn must exist in app.html');
+  assert(appHtml.includes('class="btn-fav-star"'), 'btn-fav-star CSS class must exist in app.html');
+  assert(appHtml.includes('value="FAVORITES"'), 'FAVORITES option must exist in teamCategorySelect');
+
+  const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  assert(appJsContent.includes('const favTrainerBtn = document.getElementById(\'favTrainerBtn\')'), 'favTrainerBtn reference must exist in app.js');
+  assert(appJsContent.includes('function getFavoriteTrainersList()'), 'getFavoriteTrainersList must exist in app.js');
+  assert(appJsContent.includes('function isTrainerFavorite('), 'isTrainerFavorite must exist in app.js');
+  assert(appJsContent.includes('function toggleTrainerFavorite('), 'toggleTrainerFavorite must exist in app.js');
+  assert(appJsContent.includes('function updateFavTrainerButton()'), 'updateFavTrainerButton must exist in app.js');
+  assert(appJsContent.includes('function updateCategoryFavoritesCount()'), 'updateCategoryFavoritesCount must exist in app.js');
+  assert(appJsContent.includes("favTrainerBtn.addEventListener('click'"), 'favTrainerBtn click listener must exist in app.js');
+  assert(appJsContent.includes("categoryFilter === 'FAVORITES'"), 'FAVORITES filter branch must exist in populateGymTrainerSelect');
+});
+
 runTest('app.html & app.js: Ads Inspector docked panel & telemetry UI audit', () => {
   const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
   assert(appHtml.includes('id="adsInspectorModal"'), 'adsInspectorModal must exist in app.html');

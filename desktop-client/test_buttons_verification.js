@@ -237,6 +237,16 @@ runTest('PvP Mode & Scout Buttons: teamModeNpcBtn, teamModePvpBtn, pvpScoutBtn, 
   assert(appJs.includes("pvpScoutClearBtn.addEventListener('click'"), 'pvpScoutClearBtn must have click listener');
 });
 
+runTest('favTrainerBtn: Favorite Opponent Star Button & Category Integration', () => {
+  assert(appHtml.includes('id="favTrainerBtn"'), 'app.html must define favTrainerBtn');
+  assert(appHtml.includes('class="btn-fav-star"'), 'app.html must define btn-fav-star CSS class');
+  assert(appHtml.includes('value="FAVORITES"'), 'app.html must define FAVORITES category option');
+  assert(appJs.includes("favTrainerBtn.addEventListener('click'"), 'favTrainerBtn must have click listener');
+  assert(appJs.includes('function toggleTrainerFavorite('), 'app.js must implement toggleTrainerFavorite');
+  assert(appJs.includes('function updateFavTrainerButton()'), 'app.js must implement updateFavTrainerButton');
+  assert(appJs.includes('function getFavoriteTrainersList()'), 'app.js must implement getFavoriteTrainersList');
+});
+
 // -----------------------------------------------------------------------------
 // SECTION 4: TARGET MODAL CHECKBOXES & QUICK BUTTONS AUDIT
 // -----------------------------------------------------------------------------

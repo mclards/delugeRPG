@@ -183,6 +183,13 @@ runTest('navMenuBtn: Navigation Dropdown Toggle & Auto-Close Engine', () => {
   assert(appJs.includes('openWipeModal()') && appJs.includes('closeNavDropdown();'), 'openWipeModal must close dropdown');
 });
 
+runTest('refreshBtn: Reload Button & Stale Guest Input Focus Reset Guard', () => {
+  assert(appHtml.includes('id="refreshBtn"'), 'app.html must define refreshBtn');
+  assert(appJs.includes("refreshBtn.addEventListener('click'"), 'refreshBtn must have click listener');
+  assert(!appJs.includes('stopBot()'), 'app.js must never call undefined stopBot() inside refreshBtn');
+  assert(appJs.includes('delugeView.reloadIgnoringCache()'), 'refreshBtn must invoke reloadIgnoringCache()');
+});
+
 // -----------------------------------------------------------------------------
 // SECTION 3: DOCKED PANEL TOGGLE BUTTONS AUDIT
 // -----------------------------------------------------------------------------

@@ -2844,6 +2844,8 @@ window.addEventListener('focusin', (e) => {
 window.addEventListener('pointerdown', (e) => {
     if (isGuestInputField(e.target)) {
         ipcRenderer.sendToHost('guest-input-focused', true);
+    } else {
+        ipcRenderer.sendToHost('guest-input-focused', false);
     }
 }, true);
 
@@ -2853,8 +2855,17 @@ window.addEventListener('focusout', (e) => {
     }
 }, true);
 
-// Notify host that preload is active and ready
+window.addEventListener('pagehide', () => {
+    ipcRenderer.sendToHost('guest-input-focused', false);
+}, true);
+
+window.addEventListener('beforeunload', () => {
+    ipcRenderer.sendToHost('guest-input-focused', false);
+}, true);
+
+// Notify host that preload is active and ready (and clear any stale input focus lock from previous page)
 console.log('[PokePreload] Initialized successfully in guest context');
+ipcRenderer.sendToHost('guest-input-focused', false);
 ipcRenderer.sendToHost('preload-ready');
 
 // Robust Auto-fill login helper

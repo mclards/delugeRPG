@@ -1529,6 +1529,7 @@ function toggleHunting() {
     userManuallyPaused = false;
     outOfStockPaused = false;
     isEncounterOnScreen = false;
+    isGuestInputFocused = false;
     isStepPending = false;
     stepPendingTicks = 0;
     wanderStepsLeft = 0;
@@ -2274,6 +2275,7 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
     backendLog('AutoStart', `Security delay (${delaySec}s) elapsed without captcha. Auto-starting hunting session.`);
     isRunning = true;
     userManuallyPaused = false;
+    isGuestInputFocused = false;
     isStepPending = false;
     stepPendingTicks = 0;
     updateToggleButton();
@@ -2284,6 +2286,7 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
 }
 
 function handleMapNavigation(url) {
+  isGuestInputFocused = false;
   const onMap = isMapUrl(url) || guestReportsMap;
   if (!onMap) {
     cancelPendingAutoStart('Navigated outside map');
@@ -2644,8 +2647,12 @@ delugeView.addEventListener('ipc-message', (event) => {
   }
 
   if (event.channel === 'preload-ready' || event.channel === 'request-config') {
+    isGuestInputFocused = false;
     delugeView.send('update-config', config.settings);
     syncHuntingState();
+    if (isRunning && isCurrentPageMap()) {
+      scheduleNextStep(600);
+    }
   }
 
   if (event.channel === 'hunting-auto-pause') {
@@ -3752,7 +3759,20 @@ if (openLogsBtn) {
 
 if (refreshBtn) {
   refreshBtn.addEventListener('click', async () => {
-    if (isRunning) stopBot();
+    isGuestInputFocused = false;
+    cancelPendingAutoStart('Manual page reload');
+    if (isRunning) {
+      isRunning = false;
+      isStepPending = false;
+      stepPendingTicks = 0;
+      isResumingFromMicroPause = false;
+      isResumingFromIdlePause = false;
+      if (walkTimeout) {
+        clearTimeout(walkTimeout);
+        walkTimeout = null;
+      }
+      updateToggleButton();
+    }
     const reloadSvg = refreshBtn.querySelector('.reload-icon');
     if (reloadSvg) {
       reloadSvg.classList.add('spinning');
@@ -3760,23 +3780,28 @@ if (refreshBtn) {
     }
     updateStatus('Flushing battle cache & reloading...', '#38bdf8');
     try {
+      const flushWithTimeout = (p, ms = 400) => Promise.race([p, new Promise(res => setTimeout(res, ms))]);
       if (delugeView && typeof delugeView.executeJavaScript === 'function') {
         try {
-          await delugeView.executeJavaScript('sessionStorage.clear(); localStorage.clear();');
+          await flushWithTimeout(delugeView.executeJavaScript('sessionStorage.clear(); localStorage.clear();'));
         } catch (_) {}
       }
-      await ipcRenderer.invoke('soft-session-flush');
+      await flushWithTimeout(ipcRenderer.invoke('soft-session-flush'));
     } catch (_) {}
 
     if (delugeView) {
-      if (typeof delugeView.reloadIgnoringCache === 'function') {
-        delugeView.reloadIgnoringCache();
-      } else {
-        delugeView.reload();
+      try {
+        if (typeof delugeView.reloadIgnoringCache === 'function') {
+          delugeView.reloadIgnoringCache();
+        } else {
+          delugeView.reload();
+        }
+      } catch (_) {
+        try { delugeView.reload(); } catch (_) {}
       }
     }
     setTimeout(() => {
-      updateStatus('Ready', '#10b981');
+      if (!isRunning) updateStatus('Ready', '#10b981');
     }, 1500);
   });
 }

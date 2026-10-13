@@ -584,7 +584,7 @@ runTest('app.html: All Team Builder DOM elements present', () => {
     'id="teamBuilderModal"',
     'id="closeTeamBuilderBtn"',
     'id="scanPokesBtn"',
-    'id="scanTrainersBtn"',
+    'id="scanStatusDot"',
     'id="scanStatusBadge"',
     'id="trainerIntelModal"',
     'id="closeTrainerIntelBtn"',
@@ -664,7 +664,7 @@ runTest('app.html & app.js: Smart Matchmaker fully removed with zero residue', (
   assert(!teamEngineJs.includes('findTopTrainingMatches'), 'findTopTrainingMatches must not exist in team_engine.js');
 });
 
-runTest('app.html: Zero glowing shadows on Team Builder elements', () => {
+runTest('app.html & app.js: Zero glowing shadows and zero unnecessary text information lines on Team Builder & UI elements', () => {
   // Extract teamBuilderModal block
   const start = appHtml.indexOf('id="teamBuilderModal"');
   assert(start !== -1, 'teamBuilderModal must exist');
@@ -674,6 +674,18 @@ runTest('app.html: Zero glowing shadows on Team Builder elements', () => {
   // Check that no box-shadow with colored rgba or glow exists
   assert(!modalSlice.includes('0 0 1'), 'Must not have glowing box-shadow in team builder modal');
   assert(!modalSlice.includes('box-shadow: 0 0 20px'), 'Must not have 20px glowing box-shadow');
+
+  // Verify renderTeamLineup in app.js has zero redundant text information lines (no cleanRole/roleDesc/header) while preserving CSS borders
+  const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const renderStart = appJsContent.indexOf('function renderTeamLineup(');
+  const renderEnd = appJsContent.indexOf('function executeTeamBuild(');
+  const renderSlice = appJsContent.slice(renderStart, renderEnd);
+  assert(renderSlice.includes('border:1px solid #1a283e'), 'renderTeamLineup must retain 1px solid #1a283e CSS borders on lineup cards');
+  assert(!renderSlice.includes('p.roleDesc'), 'renderTeamLineup must not render redundant roleDesc text line');
+  assert(!renderSlice.includes('cleanRole'), 'renderTeamLineup must not render redundant cleanRole text line under badge');
+  assert(!appHtml.includes('Open any player\'s profile or live battle'), 'app.html must not contain verbose instructional text lines in Live Opponent card');
+  assert(!appHtml.includes('Cosmetic zero-shift hiding active'), 'app.html must not contain verbose overview paragraph in Ads Inspector');
+  assert(!appHtml.includes('Persistent log of target Pokemon automatically caught today'), 'app.html must not contain verbose overview paragraph in Auto-Catch panel');
 });
 
 runTest('app.html & app.js: 3/4 + 1/4 docked split view layout audit (Zero overlap, zero modal backdrop)', () => {
@@ -847,7 +859,7 @@ runTest('IPC Channel: check-battle-opponents parity', () => {
   assert(preloadJs.includes("ipcRenderer.on('check-battle-opponents'"), 'game-preload.js must listen for check-battle-opponents');
 });
 
-runTest('IPC Channel: scout-player-roster & player-scouted-roster parity', () => {
+runTest('IPC Channel: scout-player-roster, player-scouted-roster & Manual Profile Modal Stalking parity', () => {
   assert(preloadJs.includes("ipcRenderer.on('scout-player-roster'"), 'game-preload.js must listen for scout-player-roster');
   assert(appJs.includes("delugeView.send('scout-player-roster'"), 'app.js must send scout-player-roster');
   assert(preloadJs.includes("ipcRenderer.sendToHost('player-scouted-roster'"), 'game-preload.js must emit player-scouted-roster');
@@ -855,6 +867,13 @@ runTest('IPC Channel: scout-player-roster & player-scouted-roster parity', () =>
   assert(preloadJs.includes("ipcRenderer.sendToHost('player-scout-status'"), 'game-preload.js must emit player-scout-status');
   assert(appJs.includes("event.channel === 'player-scout-status'"), 'app.js must handle player-scout-status');
   assert(preloadJs.includes("function extractRosterFromProfileDocument("), 'game-preload.js must define extractRosterFromProfileDocument');
+  assert(preloadJs.includes("function extractRosterFromProfileJson("), 'game-preload.js must define extractRosterFromProfileJson');
+  assert(preloadJs.includes("function extractProfileMetadataFromContainer("), 'game-preload.js must define extractProfileMetadataFromContainer');
+  assert(preloadJs.includes("function isProfileModalOpen("), 'game-preload.js must define isProfileModalOpen');
+  assert(!preloadJs.includes("initProfileModalObserver"), 'game-preload.js must NOT auto-observe #DModal without user clicking Check Active Screen');
+  assert(preloadJs.includes("detectBattleOpponents(true)"), 'check-battle-opponents must invoke detectBattleOpponents(true)');
+  assert(preloadJs.includes("#viewuteam li, .viewuteammember"), 'game-preload.js must extract from #viewuteam .viewuteammember');
+  assert(preloadJs.includes("/ajax/profile/u/"), 'game-preload.js must query DelugeRPG /ajax/profile/u/ endpoint');
 });
 
 runTest('IPC Channel: soft-session-flush parity (Zero-Logout Battle Cache Flush)', () => {
@@ -982,12 +1001,141 @@ runTest('Target Preset Engine & Immediate Configuration Rescan Audit', () => {
   assert(preloadJs.includes("lastFoundTarget = ''"), 'preload update-config listener must clear lastFoundTarget');
 });
 
-runTest('Strict Mega and Legendary Exclusion Guards Audit', () => {
+runTest('Strict Mega and Legendary Exclusion Guards & Per-Tier Variant Assignment Audit', () => {
+  assert(mainJs.includes('function backendLog('), 'main.js must define backendLog helper for network interceptor');
   assert(preloadJs.includes('if (!findMegas) {'), 'game-preload.js must enforce strict Mega exclusion guard');
   assert(preloadJs.includes('MEGAS_LOWER.some(m => textLower.indexOf(m) !== -1)'), 'game-preload.js must detect Mega line species');
   assert(preloadJs.includes('if (!findLegend) {'), 'game-preload.js must enforce strict Legendary exclusion guard');
   assert(preloadJs.includes('LEGENDARY_LOWER.some(l => textLower.indexOf(l) !== -1)'), 'game-preload.js must detect Legendary species in exclusion guard');
   assert(preloadJs.includes('isSpeciesOnlyPreset'), 'game-preload.js must evaluate isSpeciesOnlyPreset in Tier 4');
+  assert(preloadJs.includes('function isVariantAcceptedForLegendary()'), 'game-preload.js must enforce per-tier variant check for Legendaries');
+  assert(preloadJs.includes('function isVariantAcceptedForMega()'), 'game-preload.js must enforce per-tier variant check for Megas');
+  assert(preloadJs.includes("targetWord.startsWith('beast')"), 'game-preload.js must exclude Ultra Beast from FORMS ultra false-positive');
+
+  // Extract and execute scanForTargets from game-preload.js in a sandboxed harness
+  const TARGETS_DB = require('./targets');
+  const LEGENDARY_LOWER = TARGETS_DB.legendaries.map(l => l.toLowerCase());
+  const MEGAS_LOWER = TARGETS_DB.megas.map(m => m.toLowerCase());
+  const FORMS = TARGETS_DB.specialForms;
+  const VARIANTS = TARGETS_DB.specialVariants;
+  const ULTRA_BEASTS = [
+    'nihilego', 'buzzwole', 'pheromosa', 'xurkitree', 'celesteela', 'kartana', 'guzzlord',
+    'poipole', 'naganadel', 'stakataka', 'blacephalon'
+  ];
+  const PARADOX = [
+    'great tusk', 'scream tail', 'brute bonnet', 'flutter mane', 'slither wing', 'sandy shocks',
+    'iron treads', 'iron bundle', 'iron hands', 'iron jugulis', 'iron moth', 'iron thorns',
+    'roaring moon', 'iron valiant', 'walking wake', 'iron leaves',
+    'gouging fire', 'raging bolt', 'iron boulder', 'iron crown'
+  ];
+
+  const scanStart = preloadJs.indexOf('const textLower = pageText.trim().toLowerCase();');
+  const scanEnd = preloadJs.indexOf('// --- 4. TARGET FOUND HANDLER ---');
+  assert(scanStart !== -1 && scanEnd !== -1, 'scanForTargets body must be extractable from game-preload.js');
+  const scanSource = preloadJs.slice(scanStart, scanEnd);
+
+  function simulateEncounter(cfgOverrides, encounterBoxText, currentLevel = 60, isDupe = false) {
+    let foundResult = null;
+    const simConfig = Object.assign({
+      targetPreset: 'custom',
+      findLegendaries: true,
+      legendaryClassic: true,
+      legendaryUltraBeasts: true,
+      legendaryParadox: true,
+      findMegasAndGigantamax: false,
+      findAnySpecialVariant: false,
+      enableVariantFilter: false,
+      selectedVariants: ['Normal', 'Shiny', 'Chrome', 'Retro', 'Metallic', 'Shadow', 'Ghostly', 'Dark', 'Mirage', 'Negative'],
+      legendaryVariants: ['Normal', 'Shiny', 'Chrome', 'Retro', 'Metallic', 'Shadow', 'Ghostly', 'Dark', 'Mirage', 'Negative'],
+      megaVariants: ['Normal', 'Shiny', 'Chrome', 'Retro', 'Metallic', 'Shadow', 'Ghostly', 'Dark', 'Mirage', 'Negative'],
+      customTargetList: '',
+      blacklistList: '',
+      enableLevelFilter: false,
+      levelFilterMode: 'min',
+      levelFilterValue: 50,
+      levelFilterScope: 'targets',
+      avoidDuplicates: true
+    }, cfgOverrides);
+
+    const fn = new Function(
+      'TARGETS', 'LEGENDARY_LOWER', 'MEGAS_LOWER', 'FORMS', 'VARIANTS', 'ULTRA_BEASTS', 'PARADOX',
+      'config', 'encounterBoxText', 'currentLevel', 'isDupe', 'onFound',
+      `
+      let lastEvaluatedEncounterSignature = '';
+      const pageText = encounterBoxText + ' Level: ' + currentLevel;
+      const document = { body: { innerText: pageText } };
+      function extractWildLevel() { return currentLevel; }
+      function getEncounterContainer() { return { innerText: encounterBoxText }; }
+      function checkEncounterIsDuplicate() { return isDupe; }
+      function triggerTargetFound(name, category) { onFound({ name, category }); }
+      const console = { log: () => {} };
+      (function() {
+        ${scanSource}
+      )();
+      `
+    );
+    fn(TARGETS_DB, LEGENDARY_LOWER, MEGAS_LOWER, FORMS, VARIANTS, ULTRA_BEASTS, PARADOX, simConfig, encounterBoxText, currentLevel, isDupe, (res) => {
+      foundResult = res;
+    });
+    return foundResult;
+  }
+
+  // 1. User's Exact Saved Multi-Tier Configuration Smoke Test:
+  // Legendaries: All 10 variants | Megas: Chrome, Retro, Metallic, Dark | Wild: Chrome only
+  const userCustomCfg = {
+    targetPreset: 'custom',
+    findLegendaries: true,
+    legendaryClassic: true,
+    legendaryUltraBeasts: true,
+    legendaryParadox: true,
+    findMegasAndGigantamax: true,
+    findAnySpecialVariant: true,
+    enableVariantFilter: true,
+    selectedVariants: ['Chrome'],
+    legendaryVariants: ['Normal', 'Shiny', 'Chrome', 'Retro', 'Metallic', 'Shadow', 'Ghostly', 'Dark', 'Mirage', 'Negative'],
+    megaVariants: ['Chrome', 'Retro', 'Metallic', 'Dark']
+  };
+
+  assert(simulateEncounter(userCustomCfg, 'LEGENDARY POKEMON\nA wild Articuno appeared!'), 'Normal Articuno must be caught in user config');
+  assert(simulateEncounter(userCustomCfg, 'ULTRABEAST\nA wild Nihilego appeared!'), 'Normal Nihilego (UB) must be caught in user config');
+  assert(simulateEncounter(userCustomCfg, 'Ultra Beast Buzzwole appeared!'), 'Ultra Beast Buzzwole must not false-trigger FORMS ultra and must be caught');
+  assert(simulateEncounter(userCustomCfg, 'PARADOX POKEMON\nA wild Great Tusk appeared!'), 'Normal Great Tusk (Paradox) must be caught in user config');
+  assert(simulateEncounter(userCustomCfg, 'A wild Mega Mewtwo X appeared!'), 'Normal Mega Mewtwo X must be governed by Legendary tier and caught');
+  assert(simulateEncounter(userCustomCfg, 'A wild Primal Kyogre appeared!'), 'Normal Primal Kyogre must be governed by Legendary tier and caught');
+  assert(simulateEncounter(userCustomCfg, 'A wild Chrome Charizard appeared!'), 'Chrome Charizard must be caught (in megaVariants)');
+  assert(simulateEncounter(userCustomCfg, 'A wild Dark Lucario appeared!'), 'Dark Lucario must be caught (in megaVariants)');
+  assert.strictEqual(simulateEncounter(userCustomCfg, 'A wild Charizard appeared!'), null, 'Normal Charizard must be skipped (Normal not in megaVariants)');
+  assert.strictEqual(simulateEncounter(userCustomCfg, 'A wild Shiny Lucario appeared!'), null, 'Shiny Lucario must be skipped (Shiny not in megaVariants)');
+  assert.strictEqual(simulateEncounter(userCustomCfg, 'MEGA EVOLUTION\nA wild Mega Gengar appeared!'), null, 'Normal Mega Gengar must be skipped (Normal not in megaVariants)');
+  assert(simulateEncounter(userCustomCfg, 'MEGA EVOLUTION\nA wild Metallic Mega Gengar appeared!'), 'Metallic Mega Gengar must be caught (Metallic in megaVariants)');
+  assert(simulateEncounter(userCustomCfg, 'A wild Chrome Rattata appeared!'), 'Chrome Rattata must be caught (Chrome in selectedVariants)');
+  assert.strictEqual(simulateEncounter(userCustomCfg, 'A wild Shiny Rattata appeared!'), null, 'Shiny Rattata must be skipped (only Chrome in selectedVariants)');
+  assert.strictEqual(simulateEncounter(userCustomCfg, 'A wild Rattata appeared!'), null, 'Normal Rattata must be skipped');
+
+  // 2. Legendaries Only Preset Smoke Test
+  const legOnlyCfg = {
+    targetPreset: 'legendaries',
+    findLegendaries: true,
+    findMegasAndGigantamax: false,
+    findAnySpecialVariant: false,
+    enableVariantFilter: false
+  };
+  assert(simulateEncounter(legOnlyCfg, 'A wild Rayquaza appeared!'), 'Legendaries Only must catch Rayquaza');
+  assert(simulateEncounter(legOnlyCfg, 'A wild Mega Rayquaza appeared!'), 'Legendaries Only must catch Mega Rayquaza');
+  assert(simulateEncounter(legOnlyCfg, 'ULTRABEAST\nA wild Kartana appeared!'), 'Legendaries Only must catch Kartana');
+  assert.strictEqual(simulateEncounter(legOnlyCfg, 'MEGA EVOLUTION\nA wild Mega Charizard X appeared!'), null, 'Legendaries Only must skip Mega Charizard X');
+  assert.strictEqual(simulateEncounter(legOnlyCfg, 'A wild G-Max Pikachu appeared!'), null, 'Legendaries Only must skip G-Max Pikachu');
+  assert.strictEqual(simulateEncounter(legOnlyCfg, 'A wild Shiny Charmander appeared!'), null, 'Legendaries Only must skip Shiny Charmander');
+  assert.strictEqual(simulateEncounter(legOnlyCfg, 'A wild Chrome Bidoof appeared!'), null, 'Legendaries Only must skip Chrome Bidoof');
+
+  // 3. Word-Boundary Blacklist Smoke Test
+  const blacklistCfg = Object.assign({}, userCustomCfg, {
+    blacklistList: 'abra, mew'
+  });
+  assert.strictEqual(simulateEncounter(blacklistCfg, 'A wild Mew appeared!'), null, 'Blacklisted Mew must be skipped');
+  assert(simulateEncounter(blacklistCfg, 'A wild Mewtwo appeared!'), 'Mewtwo must NOT be blocked by "mew" in blacklist');
+  assert.strictEqual(simulateEncounter(blacklistCfg, 'A wild Chrome Abra appeared!'), null, 'Blacklisted Abra must be skipped');
+  assert(simulateEncounter(blacklistCfg, 'A wild Chrome Kadabra appeared!'), 'Kadabra must NOT be blocked by "abra" in blacklist');
 });
 
 // -----------------------------------------------------------------------------

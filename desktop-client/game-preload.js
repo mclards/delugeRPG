@@ -851,6 +851,10 @@ let lastSyncedConfigStr = '';
 ipcRenderer.on('update-config', (event, newSettings) => {
     if (newSettings) {
         config = Object.assign({}, config, newSettings);
+        if (config.targetPreset === 'legendaries' || config.targetPreset === 'megas' || config.targetPreset === 'legend_megas') {
+            config.findAnySpecialVariant = false;
+            config.enableVariantFilter = false;
+        }
         configSynced = true;
         lastFoundTarget = '';
         lastEvaluatedEncounterSignature = '';
@@ -861,6 +865,7 @@ ipcRenderer.on('update-config', (event, newSettings) => {
             console.log('[PokePreload] Target filters synchronized immediately:',
                 'Legendaries=' + (config.findLegendaries !== false),
                 'Megas=' + (!!config.findMegasAndGigantamax),
+                'WildVariants=' + (!!config.findAnySpecialVariant),
                 'Preset=' + (config.targetPreset || 'custom')
             );
         }
@@ -1826,11 +1831,19 @@ function scanForTargets() {
 
     const lvlSuffix = currentLevel !== null ? ' (Lv ' + currentLevel + ')' : '';
 
+    // Helper: checks whole-species word boundary match after fast indexOf check
+    function matchesSpeciesInText(text, speciesLower) {
+        if (!text || !speciesLower) return false;
+        if (text.indexOf(speciesLower) === -1) return false;
+        const escaped = speciesLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp('(?:^|[^a-z0-9])' + escaped + '(?:$|[^a-z0-9])', 'i').test(text);
+    }
+
     // A. Check Blacklist / Ignore list (Never halt on blacklisted species - HIGHEST PRIORITY)
     if (config.blacklistList && typeof config.blacklistList === 'string') {
         const blacklist = config.blacklistList.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
         for (let b = 0; b < blacklist.length; b++) {
-            if (blacklist[b] && textLower.indexOf(blacklist[b]) !== -1) {
+            if (blacklist[b] && matchesSpeciesInText(textLower, blacklist[b])) {
                 return;
             }
         }
@@ -1848,10 +1861,21 @@ function scanForTargets() {
     }
 
     // C. Check allowed variants: if selectedVariants is populated, normalize to lowercase.
-    // If not specified or empty, allow normal and all special variants.
-    const allowedVariants = (Array.isArray(config.selectedVariants) && config.selectedVariants.length > 0)
+    // If not specified, allow normal and all special variants.
+    const hasCustomSelectedVariants = Array.isArray(config.selectedVariants);
+    const allowedVariants = hasCustomSelectedVariants
         ? config.selectedVariants.map(v => v.toLowerCase())
         : ['normal', ...VARIANTS.map(v => v.toLowerCase())];
+
+    const hasCustomLegVariants = Array.isArray(config.legendaryVariants);
+    const allowedLegVariants = hasCustomLegVariants
+        ? config.legendaryVariants.map(v => v.toLowerCase())
+        : allowedVariants;
+
+    const hasCustomMegaVariants = Array.isArray(config.megaVariants);
+    const allowedMegaVariants = hasCustomMegaVariants
+        ? config.megaVariants.map(v => v.toLowerCase())
+        : allowedVariants;
 
     const encounterSig = textLower.slice(0, 100);
     const isNewEncounter = (encounterSig !== lastEvaluatedEncounterSignature);
@@ -1873,16 +1897,27 @@ function scanForTargets() {
         return;
     }
 
-    // Helper: checks whether the encounter's variant is accepted for target species (Tier 1-3)
-    // When variant filtering is active (enableVariantFilter / findAnySpecialVariant):
-    // - If the user unchecks 'Normal' in Tab 2, normal encounters (even Legendaries) MUST be ignored!
-    // - Only checked variant forms (e.g. Shiny, Shadow, Chrome, etc.) will trigger capture.
+    // Helper: checks whether the encounter's variant is accepted for Wild / Custom species (Tier 1 & Tier 4)
     function isVariantAcceptedForSpecies() {
         const isFilterActive = (config.enableVariantFilter !== false) && (config.findAnySpecialVariant !== false);
-        if (isFilterActive && allowedVariants.length > 0) {
+        if (isFilterActive && hasCustomSelectedVariants) {
             return allowedVariants.includes(detectedVariant);
         }
         return true;
+    }
+
+    function isVariantAcceptedForLegendary() {
+        if (hasCustomLegVariants) {
+            return allowedLegVariants.includes(detectedVariant);
+        }
+        return isVariantAcceptedForSpecies();
+    }
+
+    function isVariantAcceptedForMega() {
+        if (hasCustomMegaVariants) {
+            return allowedMegaVariants.includes(detectedVariant);
+        }
+        return isVariantAcceptedForSpecies();
     }
 
     const varPrefix = (detectedVariant !== 'normal') ? (detectedVariant.toUpperCase() + ' ') : '';
@@ -1910,7 +1945,7 @@ function scanForTargets() {
         const customTargets = config.customTargetList.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
         for (let c = 0; c < customTargets.length; c++) {
             const targetName = customTargets[c];
-            if (targetName && textLower.indexOf(targetName) !== -1) {
+            if (targetName && matchesSpeciesInText(textLower, targetName)) {
                 if (isVariantAcceptedForSpecies()) {
                     const foundName = 'Custom Target: ' + varPrefix + customTargets[c].toUpperCase() + lvlSuffix;
                     triggerTargetFound(foundName, 'Custom Target');
@@ -1920,50 +1955,8 @@ function scanForTargets() {
         }
     }
 
-    // 2. Tier 2: Mega Evolutions & Rare Evolution Lines
-    if (findMegas) {
-        // A. Category Header Banner check: "MEGA EVOLUTION" or "MEGA POKEMON"
-        const hasMegaBanner = /\bmega\s*(?:evolution|pok[e\u00e9]mon)\b/i.test(encounterBoxText || textLower);
-        if (hasMegaBanner) {
-            const spec = extractEncounterSpeciesName();
-            if (spec && isVariantAcceptedForSpecies()) {
-                const foundName = varPrefix + 'Mega: ' + spec.toUpperCase() + lvlSuffix;
-                triggerTargetFound(foundName, 'Mega Evolution');
-                return;
-            }
-        }
-
-        // B. Form prefix match (e.g. "Mega Charizard", "Gigantamax Pikachu")
-        for (let j = 0; j < FORMS.length; j++) {
-            const form = FORMS[j];
-            const formMatch = textLower.match(new RegExp('\\b' + form + '[- ]+([a-z0-9\\-\':]+)', 'i'));
-            if (formMatch) {
-                if (form.toLowerCase() === 'ultra' && formMatch[1].toLowerCase().startsWith('ball')) {
-                    continue;
-                }
-                if (isVariantAcceptedForSpecies()) {
-                    const foundName = varPrefix + form.toUpperCase() + ' ' + formMatch[1] + lvlSuffix;
-                    triggerTargetFound(foundName, 'Special Form');
-                    return;
-                }
-            }
-        }
-
-        // C. Full evolutionary families capable of Mega Evolution
-        for (let mg = 0; mg < MEGAS_LOWER.length; mg++) {
-            const megaTarget = MEGAS_LOWER[mg];
-            if (textLower.indexOf(megaTarget) !== -1) {
-                if (isVariantAcceptedForSpecies()) {
-                    const foundName = varPrefix + 'Mega Line: ' + TARGETS.megas[mg] + lvlSuffix;
-                    triggerTargetFound(foundName, 'Mega Evolution');
-                    return;
-                }
-            }
-        }
-    }
-
-    // 3. Tier 3: Legendaries, Mythicals, Ultra Beasts & Paradox
-    // Priority Target: ALL wild Legendaries (normal and special variants alike) MUST be halted for capture!
+    // 2. Tier 2: Legendaries, Mythicals, Ultra Beasts & Paradox
+    // Priority Target: ALL wild Legendaries matching assigned tier variants MUST be halted for capture!
     if (findLegend) {
         const allowClassic = config.legendaryClassic !== false;
         const allowUB = config.legendaryUltraBeasts !== false;
@@ -1971,63 +1964,164 @@ function scanForTargets() {
 
         const boxCheckText = ((encounterBoxText || '') + ' ' + textLower).toLowerCase();
 
-        // 3A. Category Header Banner: Ultra Beasts (e.g. ULTRABEAST)
-        if (allowUB && (boxCheckText.indexOf('ultrabeast') !== -1 || /\bultra\s*beasts?\b/i.test(boxCheckText))) {
+        // 2A. Category Header Banner: Ultra Beasts (e.g. ULTRABEAST)
+        if (boxCheckText.indexOf('ultrabeast') !== -1 || /\bultra\s*beasts?\b/i.test(boxCheckText)) {
+            if (!allowUB) {
+                if (isNewEncounter) console.log('[TargetEngine] IGNORED: Ultra Beast skipped (Ultra Beasts sub-filter disabled)');
+                return;
+            }
             const spec = extractEncounterSpeciesName();
-            if (spec && isVariantAcceptedForSpecies()) {
-                const foundName = varPrefix + 'Ultra Beast: ' + spec.toUpperCase() + lvlSuffix;
-                triggerTargetFound(foundName, 'Ultra Beast');
+            if (spec) {
+                if (isVariantAcceptedForLegendary()) {
+                    const foundName = varPrefix + 'Ultra Beast: ' + spec.toUpperCase() + lvlSuffix;
+                    triggerTargetFound(foundName, 'Ultra Beast');
+                } else if (isNewEncounter) {
+                    console.log('[TargetEngine] IGNORED: Ultra Beast ' + spec + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Legendaries)');
+                }
                 return;
             }
         }
 
-        // 3B. Category Header Banner: Paradox Pokemon (e.g. PARADOX POKEMON / PARADOX)
-        if (allowParadox && (boxCheckText.indexOf('paradox') !== -1 || /\bparadox\s*pok[e\u00e9]mon\b/i.test(boxCheckText))) {
+        // 2B. Category Header Banner: Paradox Pokemon (e.g. PARADOX POKEMON / PARADOX)
+        if (boxCheckText.indexOf('paradox') !== -1 || /\bparadox\s*pok[e\u00e9]mon\b/i.test(boxCheckText)) {
+            if (!allowParadox) {
+                if (isNewEncounter) console.log('[TargetEngine] IGNORED: Paradox skipped (Paradox sub-filter disabled)');
+                return;
+            }
             const spec = extractEncounterSpeciesName();
-            if (spec && isVariantAcceptedForSpecies()) {
-                const foundName = varPrefix + 'Paradox: ' + spec.toUpperCase() + lvlSuffix;
-                triggerTargetFound(foundName, 'Paradox Pokemon');
+            if (spec) {
+                if (isVariantAcceptedForLegendary()) {
+                    const foundName = varPrefix + 'Paradox: ' + spec.toUpperCase() + lvlSuffix;
+                    triggerTargetFound(foundName, 'Paradox Pokemon');
+                } else if (isNewEncounter) {
+                    console.log('[TargetEngine] IGNORED: Paradox ' + spec + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Legendaries)');
+                }
                 return;
             }
         }
 
-        // 3C. Category Header Banner: Rare & Legendary Pokemon (e.g. LEGENDARY POKEMON / LEGENDARY)
-        if (allowClassic && (boxCheckText.indexOf('legendary') !== -1 || /\blegendary\s*pok[e\u00e9]mon\b/i.test(boxCheckText))) {
+        // 2C. Category Header Banner: Rare & Legendary Pokemon (e.g. LEGENDARY POKEMON / LEGENDARY)
+        if (boxCheckText.indexOf('legendary') !== -1 || /\blegendary\s*pok[e\u00e9]mon\b/i.test(boxCheckText)) {
+            if (!allowClassic) {
+                if (isNewEncounter) console.log('[TargetEngine] IGNORED: Classic Legendary skipped (Classic sub-filter disabled)');
+                return;
+            }
             const spec = extractEncounterSpeciesName();
-            if (spec && isVariantAcceptedForSpecies()) {
-                const foundName = varPrefix + 'Legendary: ' + spec.toUpperCase() + lvlSuffix;
-                triggerTargetFound(foundName, 'Rare/Legendary');
+            if (spec) {
+                if (isVariantAcceptedForLegendary()) {
+                    const foundName = varPrefix + 'Legendary: ' + spec.toUpperCase() + lvlSuffix;
+                    triggerTargetFound(foundName, 'Rare/Legendary');
+                } else if (isNewEncounter) {
+                    console.log('[TargetEngine] IGNORED: Legendary ' + spec + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Legendaries)');
+                }
                 return;
             }
         }
 
-        // 3D. Comprehensive Species List Fallback (137 Species across Gen 1-9)
+        // 2D. Comprehensive Species List Fallback (137 Species across Gen 1-9)
         for (let k = 0; k < LEGENDARY_LOWER.length; k++) {
             const leg = LEGENDARY_LOWER[k];
-            if (textLower.indexOf(leg) !== -1) {
+            if (textLower.indexOf(leg) !== -1 && matchesSpeciesInText(textLower, leg)) {
                 const isUB = ULTRA_BEASTS.indexOf(leg) !== -1;
                 const isParadox = PARADOX.indexOf(leg) !== -1;
-                if (isUB && !allowUB) continue;
-                if (isParadox && !allowParadox) continue;
-                if (!isUB && !isParadox && !allowClassic) continue;
+                if (isUB && !allowUB) {
+                    if (isNewEncounter) console.log('[TargetEngine] IGNORED: Ultra Beast ' + TARGETS.legendaries[k] + ' skipped (Ultra Beasts sub-filter disabled)');
+                    return;
+                }
+                if (isParadox && !allowParadox) {
+                    if (isNewEncounter) console.log('[TargetEngine] IGNORED: Paradox ' + TARGETS.legendaries[k] + ' skipped (Paradox sub-filter disabled)');
+                    return;
+                }
+                if (!isUB && !isParadox && !allowClassic) {
+                    if (isNewEncounter) console.log('[TargetEngine] IGNORED: Classic Legendary ' + TARGETS.legendaries[k] + ' skipped (Classic sub-filter disabled)');
+                    return;
+                }
 
-                if (isVariantAcceptedForSpecies()) {
+                if (isVariantAcceptedForLegendary()) {
                     const foundName = varPrefix + TARGETS.legendaries[k] + lvlSuffix;
                     triggerTargetFound(foundName, isParadox ? 'Paradox Pokemon' : (isUB ? 'Ultra Beast' : 'Rare/Legendary'));
                     return;
                 } else if (isNewEncounter) {
-                    console.log('[TargetEngine] IGNORED: ' + TARGETS.legendaries[k] + ' matched species tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked in Tab 2');
+                    console.log('[TargetEngine] IGNORED: ' + TARGETS.legendaries[k] + ' matched Legendary tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked for Legendaries');
                 }
+                return;
             }
         }
     }
 
+    // 3. Tier 3: Mega Evolutions & Rare Evolution Lines
+    const hasMegaBanner = /\bmega\s*(?:evolution|pok[e\u00e9]mon)\b/i.test(encounterBoxText || textLower);
+    let matchedExplicitForm = null;
+    for (let j = 0; j < FORMS.length; j++) {
+        const form = FORMS[j];
+        const formMatch = textLower.match(new RegExp('\\b' + form + '[- ]+([a-z0-9\\-\':]+)', 'i'));
+        if (formMatch) {
+            const targetWord = formMatch[1].toLowerCase();
+            if (form.toLowerCase() === 'ultra' && (targetWord.startsWith('ball') || targetWord.startsWith('beast'))) {
+                continue;
+            }
+            matchedExplicitForm = { form: form, target: formMatch[1] };
+            break;
+        }
+    }
+
+    if (findMegas) {
+        // A. Category Header Banner check: "MEGA EVOLUTION" or "MEGA POKEMON"
+        if (hasMegaBanner) {
+            const spec = extractEncounterSpeciesName();
+            if (spec) {
+                if (isVariantAcceptedForMega()) {
+                    const foundName = varPrefix + 'Mega: ' + spec.toUpperCase() + lvlSuffix;
+                    triggerTargetFound(foundName, 'Mega Evolution');
+                } else if (isNewEncounter) {
+                    console.log('[TargetEngine] IGNORED: Mega ' + spec + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Mega tier)');
+                }
+                return;
+            }
+        }
+
+        // B. Form prefix match (e.g. "Mega Charizard", "Gigantamax Pikachu", "Mega Mewtwo X")
+        if (matchedExplicitForm) {
+            if (isVariantAcceptedForMega()) {
+                const foundName = varPrefix + matchedExplicitForm.form.toUpperCase() + ' ' + matchedExplicitForm.target + lvlSuffix;
+                triggerTargetFound(foundName, 'Special Form');
+            } else if (isNewEncounter) {
+                console.log('[TargetEngine] IGNORED: ' + matchedExplicitForm.form.toUpperCase() + ' ' + matchedExplicitForm.target + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Mega tier)');
+            }
+            return;
+        }
+
+        // C. Full evolutionary families capable of Mega Evolution (skip base Legendaries so Legendary tier governs them)
+        for (let mg = 0; mg < MEGAS_LOWER.length; mg++) {
+            const megaTarget = MEGAS_LOWER[mg];
+            if (LEGENDARY_LOWER.indexOf(megaTarget) !== -1) continue;
+            if (textLower.indexOf(megaTarget) !== -1 && matchesSpeciesInText(textLower, megaTarget)) {
+                if (isVariantAcceptedForMega()) {
+                    const foundName = varPrefix + 'Mega Line: ' + TARGETS.megas[mg] + lvlSuffix;
+                    triggerTargetFound(foundName, 'Mega Evolution');
+                    return;
+                } else if (isNewEncounter) {
+                    console.log('[TargetEngine] IGNORED: ' + TARGETS.megas[mg] + ' matched Mega tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked for Mega tier');
+                }
+                return;
+            }
+        }
+    } else if (hasMegaBanner || matchedExplicitForm) {
+        if (isNewEncounter) {
+            console.log('[TargetEngine] IGNORED: Explicit Mega/G-Max form skipped (Mega tier is disabled)');
+        }
+        return;
+    }
+
     // 4. Tier 4: Special Sprite Variants (Generic Wild Pokemon)
+    const isMegaFamilyOrForm = MEGAS_LOWER.some(m => textLower.indexOf(m) !== -1 && matchesSpeciesInText(textLower, m)) || !!matchedExplicitForm;
+    const isLegendarySpecies = LEGENDARY_LOWER.some(l => textLower.indexOf(l) !== -1 && matchesSpeciesInText(textLower, l));
+
     // CRITICAL GUARD: If Megas are disabled (!findMegas), NEVER catch any Mega form or Mega line species!
     if (!findMegas) {
         const isMegaFamily = MEGAS_LOWER.some(m => textLower.indexOf(m) !== -1);
-        const isMegaForm = FORMS.some(f => textLower.match(new RegExp('\\b' + f + '[- ]+([a-z0-9\\-\':]+)', 'i')));
-        if (isMegaFamily || isMegaForm) {
+        const isMegaForm = !!matchedExplicitForm;
+        if ((isMegaFamily && isMegaFamilyOrForm) || isMegaForm) {
             const isLegendary = LEGENDARY_LOWER.some(l => textLower.indexOf(l) !== -1);
             if (!isLegendary || !findLegend) {
                 if (isNewEncounter) {
@@ -2036,26 +2130,35 @@ function scanForTargets() {
                 return;
             }
         }
+    } else if (isMegaFamilyOrForm && !isLegendarySpecies && !isVariantAcceptedForMega()) {
+        if (isNewEncounter) {
+            console.log('[TargetEngine] IGNORED: Mega encounter skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Mega tier)');
+        }
+        return;
     }
 
     // CRITICAL GUARD: If Legendaries are disabled (!findLegend), NEVER catch any Legendary in Tier 4!
     if (!findLegend) {
         const isLegendary = LEGENDARY_LOWER.some(l => textLower.indexOf(l) !== -1);
-        if (isLegendary) {
+        if (isLegendary && isLegendarySpecies) {
             if (isNewEncounter) {
                 console.log('[TargetEngine] IGNORED: Legendary encounter skipped (Legendaries hunting is disabled in target filters)');
             }
             return;
         }
+    } else if (isLegendarySpecies && !isVariantAcceptedForLegendary()) {
+        if (isNewEncounter) {
+            console.log('[TargetEngine] IGNORED: Legendary encounter skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Legendary tier)');
+        }
+        return;
     }
 
     // Generic wild common Pokemon (e.g. Swablu, Rattata, Bidoof) are caught if:
-    // - findAnySpecialVariant is enabled in Tab 2 and the variant is in allowedVariants
+    // - findAnySpecialVariant is enabled and the variant is in allowedVariants
     // - If preset is 'shinies', only Shiny encounters are allowed
-    // - When an explicit species-only preset ('legendaries', 'megas', 'legend_megas') is active, generic wild Pokemon are skipped
-    const isSpeciesOnlyPreset = config.targetPreset === 'legendaries' || config.targetPreset === 'megas' || config.targetPreset === 'legend_megas' ||
-        (findLegend && !findMegas && !config.findAnySpecialVariant) ||
-        (findLegend && !findMegas && config.targetPreset !== 'all' && config.targetPreset !== 'variants' && config.targetPreset !== 'shinies');
+    // - When Wild / Custom Species Variants is unchecked (!findAnyVariant) or a species-only preset is active, generic wild Pokemon are skipped
+    const isSpeciesOnlyPreset = !findAnyVariant ||
+        (config.targetPreset === 'legendaries' || config.targetPreset === 'megas' || config.targetPreset === 'legend_megas');
 
     let allowGenericVariants = false;
     if (findAnyVariant && !isSpeciesOnlyPreset) {
@@ -3772,9 +3875,139 @@ window.addEventListener('message', (event) => {
 });
 
 // --- 6. LIVE BATTLE OPPONENT DETECTOR & ROSTER HARVESTER ---
-function detectBattleOpponents() {
+function isProfileModalOpen(modalEl) {
+    if (!modalEl) return false;
+    if (modalEl.style && modalEl.style.display === 'none') return false;
+    const ariaHidden = modalEl.getAttribute ? modalEl.getAttribute('aria-hidden') : null;
+    const hasOpenClass = modalEl.classList ? (modalEl.classList.contains('in') || modalEl.classList.contains('show')) : false;
+    const isDisplayBlock = !!(modalEl.style && modalEl.style.display === 'block');
+    const bodyModalOpen = !!(document.body && document.body.classList && document.body.classList.contains('modal-open'));
+    if (ariaHidden === 'true' && !hasOpenClass && !isDisplayBlock && !bodyModalOpen) {
+        return false;
+    }
+    return true;
+}
+
+function extractProfileMetadataFromContainer(root) {
+    const meta = {
+        username: '',
+        profileId: '',
+        battleUrl: '',
+        fullPageUrl: '',
+        teamHidden: false
+    };
+    if (!root) return meta;
+
+    const titleEl = root.querySelector ? root.querySelector('#DMtitle, .modal-title, h1') : null;
+    if (titleEl && titleEl.textContent) {
+        const m = titleEl.textContent.trim().match(/^(.+?)[']s\s+Profile/i);
+        if (m) meta.username = m[1].trim();
+    }
+
+    if (!meta.username && root.querySelectorAll) {
+        const h3s = root.querySelectorAll('.infobox h3, h3');
+        for (let i = 0; i < h3s.length; i++) {
+            const txt = (h3s[i].textContent || '').trim().toLowerCase();
+            if (txt.indexOf('username') === 0 && h3s[i].nextElementSibling) {
+                const candidate = (h3s[i].nextElementSibling.textContent || '').trim();
+                if (candidate) {
+                    meta.username = candidate;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (root.querySelector) {
+        const battleLink = root.querySelector('#userlinks a[href*="/battle/"], a[href*="/battle/user/"]');
+        if (battleLink) {
+            const href = battleLink.getAttribute('href') || '';
+            if (href) {
+                meta.battleUrl = href;
+                if (!meta.username) {
+                    const bm = href.match(/\/battle\/user\/username\/([^/?#]+)/i);
+                    if (bm) {
+                        try { meta.username = decodeURIComponent(bm[1]); } catch (_) { meta.username = bm[1]; }
+                    }
+                }
+            }
+        }
+
+        if (!meta.username) {
+            const userLink = root.querySelector('#userlinks a[href*="/pokedex/u/"], #userlinks a[href*="/trade/lookup/user/"], #userlinks a[href*="/compare/users/"]');
+            if (userLink) {
+                const uHref = userLink.getAttribute('href') || '';
+                const um = uHref.match(/\/(?:pokedex\/u|trade\/lookup\/user|compare\/users)\/([^/?#]+)/i);
+                if (um) {
+                    try { meta.username = decodeURIComponent(um[1]); } catch (_) { meta.username = um[1]; }
+                }
+            }
+        }
+
+        const uidLink = root.querySelector('a[href*="/profile/uid/"], a[href*="/pokemon/user/"], a[href*="/allpokemon/user/"]');
+        if (uidLink) {
+            const uidHref = uidLink.getAttribute('href') || '';
+            const idm = uidHref.match(/\/(?:profile\/uid|pokemon\/user|allpokemon\/user)\/(\d+)/i);
+            if (idm) meta.profileId = idm[1];
+        }
+
+        const fullPageLink = root.querySelector('#DMfoot a[href*="/profile/"], a[href*="/profile/uid/"]');
+        if (fullPageLink) {
+            meta.fullPageUrl = fullPageLink.getAttribute('href') || '';
+        }
+    }
+
+    const fullText = root.textContent || '';
+    if (fullText.indexOf('Unable to display team') !== -1) {
+        meta.teamHidden = true;
+    }
+
+    if (!meta.battleUrl && meta.username) {
+        meta.battleUrl = '/battle/user/username/' + encodeURIComponent(meta.username);
+    }
+
+    return meta;
+}
+
+function detectBattleOpponents(isManualCheck) {
     try {
         const path = (window.location.pathname || '').toLowerCase();
+
+        // Mode 0: Open In-Game Player Profile Modal (#DModal / #DMbody) - ONLY when user clicks "Check Active Screen"
+        if (isManualCheck) {
+            const dModal = document.getElementById('DModal');
+            const dmBody = document.getElementById('DMbody');
+            const modalContainer = dModal || dmBody;
+            if (modalContainer && isProfileModalOpen(dModal || dmBody)) {
+                const meta = extractProfileMetadataFromContainer(modalContainer);
+                const hasViewUTeam = !!(modalContainer.querySelector && modalContainer.querySelector('#viewuteam, .viewuteammember'));
+                if (meta.username || hasViewUTeam) {
+                    const roster = extractRosterFromProfileDocument(modalContainer);
+                    const targetName = meta.username || 'Stalked Player';
+                    const bUrl = meta.battleUrl || ('/battle/user/username/' + encodeURIComponent(targetName));
+                    if (roster.length > 0) {
+                        ipcRenderer.sendToHost('battle-opponents-detected', {
+                            trainerName: targetName,
+                            trainerTitle: targetName + "'s Profile",
+                            roster: roster,
+                            battleUrl: bUrl,
+                            isProfileStalk: true,
+                            isManualCheck: true
+                        });
+                        return;
+                    } else if (meta.teamHidden) {
+                        ipcRenderer.sendToHost('player-scout-status', {
+                            step: 'error',
+                            message: targetName + "'s team is hidden on profile."
+                        });
+                        return;
+                    } else if (meta.username) {
+                        scoutPlayerByUsername(meta.username, meta.profileId, true);
+                        return;
+                    }
+                }
+            }
+        }
 
         // Mode 1: Live PvP Battle (#teamleft)
         const teamLeft = document.getElementById('teamleft');
@@ -3815,7 +4048,8 @@ function detectBattleOpponents() {
                         trainerName: trainerName,
                         trainerTitle: trainerTitle,
                         roster: roster,
-                        battleUrl: window.location.pathname + window.location.search
+                        battleUrl: window.location.pathname + window.location.search,
+                        isManualCheck: !!isManualCheck
                     });
                     return;
                 }
@@ -3866,7 +4100,8 @@ function detectBattleOpponents() {
                             level: level,
                             sprite: sprite
                         }],
-                        battleUrl: window.location.pathname + window.location.search
+                        battleUrl: window.location.pathname + window.location.search,
+                        isManualCheck: !!isManualCheck
                     });
                 }
             }
@@ -3921,7 +4156,8 @@ function detectBattleOpponents() {
                         trainerName: trainerName,
                         trainerTitle: trainerName + "'s Team",
                         roster: roster,
-                        battleUrl: window.location.pathname + window.location.search
+                        battleUrl: window.location.pathname + window.location.search,
+                        isManualCheck: !!isManualCheck
                     });
                 }
             }
@@ -3959,9 +4195,34 @@ function detectBattleOpponents() {
                         trainerName: trainerName,
                         trainerTitle: trainerName,
                         roster: roster,
-                        battleUrl: battleUrl
+                        battleUrl: battleUrl,
+                        isManualCheck: !!isManualCheck
                     });
                 }
+            }
+        }
+
+        // Mode 5: Full Player Profile Page (/profile/*, /user/*, or #viewuteam on page) - ONLY when user clicks "Check Active Screen"
+        if (isManualCheck && (path.indexOf('/profile') !== -1 || path.indexOf('/user/') !== -1 || document.getElementById('viewuteam'))) {
+            const meta = extractProfileMetadataFromContainer(document);
+            if (!meta.username) {
+                const pm = (window.location.pathname || '').match(/\/(?:profile\/u|user)\/([^/?#]+)/i);
+                if (pm) {
+                    try { meta.username = decodeURIComponent(pm[1]); } catch (_) { meta.username = pm[1]; }
+                }
+            }
+            const roster = extractRosterFromProfileDocument(document);
+            if (roster.length > 0) {
+                const targetName = meta.username || 'Stalked Player';
+                const bUrl = meta.battleUrl || ('/battle/user/username/' + encodeURIComponent(targetName));
+                ipcRenderer.sendToHost('battle-opponents-detected', {
+                    trainerName: targetName,
+                    trainerTitle: targetName + "'s Profile",
+                    roster: roster,
+                    battleUrl: bUrl,
+                    isProfileStalk: true,
+                    isManualCheck: true
+                });
             }
         }
     } catch (err) {
@@ -3970,14 +4231,107 @@ function detectBattleOpponents() {
 }
 
 ipcRenderer.on('check-battle-opponents', () => {
-    detectBattleOpponents();
+    detectBattleOpponents(true);
 });
 
 // --- 7. LIVE PLAYER SCOUT ENGINE ---
+function extractRosterFromProfileJson(data) {
+    if (!data || !data.team || data.team === 'nodisplay' || data.status === 'noteam') return [];
+    const roster = [];
+    const teamArr = Array.isArray(data.team) ? data.team : Object.values(data.team);
+    for (let i = 0; i < teamArr.length; i++) {
+        const m = teamArr[i];
+        if (!m || !m.name) continue;
+        const types = [];
+        if (m.type1 && m.type1 !== 0 && m.type1 !== '0') {
+            const t1 = String(m.type1).trim();
+            if (t1) types.push(t1.charAt(0).toUpperCase() + t1.slice(1).toLowerCase());
+        }
+        if (m.type2 && m.type2 !== 0 && m.type2 !== '0') {
+            const t2 = String(m.type2).trim();
+            if (t2) {
+                const normT2 = t2.charAt(0).toUpperCase() + t2.slice(1).toLowerCase();
+                if (types.indexOf(normT2) === -1) types.push(normT2);
+            }
+        }
+        const level = parseInt(String(m.level || '100').replace(/,/g, ''), 10) || 100;
+        const moves = [m.attack1, m.attack2, m.attack3, m.attack4]
+            .map(a => (a ? String(a).trim() : ''))
+            .filter(Boolean);
+        roster.push({
+            name: String(m.name).trim(),
+            types: types.length > 0 ? types : ['Normal'],
+            level: level,
+            sprite: m.img_loc || '',
+            moves: moves
+        });
+    }
+    return roster;
+}
+
 function extractRosterFromProfileDocument(doc) {
-    if (!doc) return [];
+    if (!doc || !doc.querySelectorAll) return [];
     const roster = [];
 
+    // 1. DelugeRPG Player Profile Team (#viewuteam li.viewuteammember inside #DModal or /profile/*)
+    const uTeamItems = doc.querySelectorAll('#viewuteam li, .viewuteammember');
+    if (uTeamItems && uTeamItems.length > 0) {
+        for (let i = 0; i < uTeamItems.length; i++) {
+            const li = uTeamItems[i];
+            const h4 = li.querySelector('.name h4, h4');
+            const img = li.querySelector('.name img, img');
+            const name = (h4 ? h4.textContent.trim() : '') || (img ? (img.getAttribute('alt') || img.getAttribute('title') || '').trim() : '');
+            if (!name) continue;
+
+            const types = [];
+            const tBtns = li.querySelectorAll('i.tbtn');
+            for (let j = 0; j < tBtns.length; j++) {
+                let t = tBtns[j].getAttribute('title');
+                if (!t) {
+                    const cls = tBtns[j].className || '';
+                    const cm = cls.match(/tbtn-([a-z]+)/i);
+                    if (cm && cm[1].toLowerCase() !== 'mini') t = cm[1];
+                }
+                if (t) {
+                    const normT = t.trim().charAt(0).toUpperCase() + t.trim().slice(1).toLowerCase();
+                    if (types.indexOf(normT) === -1) types.push(normT);
+                }
+            }
+            if (types.length === 0 && li.className) {
+                const clm = li.className.match(/typeclr-([a-z]+)/i);
+                if (clm) {
+                    types.push(clm[1].charAt(0).toUpperCase() + clm[1].slice(1).toLowerCase());
+                }
+            }
+
+            let level = 100;
+            const txt = li.textContent || '';
+            const lm = txt.match(/Level:\s*([0-9,]+)/i);
+            if (lm) {
+                const parsedLvl = parseInt(lm[1].replace(/,/g, ''), 10);
+                if (!isNaN(parsedLvl)) level = parsedLvl;
+            }
+
+            const sprite = img ? (img.getAttribute('src') || '') : '';
+            const moves = [];
+            const moveDivs = li.querySelectorAll('.attk div');
+            for (let m = 0; m < moveDivs.length; m++) {
+                const mv = (moveDivs[m].textContent || '').trim();
+                if (mv) moves.push(mv);
+            }
+
+            roster.push({
+                name: name,
+                types: types.length > 0 ? types : ['Normal'],
+                level: level,
+                sprite: sprite,
+                moves: moves
+            });
+        }
+        if (roster.length > 0) return roster;
+    }
+
+    // 2. Post-Battle / Profile Tables (.viewpoketable)
     const tables = doc.querySelectorAll('.viewpoketable');
     if (tables && tables.length > 0) {
         for (let i = 0; i < tables.length; i++) {
@@ -3997,7 +4351,7 @@ function extractRosterFromProfileDocument(doc) {
             const bEls = tbl.querySelectorAll('b');
             for (let b = 0; b < bEls.length; b++) {
                 if (bEls[b].textContent.indexOf('Level:') !== -1 && bEls[b].nextSibling) {
-                    const lNum = parseInt(bEls[b].nextSibling.textContent.trim(), 10);
+                    const lNum = parseInt(bEls[b].nextSibling.textContent.trim().replace(/,/g, ''), 10);
                     if (!isNaN(lNum)) level = lNum;
                 }
             }
@@ -4005,16 +4359,25 @@ function extractRosterFromProfileDocument(doc) {
             const img = tbl.querySelector('.vpname img, img');
             const sprite = img ? (img.getAttribute('src') || '') : '';
 
+            const moves = [];
+            const moveDivs = tbl.querySelectorAll('.attk div');
+            for (let m = 0; m < moveDivs.length; m++) {
+                const mv = (moveDivs[m].textContent || '').trim();
+                if (mv) moves.push(mv);
+            }
+
             roster.push({
                 name: name,
                 types: types.length > 0 ? types : ['Normal'],
                 level: level,
-                sprite: sprite
+                sprite: sprite,
+                moves: moves
             });
         }
         if (roster.length > 0) return roster;
     }
 
+    // 3. Team Editor / Indbox Cards (#teamlist li, .indbox)
     const items = doc.querySelectorAll('#teamlist li, .indbox');
     if (items && items.length > 0) {
         for (let i = 0; i < items.length; i++) {
@@ -4036,8 +4399,8 @@ function extractRosterFromProfileDocument(doc) {
 
             let level = 100;
             const text = item.textContent || '';
-            const m = text.match(/Level:\s*(\d+)/i);
-            if (m) level = parseInt(m[1], 10);
+            const m = text.match(/Level:\s*([0-9,]+)/i);
+            if (m) level = parseInt(m[1].replace(/,/g, ''), 10);
 
             const img = item.querySelector('img');
             const sprite = img ? (img.getAttribute('src') || '') : '';
@@ -4052,6 +4415,7 @@ function extractRosterFromProfileDocument(doc) {
         if (roster.length > 0) return roster;
     }
 
+    // 4. Battle List Items (.battlelistitem, .pokemon)
     const pokes = doc.querySelectorAll('.battlelistitem, .pokemon');
     if (pokes && pokes.length > 0) {
         for (let i = 0; i < pokes.length; i++) {
@@ -4082,36 +4446,146 @@ function extractRosterFromProfileDocument(doc) {
     return roster;
 }
 
-ipcRenderer.on('scout-player-roster', async (event, data) => {
-    const rawUser = (data && data.username || '').trim();
-    if (!rawUser) return;
+async function scoutPlayerByUsername(rawUser, profileId, isFromScreenCheck) {
+    const cleanUser = (rawUser || '').trim();
+    if (!cleanUser) return;
     try {
-        console.log('[PokePreload] Scouting player roster for:', rawUser);
-        ipcRenderer.sendToHost('player-scout-status', { step: 'fetching', message: `Scouting ${rawUser}...` });
-
-        const userUrl = `/user/${encodeURIComponent(rawUser)}`;
-        const res = await fetch(userUrl, { credentials: 'include' });
-        if (!res.ok) {
-            ipcRenderer.sendToHost('player-scout-status', { step: 'error', message: `Player "${rawUser}" not found (${res.status}).` });
-            return;
+        console.log('[PokePreload] Scouting player roster for:', cleanUser);
+        if (!isFromScreenCheck) {
+            ipcRenderer.sendToHost('player-scout-status', { step: 'fetching', message: `Scouting ${cleanUser}...` });
         }
 
-        const html = await res.text();
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-        const roster = extractRosterFromProfileDocument(doc);
+        // 1. Check if the currently open #DModal already has this player's team in DOM
+        const dModal = document.getElementById('DModal') || document.getElementById('DMbody');
+        if (dModal && isProfileModalOpen(dModal)) {
+            const meta = extractProfileMetadataFromContainer(dModal);
+            if (meta.username && meta.username.toLowerCase() === cleanUser.toLowerCase()) {
+                const domRoster = extractRosterFromProfileDocument(dModal);
+                if (domRoster.length > 0) {
+                    const bUrl = meta.battleUrl || ('/battle/user/username/' + encodeURIComponent(meta.username));
+                    if (isFromScreenCheck) {
+                        ipcRenderer.sendToHost('battle-opponents-detected', {
+                            trainerName: meta.username,
+                            trainerTitle: meta.username + "'s Profile",
+                            roster: domRoster,
+                            battleUrl: bUrl,
+                            isProfileStalk: true,
+                            isManualCheck: true
+                        });
+                    } else {
+                        ipcRenderer.sendToHost('player-scouted-roster', {
+                            username: meta.username,
+                            roster: domRoster,
+                            battleUrl: bUrl
+                        });
+                    }
+                    return;
+                }
+            }
+        }
 
-        if (roster.length > 0) {
-            ipcRenderer.sendToHost('player-scouted-roster', {
-                username: rawUser,
-                roster: roster
-            });
+        // 2. Try DelugeRPG AJAX Profile JSON endpoint (/ajax/profile/u/<username>)
+        const endpoints = [];
+        if (profileId) endpoints.push(`/ajax/profile/uid/${encodeURIComponent(profileId)}`);
+        endpoints.push(`/ajax/profile/u/${encodeURIComponent(cleanUser)}`);
+        endpoints.push(`/profile/u/${encodeURIComponent(cleanUser)}`);
+        endpoints.push(`/user/${encodeURIComponent(cleanUser)}`);
+
+        let lastStatus = 0;
+        for (let i = 0; i < endpoints.length; i++) {
+            const url = endpoints[i];
+            try {
+                const res = await fetch(url, {
+                    credentials: 'include',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!res || !res.ok) {
+                    if (res) lastStatus = res.status;
+                    continue;
+                }
+                const text = await res.text();
+                if (!text) continue;
+
+                // Attempt JSON parse first (for /ajax/profile/*)
+                if (text.trim().charAt(0) === '{') {
+                    try {
+                        const json = JSON.parse(text);
+                        if (json.status === 'nouser' || json.status === 'invalid') {
+                            ipcRenderer.sendToHost('player-scout-status', { step: 'error', message: `Player "${cleanUser}" not found.` });
+                            return;
+                        }
+                        if (json.team === 'nodisplay' || json.status === 'noteam') {
+                            ipcRenderer.sendToHost('player-scout-status', { step: 'error', message: `No active team displayed on ${cleanUser}'s profile.` });
+                            return;
+                        }
+                        const jsonRoster = extractRosterFromProfileJson(json);
+                        if (jsonRoster.length > 0) {
+                            const resolvedName = json.username || cleanUser;
+                            const bUrl = '/battle/user/username/' + encodeURIComponent(resolvedName);
+                            if (isFromScreenCheck) {
+                                ipcRenderer.sendToHost('battle-opponents-detected', {
+                                    trainerName: resolvedName,
+                                    trainerTitle: resolvedName + "'s Profile",
+                                    roster: jsonRoster,
+                                    battleUrl: bUrl,
+                                    isProfileStalk: true,
+                                    isManualCheck: true
+                                });
+                            } else {
+                                ipcRenderer.sendToHost('player-scouted-roster', {
+                                    username: resolvedName,
+                                    roster: jsonRoster,
+                                    battleUrl: bUrl
+                                });
+                            }
+                            return;
+                        }
+                    } catch (_) {}
+                }
+
+                // Attempt HTML DOM parse (for /profile/u/*, /user/*, or mocked HTML responses)
+                const doc = new DOMParser().parseFromString(text, 'text/html');
+                const roster = extractRosterFromProfileDocument(doc);
+                if (roster.length > 0) {
+                    const meta = extractProfileMetadataFromContainer(doc);
+                    const resolvedName = meta.username || cleanUser;
+                    const bUrl = meta.battleUrl || ('/battle/user/username/' + encodeURIComponent(resolvedName));
+                    if (isFromScreenCheck) {
+                        ipcRenderer.sendToHost('battle-opponents-detected', {
+                            trainerName: resolvedName,
+                            trainerTitle: resolvedName + "'s Profile",
+                            roster: roster,
+                            battleUrl: bUrl,
+                            isProfileStalk: true,
+                            isManualCheck: true
+                        });
+                    } else {
+                        ipcRenderer.sendToHost('player-scouted-roster', {
+                            username: resolvedName,
+                            roster: roster,
+                            battleUrl: bUrl
+                        });
+                    }
+                    return;
+                }
+            } catch (_) {}
+        }
+
+        if (lastStatus === 404) {
+            ipcRenderer.sendToHost('player-scout-status', { step: 'error', message: `Player "${cleanUser}" not found (${lastStatus}).` });
         } else {
-            ipcRenderer.sendToHost('player-scout-status', { step: 'error', message: `No active team displayed on ${rawUser}'s profile.` });
+            ipcRenderer.sendToHost('player-scout-status', { step: 'error', message: `No active team displayed on ${cleanUser}'s profile.` });
         }
     } catch (err) {
         console.error('[PokePreload] Scout player error:', err);
         ipcRenderer.sendToHost('player-scout-status', { step: 'error', message: `Scout error: ${err.message}` });
     }
+}
+
+ipcRenderer.on('scout-player-roster', async (event, data) => {
+    const rawUser = (data && data.username || '').trim();
+    if (!rawUser) return;
+    await scoutPlayerByUsername(rawUser, null, false);
 });
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -4134,10 +4608,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     if (path.indexOf('/battle') !== -1 || path.indexOf('/npc') !== -1) {
-        detectBattleOpponents();
-        setTimeout(detectBattleOpponents, 500);
-        setTimeout(detectBattleOpponents, 1500);
+        detectBattleOpponents(false);
+        setTimeout(() => detectBattleOpponents(false), 500);
+        setTimeout(() => detectBattleOpponents(false), 1500);
     }
 });
+
 
 

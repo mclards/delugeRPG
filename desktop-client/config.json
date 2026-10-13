@@ -25,19 +25,30 @@
     "autoStartDelay": 3,
     "hideAdsCosmetically": true,
     "autoCatchMasterBall": true,
-    "targetPreset": "legendaries",
+    "targetPreset": "custom",
     "findLegendaries": true,
-    "findMegasAndGigantamax": false,
+    "findMegasAndGigantamax": true,
     "findAnySpecialVariant": false,
     "enableLevelFilter": false,
     "levelFilterMode": "min",
     "levelFilterValue": 12,
-    "zoomFactor": 0.9,
+    "zoomFactor": 0.8,
     "levelFilterScope": "targets",
     "legendaryClassic": true,
     "legendaryUltraBeasts": true,
     "legendaryParadox": true,
     "selectedVariants": [
+      "Shiny",
+      "Chrome",
+      "Retro",
+      "Metallic",
+      "Shadow",
+      "Ghostly",
+      "Dark",
+      "Mirage",
+      "Negative"
+    ],
+    "legendaryVariants": [
       "Normal",
       "Shiny",
       "Chrome",
@@ -49,10 +60,18 @@
       "Mirage",
       "Negative"
     ],
+    "megaVariants": [
+      "Chrome",
+      "Retro",
+      "Metallic",
+      "Dark"
+    ],
     "customTargetList": "",
     "blacklistList": "",
     "teamRosterMode": "ALL",
-    "teamPoolFilter": "GMAX",
-    "enableVariantFilter": false
+    "teamPoolFilter": "LEGENDARY",
+    "enableVariantFilter": false,
+    "teamBattleMode": "NPC",
+    "pvpStrategy": "GODSQUAD"
   }
 }

@@ -33,14 +33,16 @@ desktop-client/
    * In HTML, use character entities (e.g. `&#8635;`, `&#9876;`, `&#128737;`, `&#10003;`).
    * Never introduce unicode punctuation, smart quotes, or em-dashes.
 
-2. **Zero Glowing Box-Shadows & Clean Minimalist Line Design:**
-   * Never apply glowing colored box-shadows (e.g. `box-shadow: 0 0 15px rgba(...)`).
-   * Keep buttons and panels flat or beveled with `box-shadow: none !important` for maximum rendering performance.
-   * Eliminate unnecessary lines, redundant nested borders, double dividers, dashed outlines, and noisy wireframe outlines around badges and container boxes. Prefer clean background contrast and subtle spacing.
+2. **Zero Glowing Box-Shadows & Strict Zero Unnecessary Text Information Lines:**
+   * Never apply glowing colored box-shadows (e.g. `box-shadow: 0 0 15px rgba(...)`). Keep buttons and panels flat with `box-shadow: none !important`.
+   * **NEVER** add explanatory text lines, tutorial sentences, helper descriptions (`.modal-desc` paragraphs, overview banners), or redundant status text lines inside modals, docked panels, cards, or empty states.
+   * **NEVER** stack extra text lines (`cleanRole`, `roleDesc`, or `YOUR PVP TEAM` headers) in `renderTeamLineup` or repeat player/pool counts that are already shown in inputs or buttons.
+   * Keep the UI strictly functional and concise while preserving all standard CSS structural borders (`border: 1px solid #1a283e`, `border-bottom`, `border-top`, badge borders). Never remove CSS borders when removing unnecessary text lines.
 
-3. **Docked 3/4 + 1/4 Layout (No Game-Blocking Modals):**
+3. **Docked 3/4 + 1/4 Layout & Manual-Only Action Triggers:**
    * DelugeRPG gameplay must never be obstructed by full-window modal backdrops during gameplay.
    * Tool panels (such as the Gym Team Builder) must be docked into a side panel taking 1/4 (`flex: 1`, 25%) of the window, leaving 3/4 (`flex: 3`, 75%) for the live game `<webview>`.
+   * Never auto-load or auto-build Live Battle / Profile Stalk data without the user explicitly clicking **Check Active Screen**, **Scout**, or **Build**.
 
 4. **Anti-Bot Safety Floor (>= 1700ms):**
    * Movement and catch delays must never fall below 1700ms.

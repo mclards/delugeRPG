@@ -57,6 +57,8 @@ runTest('saveTargetsBtn: Target Filters Modal Apply & Save Button', () => {
   assert(appJs.includes('config.settings.findAnySpecialVariant = isVar;'), 'saveTargetsBtn must assign findAnySpecialVariant');
   assert(appJs.includes('config.settings.enableVariantFilter = isVar;'), 'saveTargetsBtn must assign enableVariantFilter');
   assert(appJs.includes('config.settings.selectedVariants = selectedVars;'), 'saveTargetsBtn must assign selectedVariants');
+  assert(appJs.includes('config.settings.legendaryVariants = selectedLegVars;'), 'saveTargetsBtn must assign legendaryVariants');
+  assert(appJs.includes('config.settings.megaVariants = selectedMegaVars;'), 'saveTargetsBtn must assign megaVariants');
   assert(appJs.includes('config.settings.avoidDuplicates = isAvoid;'), 'saveTargetsBtn must assign avoidDuplicates');
   assert(appJs.includes('config.settings.customTargetList = customVal;'), 'saveTargetsBtn must assign customTargetList');
   assert(appJs.includes('config.settings.blacklistList = blacklistVal;'), 'saveTargetsBtn must assign blacklistList');
@@ -242,23 +244,35 @@ runTest('3 Legendary Sub-Checkboxes & filterLegendariesCheckbox Integration', ()
   assert(appJs.includes('if (filterLegendariesCheckbox) filterLegendariesCheckbox.checked = isLeg;'), 'app.js must synchronize hidden filterLegendariesCheckbox');
 });
 
-runTest('Variant Helper Buttons: btnAllVariants, btnVariantsOnly, btnShiniesOnly', () => {
+runTest('Variant Helper Buttons: Wild, Legendaries Tier, and Mega Tier Quick Buttons', () => {
   assert(appHtml.includes('id="btnAllVariants"'), 'app.html must define btnAllVariants');
   assert(appHtml.includes('id="btnVariantsOnly"'), 'app.html must define btnVariantsOnly');
   assert(appHtml.includes('id="btnShiniesOnly"'), 'app.html must define btnShiniesOnly');
+  assert(appHtml.includes('id="btnWildChromeOnly"'), 'app.html must define btnWildChromeOnly');
+  assert(appHtml.includes('id="btnLegAllVariants"'), 'app.html must define btnLegAllVariants');
+  assert(appHtml.includes('id="btnLegVariantsOnly"'), 'app.html must define btnLegVariantsOnly');
+  assert(appHtml.includes('id="btnLegShiniesOnly"'), 'app.html must define btnLegShiniesOnly');
+  assert(appHtml.includes('id="btnLegChromeOnly"'), 'app.html must define btnLegChromeOnly');
+  assert(appHtml.includes('id="btnMegaAllVariants"'), 'app.html must define btnMegaAllVariants');
+  assert(appHtml.includes('id="btnMegaVariantsOnly"'), 'app.html must define btnMegaVariantsOnly');
+  assert(appHtml.includes('id="btnMegaShiniesOnly"'), 'app.html must define btnMegaShiniesOnly');
+  assert(appHtml.includes('id="btnMegaChromeOnly"'), 'app.html must define btnMegaChromeOnly');
   assert(appJs.includes("btnAllVariants.addEventListener('click'"), 'btnAllVariants must have click listener');
   assert(appJs.includes("btnVariantsOnly.addEventListener('click'"), 'btnVariantsOnly must have click listener');
   assert(appJs.includes("btnShiniesOnly.addEventListener('click'"), 'btnShiniesOnly must have click listener');
+  assert(appJs.includes("btnWildChromeOnly.addEventListener('click'"), 'btnWildChromeOnly must have click listener');
+  assert(appJs.includes("btnLegAllVariants.addEventListener('click'"), 'btnLegAllVariants must have click listener');
+  assert(appJs.includes("btnMegaChromeOnly.addEventListener('click'"), 'btnMegaChromeOnly must have click listener');
   assert(appJs.includes("el.checked = (id !== 'varNormal')"), 'btnVariantsOnly must select 9 special variants excluding Normal');
   assert(appJs.includes("el.checked = (id === 'varShiny')"), 'btnShiniesOnly must select Shiny variant exclusively');
 });
 
-runTest('Clear Blacklist & Quick Add Species Buttons', () => {
+runTest('Clear Blacklist Button & Zero Quick-Add (+ Pokemon) Clutter', () => {
   assert(appHtml.includes('id="clearBlacklistBtn"'), 'app.html must define clearBlacklistBtn');
   assert(appJs.includes("clearBlacklistBtn.addEventListener('click'"), 'clearBlacklistBtn must have click listener');
   assert(appJs.includes("blacklistInput.value = '';"), 'clearBlacklistBtn must empty blacklist input');
-  assert(appJs.includes("querySelectorAll('.quick-tag-btn[data-add-target]')"), 'app.js must attach listeners to quick whitelist targets');
-  assert(appJs.includes("querySelectorAll('.quick-tag-btn[data-add-blacklist]')"), 'app.js must attach listeners to quick blacklist targets');
+  assert(!appHtml.includes('data-add-target'), 'app.html must not contain any + Pokemon quick-add whitelist buttons');
+  assert(!appHtml.includes('data-add-blacklist'), 'app.html must not contain any + Pokemon quick-add blacklist buttons');
 });
 
 // -----------------------------------------------------------------------------
@@ -295,9 +309,14 @@ runTest('Custom Checkbox Structure & CSS Zero-Glow Audit', () => {
   const checkboxIds = [
     'subClassicLegCheckbox', 'subUltraBeastsCheckbox', 'subParadoxCheckbox',
     'filterMegasCheckbox', 'avoidDuplicatesCheck', 'filterLevelCheckbox',
-    'filterVariantsCheckbox', 'varNormal', 'varShiny', 'varChrome',
-    'varRetro', 'varMetallic', 'varShadow', 'varGhostly', 'varDark',
-    'varMirage', 'varNegative', 'enableProxyCheckbox'
+    'filterVariantsCheckbox',
+    'legVarNormal', 'legVarShiny', 'legVarChrome', 'legVarRetro', 'legVarMetallic',
+    'legVarShadow', 'legVarGhostly', 'legVarDark', 'legVarMirage', 'legVarNegative',
+    'megaVarNormal', 'megaVarShiny', 'megaVarChrome', 'megaVarRetro', 'megaVarMetallic',
+    'megaVarShadow', 'megaVarGhostly', 'megaVarDark', 'megaVarMirage', 'megaVarNegative',
+    'varNormal', 'varShiny', 'varChrome', 'varRetro', 'varMetallic',
+    'varShadow', 'varGhostly', 'varDark', 'varMirage', 'varNegative',
+    'enableProxyCheckbox'
   ];
   checkboxIds.forEach(id => {
     const idx = appHtml.indexOf(`id="${id}"`);
@@ -320,6 +339,21 @@ runTest('Beveled Pill Button Component & Zero Glow Audit', () => {
   assert(!btnSlice.includes('0 0 1'), 'Button CSS must not contain glowing box-shadow');
   assert(!btnSlice.includes('0 0 20px'), 'Button CSS must not contain glowing 20px box-shadow');
   assert(btnSlice.includes('box-shadow: none !important;'), 'Button CSS must enforce box-shadow: none !important');
+});
+
+runTest('Segmented Sliding Tab Component (.tab-container) & Unified Scan Box Capsule Audit', () => {
+  assert(appHtml.includes('.tab-container {'), 'app.html must define .tab-container CSS');
+  assert(appHtml.includes('.indicator {'), 'app.html must define .indicator CSS');
+  assert(appHtml.includes('.tab {'), 'app.html must define .tab CSS');
+  assert(appHtml.includes('.tab_label {'), 'app.html must define .tab_label CSS');
+  assert(appHtml.includes('.tab--1:checked ~ .indicator'), 'app.html must define .tab--1:checked ~ .indicator');
+  assert(appHtml.includes('id="targetTab1"'), 'Target Filters modal must use radio tab targetTab1');
+  assert(appHtml.includes('id="teamModeNpcTab"'), 'Team Builder battle mode must use radio tab teamModeNpcTab');
+  assert(appHtml.includes('id="poolModeAllTab"'), 'Team Builder pool mode must use radio tab poolModeAllTab');
+  assert(appHtml.includes('class="scan-box-unified-bar"'), 'Team Builder must use unified scan-box-unified-bar capsule');
+  assert(appHtml.includes('id="scanStatusDot"'), 'Team Builder unified bar must include scanStatusDot');
+  assert(appHtml.includes('id="scanStatusBadge"'), 'Team Builder unified bar must include scanStatusBadge');
+  assert(!appHtml.includes('id="scanTrainersBtn"'), 'Separate Trainer Intel button must be removed from app.html');
 });
 
 console.log('================================================================');

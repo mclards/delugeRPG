@@ -53,24 +53,20 @@ The database contains 449 total opponents categorized into regional leagues and 
 * `VIP_TRAINERS`: 132 special opponents
 * `STANDARD_TRAINERS`: 108 baseline trainers
 
-## Battle Opponent Auto-Recording Lifecycle
+## Battle & Profile Opponent Detection Lifecycle
 
-1. **Preload Monitor:** `detectBattleOpponents()` in `game-preload.js` listens to battle screens:
-   * `#teamleft`: Active PvP or Trainer battle roster
-   * `#opponent`: NPC battle card
-   * `#viewpokes`: Post-battle lineup inspection
-2. **IPC Dispatch:** Dispatches `battle-opponents-detected` to host window.
-3. **Host Persistence:** `handleLiveBattleOpponents()` matches opponent name in `gym_leaders.json`,
-   updates the `roster` array with all detected Pokemon, persists to disk, and refreshes the select dropdown.
-4. **Instant Counter:** If Team Builder is open, immediately calculates and renders the 6 tailored counters.
+1. **Preload Monitor:** `detectBattleOpponents()` in `game-preload.js` inspects `#teamleft`, `#opponent`, `#viewpokes`, or `#DModal .pokemon` when triggered.
+2. **Manual-Only User Control:** Opening `#DModal` on a player profile must NEVER auto-trigger `battle-opponents-detected` in the background. Detection is performed on explicit user request (`Check Active Screen` or `Scout`).
+3. **Host Persistence:** `handleLiveBattleOpponents()` updates `gym_leaders.json` for NPC trainers, or updates the Live Opponent card in PvP mode when `isManualCheck` is true.
 
 ## UI Presentation Guidelines (Team Builder & Matchup Renderers)
 
 1. **Zero Glowing Shadows:**
    * Never render badges, buttons, or lineup cards with glowing box-shadows (`box-shadow: none !important`).
-2. **Minimalist Clean Lines:**
-   * Never render redundant double borders, dashed outlines, or noisy wireframe borders around badges (e.g. `CARRY ANCHOR`, `TRAINEE`, `RESERVE`).
-   * Use flat, subtle alpha fills (`rgba(...)`) and background contrast for pure readability and zero visual clutter.
+2. **STRICT ZERO UNNECESSARY TEXT INFORMATION LINES RULE:**
+   * **Never** render verbose instructional sentences, helper paragraphs, or redundant header/subtitle text lines in Team Builder cards (`Live Opponent`, `Scout Player`, `#teamEmptyPrompt`, `renderTeamLineup`).
+   * In `renderTeamLineup()`, each Pokemon row must only display: slot number, sprite thumbnail, Pokemon name + level, clean move name, and a single right-hand badge (`targetBadgeHtml`) -- never render `cleanRole` (`Super-Effective 2.0x`) or `roleDesc` text lines underneath the badge, and never render a redundant `YOUR PVP TEAM / TARGET:` header row above the list.
+   * Preserve all standard CSS structural borders (`border: 1px solid #1a283e`, badge borders) -- never remove CSS borders when removing unnecessary text lines.
 3. **Species Diversity Guarantee:**
    * The matchmaking engine strips forms and variant prefixes via `getBaseSpecies(name)` to enforce distinct species across trainees, ensuring optimal leveling spread without clone duplication.
 

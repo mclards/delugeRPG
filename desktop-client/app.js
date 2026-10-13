@@ -117,6 +117,10 @@ function loadLocalConfig() {
   } catch (_) {
     config = defaults;
   }
+  if (config.settings && (config.settings.targetPreset === 'legendaries' || config.settings.targetPreset === 'megas' || config.settings.targetPreset === 'legend_megas')) {
+    config.settings.findAnySpecialVariant = false;
+    config.settings.enableVariantFilter = false;
+  }
 }
 
 function saveLocalConfig() {
@@ -283,11 +287,40 @@ const presetVarBtn = document.getElementById('presetVarBtn');
 const presetShinyBtn = document.getElementById('presetShinyBtn');
 const presetLegMegaBtn = document.getElementById('presetLegMegaBtn');
 const tabVariantsBtn = document.getElementById('tabVariantsBtn');
+const legTierVariantsBadge = document.getElementById('legTierVariantsBadge');
+const megaTierVariantsBadge = document.getElementById('megaTierVariantsBadge');
+const wildTierVariantsBadge = document.getElementById('wildTierVariantsBadge');
+const legVariantsWrap = document.getElementById('legVariantsWrap');
+const megaVariantsWrap = document.getElementById('megaVariantsWrap');
+const subVariantsWrap = document.getElementById('subVariantsWrap');
+const btnLegAllVariants = document.getElementById('btnLegAllVariants');
+const btnLegVariantsOnly = document.getElementById('btnLegVariantsOnly');
+const btnLegShiniesOnly = document.getElementById('btnLegShiniesOnly');
+const btnLegChromeOnly = document.getElementById('btnLegChromeOnly');
+const btnMegaAllVariants = document.getElementById('btnMegaAllVariants');
+const btnMegaVariantsOnly = document.getElementById('btnMegaVariantsOnly');
+const btnMegaShiniesOnly = document.getElementById('btnMegaShiniesOnly');
+const btnMegaChromeOnly = document.getElementById('btnMegaChromeOnly');
+const btnWildChromeOnly = document.getElementById('btnWildChromeOnly');
+
+function formatTierVariantsBadge(vars, isEnabled = true) {
+  if (!isEnabled) return 'Off';
+  const arr = Array.isArray(vars) ? vars : [];
+  if (arr.length === 0) return 'None (0)';
+  const lower = arr.map(v => v.toLowerCase());
+  const hasNormal = lower.includes('normal');
+  const specialCount = lower.filter(v => v !== 'normal').length;
+  if (hasNormal && specialCount === 9) return 'All (10)';
+  if (!hasNormal && specialCount === 9) return 'Variants (9)';
+  if (arr.length === 1) return arr[0] + ' Only';
+  if (arr.length <= 2) return arr.join(', ');
+  return arr.length + ' Variants';
+}
 
 function updateVariantTabCount(count) {
   const el = tabVariantsBtn || document.querySelector('[data-tab="tabVariants"]');
   if (el) {
-    el.innerHTML = '&#10024; Sprite Variants (' + (typeof count === 'number' ? count : 10) + ')';
+    el.textContent = 'Variants';
   }
 }
 
@@ -306,6 +339,40 @@ const variantMap = {
   varDark: 'Dark',
   varMirage: 'Mirage',
   varNegative: 'Negative'
+};
+
+const legVariantIds = [
+  'legVarNormal', 'legVarShiny', 'legVarChrome', 'legVarRetro', 'legVarMetallic',
+  'legVarShadow', 'legVarGhostly', 'legVarDark', 'legVarMirage', 'legVarNegative'
+];
+const legVariantMap = {
+  legVarNormal: 'Normal',
+  legVarShiny: 'Shiny',
+  legVarChrome: 'Chrome',
+  legVarRetro: 'Retro',
+  legVarMetallic: 'Metallic',
+  legVarShadow: 'Shadow',
+  legVarGhostly: 'Ghostly',
+  legVarDark: 'Dark',
+  legVarMirage: 'Mirage',
+  legVarNegative: 'Negative'
+};
+
+const megaVariantIds = [
+  'megaVarNormal', 'megaVarShiny', 'megaVarChrome', 'megaVarRetro', 'megaVarMetallic',
+  'megaVarShadow', 'megaVarGhostly', 'megaVarDark', 'megaVarMirage', 'megaVarNegative'
+];
+const megaVariantMap = {
+  megaVarNormal: 'Normal',
+  megaVarShiny: 'Shiny',
+  megaVarChrome: 'Chrome',
+  megaVarRetro: 'Retro',
+  megaVarMetallic: 'Metallic',
+  megaVarShadow: 'Shadow',
+  megaVarGhostly: 'Ghostly',
+  megaVarDark: 'Dark',
+  megaVarMirage: 'Mirage',
+  megaVarNegative: 'Negative'
 };
 
 const networkModal = document.getElementById('networkModal');
@@ -342,6 +409,7 @@ const teamBuilderMenuBtn = document.getElementById('teamBuilderMenuBtn');
 const closeTeamBuilderBtn = document.getElementById('closeTeamBuilderBtn');
 const scanPokesBtn = document.getElementById('scanPokesBtn');
 const scanTrainersBtn = document.getElementById('scanTrainersBtn');
+const scanStatusDot = document.getElementById('scanStatusDot');
 const scanStatusBadge = document.getElementById('scanStatusBadge');
 const teamCategorySelect = document.getElementById('teamCategorySelect');
 const teamTrainerSelect = document.getElementById('teamTrainerSelect');
@@ -379,6 +447,7 @@ const pvpStrategySelect = document.getElementById('pvpStrategySelect');
 const pvpCandidateTierSelect = document.getElementById('pvpCandidateTierSelect');
 let teamBattleMode = (config && config.settings && config.settings.teamBattleMode) || 'NPC';
 let scoutedPlayerOpponent = null;
+let activePvpTargetType = 'SCOUT';
 let pvpStrategy = (config && config.settings && config.settings.pvpStrategy) || 'COUNTERS';
 let pvpCandidateTier = (config && config.settings && config.settings.pvpCandidateTier) || 'ANY';
 const battleOpponentBtn = document.getElementById('battleOpponentBtn');
@@ -865,7 +934,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.3.1';
+    let appVer = '1.3.4';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -930,19 +999,23 @@ function calculateTargetSummary(leg, megas, vars, enableLevel, levelMode, levelV
   if (subOptions.customTargets && subOptions.customTargets.length > 0) {
     parts.push("Tier 1: " + subOptions.customTargets.length + " Whitelist (" + subOptions.customTargets.slice(0, 3).join(", ") + (subOptions.customTargets.length > 3 ? "..." : "") + ")");
   }
-  if (megas) parts.push("Tier 2: 107 Mega Lines");
+  if (megas) {
+    const megaBadge = Array.isArray(subOptions.megaVariants) ? (" [" + formatTierVariantsBadge(subOptions.megaVariants) + "]") : "";
+    parts.push("Tier 2: 107 Mega Lines" + megaBadge);
+  }
   if (leg) {
     const classic = subOptions.classicLeg !== false;
     const ub = subOptions.ubLeg !== false;
     const paradox = subOptions.paradoxLeg !== false;
+    const legBadge = Array.isArray(subOptions.legendaryVariants) ? (" [" + formatTierVariantsBadge(subOptions.legendaryVariants) + "]") : "";
     if (classic && ub && paradox) {
-      parts.push("Tier 3: 135 Legendaries");
+      parts.push("Tier 3: 135 Legendaries" + legBadge);
     } else {
       const subParts = [];
       if (classic) subParts.push("Classic");
       if (ub) subParts.push("UB");
       if (paradox) subParts.push("Paradox");
-      parts.push(subParts.length > 0 ? ("Tier 3: Legendaries (" + subParts.join(", ") + ")") : "Tier 3: 0 Legendaries");
+      parts.push(subParts.length > 0 ? ("Tier 3: Legendaries (" + subParts.join(", ") + ")" + legBadge) : "Tier 3: 0 Legendaries");
     }
   }
 
@@ -951,17 +1024,17 @@ function calculateTargetSummary(leg, megas, vars, enableLevel, levelMode, levelV
     const hasNormal = activeVars.some(v => v.toLowerCase() === 'normal');
     const specialCount = activeVars.filter(v => v.toLowerCase() !== 'normal').length;
     if (hasNormal && specialCount === 9) {
-      parts.push("[Normal + 9 Variants]");
+      parts.push("Wild: [All 10]");
     } else if (hasNormal && specialCount === 0) {
-      parts.push("[Normal Only]");
+      parts.push("Wild: [Normal Only]");
     } else if (!hasNormal && specialCount === 1 && activeVars.some(v => v.toLowerCase() === 'shiny')) {
-      parts.push("[\u2605 Shinies Only]");
+      parts.push("Wild: [Shiny Only]");
     } else if (!hasNormal && specialCount === 9) {
-      parts.push("[9 Variants (No Normal)]");
+      parts.push("Wild: [9 Variants]");
     } else if (!hasNormal && specialCount > 0) {
-      parts.push("[" + specialCount + " Variants]");
+      parts.push("Wild: [" + specialCount + " Variants]");
     } else if (hasNormal && specialCount > 0) {
-      parts.push("[Normal + " + specialCount + " Variants]");
+      parts.push("Wild: [Normal + " + specialCount + "]");
     }
   }
 
@@ -988,9 +1061,17 @@ function updateTargetUI() {
   const isMega = config.settings && config.settings.findMegasAndGigantamax !== false;
   const isVar = config.settings && config.settings.findAnySpecialVariant !== false;
 
-  const activeVariants = (config.settings && Array.isArray(config.settings.selectedVariants) && config.settings.selectedVariants.length > 0)
+  const activeVariants = (config.settings && Array.isArray(config.settings.selectedVariants))
     ? config.settings.selectedVariants
-    : Object.values(variantMap);
+    : Object.values(variantMap).filter(v => v !== 'Normal');
+
+  const activeLegVariants = (config.settings && Array.isArray(config.settings.legendaryVariants))
+    ? config.settings.legendaryVariants
+    : Object.values(legVariantMap);
+
+  const activeMegaVariants = (config.settings && Array.isArray(config.settings.megaVariants))
+    ? config.settings.megaVariants
+    : Object.values(megaVariantMap);
 
   const customTargets = (config.settings && typeof config.settings.customTargetList === 'string')
     ? config.settings.customTargetList.split(',').map(s => s.trim()).filter(Boolean)
@@ -1014,12 +1095,46 @@ function updateTargetUI() {
   const isVarActive = config.settings && (config.settings.enableVariantFilter !== undefined ? !!config.settings.enableVariantFilter : (config.settings.findAnySpecialVariant !== false));
   if (filterVariantsCheckbox) filterVariantsCheckbox.checked = isVarActive;
 
+  if (legVariantsWrap) legVariantsWrap.classList.toggle('dimmed', !isLeg);
+  if (megaVariantsWrap) megaVariantsWrap.classList.toggle('dimmed', !isMega);
+  if (subVariantsWrap) subVariantsWrap.classList.toggle('dimmed', !isVarActive);
+
   variantIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.checked = activeVariants.map(v => v.toLowerCase()).includes(variantMap[id].toLowerCase());
     }
   });
+
+  legVariantIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.checked = activeLegVariants.map(v => v.toLowerCase()).includes(legVariantMap[id].toLowerCase());
+    }
+  });
+
+  megaVariantIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.checked = activeMegaVariants.map(v => v.toLowerCase()).includes(megaVariantMap[id].toLowerCase());
+    }
+  });
+
+  if (legTierVariantsBadge) {
+    legTierVariantsBadge.textContent = formatTierVariantsBadge(activeLegVariants, isLeg);
+    legTierVariantsBadge.style.color = isLeg ? '#388bfd' : '#8eaad0';
+    legTierVariantsBadge.style.opacity = isLeg ? '1' : '0.55';
+  }
+  if (megaTierVariantsBadge) {
+    megaTierVariantsBadge.textContent = formatTierVariantsBadge(activeMegaVariants, isMega);
+    megaTierVariantsBadge.style.color = isMega ? '#388bfd' : '#8eaad0';
+    megaTierVariantsBadge.style.opacity = isMega ? '1' : '0.55';
+  }
+  if (wildTierVariantsBadge) {
+    wildTierVariantsBadge.textContent = formatTierVariantsBadge(activeVariants, isVarActive);
+    wildTierVariantsBadge.style.color = isVarActive ? '#388bfd' : '#8eaad0';
+    wildTierVariantsBadge.style.opacity = isVarActive ? '1' : '0.55';
+  }
 
   updateVariantTabCount(activeVariants.length);
 
@@ -1041,10 +1156,12 @@ function updateTargetUI() {
 
   if (targetSummaryText) {
     targetSummaryText.textContent = calculateTargetSummary(
-      isLeg, isMega, isVar, isLevel, levelMode, levelVal, levelScope,
+      isLeg, isMega, isVarActive, isLevel, levelMode, levelVal, levelScope,
       {
         classicLeg, ubLeg, paradoxLeg,
         selectedVariants: activeVariants,
+        legendaryVariants: activeLegVariants,
+        megaVariants: activeMegaVariants,
         customTargets,
         blacklist
       }
@@ -1055,15 +1172,16 @@ function updateTargetUI() {
   const hasNormal = activeVariants.some(v => v.toLowerCase() === 'normal');
   const specialCount = activeVariants.filter(v => v.toLowerCase() !== 'normal').length;
   const hasCustom = customTargets.length > 0;
+  const legAll10 = activeLegVariants.length === 10;
+  const megaAll10 = activeMegaVariants.length === 10;
 
   let presetKey = 'custom';
-  if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) presetKey = 'all';
-  else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) presetKey = 'shinies';
-  else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) presetKey = 'variants';
-  else if (isLeg && isMega && !isLevel && !hasCustom && !isVar) presetKey = 'legend_megas';
-  else if (isLeg && !isMega && !isLevel && !hasCustom) presetKey = 'legendaries';
-  else if (!isLeg && isMega && !isLevel && !hasCustom) presetKey = 'megas';
-  else if (isLeg && isMega && !isLevel && !hasCustom) presetKey = 'legend_megas';
+  if (isLeg && isMega && isVarActive && !isLevel && specialCount === 9 && legAll10 && megaAll10 && !hasCustom) presetKey = 'all';
+  else if (isLeg && isMega && isVarActive && !isLevel && !hasNormal && isShinyOnly && !hasCustom) presetKey = 'shinies';
+  else if (!isLeg && !isMega && isVarActive && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) presetKey = 'variants';
+  else if (isLeg && isMega && !isVarActive && !isLevel && legAll10 && megaAll10 && !hasCustom) presetKey = 'legend_megas';
+  else if (isLeg && !isMega && !isVarActive && !isLevel && legAll10 && !hasCustom) presetKey = 'legendaries';
+  else if (!isLeg && isMega && !isVarActive && !isLevel && megaAll10 && !hasCustom) presetKey = 'megas';
 
   const pills = [
     { btn: presetAllBtn, key: 'all' },
@@ -1087,38 +1205,52 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
   let isClassic = true;
   let isUB = true;
   let isParadox = true;
-  let selectedVars = Object.values(variantMap);
+  let selectedVars = Object.values(variantMap).filter(v => v !== 'Normal');
+  let selectedLegVars = Object.values(legVariantMap);
+  let selectedMegaVars = Object.values(megaVariantMap);
 
   if (presetKey === 'legendaries') {
     isLeg = true;
     isMega = false;
     isVar = false;
-    selectedVars = Object.values(variantMap);
+    selectedVars = Object.values(variantMap).filter(v => v !== 'Normal');
+    selectedLegVars = Object.values(legVariantMap);
+    selectedMegaVars = Object.values(megaVariantMap);
   } else if (presetKey === 'megas') {
     isLeg = false;
     isMega = true;
     isVar = false;
-    selectedVars = Object.values(variantMap);
+    selectedVars = Object.values(variantMap).filter(v => v !== 'Normal');
+    selectedLegVars = Object.values(legVariantMap);
+    selectedMegaVars = Object.values(megaVariantMap);
   } else if (presetKey === 'legend_megas') {
     isLeg = true;
     isMega = true;
     isVar = false;
-    selectedVars = Object.values(variantMap);
+    selectedVars = Object.values(variantMap).filter(v => v !== 'Normal');
+    selectedLegVars = Object.values(legVariantMap);
+    selectedMegaVars = Object.values(megaVariantMap);
   } else if (presetKey === 'shinies') {
     isLeg = true;
     isMega = true;
     isVar = true;
     selectedVars = ['Shiny'];
+    selectedLegVars = ['Shiny'];
+    selectedMegaVars = ['Shiny'];
   } else if (presetKey === 'variants') {
     isLeg = false;
     isMega = false;
     isVar = true;
     selectedVars = Object.values(variantMap).filter(v => v !== 'Normal');
+    selectedLegVars = Object.values(legVariantMap).filter(v => v !== 'Normal');
+    selectedMegaVars = Object.values(megaVariantMap).filter(v => v !== 'Normal');
   } else if (presetKey === 'all') {
     isLeg = true;
     isMega = true;
     isVar = true;
     selectedVars = Object.values(variantMap);
+    selectedLegVars = Object.values(legVariantMap);
+    selectedMegaVars = Object.values(megaVariantMap);
   }
 
   if (filterLegendariesCheckbox) filterLegendariesCheckbox.checked = isLeg;
@@ -1129,12 +1261,46 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
   if (filterMegasCheckbox) filterMegasCheckbox.checked = isMega;
   if (filterVariantsCheckbox) filterVariantsCheckbox.checked = isVar;
 
+  if (legVariantsWrap) legVariantsWrap.classList.toggle('dimmed', !isLeg);
+  if (megaVariantsWrap) megaVariantsWrap.classList.toggle('dimmed', !isMega);
+  if (subVariantsWrap) subVariantsWrap.classList.toggle('dimmed', !isVar);
+
   variantIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.checked = selectedVars.includes(variantMap[id]);
     }
   });
+
+  legVariantIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.checked = selectedLegVars.includes(legVariantMap[id]);
+    }
+  });
+
+  megaVariantIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.checked = selectedMegaVars.includes(megaVariantMap[id]);
+    }
+  });
+
+  if (legTierVariantsBadge) {
+    legTierVariantsBadge.textContent = formatTierVariantsBadge(selectedLegVars, isLeg);
+    legTierVariantsBadge.style.color = isLeg ? '#388bfd' : '#8eaad0';
+    legTierVariantsBadge.style.opacity = isLeg ? '1' : '0.55';
+  }
+  if (megaTierVariantsBadge) {
+    megaTierVariantsBadge.textContent = formatTierVariantsBadge(selectedMegaVars, isMega);
+    megaTierVariantsBadge.style.color = isMega ? '#388bfd' : '#8eaad0';
+    megaTierVariantsBadge.style.opacity = isMega ? '1' : '0.55';
+  }
+  if (wildTierVariantsBadge) {
+    wildTierVariantsBadge.textContent = formatTierVariantsBadge(selectedVars, isVar);
+    wildTierVariantsBadge.style.color = isVar ? '#388bfd' : '#8eaad0';
+    wildTierVariantsBadge.style.opacity = isVar ? '1' : '0.55';
+  }
 
   updateVariantTabCount(selectedVars.length);
 
@@ -1155,6 +1321,8 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
       {
         classicLeg: isClassic, ubLeg: isUB, paradoxLeg: isParadox,
         selectedVariants: selectedVars,
+        legendaryVariants: selectedLegVars,
+        megaVariants: selectedMegaVars,
         customTargets,
         blacklist
       }
@@ -1185,6 +1353,8 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
     config.settings.findAnySpecialVariant = isVar;
     config.settings.enableVariantFilter = isVar;
     config.settings.selectedVariants = selectedVars;
+    config.settings.legendaryVariants = selectedLegVars;
+    config.settings.megaVariants = selectedMegaVars;
     saveLocalConfig();
     updateTargetUI();
     delugeView.send('update-config', config.settings);
@@ -2241,7 +2411,9 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'scan-pokemon-status') {
     const data = event.args[0] || {};
+    if (scanStatusDot) scanStatusDot.style.background = '#388bfd';
     if (scanStatusBadge) {
+      scanStatusBadge.style.color = '#388bfd';
       if (data.page && data.total) {
         scanStatusBadge.textContent = `Reading page ${data.page}/${data.total}...`;
       } else {
@@ -2257,7 +2429,11 @@ delugeView.addEventListener('ipc-message', (event) => {
       try {
         fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
       } catch (_) {}
-      if (scanStatusBadge) scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced (${data.pageCount || 1} pgs)`;
+      if (scanStatusDot) scanStatusDot.style.background = '#10b981';
+      if (scanStatusBadge) {
+        scanStatusBadge.style.color = '#c9d8ec';
+        scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced (${data.pageCount || 1} pgs)`;
+      }
       if (typeof updateRosterModeUI === 'function') updateRosterModeUI();
       console.log(`[TeamBuilder] Successfully synced ${currentCollection.length} Pokemon across ${data.pageCount || 1} pages.`);
       backendLog('TEAM_BUILDER', `Synced ${currentCollection.length} Pokemon across ${data.pageCount || 1} pages`);
@@ -2287,7 +2463,11 @@ delugeView.addEventListener('ipc-message', (event) => {
         }
       }
     } else {
-      if (scanStatusBadge) scanStatusBadge.textContent = 'Scan failed';
+      if (scanStatusDot) scanStatusDot.style.background = '#f87171';
+      if (scanStatusBadge) {
+        scanStatusBadge.style.color = '#f87171';
+        scanStatusBadge.textContent = 'Scan failed';
+      }
       if (isBuildSyncInProgress) {
         isBuildSyncInProgress = false;
         if (buildTeamBtn) {
@@ -2398,6 +2578,10 @@ delugeView.addEventListener('ipc-message', (event) => {
         pvpScoutStatusBadge.style.color = '#388bfd';
       }
     }
+    if (data.step === 'error' && pvpLiveStatusBadge && pvpLiveStatusBadge.textContent === 'Scanning page...') {
+      pvpLiveStatusBadge.textContent = data.message || 'Team Hidden';
+      pvpLiveStatusBadge.style.color = '#f87171';
+    }
   }
 
   if (event.channel === 'player-scouted-roster') {
@@ -2412,17 +2596,24 @@ delugeView.addEventListener('ipc-message', (event) => {
         trainerName: data.username,
         roster: data.roster,
         types: ['Player Team'],
-        isPlayer: true
+        isPlayer: true,
+        battleUrl: data.battleUrl || ('/battle/user/username/' + encodeURIComponent(data.username)),
+        isProfileStalk: false
       };
+      activePvpTargetType = 'SCOUT';
       if (typeof renderScoutedPlayerCard === 'function') {
         renderScoutedPlayerCard(scoutedPlayerOpponent);
       }
       if (pvpScoutStatusBadge) {
-        pvpScoutStatusBadge.textContent = `Scouted ${data.roster.length} Pkmn!`;
-        pvpScoutStatusBadge.style.color = '#238636';
+        pvpScoutStatusBadge.textContent = '';
       }
-      if (teamBattleMode === 'PVP' && pvpStrategy === 'COUNTERS' && typeof executePvPTeamBuild === 'function') {
-        executePvPTeamBuild();
+      if (teamBattleMode === 'PVP') {
+        if (pvpStrategy !== 'COUNTERS') {
+          pvpStrategy = 'COUNTERS';
+          if (pvpStrategySelect) pvpStrategySelect.value = 'COUNTERS';
+          updatePvpBuildButtonLabel();
+        }
+        resetTeamPrompt();
       }
     }
   }
@@ -2863,6 +3054,11 @@ document.querySelectorAll('.modal-tab-btn').forEach(tabBtn => {
   tabBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const targetTabId = tabBtn.getAttribute('data-tab');
+    const radioId = tabBtn.getAttribute('for');
+    if (radioId) {
+      const radioEl = document.getElementById(radioId);
+      if (radioEl) radioEl.checked = true;
+    }
     document.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.modal-tab-content').forEach(c => c.classList.remove('active'));
     tabBtn.classList.add('active');
@@ -2874,6 +3070,8 @@ document.querySelectorAll('.modal-tab-btn').forEach(tabBtn => {
 // Target Filter Modal Management
 function openTargetModal() {
   closeNavDropdown();
+  const targetTab1 = document.getElementById('targetTab1');
+  if (targetTab1) targetTab1.checked = true;
   document.querySelectorAll('.modal-tab-btn').forEach(b => {
     b.classList.toggle('active', b.getAttribute('data-tab') === 'tabSpecies');
   });
@@ -2925,33 +3123,6 @@ if (presetVarBtn) presetVarBtn.addEventListener('click', () => applyTargetPreset
 if (presetShinyBtn) presetShinyBtn.addEventListener('click', () => applyTargetPreset('shinies', true));
 if (presetLegMegaBtn) presetLegMegaBtn.addEventListener('click', () => applyTargetPreset('legend_megas', true));
 
-// Quick Add Species Tag Buttons
-document.querySelectorAll('.quick-tag-btn[data-add-target]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const target = btn.getAttribute('data-add-target');
-    if (!target || !customTargetInput) return;
-    const currentList = customTargetInput.value.split(',').map(s => s.trim()).filter(Boolean);
-    if (!currentList.some(s => s.toLowerCase() === target.toLowerCase())) {
-      currentList.push(target);
-      customTargetInput.value = currentList.join(', ');
-      refreshModalSummary();
-    }
-  });
-});
-
-document.querySelectorAll('.quick-tag-btn[data-add-blacklist]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const target = btn.getAttribute('data-add-blacklist');
-    if (!target || !blacklistInput) return;
-    const currentList = blacklistInput.value.split(',').map(s => s.trim()).filter(Boolean);
-    if (!currentList.some(s => s.toLowerCase() === target.toLowerCase())) {
-      currentList.push(target);
-      blacklistInput.value = currentList.join(', ');
-      refreshModalSummary();
-    }
-  });
-});
-
 // Live checkbox and input change updates summary text
 function refreshModalSummary() {
   const classicLeg = subClassicLegCheckbox ? subClassicLegCheckbox.checked : false;
@@ -2963,6 +3134,10 @@ function refreshModalSummary() {
   const isMega = filterMegasCheckbox ? filterMegasCheckbox.checked : false;
   const isVar = filterVariantsCheckbox ? filterVariantsCheckbox.checked : false;
 
+  if (legVariantsWrap) legVariantsWrap.classList.toggle('dimmed', !isLeg);
+  if (megaVariantsWrap) megaVariantsWrap.classList.toggle('dimmed', !isMega);
+  if (subVariantsWrap) subVariantsWrap.classList.toggle('dimmed', !isVar);
+
   const selectedVars = [];
   variantIds.forEach(id => {
     const el = document.getElementById(id);
@@ -2970,6 +3145,38 @@ function refreshModalSummary() {
       selectedVars.push(variantMap[id]);
     }
   });
+
+  const selectedLegVars = [];
+  legVariantIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.checked) {
+      selectedLegVars.push(legVariantMap[id]);
+    }
+  });
+
+  const selectedMegaVars = [];
+  megaVariantIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.checked) {
+      selectedMegaVars.push(megaVariantMap[id]);
+    }
+  });
+
+  if (legTierVariantsBadge) {
+    legTierVariantsBadge.textContent = formatTierVariantsBadge(selectedLegVars, isLeg);
+    legTierVariantsBadge.style.color = isLeg ? '#388bfd' : '#8eaad0';
+    legTierVariantsBadge.style.opacity = isLeg ? '1' : '0.55';
+  }
+  if (megaTierVariantsBadge) {
+    megaTierVariantsBadge.textContent = formatTierVariantsBadge(selectedMegaVars, isMega);
+    megaTierVariantsBadge.style.color = isMega ? '#388bfd' : '#8eaad0';
+    megaTierVariantsBadge.style.opacity = isMega ? '1' : '0.55';
+  }
+  if (wildTierVariantsBadge) {
+    wildTierVariantsBadge.textContent = formatTierVariantsBadge(selectedVars, isVar);
+    wildTierVariantsBadge.style.color = isVar ? '#388bfd' : '#8eaad0';
+    wildTierVariantsBadge.style.opacity = isVar ? '1' : '0.55';
+  }
 
   updateVariantTabCount(selectedVars.length);
 
@@ -2992,6 +3199,8 @@ function refreshModalSummary() {
       {
         classicLeg, ubLeg, paradoxLeg,
         selectedVariants: selectedVars,
+        legendaryVariants: selectedLegVars,
+        megaVariants: selectedMegaVars,
         customTargets,
         blacklist
       }
@@ -3006,6 +3215,40 @@ function refreshModalSummary() {
 ].forEach(cb => {
   if (cb) cb.addEventListener('change', refreshModalSummary);
 });
+
+if (filterVariantsCheckbox) {
+  filterVariantsCheckbox.addEventListener('change', () => {
+    if (filterVariantsCheckbox.checked) {
+      const anyChecked = variantIds.some(id => {
+        const el = document.getElementById(id);
+        return el && el.checked;
+      });
+      if (!anyChecked) {
+        variantIds.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.checked = (id !== 'varNormal');
+        });
+      }
+    }
+    refreshModalSummary();
+  });
+}
+
+function ensureLegTierEnabled() {
+  const anySub = (subClassicLegCheckbox && subClassicLegCheckbox.checked) ||
+    (subUltraBeastsCheckbox && subUltraBeastsCheckbox.checked) ||
+    (subParadoxCheckbox && subParadoxCheckbox.checked);
+  if (!anySub) {
+    if (subClassicLegCheckbox) subClassicLegCheckbox.checked = true;
+    if (subUltraBeastsCheckbox) subUltraBeastsCheckbox.checked = true;
+    if (subParadoxCheckbox) subParadoxCheckbox.checked = true;
+  }
+  if (filterLegendariesCheckbox) filterLegendariesCheckbox.checked = true;
+}
+
+function ensureMegaTierEnabled() {
+  if (filterMegasCheckbox) filterMegasCheckbox.checked = true;
+}
 
 const autoActivateLevel = () => {
   if (filterLevelCheckbox && !filterLevelCheckbox.checked) {
@@ -3040,8 +3283,157 @@ if (filterLevelCheckbox) {
 
 variantIds.forEach(id => {
   const el = document.getElementById(id);
-  if (el) el.addEventListener('change', refreshModalSummary);
+  if (el) {
+    el.addEventListener('change', () => {
+      const anyChecked = variantIds.some(vid => {
+        const vel = document.getElementById(vid);
+        return vel && vel.checked;
+      });
+      if (el.checked && filterVariantsCheckbox && !filterVariantsCheckbox.checked) {
+        filterVariantsCheckbox.checked = true;
+      } else if (!anyChecked && filterVariantsCheckbox) {
+        filterVariantsCheckbox.checked = false;
+      }
+      refreshModalSummary();
+    });
+  }
 });
+
+legVariantIds.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('change', () => {
+      const anyChecked = legVariantIds.some(vid => {
+        const vel = document.getElementById(vid);
+        return vel && vel.checked;
+      });
+      if (el.checked) {
+        ensureLegTierEnabled();
+      } else if (!anyChecked) {
+        if (subClassicLegCheckbox) subClassicLegCheckbox.checked = false;
+        if (subUltraBeastsCheckbox) subUltraBeastsCheckbox.checked = false;
+        if (subParadoxCheckbox) subParadoxCheckbox.checked = false;
+        if (filterLegendariesCheckbox) filterLegendariesCheckbox.checked = false;
+      }
+      refreshModalSummary();
+    });
+  }
+});
+
+megaVariantIds.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('change', () => {
+      const anyChecked = megaVariantIds.some(vid => {
+        const vel = document.getElementById(vid);
+        return vel && vel.checked;
+      });
+      if (el.checked) {
+        ensureMegaTierEnabled();
+      } else if (!anyChecked) {
+        if (filterMegasCheckbox) filterMegasCheckbox.checked = false;
+      }
+      refreshModalSummary();
+    });
+  }
+});
+
+function switchToVariantsTab() {
+  const targetTab2 = document.getElementById('targetTab2');
+  if (targetTab2) targetTab2.checked = true;
+  document.querySelectorAll('.modal-tab-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-tab') === 'tabVariants');
+  });
+  document.querySelectorAll('.modal-tab-content').forEach(c => {
+    c.classList.toggle('active', c.id === 'tabVariants');
+  });
+}
+
+if (legTierVariantsBadge) legTierVariantsBadge.addEventListener('click', switchToVariantsTab);
+if (megaTierVariantsBadge) megaTierVariantsBadge.addEventListener('click', switchToVariantsTab);
+if (wildTierVariantsBadge) wildTierVariantsBadge.addEventListener('click', switchToVariantsTab);
+
+if (btnLegAllVariants) {
+  btnLegAllVariants.addEventListener('click', () => {
+    ensureLegTierEnabled();
+    legVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = true;
+    });
+    refreshModalSummary();
+  });
+}
+if (btnLegVariantsOnly) {
+  btnLegVariantsOnly.addEventListener('click', () => {
+    ensureLegTierEnabled();
+    legVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = (id !== 'legVarNormal');
+    });
+    refreshModalSummary();
+  });
+}
+if (btnLegShiniesOnly) {
+  btnLegShiniesOnly.addEventListener('click', () => {
+    ensureLegTierEnabled();
+    legVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = (id === 'legVarShiny');
+    });
+    refreshModalSummary();
+  });
+}
+if (btnLegChromeOnly) {
+  btnLegChromeOnly.addEventListener('click', () => {
+    ensureLegTierEnabled();
+    legVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = (id === 'legVarChrome');
+    });
+    refreshModalSummary();
+  });
+}
+
+if (btnMegaAllVariants) {
+  btnMegaAllVariants.addEventListener('click', () => {
+    ensureMegaTierEnabled();
+    megaVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = true;
+    });
+    refreshModalSummary();
+  });
+}
+if (btnMegaVariantsOnly) {
+  btnMegaVariantsOnly.addEventListener('click', () => {
+    ensureMegaTierEnabled();
+    megaVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = (id !== 'megaVarNormal');
+    });
+    refreshModalSummary();
+  });
+}
+if (btnMegaShiniesOnly) {
+  btnMegaShiniesOnly.addEventListener('click', () => {
+    ensureMegaTierEnabled();
+    megaVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = (id === 'megaVarShiny');
+    });
+    refreshModalSummary();
+  });
+}
+if (btnMegaChromeOnly) {
+  btnMegaChromeOnly.addEventListener('click', () => {
+    ensureMegaTierEnabled();
+    megaVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = (id === 'megaVarChrome');
+    });
+    refreshModalSummary();
+  });
+}
 
 if (btnAllVariants) {
   btnAllVariants.addEventListener('click', () => {
@@ -3071,6 +3463,17 @@ if (btnShiniesOnly) {
     variantIds.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.checked = (id === 'varShiny');
+    });
+    refreshModalSummary();
+  });
+}
+
+if (btnWildChromeOnly) {
+  btnWildChromeOnly.addEventListener('click', () => {
+    if (filterVariantsCheckbox) filterVariantsCheckbox.checked = true;
+    variantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = (id === 'varChrome');
     });
     refreshModalSummary();
   });
@@ -3114,6 +3517,22 @@ if (saveTargetsBtn) {
       }
     });
 
+    const selectedLegVars = [];
+    legVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.checked) {
+        selectedLegVars.push(legVariantMap[id]);
+      }
+    });
+
+    const selectedMegaVars = [];
+    megaVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.checked) {
+        selectedMegaVars.push(megaVariantMap[id]);
+      }
+    });
+
     const customVal = customTargetInput ? customTargetInput.value.trim() : '';
     const blacklistVal = blacklistInput ? blacklistInput.value.trim() : '';
 
@@ -3131,6 +3550,8 @@ if (saveTargetsBtn) {
     config.settings.findAnySpecialVariant = isVar;
     config.settings.enableVariantFilter = isVar;
     config.settings.selectedVariants = selectedVars;
+    config.settings.legendaryVariants = selectedLegVars;
+    config.settings.megaVariants = selectedMegaVars;
 
     config.settings.customTargetList = customVal;
     config.settings.blacklistList = blacklistVal;
@@ -3144,15 +3565,16 @@ if (saveTargetsBtn) {
     const isShinyOnly = selectedVars.length === 1 && selectedVars[0] === 'Shiny';
     const specialCount = selectedVars.filter(v => v !== 'Normal').length;
     const hasCustom = customVal.length > 0;
+    const legAll10 = selectedLegVars.length === 10;
+    const megaAll10 = selectedMegaVars.length === 10;
 
     let preset = 'custom';
-    if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && !hasCustom) preset = 'all';
+    if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && legAll10 && megaAll10 && !hasCustom) preset = 'all';
     else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) preset = 'shinies';
     else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) preset = 'variants';
-    else if (isLeg && isMega && !isLevel && !hasCustom && !isVar) preset = 'legend_megas';
-    else if (isLeg && !isMega && !isLevel && !hasCustom) preset = 'legendaries';
-    else if (!isLeg && isMega && !isLevel && !hasCustom) preset = 'megas';
-    else if (isLeg && isMega && !isLevel && !hasCustom) preset = 'legend_megas';
+    else if (isLeg && isMega && !isVar && !isLevel && legAll10 && megaAll10 && !hasCustom) preset = 'legend_megas';
+    else if (isLeg && !isMega && !isVar && !isLevel && legAll10 && !hasCustom) preset = 'legendaries';
+    else if (!isLeg && isMega && !isVar && !isLevel && megaAll10 && !hasCustom) preset = 'megas';
 
     config.settings.targetPreset = preset;
     saveLocalConfig();
@@ -3551,34 +3973,20 @@ function updateRosterModeUI() {
   const inTrainingCount = filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100).length;
   const totalCount = filtered.length;
 
-  if (poolModeAllBtn) {
-    poolModeAllBtn.textContent = `All Levels (${totalCount})`;
-    if (teamRosterMode === 'ALL') {
-      poolModeAllBtn.style.border = '1px solid #388bfd';
-      poolModeAllBtn.style.background = '#14233c';
-      poolModeAllBtn.style.color = '#ffffff';
-      poolModeAllBtn.style.fontWeight = '700';
-    } else {
-      poolModeAllBtn.style.border = '1px solid transparent';
-      poolModeAllBtn.style.background = 'transparent';
-      poolModeAllBtn.style.color = '#8eaad0';
-      poolModeAllBtn.style.fontWeight = '500';
-    }
-  }
+  const poolModeAllTab = document.getElementById('poolModeAllTab');
+  const poolModeTrainingTab = document.getElementById('poolModeTrainingTab');
 
+  if (poolModeAllBtn) {
+    poolModeAllBtn.textContent = `All (${totalCount})`;
+  }
   if (poolModeTrainingBtn) {
-    poolModeTrainingBtn.innerHTML = `&#9889; Training &lt;100 (${inTrainingCount})`;
-    if (teamRosterMode === 'TRAINING') {
-      poolModeTrainingBtn.style.border = '1px solid #388bfd';
-      poolModeTrainingBtn.style.background = '#14233c';
-      poolModeTrainingBtn.style.color = '#ffffff';
-      poolModeTrainingBtn.style.fontWeight = '700';
-    } else {
-      poolModeTrainingBtn.style.border = '1px solid transparent';
-      poolModeTrainingBtn.style.background = 'transparent';
-      poolModeTrainingBtn.style.color = '#8eaad0';
-      poolModeTrainingBtn.style.fontWeight = '500';
-    }
+    poolModeTrainingBtn.textContent = `Training (${inTrainingCount})`;
+  }
+  if (poolModeAllTab) {
+    poolModeAllTab.checked = (teamRosterMode === 'ALL');
+  }
+  if (poolModeTrainingTab) {
+    poolModeTrainingTab.checked = (teamRosterMode === 'TRAINING');
   }
 
   const filterLabels = {
@@ -3613,22 +4021,11 @@ function resetTeamPrompt() {
   if (teamActionRow) teamActionRow.style.display = 'none';
   if (teamEmptyPrompt) {
     teamEmptyPrompt.style.display = 'flex';
-    if (teamBattleMode === 'PVP') {
-      const pvpSub = (pvpStrategy === 'GODSQUAD')
-        ? 'Click <b>Build God Squad</b> to generate an ultra-versatile 6-Pokemon meta team.'
-        : 'Enter a challenger username above to <b>Scout</b> their active team, or click <b>Build PvP Counters</b>.';
-      teamEmptyPrompt.innerHTML = `
-        <div style="font-size: 20px; color: #388bfd; margin-bottom: 6px; opacity: 0.9;">&#127919;</div>
-        <div style="font-weight: 700; color: #e0ecfa; font-size: 11.5px; margin-bottom: 3px;">Ready for Live Battle</div>
-        <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px; color: #8eaad0;">${pvpSub}</div>
-      `;
-    } else {
-      teamEmptyPrompt.innerHTML = `
-        <div style="font-size: 20px; color: #388bfd; margin-bottom: 6px; opacity: 0.9;">&#9876;</div>
-        <div style="font-weight: 700; color: #e0ecfa; font-size: 11.5px; margin-bottom: 3px;">Ready to Build</div>
-        <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px; color: #8eaad0;">Click <b>Build Best Team</b> to generate the optimal counter lineup.</div>
-      `;
-    }
+    const iconHtml = teamBattleMode === 'PVP' ? '&#127919;' : '&#9876;';
+    teamEmptyPrompt.innerHTML = `
+      <div style="font-size: 18px; color: #388bfd; margin-bottom: 4px; opacity: 0.7;">${iconHtml}</div>
+      <div style="font-weight: 600; color: #8eaad0; font-size: 11px;">No Active Lineup</div>
+    `;
   }
 }
 
@@ -3638,35 +4035,16 @@ function setTeamBattleMode(mode) {
   config.settings.teamBattleMode = mode;
   saveLocalConfig();
 
+  const teamModeNpcTab = document.getElementById('teamModeNpcTab');
+  const teamModePvpTab = document.getElementById('teamModePvpTab');
+
   if (mode === 'PVP') {
-    if (teamModePvpBtn) {
-      teamModePvpBtn.style.border = '1px solid #388bfd';
-      teamModePvpBtn.style.background = '#14233c';
-      teamModePvpBtn.style.color = '#ffffff';
-      teamModePvpBtn.style.fontWeight = '700';
-    }
-    if (teamModeNpcBtn) {
-      teamModeNpcBtn.style.border = '1px solid transparent';
-      teamModeNpcBtn.style.background = 'transparent';
-      teamModeNpcBtn.style.color = '#8eaad0';
-      teamModeNpcBtn.style.fontWeight = '500';
-    }
+    if (teamModePvpTab) teamModePvpTab.checked = true;
     if (teamNpcSection) teamNpcSection.style.display = 'none';
     if (teamPvpSection) teamPvpSection.style.display = 'flex';
     updatePvpBuildButtonLabel();
   } else {
-    if (teamModeNpcBtn) {
-      teamModeNpcBtn.style.border = '1px solid #388bfd';
-      teamModeNpcBtn.style.background = '#14233c';
-      teamModeNpcBtn.style.color = '#ffffff';
-      teamModeNpcBtn.style.fontWeight = '700';
-    }
-    if (teamModePvpBtn) {
-      teamModePvpBtn.style.border = '1px solid transparent';
-      teamModePvpBtn.style.background = 'transparent';
-      teamModePvpBtn.style.color = '#8eaad0';
-      teamModePvpBtn.style.fontWeight = '500';
-    }
+    if (teamModeNpcTab) teamModeNpcTab.checked = true;
     if (teamNpcSection) teamNpcSection.style.display = 'flex';
     if (teamPvpSection) teamPvpSection.style.display = 'none';
     if (buildTeamBtn) {
@@ -3692,11 +4070,11 @@ function updatePvpBuildButtonLabel() {
 function updateLiveChallengerUI(data) {
   if (!data || !Array.isArray(data.roster) || data.roster.length === 0) {
     if (pvpLiveStatusBadge) {
-      pvpLiveStatusBadge.textContent = 'No Active Challenger';
-      pvpLiveStatusBadge.style.color = '#8eaad0';
+      pvpLiveStatusBadge.textContent = '';
     }
     if (pvpLiveSummary) {
-      pvpLiveSummary.textContent = 'Waiting for live battle invite or active arena on DelugeRPG.';
+      pvpLiveSummary.textContent = '';
+      pvpLiveSummary.style.display = 'none';
     }
     if (pvpLiveRosterStrip) {
       pvpLiveRosterStrip.style.display = 'none';
@@ -3705,13 +4083,14 @@ function updateLiveChallengerUI(data) {
     return;
   }
 
+  const oppName = data.isProfileStalk ? (data.trainerName || 'Player') : (data.trainerTitle || data.trainerName || 'Challenger');
   if (pvpLiveStatusBadge) {
-    pvpLiveStatusBadge.textContent = 'Active Challenger';
+    pvpLiveStatusBadge.textContent = oppName;
     pvpLiveStatusBadge.style.color = '#238636';
   }
   if (pvpLiveSummary) {
-    const oppName = data.trainerTitle || data.trainerName || 'Challenger';
-    pvpLiveSummary.innerHTML = `Challenger: <b style="color:#e0ecfa;">${oppName}</b> (${data.roster.length} Pokemon)`;
+    pvpLiveSummary.textContent = '';
+    pvpLiveSummary.style.display = 'none';
   }
   if (pvpLiveRosterStrip) {
     pvpLiveRosterStrip.style.display = 'flex';
@@ -3720,7 +4099,8 @@ function updateLiveChallengerUI(data) {
       const thumb = document.createElement('div');
       thumb.style.cssText = 'width:36px; height:36px; background:#070e1a; border:1px solid #1a283e; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0;';
       const typeStr = Array.isArray(poke.types) ? poke.types.join('/') : (poke.types || 'Normal');
-      thumb.title = `${poke.name} (Lv ${poke.level || 100}) - ${typeStr}`;
+      const movesStr = (Array.isArray(poke.moves) && poke.moves.length > 0) ? ` | Moves: ${poke.moves.join(', ')}` : '';
+      thumb.title = `${poke.name} (Lv ${poke.level || 100}) - ${typeStr}${movesStr}`;
       if (poke.sprite) {
         const img = document.createElement('img');
         img.src = poke.sprite;
@@ -3745,7 +4125,7 @@ function renderScoutedPlayerCard(playerData) {
   }
   pvpScoutResultCard.style.display = 'block';
   if (pvpScoutedName) {
-    pvpScoutedName.textContent = `${playerData.name} (${playerData.roster.length} Pokemon)`;
+    pvpScoutedName.textContent = playerData.name || '';
   }
   if (pvpScoutedRosterStrip) {
     pvpScoutedRosterStrip.innerHTML = '';
@@ -3753,7 +4133,8 @@ function renderScoutedPlayerCard(playerData) {
       const thumb = document.createElement('div');
       thumb.style.cssText = 'width:36px; height:36px; background:#070e1a; border:1px solid #1a283e; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0;';
       const typeStr = Array.isArray(poke.types) ? poke.types.join('/') : (poke.types || 'Normal');
-      thumb.title = `${poke.name} (Lv ${poke.level || 100}) - ${typeStr}`;
+      const movesStr = (Array.isArray(poke.moves) && poke.moves.length > 0) ? ` | Moves: ${poke.moves.join(', ')}` : '';
+      thumb.title = `${poke.name} (Lv ${poke.level || 100}) - ${typeStr}${movesStr}`;
       if (poke.sprite) {
         const img = document.createElement('img');
         img.src = poke.sprite;
@@ -3819,17 +4200,18 @@ if (pvpScoutInput) {
 if (pvpScoutClearBtn) {
   pvpScoutClearBtn.addEventListener('click', () => {
     scoutedPlayerOpponent = null;
+    activePvpTargetType = 'LIVE';
     if (pvpScoutResultCard) pvpScoutResultCard.style.display = 'none';
     if (pvpScoutInput) pvpScoutInput.value = '';
     if (pvpScoutStatusBadge) {
-      pvpScoutStatusBadge.textContent = 'Profile Intel';
-      pvpScoutStatusBadge.style.color = '#388bfd';
+      pvpScoutStatusBadge.textContent = '';
     }
     resetTeamPrompt();
   });
 }
 if (checkLiveBattleBtn) {
   checkLiveBattleBtn.addEventListener('click', () => {
+    activePvpTargetType = 'LIVE';
     if (pvpLiveStatusBadge) {
       pvpLiveStatusBadge.textContent = 'Scanning page...';
       pvpLiveStatusBadge.style.color = '#388bfd';
@@ -3839,7 +4221,7 @@ if (checkLiveBattleBtn) {
     }
     setTimeout(() => {
       if (pvpLiveStatusBadge && pvpLiveStatusBadge.textContent === 'Scanning page...') {
-        if (liveBattleOpponent && liveBattleOpponent.roster && liveBattleOpponent.roster.length > 0) {
+        if (liveBattleOpponent && liveBattleOpponent.roster && liveBattleOpponent.roster.length > 0 && liveBattleOpponent.isManualCheck) {
           updateLiveChallengerUI(liveBattleOpponent);
         } else {
           pvpLiveStatusBadge.textContent = 'No Active Challenger';
@@ -3888,18 +4270,28 @@ if (candidatePoolFilterSelect) {
 
 function handleLiveBattleOpponents(data) {
   if (!data || !Array.isArray(data.roster) || data.roster.length === 0) return;
-  liveBattleOpponent = data;
+  liveBattleOpponent = {
+    name: data.trainerName || 'Challenger',
+    trainerName: data.trainerName || 'Challenger',
+    trainerTitle: data.trainerTitle || data.trainerName || 'Challenger',
+    roster: data.roster,
+    battleUrl: data.battleUrl || '/battle/live',
+    npcId: data.npcId,
+    isProfileStalk: !!data.isProfileStalk,
+    isManualCheck: !!data.isManualCheck
+  };
   if (data.battleUrl) {
     lastSelectedBattleUrl = data.battleUrl;
   }
   const oppSig = `${data.trainerName}:${data.battleUrl || ''}:${data.roster.map(p => p.name).join(',')}`;
-  if (lastLoggedBattleOpponentSig !== oppSig) {
+  const isNewOpponent = (lastLoggedBattleOpponentSig !== oppSig);
+  if (isNewOpponent) {
     lastLoggedBattleOpponentSig = oppSig;
     backendLog('BATTLE_DETECTOR', `Opponent detected: ${data.trainerName} (${data.roster.length} Pokemon)`);
   }
 
-  // Auto-learn into gymLeadersData and persist to gym_leaders.json
-  if (gymLeadersData && data.trainerName) {
+  // Auto-learn into gymLeadersData and persist to gym_leaders.json (skip for stalked player profiles)
+  if (gymLeadersData && data.trainerName && !data.isProfileStalk) {
     let targetTrainer = null;
     const cleanSearchName = data.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
     const allGroups = [
@@ -3951,30 +4343,39 @@ function handleLiveBattleOpponents(data) {
 
   if (!teamTrainerSelect) return;
 
-  let liveGroup = document.getElementById('optgroup-live-battle');
-  if (!liveGroup) {
-    liveGroup = document.createElement('optgroup');
-    liveGroup.id = 'optgroup-live-battle';
-    liveGroup.label = 'CURRENT BATTLE (LIVE DETECTED)';
-    teamTrainerSelect.insertBefore(liveGroup, teamTrainerSelect.firstChild);
-  }
-  liveGroup.innerHTML = '';
-  const opt = document.createElement('option');
-  opt.value = 'LIVE__BATTLE';
-  opt.textContent = `${data.trainerTitle || data.trainerName} (${data.roster.length} Pokemon)`;
-  liveGroup.appendChild(opt);
+  if (!data.isProfileStalk) {
+    let liveGroup = document.getElementById('optgroup-live-battle');
+    if (!liveGroup) {
+      liveGroup = document.createElement('optgroup');
+      liveGroup.id = 'optgroup-live-battle';
+      liveGroup.label = 'CURRENT BATTLE (LIVE DETECTED)';
+      teamTrainerSelect.insertBefore(liveGroup, teamTrainerSelect.firstChild);
+    }
+    liveGroup.innerHTML = '';
+    const opt = document.createElement('option');
+    opt.value = 'LIVE__BATTLE';
+    opt.textContent = `${data.trainerTitle || data.trainerName} (${data.roster.length} Pokemon)`;
+    liveGroup.appendChild(opt);
 
-  // Pre-select live opponent only if user has not already built an active team lineup
-  if (!lastRecommendedTeam || lastRecommendedTeam.length === 0) {
-    teamTrainerSelect.value = 'LIVE__BATTLE';
+    // Pre-select live opponent only if user has not already built an active team lineup
+    if (!lastRecommendedTeam || lastRecommendedTeam.length === 0) {
+      teamTrainerSelect.value = 'LIVE__BATTLE';
+    }
   }
 
-  if (typeof updateLiveChallengerUI === 'function') {
-    updateLiveChallengerUI(data);
-  }
-  if (teamBattleMode === 'PVP' && pvpStrategy === 'COUNTERS' && (!lastRecommendedTeam || lastRecommendedTeam.length === 0)) {
-    if (typeof executePvPTeamBuild === 'function') {
-      executePvPTeamBuild();
+  // Only populate the PvP LIVE OPPONENT card when user explicitly clicked "Check Active Screen"
+  if (data.isManualCheck) {
+    activePvpTargetType = 'LIVE';
+    if (typeof updateLiveChallengerUI === 'function') {
+      updateLiveChallengerUI(liveBattleOpponent);
+    }
+    if (teamBattleMode === 'PVP') {
+      if (pvpStrategy !== 'COUNTERS') {
+        pvpStrategy = 'COUNTERS';
+        if (pvpStrategySelect) pvpStrategySelect.value = 'COUNTERS';
+        updatePvpBuildButtonLabel();
+      }
+      resetTeamPrompt();
     }
   }
 }
@@ -3984,7 +4385,13 @@ function loadTeamBuilderData() {
     const rawColl = readDataFile('user_collection.json');
     if (rawColl) {
       currentCollection = JSON.parse(rawColl);
-      if (scanStatusBadge) scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced`;
+      if (scanStatusDot) {
+        scanStatusDot.style.background = currentCollection.length > 0 ? '#10b981' : '#f59e0b';
+      }
+      if (scanStatusBadge) {
+        scanStatusBadge.style.color = '#c9d8ec';
+        scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced`;
+      }
       if (candidatePoolFilterSelect && teamPoolFilter) {
         candidatePoolFilterSelect.value = teamPoolFilter;
       }
@@ -4129,11 +4536,6 @@ function openTeamBuilderPanel() {
     if (teamResultContainer) teamResultContainer.style.display = 'block';
     if (teamActionRow) teamActionRow.style.display = 'flex';
   }
-  try {
-    if (delugeView && typeof delugeView.send === 'function') {
-      delugeView.send('check-battle-opponents');
-    }
-  } catch (_) {}
 }
 
 function closeTeamBuilderPanel() {
@@ -4263,10 +4665,6 @@ function renderAdsInspectorUI() {
         </div>
         ${slotStr ? `<div style="font-size: 10px; color: #8eaad0; margin-top: 1px;">${slotStr}</div>` : ''}
         ${srcStr}
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 1px solid #1a283e; font-size: 9.5px;">
-          <span style="color: #8eaad0;">Container: <code style="color: #e0ecfa;">${item.parentContainer || 'None'}</code></span>
-          <span style="color: #388bfd; font-weight: 600;">${item.status || 'Smoothly Collapsed'}</span>
-        </div>
       </div>
     `;
   }
@@ -4376,18 +4774,25 @@ if (clearAdsLogBtn) {
 }
 if (adsFilterTabs) {
   adsFilterTabs.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-ad-filter]');
-    if (!btn) return;
-    adsFilterTabs.querySelectorAll('button').forEach(b => b.classList.remove('btn-active'));
-    btn.classList.add('btn-active');
-    adsFilterType = btn.getAttribute('data-ad-filter') || 'ALL';
+    const tabEl = e.target.closest('[data-ad-filter]');
+    if (!tabEl) return;
+    const radioId = tabEl.getAttribute('for');
+    if (radioId) {
+      const radioEl = document.getElementById(radioId);
+      if (radioEl) radioEl.checked = true;
+    }
+    adsFilterType = tabEl.getAttribute('data-ad-filter') || 'ALL';
     renderAdsInspectorUI();
   });
 }
 
 if (scanPokesBtn) {
   scanPokesBtn.addEventListener('click', () => {
-    if (scanStatusBadge) scanStatusBadge.textContent = 'Scanning...';
+    if (scanStatusDot) scanStatusDot.style.background = '#388bfd';
+    if (scanStatusBadge) {
+      scanStatusBadge.style.color = '#388bfd';
+      scanStatusBadge.textContent = 'Scanning...';
+    }
     delugeView.send('start-scan-pokemon');
   });
 }
@@ -4432,21 +4837,7 @@ if (scanTrainersBtn) {
   scanTrainersBtn.addEventListener('click', () => {
     updateTrainerIntelStats();
     if (activeBattleStatusMsg) {
-      if (delugeView) {
-        try {
-          const curUrl = delugeView.getURL() || '';
-          if (curUrl.includes('/battle')) {
-            delugeView.send('check-battle-opponents');
-            activeBattleStatusMsg.style.color = '#388bfd';
-            activeBattleStatusMsg.textContent = 'Active battle detected! Scanning arena for opponent team...';
-          } else {
-            activeBattleStatusMsg.style.color = '#8eaad0';
-            activeBattleStatusMsg.textContent = 'Auto-recorder active. Opponent teams are saved automatically when battles begin!';
-          }
-        } catch (_) {
-          activeBattleStatusMsg.textContent = 'Auto-recorder active in battles.';
-        }
-      }
+      activeBattleStatusMsg.textContent = '';
     }
     showModal(trainerIntelModal);
   });
@@ -4464,12 +4855,12 @@ if (inspectBattleBtn) {
         delugeView.send('check-battle-opponents');
         if (activeBattleStatusMsg) {
           activeBattleStatusMsg.style.color = '#388bfd';
-          activeBattleStatusMsg.textContent = 'Scanning active battle for opponent roster...';
+          activeBattleStatusMsg.textContent = 'Scanning active battle...';
         }
       } else {
         if (activeBattleStatusMsg) {
           activeBattleStatusMsg.style.color = '#d29922';
-          activeBattleStatusMsg.textContent = 'No battle active on screen. Enter a battle on the left to capture!';
+          activeBattleStatusMsg.textContent = 'No battle active on screen.';
         }
       }
     } catch (_) {}
@@ -4484,28 +4875,12 @@ function renderTeamLineup(leader, team) {
 
   if (!team || team.length === 0) {
     const emptyMsg = teamRosterMode === 'TRAINING'
-      ? 'No eligible training counters (&lt; Lv 100) found in your collection for this opponent.'
+      ? 'No eligible training counters (&lt; Lv 100) found.'
       : 'No eligible counters found.';
     teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">${emptyMsg}</div>`;
     if (teamActionRow) teamActionRow.style.display = 'none';
     return;
   }
-
-  const header = document.createElement('div');
-  header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 6px; font-size:10px; color:#8eaad0; border-bottom:1px solid #1a283e; margin-bottom:6px; font-weight:600;';
-  const targetLabel = (leader && leader.name) ? leader.name : 'Opponent';
-  let modeBadge = '';
-  if (teamBattleMode === 'PVP') {
-    if (pvpStrategy === 'GODSQUAD') {
-      modeBadge = ' <span style="color:#f59e0b; font-weight:700; margin-left:6px; background:rgba(245, 158, 11, 0.15); border:1px solid rgba(245, 158, 11, 0.3); padding:1px 6px; border-radius:4px;">&#9889; GOD SQUAD</span>';
-    } else {
-      modeBadge = ' <span style="color:#388bfd; font-weight:700; margin-left:6px; background:rgba(56, 139, 253, 0.15); border:1px solid rgba(56, 139, 253, 0.3); padding:1px 6px; border-radius:4px;">&#127919; PVP COUNTER</span>';
-    }
-  } else if (teamRosterMode === 'TRAINING') {
-    modeBadge = ' <span style="color:#388bfd; font-weight:700; margin-left:6px; background:rgba(56, 139, 253, 0.15); border:1px solid rgba(56, 139, 253, 0.3); padding:1px 6px; border-radius:4px;">&#9889; TRAINING (&lt;100)</span>';
-  }
-  header.innerHTML = `<span>YOUR ${teamBattleMode === 'PVP' ? 'PVP' : 'COUNTER'} TEAM${modeBadge}</span><span>TARGET: ${targetLabel}</span>`;
-  teamResultList.appendChild(header);
 
   team.forEach(p => {
     const row = document.createElement('div');
@@ -4534,45 +4909,42 @@ function renderTeamLineup(leader, team) {
     const info = document.createElement('div');
     info.style.cssText = 'min-width:0; overflow:hidden;';
     const varColor = (p.variant && p.variant !== 'Normal') ? '#388bfd' : '#e0ecfa';
+    const cleanMove = (p.bestMove || '').split(' (')[0];
     info.innerHTML = `<div style="font-weight:700; color:${varColor}; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name} <span style="font-weight:500; color:#8eaad0;">(Lv ${p.level})</span></div>` +
-                     `<div style="font-size:10px; color:#8eaad0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Attack: <b style="color:#e0ecfa;">${p.bestMove}</b></div>`;
+                     `<div style="font-size:10px; color:#8eaad0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><b style="color:#e0ecfa;">${cleanMove}</b></div>`;
     left.appendChild(info);
 
     const right = document.createElement('div');
-    right.style.cssText = 'text-align:right; white-space:nowrap; flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:2px;';
+    right.style.cssText = 'text-align:right; white-space:nowrap; flex-shrink:0; display:flex; align-items:center;';
 
     let targetBadgeHtml = '';
     if (p.targetName === 'Safety Anchor & Carry') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid rgba(56, 139, 253, 0.3); border-radius:4px;">CARRY ANCHOR</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid #388bfd; border-radius:4px;">CARRY ANCHOR</span>';
     } else if (p.targetName === 'Lead Solo Sweeper') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#d29922; background:rgba(210, 153, 34, 0.15); border:1px solid rgba(210, 153, 34, 0.3); border-radius:4px;">SOLO SWEEPER</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#d29922; background:rgba(210, 153, 34, 0.15); border:1px solid #d29922; border-radius:4px;">SOLO SWEEPER</span>';
     } else if (p.targetName === 'Gym Anchor' || p.targetName === 'Reserve Anchor') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#8eaad0; background:#070e1a; border:1px solid #1a283e; border-radius:4px;">RESERVE</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#8eaad0; background:#070e1a; border:1px solid #1a283e; border-radius:4px;">RESERVE</span>';
     } else if (p.targetName === 'Trainee' || (typeof p.targetName === 'string' && p.targetName.startsWith('Trainee'))) {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#238636; background:rgba(35, 134, 54, 0.15); border:1px solid rgba(56, 180, 100, 0.3); border-radius:4px;">TRAINEE</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#238636; background:rgba(35, 134, 54, 0.15); border:1px solid #238636; border-radius:4px;">TRAINEE</span>';
     } else if (p.role === 'LEAD SWEEPER') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f59e0b; background:rgba(245, 158, 11, 0.15); border:1px solid rgba(245, 158, 11, 0.3); border-radius:4px;">LEAD SWEEPER</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#f59e0b; background:rgba(245, 158, 11, 0.15); border:1px solid #f59e0b; border-radius:4px;">LEAD SWEEPER</span>';
     } else if (p.role === 'WALLBREAKER') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#f87171; background:rgba(248, 113, 113, 0.15); border:1px solid rgba(248, 113, 113, 0.3); border-radius:4px;">WALLBREAKER</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#f87171; background:rgba(248, 113, 113, 0.15); border:1px solid #f87171; border-radius:4px;">WALLBREAKER</span>';
     } else if (p.role === 'IMMORTAL TANK') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid rgba(56, 139, 253, 0.3); border-radius:4px;">TANK</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid #388bfd; border-radius:4px;">TANK</span>';
     } else if (p.role === 'FAIRY DRAGON-SLAYER') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#a371f7; background:rgba(163, 113, 247, 0.15); border:1px solid rgba(163, 113, 247, 0.3); border-radius:4px;">FAIRY SLAYER</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#a371f7; background:rgba(163, 113, 247, 0.15); border:1px solid #a371f7; border-radius:4px;">FAIRY SLAYER</span>';
     } else if (p.role === 'GROUND/ELECTRIC PIVOT' || p.role === 'SPEED PIVOT') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#238636; background:rgba(35, 134, 54, 0.15); border:1px solid rgba(56, 180, 100, 0.3); border-radius:4px;">PIVOT</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#238636; background:rgba(35, 134, 54, 0.15); border:1px solid #238636; border-radius:4px;">PIVOT</span>';
     } else if (p.role === 'ARMOR ANCHOR' || p.role === 'CLUTCH ANCHOR') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#e0ecfa; background:#1a283e; border:1px solid #388bfd; border-radius:4px;">ANCHOR</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#e0ecfa; background:#1a283e; border:1px solid #388bfd; border-radius:4px;">ANCHOR</span>';
     } else if (p.targetName) {
-      targetBadgeHtml = `<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid rgba(56, 139, 253, 0.3); border-radius:4px;">vs ${p.targetName}</span>`;
+      targetBadgeHtml = `<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid #1a283e; border-radius:4px;">vs ${p.targetName}</span>`;
     } else {
-      targetBadgeHtml = '<span style="display:inline-block; padding:1px 6px; font-size:9.5px; font-weight:700; color:#8eaad0; background:#070e1a; border:1px solid #1a283e; border-radius:4px;">COUNTER</span>';
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#8eaad0; background:#070e1a; border:1px solid #1a283e; border-radius:4px;">COUNTER</span>';
     }
 
-    const cleanRole = (p.role || '').replace(/\s*\(vs\s+[^)]+\)/i, '');
-    const descHtml = p.roleDesc ? `<div style="font-size:9px; color:#8eaad0; max-width:115px; overflow:hidden; text-overflow:ellipsis;">${p.roleDesc}</div>` : '';
-    right.innerHTML = targetBadgeHtml +
-                      `<div style="font-size:10px; font-weight:600; color:#8eaad0;">${cleanRole}</div>` +
-                      descHtml;
+    right.innerHTML = targetBadgeHtml;
 
     row.appendChild(left);
     row.appendChild(right);
@@ -4773,16 +5145,18 @@ function executePvPTeamBuild() {
     renderTeamLineup({ name: 'Live PvP Universal Meta', isPvpMeta: true }, team);
   } else {
     // Strategy: Hard-Counters
-    const targetOpponent = scoutedPlayerOpponent || liveBattleOpponent;
+    const targetOpponent = (activePvpTargetType === 'LIVE' && liveBattleOpponent)
+      ? liveBattleOpponent
+      : (scoutedPlayerOpponent || liveBattleOpponent);
     if (!targetOpponent || !Array.isArray(targetOpponent.roster) || targetOpponent.roster.length === 0) {
       if (teamResultContainer) teamResultContainer.style.display = 'block';
       if (teamResultList) {
         teamResultList.innerHTML = `
           <div style="padding:16px 10px; color:#8eaad0; font-size:11px; text-align:center;">
             <div style="font-size:18px; margin-bottom:4px;">&#128269;</div>
-            <div style="font-weight:700; color:#e0ecfa; margin-bottom:4px;">No Challenger Scouted Yet</div>
+            <div style="font-weight:700; color:#e0ecfa; margin-bottom:4px;">No Challenger Scanned Yet</div>
             <div style="font-size:10px; line-height:1.4; color:#8eaad0;">
-              Enter a challenger's username above and click <b>Scout</b> to counter their team, or switch strategy to <b>God Squad (Meta)</b>.
+              Click <b>Check Active Screen</b> on a player profile or live battle, or enter a username above and click <b>Scout</b>.
             </div>
           </div>
         `;
@@ -4821,25 +5195,28 @@ function executePvPTeamBuild() {
     lastRecommendedTeam = team;
     renderTeamLineup(targetOpponent, team);
   }
-
-  if (delugeView && typeof delugeView.send === 'function' && !isBuildSyncInProgress) {
-    isBuildSyncInProgress = true;
-    pendingBuildLeader = (pvpStrategy === 'GODSQUAD')
-      ? { name: 'Live PvP Universal Meta', isPvpMeta: true, isPvp: true }
-      : (scoutedPlayerOpponent || liveBattleOpponent || { name: 'Live Challenger', isPvp: true });
-    buildTeamBtn.innerHTML = '<span>&#8635;</span><span>Syncing Box...</span>';
-    if (scanStatusBadge) {
-      scanStatusBadge.textContent = 'Syncing box...';
-      scanStatusBadge.style.color = '#388bfd';
-    }
-    delugeView.send('start-scan-pokemon');
-  }
 }
 
 if (buildTeamBtn) {
   buildTeamBtn.addEventListener('click', () => {
     if (teamBattleMode === 'PVP') {
       executePvPTeamBuild();
+      const pvpTarget = (activePvpTargetType === 'LIVE' && liveBattleOpponent)
+        ? liveBattleOpponent
+        : (scoutedPlayerOpponent || liveBattleOpponent);
+      const canSyncBox = (pvpStrategy === 'GODSQUAD') || (pvpTarget && Array.isArray(pvpTarget.roster) && pvpTarget.roster.length > 0);
+      if (canSyncBox && delugeView && typeof delugeView.send === 'function' && !isBuildSyncInProgress) {
+        isBuildSyncInProgress = true;
+        pendingBuildLeader = (pvpStrategy === 'GODSQUAD')
+          ? { name: 'Live PvP Universal Meta', isPvpMeta: true, isPvp: true }
+          : (pvpTarget || { name: 'Live Challenger', isPvp: true });
+        buildTeamBtn.innerHTML = '<span>&#8635;</span><span>Syncing Box...</span>';
+        if (scanStatusBadge) {
+          scanStatusBadge.textContent = 'Syncing box...';
+          scanStatusBadge.style.color = '#388bfd';
+        }
+        delugeView.send('start-scan-pokemon');
+      }
       return;
     }
     const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
@@ -4946,6 +5323,12 @@ if (copyTeamBtn) {
 
 function resolveTargetBattleUrl() {
   if (teamBattleMode === 'PVP') {
+    const pvpTarget = (activePvpTargetType === 'LIVE' && liveBattleOpponent)
+      ? liveBattleOpponent
+      : (scoutedPlayerOpponent || liveBattleOpponent);
+    if (pvpStrategy === 'COUNTERS' && pvpTarget && pvpTarget.battleUrl) {
+      return pvpTarget.battleUrl;
+    }
     return '/battle/live';
   }
   if (lastSelectedBattleUrl) return lastSelectedBattleUrl;
@@ -5225,9 +5608,9 @@ function renderCatchLogUI() {
             <span style="font-size: 9.5px; color: #8eaad0; font-weight: 600;">${p.timestamp || ''}</span>
           </div>
           <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(56, 139, 253, 0.15); color: #388bfd; border: 1px solid rgba(56, 139, 253, 0.3); font-weight: 600;">${p.variant || 'Normal'}</span>
-            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: #070e1a; color: #8eaad0; border: 1px solid #1a283e; font-weight: 600;">Lv ${p.level || '?'}</span>
-            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(210, 153, 34, 0.15); color: #d29922; border: 1px solid rgba(210, 153, 34, 0.3); font-weight: 600;">${p.ball || 'Master Ball'}</span>
+            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(56, 139, 253, 0.15); border: 1px solid #388bfd; color: #388bfd; font-weight: 600;">${p.variant || 'Normal'}</span>
+            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: #070e1a; border: 1px solid #1a283e; color: #8eaad0; font-weight: 600;">Lv ${p.level || '?'}</span>
+            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(210, 153, 34, 0.15); border: 1px solid #d29922; color: #d29922; font-weight: 600;">${p.ball || 'Master Ball'}</span>
           </div>
         </div>
       </div>

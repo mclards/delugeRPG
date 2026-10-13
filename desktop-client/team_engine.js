@@ -394,7 +394,7 @@ function extractPokemonFromHtml(html) {
   return pokemons;
 }
 
-function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50) {
+function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null) {
   let bestMove = null;
   let maxOffense = 0;
 
@@ -486,6 +486,25 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50) {
   else if (hasResistance) defScore = +15; // Resists one STAB, neutral to other
 
   if (isMutualSelfTrap) defScore -= 150;
+
+  // Evaluate opponent's known moveset (e.g., from stalked player profile #viewuteam)
+  if (Array.isArray(oppMoves) && oppMoves.length > 0) {
+    let worstCovRisk = 0;
+    for (const rawM of oppMoves) {
+      const rm = resolveMove(rawM);
+      if (!rm.isStatus && rm.power > 0 && rm.type) {
+        const covRisk = incomingEffectiveness(poke, rm.type);
+        if (covRisk > worstCovRisk) worstCovRisk = covRisk;
+      }
+    }
+    if (worstCovRisk >= 4.0) {
+      defScore -= 120; // Avoid getting 4x sniped by opponent's coverage move
+      if (worstCovRisk > worstDefRisk) worstDefRisk = worstCovRisk;
+      resistsAll = false;
+    } else if (worstCovRisk >= 2.0 && worstDefRisk < 2.0) {
+      defScore -= 45; // Penalize 2x exposure to opponent's coverage move
+    }
+  }
 
   // Class abilities: HP bonus (Shiny / Chrome), status immunity (Metallic), flinch (Ghostly)
   if (vMultipliers.hp > 1.0) defScore += Math.round((vMultipliers.hp - 1.0) * 60);
@@ -646,7 +665,7 @@ function buildBestTeam(trainer, collection) {
 
       const available = collection.filter(p => !chosenIds.has(p.id));
       const scored = available
-        .map(p => ({ opp, ...scoreVsSingleOpponent(p, oppTypes, oppLevel) }));
+        .map(p => ({ opp, ...scoreVsSingleOpponent(p, oppTypes, oppLevel, opp.moves) }));
 
       // Prefer unique species to eliminate duplicate clones and field diverse teams
       const diverseScored = scored.filter(s => !chosenSpecies.has(getBaseSpecies(s.pokemon.name)));
@@ -985,7 +1004,7 @@ function buildGodSquadTeam(collection, tierFilter) {
       evaluator: (p) => {
         let s = (p.level || 0);
         const types = (p.types || []).map(t => normalizeType(t));
-        if (types.includes('fairy')) s += 60;
+        if (types.includes('Fairy')) s += 60;
         const name = (p.name || '').toLowerCase();
         if (/xerneas|diancie|iron valiant|tapu lele|tapu koko|flutter mane|enamorus|magearna|zacian/i.test(name)) s += 60;
         const v = getVariantMultipliers(p.variant);
@@ -1015,7 +1034,7 @@ function buildGodSquadTeam(collection, tierFilter) {
       evaluator: (p) => {
         let s = (p.level || 0);
         const types = (p.types || []).map(t => normalizeType(t));
-        if (types.includes('steel')) s += 60;
+        if (types.includes('Steel')) s += 60;
         const name = (p.name || '').toLowerCase();
         if (/dialga|melmetal|celesteela|iron crown|cobalion|registeel|heatran|corviknight/i.test(name)) s += 60;
         const v = getVariantMultipliers(p.variant);

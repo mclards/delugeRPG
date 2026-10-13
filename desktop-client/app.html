@@ -1058,40 +1058,166 @@
       padding: 14px 16px;
     }
 
-    /* Modal Navigation Tab Bar */
-    .modal-tab-bar {
+    /* Segmented Sliding Tab Bar Component (Compact & Full-Width) */
+    .tab-container {
+      position: relative;
       display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
-      border-bottom: 1px solid #1a283e;
-      padding-bottom: 6px;
+      flex-direction: row;
+      align-items: flex-start;
+      padding: 2px;
+      background-color: #dadadb;
+      border-radius: 7px;
+      width: 100%;
+      box-sizing: border-box;
     }
-    .modal-tab-btn {
-      padding: 4px 12px;
-      height: 26px;
-      border-radius: 20px !important;
-      border: 1px solid rgba(70, 90, 120, 0.5) !important;
-      background: linear-gradient(180deg, rgba(35, 45, 62, 0.96) 0%, rgba(22, 30, 44, 0.98) 100%) !important;
-      color: #8eaad0 !important;
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.12s ease;
-      display: inline-flex;
+
+    .indicator {
+      content: "";
+      width: calc((100% - 4px) / 3);
+      height: 22px;
+      background: #ffffff;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      z-index: 9;
+      border: 0.5px solid rgba(0, 0, 0, 0.04);
+      box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.12), 0px 1px 1px rgba(0, 0, 0, 0.04);
+      border-radius: 5px;
+      transition: all 0.2s ease-out;
+    }
+
+    .tab {
+      width: calc(100% / 3);
+      height: 22px;
+      position: absolute;
+      z-index: 99;
+      outline: none;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .tab_label {
+      flex: 1;
+      width: calc(100% / 3);
+      height: 22px;
+      position: relative;
+      z-index: 999;
+      display: flex;
       align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border: 0;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #111827;
+      opacity: 0.65;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.2s ease-out;
+    }
+
+    .tab:checked + .tab_label {
+      opacity: 1;
+      font-weight: 700;
+      color: #000000;
+    }
+
+    .tab--1:checked ~ .indicator {
+      left: 2px;
+    }
+
+    .tab--2:checked ~ .indicator {
+      left: calc(2px + (100% - 4px) / 3);
+    }
+
+    .tab--3:checked ~ .indicator {
+      left: calc(2px + 2 * (100% - 4px) / 3);
+    }
+
+    /* 2-Tab Full-Width Variant (Team Builder Docked Panel) */
+    .tab-container-2 {
+      width: 100%;
+    }
+    .tab-container-2 .tab_label {
+      flex: 1;
+      width: 50%;
+      height: 21px;
+      font-size: 10.5px;
+    }
+    .tab-container-2 .indicator {
+      width: calc(50% - 2px);
+      height: 21px;
+    }
+    .tab-container-2 .tab--1:checked ~ .indicator {
+      left: 2px;
+    }
+    .tab-container-2 .tab--2:checked ~ .indicator {
+      left: 50%;
+    }
+
+    /* 6-Tab Full-Width Variant (Ads Inspector Filter Tabs) */
+    .tab-container-6 {
+      width: 100%;
+    }
+    .tab-container-6 .tab_label {
+      flex: 1;
+      width: calc(100% / 6);
+      font-size: 9.5px;
+      height: 20px;
+    }
+    .tab-container-6 .indicator {
+      width: calc((100% - 4px) / 6);
+      height: 20px;
+    }
+    .tab-container-6 .tab--1:checked ~ .indicator { left: 2px; }
+    .tab-container-6 .tab--2:checked ~ .indicator { left: calc(2px + (100% - 4px) / 6); }
+    .tab-container-6 .tab--3:checked ~ .indicator { left: calc(2px + 2 * (100% - 4px) / 6); }
+    .tab-container-6 .tab--4:checked ~ .indicator { left: calc(2px + 3 * (100% - 4px) / 6); }
+    .tab-container-6 .tab--5:checked ~ .indicator { left: calc(2px + 4 * (100% - 4px) / 6); }
+    .tab-container-6 .tab--6:checked ~ .indicator { left: calc(2px + 5 * (100% - 4px) / 6); }
+
+    /* Unified Single-Capsule Scan My Box + Live Progress Bar */
+    .scan-box-unified-bar {
+      display: flex;
+      align-items: stretch;
+      width: 100%;
+      height: 26px;
+      background: #070e1a;
+      border: 1px solid #243856;
+      border-radius: 30px;
+      overflow: hidden;
+      margin-bottom: 6px;
+      box-shadow: none !important;
+    }
+    .scan-box-unified-btn {
+      flex: 0 0 44%;
+      height: 100% !important;
+      border: none !important;
+      border-right: 1px solid #243856 !important;
+      border-radius: 30px 0 0 30px !important;
+      padding: 0 10px !important;
+      font-size: 10px !important;
+      font-weight: 700 !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+    }
+    .scan-box-unified-status {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       gap: 6px;
-      box-shadow: none !important;
+      padding: 0 10px;
+      background: #0a1424;
+      min-width: 0;
+      user-select: none;
     }
-    .modal-tab-btn:hover {
-      filter: brightness(1.12) !important;
-      color: #ffffff !important;
-      border-color: rgba(80, 110, 150, 0.7) !important;
-    }
-    .modal-tab-btn.active {
-      background: linear-gradient(180deg, #388bfd 0%, #1f6feb 100%) !important;
-      border: 1px solid rgba(80, 150, 240, 0.7) !important;
-      color: #ffffff !important;
-      box-shadow: none !important;
+    .scan-box-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      flex-shrink: 0;
     }
     .modal-tab-content {
       display: none;
@@ -1640,7 +1766,7 @@
           <div class="dropdown-divider"></div>
           <div id="navVersionFooter" class="nav-version-footer">
             <span class="nav-version-label">DelugeRPG Client</span>
-            <span id="navVersionBadge" class="nav-version-badge">v1.3.3</span>
+            <span id="navVersionBadge" class="nav-version-badge">v1.3.4</span>
           </div>
         </div>
       </div>
@@ -1655,10 +1781,17 @@
     </div>
 
     <!-- Segmented Navigation Tabs -->
-    <div class="modal-tab-bar">
-      <button type="button" class="modal-tab-btn active" data-tab="tabSpecies">&#127919; Pokemon Tiers</button>
-      <button type="button" class="modal-tab-btn" data-tab="tabVariants">&#10024; Sprite Variants (10)</button>
-      <button type="button" class="modal-tab-btn" data-tab="tabCustom">&#128683; Blacklist</button>
+    <div class="tab-container" style="margin-bottom: 10px;">
+      <input type="radio" name="targetModalTab" id="targetTab1" class="tab tab--1" checked />
+      <label class="tab_label modal-tab-btn active" for="targetTab1" data-tab="tabSpecies">Tiers</label>
+
+      <input type="radio" name="targetModalTab" id="targetTab2" class="tab tab--2" />
+      <label class="tab_label modal-tab-btn" for="targetTab2" id="tabVariantsBtn" data-tab="tabVariants">Variants (10)</label>
+
+      <input type="radio" name="targetModalTab" id="targetTab3" class="tab tab--3" />
+      <label class="tab_label modal-tab-btn" for="targetTab3" data-tab="tabCustom">Blacklist</label>
+
+      <div class="indicator"></div>
     </div>
 
     <!-- TAB 1: POKEMON TIERS & ENCOUNTER RULES -->
@@ -1667,52 +1800,62 @@
       <!-- Species Targets -->
       <div class="filter-group-title">Species Targets</div>
 
-      <!-- Legendaries: 3 Direct Category Checkboxes -->
+      <!-- Legendaries: 3 Direct Category Checkboxes + Assigned Variants Badge -->
       <div class="filter-item">
         <input type="checkbox" id="filterLegendariesCheckbox" style="display:none;" checked>
-        <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
           <span class="filter-label">Legendaries &amp; Special:</span>
-          <div id="subLegendaryWrap" style="display: flex; gap: 14px; align-items: center;">
-            <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
-              <input type="checkbox" id="subClassicLegCheckbox" class="input" checked>
-              <span class="custom-checkbox"></span>
-              <span>Classic</span>
-            </label>
-            <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
-              <input type="checkbox" id="subUltraBeastsCheckbox" class="input" checked>
-              <span class="custom-checkbox"></span>
-              <span>Ultra Beasts</span>
-            </label>
-            <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
-              <input type="checkbox" id="subParadoxCheckbox" class="input" checked>
-              <span class="custom-checkbox"></span>
-              <span>Paradox</span>
-            </label>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div id="subLegendaryWrap" style="display: flex; gap: 10px; align-items: center;">
+              <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
+                <input type="checkbox" id="subClassicLegCheckbox" class="input" checked>
+                <span class="custom-checkbox"></span>
+                <span>Classic</span>
+              </label>
+              <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
+                <input type="checkbox" id="subUltraBeastsCheckbox" class="input" checked>
+                <span class="custom-checkbox"></span>
+                <span>Ultra Beasts</span>
+              </label>
+              <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
+                <input type="checkbox" id="subParadoxCheckbox" class="input" checked>
+                <span class="custom-checkbox"></span>
+                <span>Paradox</span>
+              </label>
+            </div>
+            <button type="button" id="legTierVariantsBadge" class="quick-tag-btn" style="border-color: #243856; color: #388bfd;" title="Click to configure Legendaries Tier Sprite Variants">All (10)</button>
           </div>
         </div>
       </div>
 
-      <!-- Tier 2: Mega Evolution Families & Rare Lines -->
+      <!-- Tier 2: Mega Evolution Families & Rare Lines + Assigned Variants Badge -->
       <div class="filter-item">
-        <label class="filter-row">
-          <input type="checkbox" id="filterMegasCheckbox" class="input" checked>
-          <span class="custom-checkbox"></span>
-          <span class="filter-label">Mega Evolutions &amp; Rare Lines</span>
-        </label>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <label class="filter-row" style="margin: 0;">
+            <input type="checkbox" id="filterMegasCheckbox" class="input" checked>
+            <span class="custom-checkbox"></span>
+            <span class="filter-label">Mega Evolutions &amp; Rare Lines</span>
+          </label>
+          <button type="button" id="megaTierVariantsBadge" class="quick-tag-btn" style="border-color: #243856; color: #388bfd;" title="Click to configure Mega / G-Max Tier Sprite Variants">All (10)</button>
+        </div>
+      </div>
+
+      <!-- Tier 3: Wild / Custom Species Variants + Assigned Variants Badge -->
+      <div class="filter-item">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <label class="filter-row" style="margin: 0;">
+            <input type="checkbox" id="filterVariantsCheckbox" class="input" checked>
+            <span class="custom-checkbox"></span>
+            <span class="filter-label">Wild / Custom Species Variants</span>
+          </label>
+          <button type="button" id="wildTierVariantsBadge" class="quick-tag-btn" style="border-color: #243856; color: #388bfd;" title="Click to configure Wild / Custom Species Sprite Variants">Variants (9)</button>
+        </div>
       </div>
 
       <!-- Tier 1: Custom Whitelist Targets -->
       <div class="filter-item">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
           <span class="filter-label">&#128269; Custom Target Species</span>
-          <div class="quick-btn-group">
-            <button type="button" class="quick-tag-btn" data-add-target="Ditto">+ Ditto</button>
-            <button type="button" class="quick-tag-btn" data-add-target="Eevee">+ Eevee</button>
-            <button type="button" class="quick-tag-btn" data-add-target="Lucario">+ Lucario</button>
-            <button type="button" class="quick-tag-btn" data-add-target="Gengar">+ Gengar</button>
-            <button type="button" class="quick-tag-btn" data-add-target="Bagon">+ Bagon</button>
-            <button type="button" class="quick-tag-btn" data-add-target="Dratini">+ Dratini</button>
-          </div>
         </div>
         <input type="text" id="customTargetInput" class="input-field" placeholder="Comma-separated (e.g. Ditto, Eevee, Lucario, Gengar, Bagon, Dratini)">
       </div>
@@ -1754,19 +1897,67 @@
 
     </div>
 
-    <!-- TAB 2: SPECIFIC SPRITE VARIANTS SELECTOR -->
+    <!-- TAB 2: PER-TIER SPRITE VARIANTS SELECTOR (CHECKBOX-BASED) -->
     <div id="tabVariants" class="modal-tab-content">
+      <!-- 1. Legendaries & Special Tier Variants -->
       <div class="filter-item">
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-          <label class="filter-row" style="margin: 0;">
-            <input type="checkbox" id="filterVariantsCheckbox" class="input" checked>
-            <span class="custom-checkbox"></span>
-            <span class="filter-label">Filter Sprite Variants</span>
-          </label>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+          <span class="filter-label">Legendaries &amp; Special Tier:</span>
+          <div class="quick-btn-group">
+            <button id="btnLegAllVariants" type="button" class="quick-tag-btn">All (10)</button>
+            <button id="btnLegVariantsOnly" type="button" class="quick-tag-btn">Variants (9)</button>
+            <button id="btnLegShiniesOnly" type="button" class="quick-tag-btn">&#9733; Shiny</button>
+            <button id="btnLegChromeOnly" type="button" class="quick-tag-btn">Chrome</button>
+          </div>
+        </div>
+        <div id="legVariantsWrap" class="variant-grid-5">
+          <label class="variant-cell" style="border-color: #388bfd;"><input type="checkbox" id="legVarNormal" class="input" checked><span class="custom-checkbox"></span><span style="color:#388bfd;font-weight:700;">Normal</span></label>
+          <label class="variant-cell"><input type="checkbox" id="legVarShiny" class="input" checked><span class="custom-checkbox"></span><span>Shiny</span></label>
+          <label class="variant-cell"><input type="checkbox" id="legVarChrome" class="input" checked><span class="custom-checkbox"></span><span>Chrome</span></label>
+          <label class="variant-cell"><input type="checkbox" id="legVarRetro" class="input" checked><span class="custom-checkbox"></span><span>Retro</span></label>
+          <label class="variant-cell"><input type="checkbox" id="legVarMetallic" class="input" checked><span class="custom-checkbox"></span><span>Metallic</span></label>
+          <label class="variant-cell"><input type="checkbox" id="legVarShadow" class="input" checked><span class="custom-checkbox"></span><span>Shadow</span></label>
+          <label class="variant-cell"><input type="checkbox" id="legVarGhostly" class="input" checked><span class="custom-checkbox"></span><span>Ghostly</span></label>
+          <label class="variant-cell"><input type="checkbox" id="legVarDark" class="input" checked><span class="custom-checkbox"></span><span>Dark</span></label>
+          <label class="variant-cell"><input type="checkbox" id="legVarMirage" class="input" checked><span class="custom-checkbox"></span><span>Mirage</span></label>
+          <label class="variant-cell"><input type="checkbox" id="legVarNegative" class="input" checked><span class="custom-checkbox"></span><span>Negative</span></label>
+        </div>
+      </div>
+
+      <!-- 2. Mega / G-Max & Rare Lines Tier Variants -->
+      <div class="filter-item">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+          <span class="filter-label">Mega / G-Max &amp; Rare Lines Tier:</span>
+          <div class="quick-btn-group">
+            <button id="btnMegaAllVariants" type="button" class="quick-tag-btn">All (10)</button>
+            <button id="btnMegaVariantsOnly" type="button" class="quick-tag-btn">Variants (9)</button>
+            <button id="btnMegaShiniesOnly" type="button" class="quick-tag-btn">&#9733; Shiny</button>
+            <button id="btnMegaChromeOnly" type="button" class="quick-tag-btn">Chrome</button>
+          </div>
+        </div>
+        <div id="megaVariantsWrap" class="variant-grid-5">
+          <label class="variant-cell" style="border-color: #388bfd;"><input type="checkbox" id="megaVarNormal" class="input" checked><span class="custom-checkbox"></span><span style="color:#388bfd;font-weight:700;">Normal</span></label>
+          <label class="variant-cell"><input type="checkbox" id="megaVarShiny" class="input" checked><span class="custom-checkbox"></span><span>Shiny</span></label>
+          <label class="variant-cell"><input type="checkbox" id="megaVarChrome" class="input" checked><span class="custom-checkbox"></span><span>Chrome</span></label>
+          <label class="variant-cell"><input type="checkbox" id="megaVarRetro" class="input" checked><span class="custom-checkbox"></span><span>Retro</span></label>
+          <label class="variant-cell"><input type="checkbox" id="megaVarMetallic" class="input" checked><span class="custom-checkbox"></span><span>Metallic</span></label>
+          <label class="variant-cell"><input type="checkbox" id="megaVarShadow" class="input" checked><span class="custom-checkbox"></span><span>Shadow</span></label>
+          <label class="variant-cell"><input type="checkbox" id="megaVarGhostly" class="input" checked><span class="custom-checkbox"></span><span>Ghostly</span></label>
+          <label class="variant-cell"><input type="checkbox" id="megaVarDark" class="input" checked><span class="custom-checkbox"></span><span>Dark</span></label>
+          <label class="variant-cell"><input type="checkbox" id="megaVarMirage" class="input" checked><span class="custom-checkbox"></span><span>Mirage</span></label>
+          <label class="variant-cell"><input type="checkbox" id="megaVarNegative" class="input" checked><span class="custom-checkbox"></span><span>Negative</span></label>
+        </div>
+      </div>
+
+      <!-- 3. Wild / Custom Species Variants -->
+      <div class="filter-item">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+          <span class="filter-label">Wild / Custom Species Variants:</span>
           <div class="quick-btn-group">
             <button id="btnAllVariants" type="button" class="quick-tag-btn">All (10)</button>
-            <button id="btnVariantsOnly" type="button" class="quick-tag-btn">Variants Only (9)</button>
-            <button id="btnShiniesOnly" type="button" class="quick-tag-btn">&#9733; Shiny Only</button>
+            <button id="btnVariantsOnly" type="button" class="quick-tag-btn">Variants (9)</button>
+            <button id="btnShiniesOnly" type="button" class="quick-tag-btn">&#9733; Shiny</button>
+            <button id="btnWildChromeOnly" type="button" class="quick-tag-btn">Chrome</button>
           </div>
         </div>
         <div id="subVariantsWrap" class="variant-grid-5">
@@ -1789,16 +1980,7 @@
       <div class="filter-item">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
           <span class="filter-label">&#128683; Blacklist / Ignore Species</span>
-          <div style="display: flex; gap: 4px; align-items: center;">
-            <div class="quick-btn-group">
-              <button type="button" class="quick-tag-btn" data-add-blacklist="Sentret">+ Sentret</button>
-              <button type="button" class="quick-tag-btn" data-add-blacklist="Rattata">+ Rattata</button>
-              <button type="button" class="quick-tag-btn" data-add-blacklist="Pidgey">+ Pidgey</button>
-              <button type="button" class="quick-tag-btn" data-add-blacklist="Zubat">+ Zubat</button>
-              <button type="button" class="quick-tag-btn" data-add-blacklist="Magikarp">+ Magikarp</button>
-            </div>
-            <button id="clearBlacklistBtn" type="button" class="quick-tag-btn" style="border-color:rgba(218,54,51,0.5);color:#f85149;">Clear</button>
-          </div>
+          <button id="clearBlacklistBtn" type="button" class="quick-tag-btn" style="border-color:rgba(218,54,51,0.5);color:#f85149;">Clear</button>
         </div>
         <input type="text" id="blacklistInput" class="input-field" placeholder="Comma-separated (e.g. Sentret, Rattata, Pidgey, Zubat, Caterpie, Weedle, Magikarp)">
       </div>
@@ -1817,12 +1999,9 @@
 
   <!-- 2. NETWORK & PROXY CONFIGURATION MODAL -->
   <div id="networkModal" class="modal-box modal-network">
-    <div class="modal-header-row">
+    <div class="modal-header-row" style="margin-bottom: 10px;">
       <div class="modal-title">&#127760; Network &amp; Proxy Settings</div>
       <button id="closeNetBtn" class="modal-close-icon" title="Close">&#10005;</button>
-    </div>
-    <div class="modal-desc">
-      Before logging in, verify that your outbound IP is on Starlink or Mobile Data rather than your banned home network.
     </div>
 
     <!-- Live Real-Time Network Identity Card -->
@@ -1834,12 +2013,10 @@
       <div style="color:#8eaad0; margin-bottom: 4px;">
         Public IP: <span id="modalDetectedIp" style="font-weight:700; color:#388bfd; font-family:monospace; font-size:12px;">Detecting...</span>
       </div>
-      <div style="color:#8eaad0; margin-bottom: 4px;">
+      <div style="color:#8eaad0;">
         Provider / ISP: <span id="modalDetectedIsp" style="font-weight:700; color:#e0ecfa;">Detecting...</span>
       </div>
-      <div id="modalSecurityNotice" style="font-size:10px; margin-top:6px; padding:4px 8px; border-radius:4px; background:#070e1a; color:#8eaad0; border:1px solid #1a283e;">
-        Detecting network status...
-      </div>
+      <div id="modalSecurityNotice" style="display:none;"></div>
     </div>
 
     <label class="checkbox-row">
@@ -1849,11 +2026,7 @@
     </label>
 
     <label style="font-size:11px; font-weight:600; color:#8eaad0; display:block; margin-bottom:6px;">Proxy Server Address:</label>
-    <input type="text" id="proxyRulesInput" class="input-field" placeholder="socks5://127.0.0.1:9050 or http://ip:port">
-
-    <div style="font-size:11px; color:#566e96; margin-bottom:16px; line-height:1.4;">
-      Supported protocols: SOCKS5 and HTTP. Chromium WebRTC leak prevention is active.
-    </div>
+    <input type="text" id="proxyRulesInput" class="input-field" placeholder="socks5://127.0.0.1:9050 or http://ip:port" style="margin-bottom: 12px;">
 
     <div style="display:flex; justify-content:flex-end; gap:8px;">
       <button id="cancelNetBtn" class="btn" style="width:90px; height:28px;">Cancel</button>
@@ -1863,16 +2036,13 @@
 
   <!-- 3. ACCOUNT CONFIGURATION MODAL -->
   <div id="accountModal" class="modal-box modal-account">
-    <div class="modal-header-row">
+    <div class="modal-header-row" style="margin-bottom: 10px;">
       <div class="modal-title">&#128100; Account Credentials</div>
       <button id="closeAccBtn" class="modal-close-icon" title="Close">&#10005;</button>
     </div>
-    <div class="modal-desc">
-      Configure your saved credentials for quick one-click auto-fill on the login screen.
-    </div>
 
     <label style="font-size:11px; font-weight:600; color:#8eaad0; display:block; margin-bottom:4px;">Nickname / Username:</label>
-    <input type="text" id="accUser" class="input-field" placeholder="Username (e.g. PokeDen)">
+    <input type="text" id="accUser" class="input-field" placeholder="Username">
 
     <label style="font-size:11px; font-weight:600; color:#8eaad0; display:block; margin-bottom:4px;">Password:</label>
     <input type="password" id="accPass" class="input-field" placeholder="Password">
@@ -1890,8 +2060,7 @@
       <button id="closeWipeBtn" class="modal-close-icon" title="Close">&#10005;</button>
     </div>
     <div class="modal-desc">
-      Wipe all cookies, cache, and site data?<br><br>
-      This removes all lingering tokens from previously banned accounts so you start completely fresh.
+      Wipe all cookies, cache, and site data?
     </div>
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
       <button id="cancelWipeBtn" class="btn" style="width:80px; height:28px;">Cancel</button>
@@ -1900,14 +2069,10 @@
   </div>
 
   <!-- 4.5 TRAINER ROSTER INTEL & AUTO-RECORDER MODAL -->
-  <!-- 4.5 TRAINER ROSTER INTEL & AUTO-RECORDER MODAL -->
   <div id="trainerIntelModal" class="modal-box" style="width: 420px;">
-    <div class="modal-header-row">
+    <div class="modal-header-row" style="margin-bottom: 10px;">
       <div class="modal-title" style="color:#e0ecfa;">&#128737; Trainer Intel</div>
       <button id="closeTrainerIntelBtn" class="modal-close-icon" title="Close">&#10005;</button>
-    </div>
-    <div class="modal-desc" style="margin-bottom: 12px;">
-      Offline battle roster database and live opponent telemetry.
     </div>
 
     <!-- Coverage Stats Card -->
@@ -1932,17 +2097,8 @@
       </div>
     </div>
 
-    <!-- Live Auto-Recorder Status Callout -->
-    <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; font-size: 11px; line-height: 1.45; color: #8eaad0; display: flex; align-items: flex-start; gap: 8px;">
-      <span style="color: #388bfd; font-size: 13px; line-height: 1; flex-shrink: 0; margin-top: 2px;">&#9889;</span>
-      <div>
-        <strong style="color: #e0ecfa;">Live Battle Auto-Recorder:</strong>
-        <span>Opponent lineups are automatically captured and saved whenever you encounter trainers in battles.</span>
-      </div>
-    </div>
-
     <!-- Active Battle Action & Status -->
-    <div id="activeBattleStatusMsg" style="font-size: 11px; color: #8eaad0; margin-bottom: 14px; min-height: 16px;"></div>
+    <div id="activeBattleStatusMsg" style="font-size: 11px; color: #8eaad0; margin-bottom: 10px; min-height: 0;"></div>
 
     <div style="display: flex; justify-content: flex-end; gap: 8px;">
       <button id="cancelTrainerIntelBtn" class="btn" style="width: 80px; height: 28px;">Close</button>
@@ -1975,22 +2131,24 @@
         </div>
       </div>
 
-      <!-- Scan Bar -->
-      <div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; margin-bottom: 6px; box-shadow: none !important;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Roster &amp; Data Sync</span>
-          <span id="scanStatusBadge" style="font-size: 10px; color: #388bfd; font-weight: 600;">96 Pokemon Synced</span>
-        </div>
-        <div style="display: flex; gap: 6px;">
-          <button id="scanPokesBtn" type="button" class="btn" style="flex: 1; height: 24px; font-size: 10px; box-shadow: none !important;" title="Scan and sync your box Pokemon collection">&#8635; Scan My Box</button>
-          <button id="scanTrainersBtn" type="button" class="btn" style="flex: 1; height: 24px; font-size: 10px; box-shadow: none !important;" title="View trainer roster database &amp; auto-recorder status">&#128737; Trainer Intel</button>
+      <!-- Unified Scan My Box & Live Progress Capsule -->
+      <div class="scan-box-unified-bar">
+        <button id="scanPokesBtn" type="button" class="btn scan-box-unified-btn" title="Scan and sync your box Pokemon collection">&#8635; Scan My Box</button>
+        <div class="scan-box-unified-status" title="Live Box Sync Progress &amp; Status">
+          <span id="scanStatusDot" class="scan-box-status-dot"></span>
+          <span id="scanStatusBadge" style="font-size: 10px; font-weight: 600; color: #c9d8ec; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">96 Pokemon Synced</span>
         </div>
       </div>
 
       <!-- Battle Mode Switcher (NPC Gyms vs Live Battle PvP) -->
-      <div style="display: flex; gap: 4px; background: #070e1a; border: 1px solid #1a283e; padding: 2px; border-radius: 20px; margin-bottom: 6px;">
-        <button type="button" id="teamModeNpcBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid #388bfd; background: #14233c; color: #ffffff; font-weight: 700; border-radius: 20px !important;" title="Build counter teams for Regional Gym Leaders and Computer Trainers">&#9876; Gym &amp; NPC Battles</button>
-        <button type="button" id="teamModePvpBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid transparent; background: transparent; color: #8eaad0; font-weight: 500; border-radius: 20px !important;" title="Build teams and scout rosters for Live Player Battles &amp; Invites">&#127919; Live Battle (PvP)</button>
+      <div class="tab-container tab-container-2" style="margin-bottom: 6px;">
+        <input type="radio" name="teamBattleModeTab" id="teamModeNpcTab" class="tab tab--1" checked />
+        <label class="tab_label" for="teamModeNpcTab" id="teamModeNpcBtn" title="Build counter teams for Regional Gym Leaders and Computer Trainers">Gym &amp; NPC</label>
+
+        <input type="radio" name="teamBattleModeTab" id="teamModePvpTab" class="tab tab--2" />
+        <label class="tab_label" for="teamModePvpTab" id="teamModePvpBtn" title="Build teams and scout rosters for Live Player Battles &amp; Invites">Live PvP</label>
+
+        <div class="indicator"></div>
       </div>
 
       <!-- Section A: NPC Gyms & Computer Trainers (Active when teamModeNpcBtn is selected) -->
@@ -2045,14 +2203,16 @@
         </div>
 
         <!-- Team Builder Mode (All Levels vs Training < 100) -->
-        <div style="display: flex; flex-direction: column; gap: 3px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Candidate Pool</span>
-            <span id="trainingStatsBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;">118 in training</span>
-          </div>
-          <div style="display: flex; gap: 4px; background: #070e1a; border: 1px solid #1a283e; padding: 2px; border-radius: 20px;">
-            <button type="button" id="poolModeAllBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid #388bfd; background: #14233c; color: #ffffff; font-weight: 700; border-radius: 20px !important;" title="Use all Pokemon in your collection (including Level 100)">All Levels</button>
-            <button type="button" id="poolModeTrainingBtn" class="btn" style="flex: 1; height: 23px; font-size: 9.5px; padding: 0; box-shadow: none !important; border: 1px solid transparent; background: transparent; color: #8eaad0; font-weight: 500; border-radius: 20px !important;" title="Use non-level 100 Pokemon only so you can train and max them out">&#9889; Training (&lt;100)</button>
+        <div>
+          <span id="trainingStatsBadge" style="display: none;"></span>
+          <div class="tab-container tab-container-2">
+            <input type="radio" name="teamPoolModeTab" id="poolModeAllTab" class="tab tab--1" checked />
+            <label class="tab_label" for="poolModeAllTab" id="poolModeAllBtn" title="Use all Pokemon in your collection (including Level 100)">All Levels</label>
+
+            <input type="radio" name="teamPoolModeTab" id="poolModeTrainingTab" class="tab tab--2" />
+            <label class="tab_label" for="poolModeTrainingTab" id="poolModeTrainingBtn" title="Use non-level 100 Pokemon only so you can train and max them out">Training</label>
+
+            <div class="indicator"></div>
           </div>
         </div>
       </div>
@@ -2061,33 +2221,33 @@
       <div id="teamPvpSection" style="display: none; flex-direction: column; gap: 6px; margin-bottom: 6px;">
         <!-- 1. Live Arena / Challenger Telemetry Card -->
         <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
             <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Live Opponent</span>
-            <span id="pvpLiveStatusBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;">No Active Challenger</span>
+            <span id="pvpLiveStatusBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;"></span>
           </div>
-          <div id="pvpLiveOpponentCard" style="font-size: 10px; color: #8eaad0; line-height: 1.3;">
-            <div id="pvpLiveSummary">Waiting for live battle invite or active arena on DelugeRPG.</div>
-            <div id="pvpLiveRosterStrip" style="display: none; gap: 4px; margin-top: 4px; overflow-x: auto; padding-bottom: 2px;"></div>
+          <div id="pvpLiveOpponentCard">
+            <div id="pvpLiveSummary" style="display: none;"></div>
+            <div id="pvpLiveRosterStrip" style="display: none; gap: 4px; margin-bottom: 5px; overflow-x: auto; padding-bottom: 2px;"></div>
           </div>
-          <button type="button" id="checkLiveBattleBtn" class="btn" style="width: 100%; height: 22px; font-size: 9.5px; margin-top: 5px; box-shadow: none !important;" title="Scan active page for live challenger or PvP arena">&#8635; Check Active Screen</button>
+          <button type="button" id="checkLiveBattleBtn" class="btn" style="width: 100%; height: 22px; font-size: 9.5px; box-shadow: none !important;" title="Scan active screen for open player profile modal, profile page, or live PvP arena">&#8635; Check Active Screen</button>
         </div>
 
         <!-- 2. Player Scout Tool (Pre-Battle Intel) -->
         <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
             <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Scout Live Challenger</span>
-            <span id="pvpScoutStatusBadge" style="font-size: 9.5px; color: #388bfd; font-weight: 600;">Profile Intel</span>
+            <span id="pvpScoutStatusBadge" style="font-size: 9.5px; color: #388bfd; font-weight: 600;"></span>
           </div>
-          <div style="display: flex; gap: 4px; margin-bottom: 4px;">
+          <div style="display: flex; gap: 4px;">
             <input type="text" id="pvpScoutInput" placeholder="Enter challenger's username..." style="flex: 1; height: 24px; font-size: 10.5px; background: #0e1b30; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 6px; outline: none; box-shadow: none !important;">
             <button type="button" id="pvpScoutBtn" class="btn btn-accent" style="height: 24px; font-size: 10px; padding: 0 8px; box-shadow: none !important; font-weight: 700;" title="Scout player's active team from their public profile">&#128269; Scout</button>
           </div>
-          <div id="pvpScoutResultCard" style="display: none; font-size: 10px; color: #e0ecfa; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-              <span id="pvpScoutedName" style="font-weight: 700; color: #388bfd; font-size: 10.5px;"></span>
-              <button type="button" id="pvpScoutClearBtn" class="btn" style="height: 18px; font-size: 9px; padding: 0 6px; box-shadow: none !important;">Clear</button>
+          <div id="pvpScoutResultCard" style="display: none; margin-top: 5px; font-size: 10px; color: #e0ecfa; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px;">
+            <span id="pvpScoutedName" style="display: none;"></span>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+              <div id="pvpScoutedRosterStrip" style="display: flex; gap: 4px; overflow-x: auto; padding: 1px 0;"></div>
+              <button type="button" id="pvpScoutClearBtn" class="btn" style="height: 20px; font-size: 9px; padding: 0 6px; flex-shrink: 0; box-shadow: none !important;">Clear</button>
             </div>
-            <div id="pvpScoutedRosterStrip" style="display: flex; gap: 4px; overflow-x: auto; padding: 2px 0;"></div>
           </div>
         </div>
 
@@ -2121,9 +2281,8 @@
 
       <!-- Empty Lineup Prompt (Shown when no active team built) -->
       <div id="teamEmptyPrompt" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px 10px; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; color: #8eaad0; font-size: 11px; margin-bottom: 6px;">
-        <div style="font-size: 20px; color: #388bfd; margin-bottom: 6px; opacity: 0.9;">&#9876;</div>
-        <div style="font-weight: 700; color: #e0ecfa; font-size: 11.5px; margin-bottom: 3px;">No Active Lineup</div>
-        <div style="line-height: 1.4; max-width: 260px; font-size: 10.5px; color: #8eaad0;">Select an opponent above and click <b>Build Best Team</b>, or fight a trainer on DelugeRPG to counter them live.</div>
+        <div style="font-size: 18px; color: #388bfd; margin-bottom: 4px; opacity: 0.8;">&#9876;</div>
+        <div style="font-weight: 600; color: #8eaad0; font-size: 11px;">No Active Lineup</div>
       </div>
 
       <!-- Lineup Results -->
@@ -2151,19 +2310,9 @@
           <span>Ads Inspector</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
+          <span id="adsInspectorStatusBadge" style="display: none;">Active</span>
           <button id="switchTeamBuilderFromAdsBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
           <button id="closeAdsInspectorBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
-        </div>
-      </div>
-
-      <!-- Overview & Mode Banner -->
-      <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; box-shadow: none !important;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <span style="font-size: 10px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Adblock Simulation</span>
-          <span id="adsInspectorStatusBadge" style="font-size: 10.5px; font-weight: 700; color: #388bfd;">Active (Network Intact)</span>
-        </div>
-        <div style="font-size: 10px; color: #8eaad0; line-height: 1.4;">
-          Cosmetic zero-shift hiding active. DelugeRPG ad verification scripts execute safely while banners, wrappers, and interstitials are smoothly collapsed without blank gaps.
         </div>
       </div>
 
@@ -2194,21 +2343,33 @@
       </div>
 
       <!-- Filter Tabs -->
-      <div id="adsFilterTabs" style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 6px;">
-        <button type="button" class="btn preset-pill-btn btn-active" data-ad-filter="ALL" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">All</button>
-        <button type="button" class="btn preset-pill-btn" data-ad-filter="Google AdSense" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">AdSense</button>
-        <button type="button" class="btn preset-pill-btn" data-ad-filter="Google Publisher Tag (GPT)" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">GPT</button>
-        <button type="button" class="btn preset-pill-btn" data-ad-filter="Google Vignette Interstitial" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">Vignette</button>
-        <button type="button" class="btn preset-pill-btn" data-ad-filter="Sticky / Anchor Banner" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">Anchor</button>
-        <button type="button" class="btn preset-pill-btn" data-ad-filter="Deluge Ad Container" style="font-size: 9.5px; padding: 2px 7px; height: 22px;">Containers</button>
+      <div id="adsFilterTabs" class="tab-container tab-container-6" style="margin-bottom: 6px;">
+        <input type="radio" name="adsFilterTab" id="adsTab1" class="tab tab--1" checked />
+        <label class="tab_label" for="adsTab1" data-ad-filter="ALL">All</label>
+
+        <input type="radio" name="adsFilterTab" id="adsTab2" class="tab tab--2" />
+        <label class="tab_label" for="adsTab2" data-ad-filter="Google AdSense">AdSense</label>
+
+        <input type="radio" name="adsFilterTab" id="adsTab3" class="tab tab--3" />
+        <label class="tab_label" for="adsTab3" data-ad-filter="Google Publisher Tag (GPT)">GPT</label>
+
+        <input type="radio" name="adsFilterTab" id="adsTab4" class="tab tab--4" />
+        <label class="tab_label" for="adsTab4" data-ad-filter="Google Vignette Interstitial">Vignette</label>
+
+        <input type="radio" name="adsFilterTab" id="adsTab5" class="tab tab--5" />
+        <label class="tab_label" for="adsTab5" data-ad-filter="Sticky / Anchor Banner">Anchor</label>
+
+        <input type="radio" name="adsFilterTab" id="adsTab6" class="tab tab--6" />
+        <label class="tab_label" for="adsTab6" data-ad-filter="Deluge Ad Container">Slot</label>
+
+        <div class="indicator"></div>
       </div>
 
       <!-- Scrollable Live Ad Feed -->
       <div id="adsFeedList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
         <div id="adsEmptyPrompt" style="text-align: center; color: #8eaad0; font-size: 11px; padding: 30px 10px;">
-          <div style="font-size: 20px; margin-bottom: 6px; color: #388bfd;">&#128065;</div>
-          <div style="color: #e0ecfa;">Listening for DelugeRPG ads...</div>
-          <div style="font-size: 10px; margin-top: 4px; color: #566e96;">Ads detected during browsing will appear here with type, slot, and smooth collapse telemetry.</div>
+          <div style="font-size: 18px; margin-bottom: 4px; color: #388bfd; opacity: 0.8;">&#128065;</div>
+          <div style="color: #8eaad0; font-weight: 600;">No Ads Detected</div>
         </div>
       </div>
     </div>
@@ -2220,21 +2381,11 @@
         <div style="font-weight: 700; font-size: 13px; color: #e0ecfa; display: flex; align-items: center; gap: 6px;">
           <span>&#9918;</span>
           <span>Today's Auto-Catch</span>
+          <span id="catchDateBadge" style="font-size: 10px; font-weight: 600; color: #388bfd;"></span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
           <button id="switchTeamBuilderFromCatchBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
           <button id="closeCatchLogBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
-        </div>
-      </div>
-
-      <!-- Overview Banner -->
-      <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; box-shadow: none !important;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <span style="font-size: 10px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Auto-Catch Telemetry</span>
-          <span id="catchDateBadge" style="font-size: 10px; font-weight: 700; color: #388bfd;">Today</span>
-        </div>
-        <div style="font-size: 10px; color: #8eaad0; line-height: 1.4;">
-          Persistent log of target Pokemon automatically caught today. Synchronized live with in-game inventory.
         </div>
       </div>
 
@@ -2257,7 +2408,7 @@
       <!-- Poke Balls in Bag Stock Strip -->
       <div id="ballStockStrip" style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; margin-bottom: 8px; font-size: 10px; color: #e0ecfa; display: flex; justify-content: space-between; align-items: center; box-shadow: none !important;">
         <span style="font-weight: 600; color: #8eaad0;">Bag Balls:</span>
-        <span id="ballStockDetails" style="color: #e0ecfa;">Syncing bag inventory...</span>
+        <span id="ballStockDetails" style="color: #e0ecfa;">--</span>
       </div>
 
       <!-- Action Bar: Sync & Clear -->
@@ -2269,9 +2420,8 @@
       <!-- Scrollable Live Caught Feed -->
       <div id="catchFeedList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
         <div id="catchEmptyPrompt" style="text-align: center; color: #8eaad0; font-size: 11px; padding: 30px 10px;">
-          <div style="font-size: 20px; margin-bottom: 6px; color: #388bfd;">&#9918;</div>
-          <div style="font-weight: 600; color: #e0ecfa;">No Pokemon caught yet today</div>
-          <div style="font-size: 10px; margin-top: 4px; color: #566e96;">Target Pokemon automatically caught during hunts will appear here with sprite, variant, level, and timestamp.</div>
+          <div style="font-size: 18px; margin-bottom: 4px; color: #388bfd; opacity: 0.8;">&#9918;</div>
+          <div style="font-weight: 600; color: #8eaad0;">No Pokemon Caught Today</div>
         </div>
       </div>
     </div>

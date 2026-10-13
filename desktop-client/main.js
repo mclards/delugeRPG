@@ -117,6 +117,11 @@ function appendSystemLog(line) {
   } catch (_) {}
 }
 
+function backendLog(tag, msg) {
+  const ts = new Date().toISOString().split('T')[1].slice(0, 12);
+  appendSystemLog(`[${ts}] [${tag}] ${msg}\n`);
+}
+
 function deepMerge(target, source) {
   const output = Object.assign({}, target);
   if (source && typeof source === 'object') {

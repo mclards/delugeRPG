@@ -5134,7 +5134,7 @@ function renderTeamLineup(leader, team) {
     let targetBadgeHtml = '';
     if (p.targetName === 'Safety Anchor & Carry') {
       targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid #388bfd; border-radius:4px;">CARRY ANCHOR</span>';
-    } else if (p.targetName === 'Lead Solo Sweeper') {
+    } else if (p.targetName === 'Lead Solo Sweeper' || p.targetName === 'Solo Sweeper') {
       targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#d29922; background:rgba(210, 153, 34, 0.15); border:1px solid #d29922; border-radius:4px;">SOLO SWEEPER</span>';
     } else if (p.targetName === 'Gym Anchor' || p.targetName === 'Reserve Anchor') {
       targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#8eaad0; background:#070e1a; border:1px solid #1a283e; border-radius:4px;">RESERVE</span>';
@@ -5258,27 +5258,9 @@ function executeTeamBuild(targetLeader) {
     }
 
     const hybridTeam = [];
-    traineeCounters.forEach((t, idx) => {
-      const orig = availableTrainees.find(p => p.id === t.id);
-      const isSolo = orig ? teamEngine.canSoloTrainer(orig, targetLeader) : false;
+    if (carry) {
       hybridTeam.push({
-        slot: idx + 1,
-        id: t.id,
-        name: t.name,
-        variant: t.variant,
-        level: t.level,
-        types: t.types,
-        sprite: t.sprite,
-        bestMove: t.bestMove,
-        targetName: isSolo ? 'Lead Solo Sweeper' : ('Trainee #' + (idx + 1)),
-        role: isSolo ? 'Lead Solo Sweeper (100% Solo EXP)' : (t.role || ('Trainee Counter (Lv ' + t.level + ')')),
-        score: t.score
-      });
-    });
-
-    if (carry && !hybridTeam.some(p => p.id === carry.id)) {
-      hybridTeam.push({
-        slot: hybridTeam.length + 1,
+        slot: 1,
         id: carry.id,
         name: carry.name,
         variant: carry.variant,
@@ -5291,6 +5273,27 @@ function executeTeamBuild(targetLeader) {
         score: carry.score
       });
     }
+
+    traineeCounters.forEach(t => {
+      if (carry && t.id === carry.id) return;
+      if (hybridTeam.length >= 6) return;
+      const orig = availableTrainees.find(p => p.id === t.id);
+      const isSolo = orig ? teamEngine.canSoloTrainer(orig, targetLeader) : false;
+      const slotNum = hybridTeam.length + 1;
+      hybridTeam.push({
+        slot: slotNum,
+        id: t.id,
+        name: t.name,
+        variant: t.variant,
+        level: t.level,
+        types: t.types,
+        sprite: t.sprite,
+        bestMove: t.bestMove,
+        targetName: isSolo ? 'Solo Sweeper' : ('Trainee #' + (slotNum - (carry ? 1 : 0))),
+        role: isSolo ? 'Solo Sweeper (100% Solo EXP)' : (t.role || ('Trainee Counter (Lv ' + t.level + ')')),
+        score: t.score
+      });
+    });
 
     lastRecommendedTeam = hybridTeam;
     renderTeamLineup(targetLeader, hybridTeam);

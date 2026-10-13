@@ -754,6 +754,12 @@ runTest('app.html & app.js: Favorite Opponents Star Button & Preset Filtering Au
   assert(appJsContent.includes("categoryFilter === 'FAVORITES'"), 'FAVORITES filter branch must exist in populateGymTrainerSelect');
 });
 
+runTest('app.js: Training Mode Carry Anchor Leads in Slot 1 Audit', () => {
+  const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  assert(appJsContent.includes("targetName: 'Safety Anchor & Carry'") && appJsContent.includes('slot: 1'), 'Carry Anchor must lead at Slot 1 in Training mode');
+  assert(appJsContent.includes("targetName: isSolo ? 'Solo Sweeper' : ('Trainee #' + (slotNum - (carry ? 1 : 0)))"), 'Trainee counters must follow sequentially in slots 2 through 6');
+});
+
 runTest('app.html & app.js: Ads Inspector docked panel & telemetry UI audit', () => {
   const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
   assert(appHtml.includes('id="adsInspectorModal"'), 'adsInspectorModal must exist in app.html');

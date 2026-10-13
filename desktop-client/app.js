@@ -5612,9 +5612,8 @@ function renderCatchLogUI() {
   if (count === 0) {
     catchFeedList.innerHTML = `
       <div id="catchEmptyPrompt" style="text-align: center; color: #8eaad0; font-size: 11px; padding: 30px 10px;">
-        <div style="font-size: 20px; margin-bottom: 6px; color: #388bfd;">&#9918;</div>
-        <div style="font-weight: 600; color: #e0ecfa;">No Pokemon caught yet today</div>
-        <div style="font-size: 10px; margin-top: 4px; color: #566e96;">Target Pokemon automatically caught during hunts will appear here with sprite, variant, level, and timestamp.</div>
+        <div style="display: flex; justify-content: center; margin-bottom: 6px; opacity: 0.85;"><span class="icon-pokeball"></span></div>
+        <div style="font-weight: 600; color: #8eaad0;">No Pokemon Caught Today</div>
       </div>
     `;
     return;
@@ -5623,7 +5622,7 @@ function renderCatchLogUI() {
   let html = '';
   for (let i = 0; i < dailyCatchData.caught.length; i++) {
     const p = dailyCatchData.caught[i];
-    const spriteTag = p.sprite ? `<img src="${p.sprite}" alt="${p.name}">` : `<span style="font-size: 18px; color: #388bfd;">&#9918;</span>`;
+    const spriteTag = p.sprite ? `<img src="${p.sprite}" alt="${p.name}">` : `<span class="icon-pokeball"></span>`;
     html += `
       <div class="caught-pokemon-card">
         <div class="caught-card-thumb">${spriteTag}</div>

@@ -148,6 +148,31 @@
       border: 1.5px solid #1a283e;
       box-shadow: none !important;
     }
+    .icon-pokeball-sm {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #da3633 46%, #1a283e 46%, #1a283e 54%, #ffffff 54%);
+      border: 1.5px solid #243856;
+      box-shadow: none !important;
+      position: relative;
+      flex-shrink: 0;
+      vertical-align: middle;
+    }
+    .icon-pokeball-sm::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 1px solid #1a283e;
+      box-shadow: none !important;
+    }
     .title-badge {
       display: flex;
       flex-direction: column;
@@ -175,7 +200,6 @@
       outline: none;
       cursor: pointer;
       height: 28px;
-      min-height: 28px;
       padding: 0 14px;
       border-radius: 30px !important;
       border: 1px solid #8F9092 !important;
@@ -1635,7 +1659,7 @@
 
       <!-- Today's Auto-Catch & Master Ball Stock Badge -->
       <button id="dailyCaughtBtn" class="daily-caught-badge" title="Today's Auto-Catch Log &amp; Master Ball Stock (Click to view details)">
-        <span class="caught-badge-icon">&#9918;</span>
+        <span class="caught-badge-icon" style="display: inline-flex; align-items: center;"><span class="icon-pokeball-sm" style="width: 12px; height: 12px;"></span></span>
         <span id="caughtSummaryText">Today: 0</span>
         <span class="caught-badge-sep">&#183;</span>
         <span class="mb-badge-icon">&#11088;</span>
@@ -1675,7 +1699,7 @@
             </label>
           </button>
           <button id="catchLogMenuBtn" class="dropdown-item" title="View Today's Auto-Catch Log &amp; Master Ball Stock">
-            <span class="dropdown-icon">&#9918;</span>
+            <span class="dropdown-icon" style="display: inline-flex; align-items: center; justify-content: center;"><span class="icon-pokeball-sm"></span></span>
             <span class="dropdown-label">Today's Catch Log</span>
           </button>
           <div class="dropdown-divider"></div>
@@ -2120,12 +2144,12 @@
 
     <!-- 5. DOCKED SIDE PANEL: TEAM BUILDER (1/4 OF WINDOW) -->
     <div id="teamBuilderModal" style="display: flex;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e;">
-        <div style="font-weight: 700; font-size: 13px; color: #e0ecfa; display: flex; align-items: center; gap: 6px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e; white-space: nowrap;">
+        <div style="font-weight: 700; font-size: 12.5px; color: #e0ecfa; display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0;">
           <span>&#9876;</span>
           <span>Team Builder</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
           <button id="switchAdsInspectorFromTeamBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Ads Inspector panel">&#128065; Ads (<span id="teamHeaderAdsBadge">0</span>)</button>
           <button id="closeTeamBuilderBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
         </div>
@@ -2304,12 +2328,12 @@
     <!-- 6. DOCKED SIDE PANEL: ADS INSPECTOR (1/4 OF WINDOW) -->
     <div id="adsInspectorModal" style="display: none;">
       <!-- Header with title and tab switcher -->
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e;">
-        <div style="font-weight: 700; font-size: 13px; color: #e0ecfa; display: flex; align-items: center; gap: 6px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e; white-space: nowrap;">
+        <div style="font-weight: 700; font-size: 12.5px; color: #e0ecfa; display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0;">
           <span>&#128065;</span>
           <span>Ads Inspector</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
           <span id="adsInspectorStatusBadge" style="display: none;">Active</span>
           <button id="switchTeamBuilderFromAdsBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
           <button id="closeAdsInspectorBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
@@ -2377,13 +2401,13 @@
     <!-- 7. DOCKED SIDE PANEL: TODAY'S AUTO-CATCH & MASTER BALL LOG (1/4 OF WINDOW) -->
     <div id="catchLogModal" style="display: none;">
       <!-- Header with title and tab switcher -->
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e;">
-        <div style="font-weight: 700; font-size: 13px; color: #e0ecfa; display: flex; align-items: center; gap: 6px;">
-          <span>&#9918;</span>
-          <span>Today's Auto-Catch</span>
-          <span id="catchDateBadge" style="font-size: 10px; font-weight: 600; color: #388bfd;"></span>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e; white-space: nowrap;">
+        <div style="font-weight: 700; font-size: 12.5px; color: #e0ecfa; display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0;">
+          <span class="icon-pokeball-sm"></span>
+          <span style="white-space: nowrap;">Auto-Catch</span>
+          <span id="catchDateBadge" style="font-size: 9.5px; font-weight: 700; color: #388bfd; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 1px 5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap;"></span>
         </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
           <button id="switchTeamBuilderFromCatchBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
           <button id="closeCatchLogBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
         </div>
@@ -2392,15 +2416,15 @@
       <!-- Summary Stats Badges Grid -->
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px;">
         <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
-          <div style="font-size: 9px; color: #566e96; font-weight: 600;">CAUGHT TODAY</div>
+          <div style="font-size: 9px; color: #566e96; font-weight: 600; white-space: nowrap;">CAUGHT TODAY</div>
           <div id="catchStatCount" style="font-size: 13px; font-weight: 700; color: #388bfd;">0</div>
         </div>
         <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
-          <div style="font-size: 9px; color: #566e96; font-weight: 600;">MB STOCK</div>
+          <div style="font-size: 9px; color: #566e96; font-weight: 600; white-space: nowrap;">MB STOCK</div>
           <div id="catchStatMbStock" style="font-size: 13px; font-weight: 700; color: #e0ecfa;">--</div>
         </div>
         <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px; text-align: center; box-shadow: none !important;">
-          <div style="font-size: 9px; color: #566e96; font-weight: 600;">MB USED TODAY</div>
+          <div style="font-size: 9px; color: #566e96; font-weight: 600; white-space: nowrap;">MB USED TODAY</div>
           <div id="catchStatMbUsed" style="font-size: 13px; font-weight: 700; color: #388bfd;">0</div>
         </div>
       </div>
@@ -2420,7 +2444,7 @@
       <!-- Scrollable Live Caught Feed -->
       <div id="catchFeedList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
         <div id="catchEmptyPrompt" style="text-align: center; color: #8eaad0; font-size: 11px; padding: 30px 10px;">
-          <div style="font-size: 18px; margin-bottom: 4px; color: #388bfd; opacity: 0.8;">&#9918;</div>
+          <div style="display: flex; justify-content: center; margin-bottom: 6px; opacity: 0.85;"><span class="icon-pokeball"></span></div>
           <div style="font-weight: 600; color: #8eaad0;">No Pokemon Caught Today</div>
         </div>
       </div>

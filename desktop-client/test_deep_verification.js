@@ -507,6 +507,95 @@ runTest('Hardened Skill Analysis & False Judgement Elimination Audit', () => {
   }
 });
 
+runTest('Hardened Team Builder & Matchup Intelligence Audit', () => {
+  // 1. Multi-hit move effective power resolution
+  const doubleIronBash = teamEngine.resolveMove('Double Iron Bash');
+  assert.strictEqual(doubleIronBash.power, 120, 'Double Iron Bash must resolve to 120 power (2 hits x 60)');
+  const surgingStrikes = teamEngine.resolveMove('Surging Strikes');
+  assert.strictEqual(surgingStrikes.power, 105, 'Surging Strikes must resolve to 105 power (3 hits x 35)');
+  const popBomb = teamEngine.resolveMove('Population Bomb');
+  assert.strictEqual(popBomb.power, 120, 'Population Bomb must resolve to 120 power');
+  const tachyon = teamEngine.resolveMove('Tachyon Cutter');
+  assert.strictEqual(tachyon.power, 100, 'Tachyon Cutter must resolve to 100 power');
+  const tripleAxel = teamEngine.resolveMove('Triple Axel');
+  assert.strictEqual(tripleAxel.power, 120, 'Triple Axel must resolve to 120 power');
+
+  // 2. Status-only moveset STAB fallback
+  const statusPokemon = {
+    id: 'status_test_1',
+    name: 'Alakazam',
+    variant: 'Normal',
+    level: 80,
+    types: ['Psychic'],
+    moves: [
+      { name: 'Calm Mind', type: 'Psychic' },
+      { name: 'Recover', type: 'Normal' },
+      { name: 'Agility', type: 'Psychic' },
+      { name: 'Hypnosis', type: 'Psychic' }
+    ]
+  };
+  const scoreObj = teamEngine.scoreVsSingleOpponent(statusPokemon, ['Fighting'], 50);
+  assert(scoreObj.totalScore > 0, `Status-only moveset must fall back to STAB attack with positive score, got ${scoreObj.totalScore}`);
+  assert.strictEqual(scoreObj.bestMove.type, 'Psychic');
+  assert.strictEqual(scoreObj.bestMove.isStab, true);
+  assert.strictEqual(scoreObj.bestMove.multiplier, 2.0);
+
+  // 3. Deduplication of defender types
+  assert.deepStrictEqual(teamEngine.normalizeDefenderTypes(['Fire', 'Fire']), ['Fire']);
+  assert.deepStrictEqual(teamEngine.normalizeDefenderTypes('Fire/Fire'), ['Fire']);
+  assert.strictEqual(teamEngine.getMoveEffectiveness('Water', ['Fire', 'Fire']), 2.0);
+
+  // 4. Mega species checks & candidate pool filtering
+  assert.strictEqual(teamEngine.isMegaPokemon('Mega Medicham'), true);
+  assert.strictEqual(teamEngine.isMegaPokemon('Primal Kyogre'), true);
+  assert.strictEqual(teamEngine.isMegaPokemon('Medicham'), true);
+  assert.strictEqual(teamEngine.isMegaPokemon('Ghostly Mega Charizard Y'), true);
+  assert.strictEqual(teamEngine.isMegaPokemon('Bidoof'), false);
+
+  const megaPool = teamEngine.filterCandidatePool(userCollection, 'MEGA');
+  assert(megaPool.length > 0 && megaPool.every(teamEngine.isMegaPokemon), 'MEGA filter must return only Mega-capable Pokemon');
+  const gmaxMegaPool = teamEngine.filterCandidatePool(userCollection, 'GMAX_MEGA');
+  assert(gmaxMegaPool.length >= megaPool.length, 'GMAX_MEGA must include both G-Max and Megas');
+
+  // 5. Modern signature move power estimation
+  assert(teamEngine.resolveMove('Astral Barrage').power >= 110, 'Astral Barrage must estimate >= 110 BP');
+  assert(teamEngine.resolveMove('Glacial Lance').power >= 110, 'Glacial Lance must estimate >= 110 BP');
+  assert(teamEngine.resolveMove('Collision Course').power >= 100, 'Collision Course must estimate >= 100 BP');
+  assert(teamEngine.resolveMove('Electro Drift').power >= 100, 'Electro Drift must estimate >= 100 BP');
+  assert(teamEngine.resolveMove('Gigaton Hammer').power >= 110, 'Gigaton Hammer must estimate >= 110 BP');
+  assert(teamEngine.resolveMove('Dragon Energy').power >= 110, 'Dragon Energy must estimate >= 110 BP');
+
+  // 6. Diverse 6-type opponent roster carry ranking fallback
+  const diverseTrainer = {
+    name: 'Rainbow Trainer',
+    avgLevel: 60,
+    roster: [
+      { name: 'Grass Poke', types: ['Grass'] },
+      { name: 'Fire Poke', types: ['Fire'] },
+      { name: 'Water Poke', types: ['Water'] },
+      { name: 'Electric Poke', types: ['Electric'] },
+      { name: 'Ground Poke', types: ['Ground'] },
+      { name: 'Flying Poke', types: ['Flying'] }
+    ]
+  };
+  const rankedCarries = teamEngine.rankCarries(userCollection, diverseTrainer);
+  assert(Array.isArray(rankedCarries) && rankedCarries.length > 0, 'rankCarries must find carries even against diverse 6-type rosters');
+  assert(rankedCarries[0].exposure.worst < 4.0, 'Top carry anchor against diverse roster must not have quad weaknesses');
+
+  // 7. Universal meta move selection
+  assert(typeof teamEngine.getBestUniversalMove === 'function', 'getBestUniversalMove must be exported');
+  const ghostAttacker = {
+    name: 'Calyrex (Shadow Rider)',
+    types: ['Psychic', 'Ghost'],
+    moves: [
+      { name: 'Astral Barrage', type: 'Ghost' },
+      { name: 'Psystrike', type: 'Psychic' }
+    ]
+  };
+  const uMove = teamEngine.getBestUniversalMove(ghostAttacker);
+  assert(uMove && uMove.power >= 100, 'Universal meta move must evaluate signature moves with true power');
+});
+
 runTest('Candidate Pool Categorization & List Accuracy Audit', () => {
   assert(Array.isArray(teamEngine.ULTRA_BEASTS) && teamEngine.ULTRA_BEASTS.length === 11, 'Must have 11 Ultra Beasts');
   assert(Array.isArray(teamEngine.PARADOX_SPECIES) && teamEngine.PARADOX_SPECIES.length === 20, 'Must have 20 Paradox species');

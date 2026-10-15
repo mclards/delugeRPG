@@ -51,25 +51,27 @@ function normalizeType(type) {
 
 function normalizeDefenderTypes(types) {
   if (!types) return ['Normal'];
+  let list = [];
   if (typeof types === 'string') {
     if (types.includes('/')) {
-      return types.split('/').map(t => normalizeType(t)).filter(Boolean);
+      list = types.split('/').map(t => normalizeType(t)).filter(Boolean);
+    } else {
+      list = [normalizeType(types)];
     }
-    return [normalizeType(types)];
-  }
-  if (Array.isArray(types)) {
-    const res = [];
+  } else if (Array.isArray(types)) {
     for (const t of types) {
       if (!t) continue;
       if (typeof t === 'string' && t.includes('/')) {
-        res.push(...t.split('/').map(sub => normalizeType(sub)));
+        list.push(...t.split('/').map(sub => normalizeType(sub)));
       } else {
-        res.push(normalizeType(t));
+        list.push(normalizeType(t));
       }
     }
-    return res.length > 0 ? res : ['Normal'];
+  } else {
+    list = ['Normal'];
   }
-  return ['Normal'];
+  const unique = Array.from(new Set(list)).filter(Boolean);
+  return unique.length > 0 ? unique : ['Normal'];
 }
 
 function getMoveEffectiveness(attackType, defenderTypes) {
@@ -150,10 +152,10 @@ function isLikelyStatusMove(moveName) {
 function estimateMovePower(moveName) {
   const lower = (moveName || '').toLowerCase().trim();
   if (isLikelyStatusMove(lower)) return 0;
-  if (/blast|beam|storm|cannon|crush|quake|force|hyper|outrage|meteor|overheat|eruption|spout|doom|judgement|cataclysm|apocalypse|gigaton|climax/i.test(lower)) {
+  if (/blast|beam|storm|cannon|crush|quake|force|hyper|outrage|meteor|overheat|eruption|spout|doom|judgement|cataclysm|apocalypse|gigaton|climax|barrage|lance|cudgel|cleave|burnup|vcreate|headsmash|dragonenergy|astralbarrage|glaciallance|collision|drift|starstorm/i.test(lower)) {
     return 110;
   }
-  if (/pulse|burst|cutter|fang|claw|tail|punch|kick|slash|strike|hammer|slam|thrust|drill|blade|rush|dive|bomb/i.test(lower)) {
+  if (/pulse|burst|cutter|fang|claw|tail|punch|kick|slash|strike|hammer|slam|thrust|drill|blade|rush|dive|bomb|song|horn|impact|press|clap|rain|headbutt|tackle|crunch|wave|smash|blaze|flame/i.test(lower)) {
     return 80;
   }
   return 60;
@@ -275,22 +277,60 @@ function rankCarries(pool, trainer) {
     ? trainer.roster
     : [{ types: (trainer && trainer.types) || ['Normal'] }];
   const avgLvl = (trainer && trainer.avgLevel) || 50;
-  return (pool || [])
-    .map(p => {
-      const exposure = getRosterExposure(p, trainer);
-      let offense = 0;
-      oppList.forEach(opp => {
-        offense += scoreVsSingleOpponent(p, opp.types || ['Normal'], avgLvl).totalScore;
-      });
-      offense = offense / oppList.length;
-      const v = getVariantMultipliers(p.variant);
-      const statusBonus = v.statusImmune ? 25 : 0;
-      const carryScore = offense - exposure.effective * 800 + statusBonus;
-      return { poke: p, exposure, offense, carryScore };
-    })
-    .filter(x => x.exposure.worst < 2.0)
-    .sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
+  const mapped = (pool || []).map(p => {
+    const exposure = getRosterExposure(p, trainer);
+    let offense = 0;
+    let superEffectiveCount = 0;
+    oppList.forEach(opp => {
+      const scoreObj = scoreVsSingleOpponent(p, opp.types || ['Normal'], avgLvl);
+      offense += scoreObj.totalScore;
+      if (scoreObj.bestMove && scoreObj.bestMove.multiplier >= 2.0) {
+        superEffectiveCount++;
+      }
+    });
+    offense = offense / oppList.length;
+    const v = getVariantMultipliers(p.variant);
+    const statusBonus = v.statusImmune ? 35 : 0;
+    const flinchBonus = v.flinch ? 25 : 0;
+    const critBonus = v.crit > 1 ? 30 : 0;
+    const coverageBonus = (superEffectiveCount / oppList.length) * 120;
+    const quadPenalty = exposure.worst >= 4.0 ? 300 : (exposure.worst >= 2.0 ? 100 : 0);
+    const carryScore = offense - (exposure.effective * 500) - quadPenalty + statusBonus + flinchBonus + critBonus + coverageBonus;
+    return { poke: p, exposure, offense, carryScore };
+  });
+
+  const safeCarries = mapped.filter(x => x.exposure.worst < 2.0);
+  if (safeCarries.length > 0) {
+    return safeCarries.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
+  }
+  const nonQuadCarries = mapped.filter(x => x.exposure.worst < 4.0);
+  if (nonQuadCarries.length > 0) {
+    return nonQuadCarries.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
+  }
+  return mapped.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
 }
+
+const MULTI_HIT_MOVES = {
+  doubleironbash: { hits: 2, power: 120 },
+  surgingstrikes: { hits: 3, power: 105 },
+  dragondarts: { hits: 2, power: 100 },
+  tachyoncutter: { hits: 2, power: 100 },
+  dualwingbeat: { hits: 2, power: 80 },
+  bonemerang: { hits: 2, power: 100 },
+  doublehit: { hits: 2, power: 70 },
+  doublekick: { hits: 2, power: 60 },
+  twineedle: { hits: 2, power: 50 },
+  tripleaxel: { hits: 3, power: 120 },
+  tripledive: { hits: 3, power: 90 },
+  populationbomb: { hits: 6, power: 120 },
+  watershuriken: { hits: 3, power: 60 },
+  bulletseed: { hits: 3, power: 75 },
+  iciclespear: { hits: 3, power: 75 },
+  rockblast: { hits: 3, power: 75 },
+  pinmissile: { hits: 3, power: 75 },
+  scaleshot: { hits: 3, power: 75 },
+  tailburst: { hits: 3, power: 75 }
+};
 
 function resolveMove(m) {
   const rawName = (typeof m === 'object' && m && m.name) ? m.name : (typeof m === 'string' ? m : '');
@@ -303,7 +343,11 @@ function resolveMove(m) {
   let category = skillData ? (skillData.category || 'Physical') : 'Physical';
   let power = 40;
 
-  if (skillData && typeof skillData.power === 'number') {
+  if (MULTI_HIT_MOVES[cleanKey]) {
+    power = MULTI_HIT_MOVES[cleanKey].power;
+  } else if (typeof m === 'object' && m && typeof m.power === 'number' && m.power > 0) {
+    power = m.power;
+  } else if (skillData && typeof skillData.power === 'number') {
     power = skillData.power;
   } else {
     // Universal fallback for moves outside skills_database.json
@@ -318,7 +362,7 @@ function resolveMove(m) {
 
   return {
     name,
-    type,
+    type: normalizeType(type),
     power,
     category,
     isStatus
@@ -425,7 +469,8 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null) {
         };
       }
     }
-  } else if (rawMoves.length === 0) {
+  } else {
+    // Universal STAB fallback when candidate has no damaging moves (empty moveset or status-only moves)
     for (const pType of pokeTypes) {
       const eff = outgoingEffectiveness(poke, pType, normalizedOppTypes);
       const totalMult = eff * 1.5;
@@ -485,7 +530,9 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null) {
   else if (hasImmunity) defScore = +25; // Immune to one STAB, neutral to other
   else if (hasResistance) defScore = +15; // Resists one STAB, neutral to other
 
-  if (isMutualSelfTrap) defScore -= 150;
+  const pokeLevel = typeof poke.level === 'number' ? poke.level : 50;
+  // Mutual self-trap applies only when the user does not have decisive out-match level advantage
+  if (isMutualSelfTrap && pokeLevel < (oppLevel + 25)) defScore -= 150;
 
   // Evaluate opponent's known moveset (e.g., from stalked player profile #viewuteam)
   if (Array.isArray(oppMoves) && oppMoves.length > 0) {
@@ -516,7 +563,6 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null) {
     : -200;
 
   // Universal Level Scaling: level contributes to combat stats and survivability
-  const pokeLevel = typeof poke.level === 'number' ? poke.level : 50;
   const levelRatio = oppLevel > 0 ? (pokeLevel / oppLevel) : (pokeLevel / 50);
   let levelScore = (pokeLevel / 100) * 25;
 
@@ -526,7 +572,13 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null) {
     levelScore += 15; // High-level outmatch advantage
   }
 
-  const totalScore = offenseScore + defScore + levelScore;
+  // Initiative First-Strike OHKO bonus: high-level counters that one-shot eliminate incoming damage
+  let initiativeBonus = 0;
+  if (pokeLevel >= oppLevel && bestMove.multiplier >= 2.0 && bestMove.effectivePower >= 90) {
+    initiativeBonus = 40;
+  }
+
+  const totalScore = offenseScore + defScore + levelScore + initiativeBonus;
 
   return {
     pokemon: poke,
@@ -629,12 +681,44 @@ function isGmaxPokemon(pokeOrName) {
   return GMAX_SPECIES.includes(base);
 }
 
+const MEGA_SPECIES = [
+  'venusaur', 'charizard', 'blastoise', 'beedrill', 'pidgeot', 'alakazam', 'slowbro',
+  'gengar', 'kangaskhan', 'pinsir', 'gyarados', 'aerodactyl', 'mewtwo', 'ampharos',
+  'steelix', 'scizor', 'heracross', 'houndoom', 'tyranitar', 'sceptile', 'blaziken',
+  'swampert', 'gardevoir', 'gallade', 'sableye', 'mawile', 'aggron', 'medicham',
+  'manectric', 'sharpedo', 'camerupt', 'altaria', 'banette', 'absol', 'glalie',
+  'salamence', 'metagross', 'latias', 'latios', 'rayquaza', 'lopunny', 'garchomp',
+  'lucario', 'abomasnow', 'diancie', 'audino', 'kyogre', 'groudon',
+  // Pre-evolutions capable of mega evolving
+  'bulbasaur', 'ivysaur', 'charmander', 'charmeleon', 'squirtle', 'wartortle',
+  'weedle', 'kakuna', 'pidgey', 'pidgeotto', 'abra', 'kadabra', 'slowpoke',
+  'gastly', 'haunter', 'mareep', 'flaaffy', 'onix', 'scyther', 'houndour',
+  'larvitar', 'pupitar', 'treecko', 'grovyle', 'torchic', 'combusken', 'mudkip',
+  'marshtomp', 'ralts', 'kirlia', 'aron', 'lairon', 'meditite', 'electrike',
+  'carvanha', 'numel', 'swablu', 'shuppet', 'snorunt', 'bagon', 'shelgon',
+  'beldum', 'metang', 'buneary', 'gible', 'gabite', 'riolu', 'snover'
+];
+
+function isMegaPokemon(pokeOrName) {
+  if (!pokeOrName) return false;
+  const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
+  const lower = raw.toLowerCase().trim();
+  if (lower.includes('mega ') || lower.includes('primal ') || lower.endsWith(' mega') || lower.endsWith(' primal')) return true;
+  const base = getBaseSpecies(raw);
+  return MEGA_SPECIES.includes(base);
+}
+
 function filterCandidatePool(collection, filterType) {
   if (!collection || !Array.isArray(collection)) return [];
   const type = (filterType || 'ANY').toUpperCase();
   switch (type) {
     case 'GMAX':
       return collection.filter(isGmaxPokemon);
+    case 'MEGA':
+    case 'MEGAS':
+      return collection.filter(isMegaPokemon);
+    case 'GMAX_MEGA':
+      return collection.filter(p => isGmaxPokemon(p) || isMegaPokemon(p));
     case 'LEGENDARY':
       return collection.filter(isLegendaryPokemon);
     case 'ULTRABEAST':
@@ -665,7 +749,25 @@ function buildBestTeam(trainer, collection) {
 
       const available = collection.filter(p => !chosenIds.has(p.id));
       const scored = available
-        .map(p => ({ opp, ...scoreVsSingleOpponent(p, oppTypes, oppLevel, opp.moves) }));
+        .map(p => {
+          const s = scoreVsSingleOpponent(p, oppTypes, oppLevel, opp.moves);
+          let versatilityBonus = 0;
+          for (let oi = 0; oi < trainer.roster.length; oi++) {
+            if (oi === i) continue;
+            const otherOpp = trainer.roster[oi];
+            const otherTypes = (otherOpp.types && otherOpp.types.length > 0) ? otherOpp.types : ['Normal'];
+            for (const m of (p.moves || []).map(resolveMove)) {
+              if (!m.isStatus && m.power > 0) {
+                const eff = outgoingEffectiveness(p, m.type, otherTypes);
+                if (eff >= 2.0) {
+                  versatilityBonus += (eff >= 4.0 ? 4 : 2);
+                  break;
+                }
+              }
+            }
+          }
+          return { opp, ...s, totalScore: s.totalScore + versatilityBonus };
+        });
 
       // Prefer unique species to eliminate duplicate clones and field diverse teams
       const diverseScored = scored.filter(s => !chosenSpecies.has(getBaseSpecies(s.pokemon.name)));
@@ -832,7 +934,17 @@ function canSoloTrainer(poke, trainer) {
   let isMutualSelfTrap = false;
 
   for (const opp of oppList) {
-    const oppAttackTypes = [].concat(normalizeDefenderTypes(opp.types || ['Normal']), opp.knownMoveTypes || []);
+    const moveTypesFromMoves = Array.isArray(opp.moves)
+      ? opp.moves.map(m => {
+          const rm = resolveMove(m);
+          return (!rm.isStatus && rm.power > 0) ? rm.type : null;
+        }).filter(Boolean)
+      : [];
+    const oppAttackTypes = Array.from(new Set([].concat(
+      normalizeDefenderTypes(opp.types || ['Normal']),
+      opp.knownMoveTypes || [],
+      moveTypesFromMoves
+    )));
     let oppMaxDamage = 0;
     for (const ot of oppAttackTypes) {
       const inc = incomingEffectiveness(poke, ot);
@@ -847,8 +959,8 @@ function canSoloTrainer(poke, trainer) {
 
   // Fatal weakness: soloer cannot have super-effective elemental weaknesses (>= 2.0x)
   if (worstIncoming >= 2.0) return false;
-  // Mutual self-type trap (Dragon vs Dragon, Ghost vs Ghost): cannot solo
-  if (isMutualSelfTrap) return false;
+  // Mutual self-type trap (Dragon vs Dragon, Ghost vs Ghost): cannot solo unless user has decisive level advantage
+  if (isMutualSelfTrap && pokeLvl < (trainerAvgLvl + 25)) return false;
 
   // Level deficit guard:
   // If opponent is > 15 levels higher:
@@ -951,6 +1063,43 @@ function getBestMoveVsTrainer(poke, trainer) {
   return best || { name: pokeMoves[0].name, type: normalizeType(pokeMoves[0].type), power: pokeMoves[0].power, multiplier: 1.0, effectivePower: 40 };
 }
 
+function getBestUniversalMove(poke) {
+  if (!poke) return { name: 'Tackle', type: 'Normal', power: 40, multiplier: 1.0, effectivePower: 40 };
+  const pokeMoves = (poke.moves || []).map(resolveMove).filter(m => !m.isStatus && m.power > 0);
+  const pokeTypes = normalizeDefenderTypes(poke.types || ['Normal']);
+  const vMultipliers = getVariantMultipliers(poke.variant);
+
+  if (pokeMoves.length === 0) {
+    const primaryType = pokeTypes[0] || 'Normal';
+    return { name: primaryType + ' Strike', type: primaryType, power: 40, multiplier: 1.0, effectivePower: 40 };
+  }
+
+  let best = null;
+  let maxScore = -1;
+
+  for (const m of pokeMoves) {
+    const mType = normalizeType(m.type);
+    const isStab = pokeTypes.includes(mType);
+    let sumEff = 0;
+    for (const defType of ALL_TYPES) {
+      sumEff += getMoveEffectiveness(mType, [defType]);
+    }
+    const avgEff = sumEff / ALL_TYPES.length;
+    const effectivePower = m.power * (isStab ? 1.5 : 1.0) * avgEff * vMultipliers.offense;
+    if (effectivePower > maxScore) {
+      maxScore = effectivePower;
+      best = {
+        name: m.name,
+        type: mType,
+        power: m.power,
+        multiplier: Number(avgEff.toFixed(2)),
+        effectivePower: Math.round(effectivePower)
+      };
+    }
+  }
+  return best || { name: pokeMoves[0].name, type: normalizeType(pokeMoves[0].type), power: pokeMoves[0].power, multiplier: 1.0, effectivePower: 40 };
+}
+
 // Build a Universal 6-Pokemon PvP "God Squad" with role & type diversity
 function buildGodSquadTeam(collection, tierFilter) {
   if (!collection || !Array.isArray(collection) || collection.length === 0) return [];
@@ -969,6 +1118,8 @@ function buildGodSquadTeam(collection, tierFilter) {
         const v = getVariantMultipliers(p.variant);
         if (v.offense > 1) s += 25;
         if (v.flinch) s += 25;
+        const uMove = getBestUniversalMove(p);
+        if (uMove && uMove.power >= 90) s += 20;
         return s;
       }
     },
@@ -982,6 +1133,8 @@ function buildGodSquadTeam(collection, tierFilter) {
         const v = getVariantMultipliers(p.variant);
         if (v.offense > 1) s += 30;
         if (v.crit > 1) s += 20;
+        const uMove = getBestUniversalMove(p);
+        if (uMove && uMove.power >= 100) s += 25;
         return s;
       }
     },
@@ -995,6 +1148,8 @@ function buildGodSquadTeam(collection, tierFilter) {
         const v = getVariantMultipliers(p.variant);
         if (v.statusImmune) s += 40;
         if (v.hp > 1) s += 25;
+        const prof = getDefensiveProfile(p.types || ['Normal']);
+        s += (prof.immunities.length * 15) + (prof.resists.length * 5) - (prof.quadWeaknesses.length * 20);
         return s;
       }
     },
@@ -1009,6 +1164,8 @@ function buildGodSquadTeam(collection, tierFilter) {
         if (/xerneas|diancie|iron valiant|tapu lele|tapu koko|flutter mane|enamorus|magearna|zacian/i.test(name)) s += 60;
         const v = getVariantMultipliers(p.variant);
         if (v.statusImmune) s += 25;
+        const uMove = getBestUniversalMove(p);
+        if (uMove && uMove.type === 'Fairy') s += 20;
         return s;
       }
     },
@@ -1039,6 +1196,8 @@ function buildGodSquadTeam(collection, tierFilter) {
         if (/dialga|melmetal|celesteela|iron crown|cobalion|registeel|heatran|corviknight/i.test(name)) s += 60;
         const v = getVariantMultipliers(p.variant);
         if (v.statusImmune) s += 25;
+        const prof = getDefensiveProfile(types);
+        s += (prof.resists.length * 5) + (prof.doubleResists.length * 10);
         return s;
       }
     }
@@ -1078,8 +1237,8 @@ function buildGodSquadTeam(collection, tierFilter) {
       chosenIds.add(best.id);
       chosenSpecies.add(getBaseSpecies(best.name));
       const pTypes = (best.types && best.types.length > 0) ? best.types : ['Normal'];
-      const dummyTrainer = { types: ['Normal'], avgLevel: 100 };
-      const bestMove = getBestMoveVsTrainer(best, dummyTrainer);
+      const bestMove = getBestUniversalMove(best);
+      const movePwrStr = (bestMove && bestMove.power > 0) ? ' [' + bestMove.power + ' Pwr]' : '';
 
       chosen.push({
         slot: chosen.length + 1,
@@ -1091,7 +1250,7 @@ function buildGodSquadTeam(collection, tierFilter) {
         sprite: best.sprite || '',
         role: roleDef.role,
         roleDesc: roleDef.desc,
-        bestMove: bestMove ? `${bestMove.name} (${bestMove.type})` : `${pTypes[0]} Attack`,
+        bestMove: bestMove ? `${bestMove.name} (${bestMove.type})${movePwrStr}` : `${pTypes[0]} Attack`,
         targetOpponentName: 'Universal Meta'
       });
     }
@@ -1118,6 +1277,7 @@ if (typeof module !== 'undefined' && module.exports) {
     buildGodSquadTeam,
     canSoloTrainer,
     getBestMoveVsTrainer,
+    getBestUniversalMove,
     getVariantMultipliers,
     getTypeMultiplier,
     outgoingEffectiveness,
@@ -1127,12 +1287,14 @@ if (typeof module !== 'undefined' && module.exports) {
     ULTRA_BEASTS,
     PARADOX_SPECIES,
     GMAX_SPECIES,
+    MEGA_SPECIES,
     LEGENDARY_SPECIES,
     isUltraBeast,
     isParadoxPokemon,
     isLegendaryPokemon,
     isCommonPokemon,
     isGmaxPokemon,
+    isMegaPokemon,
     filterCandidatePool
   };
 }

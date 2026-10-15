@@ -969,7 +969,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.3.5';
+    let appVer = '1.3.6';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -4019,9 +4019,18 @@ let isBuildSyncInProgress = false;
 let pendingBuildLeader = null;
 let lastSelectedBattleUrl = null;
 
+function getEffectiveFilteredPool(collection, filterType) {
+  if (!collection || !Array.isArray(collection)) return [];
+  const type = (filterType || 'ANY').toUpperCase();
+  if (type === 'GMAX') {
+    return teamEngine.filterCandidatePool(collection, 'GMAX_MEGA');
+  }
+  return teamEngine.filterCandidatePool(collection, type);
+}
+
 function getActiveCandidates() {
   if (!currentCollection || currentCollection.length === 0) return [];
-  const filtered = teamEngine.filterCandidatePool(currentCollection, teamPoolFilter);
+  const filtered = getEffectiveFilteredPool(currentCollection, teamPoolFilter);
   if (teamRosterMode === 'TRAINING') {
     return filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
   }
@@ -4029,7 +4038,7 @@ function getActiveCandidates() {
 }
 
 function updateRosterModeUI() {
-  const filtered = teamEngine.filterCandidatePool(currentCollection || [], teamPoolFilter);
+  const filtered = getEffectiveFilteredPool(currentCollection || [], teamPoolFilter);
   const inTrainingCount = filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100).length;
   const totalCount = filtered.length;
 
@@ -5272,7 +5281,7 @@ function executeTeamBuild(targetLeader) {
   }
 
   if (teamRosterMode === 'TRAINING') {
-    const effectivePool = teamEngine.filterCandidatePool(currentCollection || [], teamPoolFilter);
+    const effectivePool = getEffectiveFilteredPool(currentCollection || [], teamPoolFilter);
     const trainees = effectivePool.filter(p => (p.level || 100) < 100);
     const lvl100Pokes = effectivePool.filter(p => (p.level || 0) === 100);
     const highLvlPokes = effectivePool.filter(p => (p.level || 0) >= 70);
@@ -5470,7 +5479,7 @@ function executePvPTeamBuild() {
       return;
     }
 
-    const filteredPool = teamEngine.filterCandidatePool(currentCollection, pvpTier);
+    const filteredPool = getEffectiveFilteredPool(currentCollection, pvpTier);
     if (filteredPool.length === 0) {
       const tierLabels = {
         ANY: 'Level 100 Pokemon',

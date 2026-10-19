@@ -13,7 +13,8 @@ if (window.location.hostname && !window.location.hostname.includes('delugerpg.co
 
 const { ipcRenderer } = require('electron');
 
-// --- 1. ENVIRONMENT HYGIENE ---
+// --- 1. ENVIRONMENT HYGIENE & STEALTH STORAGE SHIELD ---
+let _internalAuthorizedClickFlag = false;
 try {
     delete window.process;
     delete window.Buffer;
@@ -21,6 +22,22 @@ try {
     delete window.setImmediate;
     delete window.clearImmediate;
     delete window.global;
+
+    Object.defineProperty(window, '__delugeAutoCatchAuthorizedClick', {
+        get: function() { return _internalAuthorizedClickFlag; },
+        set: function(val) { _internalAuthorizedClickFlag = !!val; },
+        enumerable: false,
+        configurable: false
+    });
+
+    const _origObjectKeys = Object.keys;
+    Object.keys = function(obj) {
+        const keys = _origObjectKeys.call(Object, obj);
+        if (obj === window.sessionStorage || obj === window.localStorage) {
+            return keys.filter(k => !String(k).startsWith('deluge_autocatch_'));
+        }
+        return keys;
+    };
 } catch (_) {}
 
 // --- 2. SELF-CONTAINED TARGET DATABASE ---
@@ -891,14 +908,277 @@ let unlockNoticeSent = false;
 let isHuntingActive = false;
 let activeStep = null;
 let collisionCheckTimer = null;
+let pendingCatchTimeoutId = null;
+let pendingLifecycleTimeoutId = null;
+
+function clearAutoCatchSession(reason = '') {
+    if (pendingCatchTimeoutId) {
+        clearTimeout(pendingCatchTimeoutId);
+        pendingCatchTimeoutId = null;
+    }
+    if (pendingLifecycleTimeoutId) {
+        clearTimeout(pendingLifecycleTimeoutId);
+        pendingLifecycleTimeoutId = null;
+    }
+    autoCatchStepInProgress = false;
+    try {
+        sessionStorage.removeItem('deluge_autocatch_active');
+        sessionStorage.removeItem('deluge_autocatch_thrown');
+        sessionStorage.removeItem('deluge_autocatch_target');
+        sessionStorage.removeItem('deluge_autocatch_stock');
+        sessionStorage.removeItem('deluge_autocatch_details');
+        sessionStorage.removeItem('deluge_autocatch_out_of_stock');
+    } catch (_) {}
+    if (reason) {
+        console.log('[PokePreload] Cleared auto-catch session: ' + reason);
+    }
+}
+
+ipcRenderer.on('abort-autocatch', () => {
+    console.log('[PokePreload] Received abort-autocatch command from host');
+    clearAutoCatchSession('Host requested abort');
+});
 
 ipcRenderer.on('hunting-state-changed', (event, state) => {
-    isHuntingActive = !!(state && state.isHunting);
+    const currentPath = (window.location.pathname || '').toLowerCase();
+    const onMapPage = currentPath.indexOf('/map') !== -1;
+    isHuntingActive = !!(state && state.isHunting) && onMapPage;
     if (!isHuntingActive) {
         lastFoundTarget = '';
+        if (state && state.userManuallyPaused) {
+            clearAutoCatchSession('Hunting manually paused by user');
+        }
     }
 });
 
+// --- OWNED POKEMON & MEGA EVOLUTION UNIQUENESS HARDENING ENGINE ---
+let ownedUserCollection = [];
+const ownedCollectionByBaseSpecies = new Map();
+const ownedExactNamesSet = new Set();
+const ownedMegaSpeciesSet = new Set();
+
+function escapePreloadHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function getPreloadBaseSpecies(name) {
+    if (!name) return '';
+    return String(name)
+        .replace(/^(Dark|Shiny|Shadow|Ghostly|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
+        .replace(/^(Mega|Primal|G-Max|Gigantamax)\s+/i, '')
+        .replace(/^(Alolan|Galarian|Hisuian|Paldean)\s+/i, '')
+        .replace(/\s*\([^)]*\)/g, '')
+        .replace(/-(Wash|Heat|Frost|Fan|Mow|Origin|Therian|Incarnate|Altered|Dusk-Mane|Dawn-Wings|Rapid-Strike|Single-Strike|Paldea|Hisui|Galar|Alola|Sky|Attack|Defense|Speed)$/i, '')
+        .replace(/\s+[XYZ]$/i, '')
+        .trim()
+        .toLowerCase();
+}
+
+function isPreloadActualMega(name) {
+    if (!name) return false;
+    const lower = String(name).toLowerCase().trim();
+    return lower.includes('mega ') || lower.includes('primal ') || lower.startsWith('mega-') || lower.endsWith(' mega') || lower.endsWith(' primal');
+}
+
+function updateUserCollectionIndex(collection) {
+    if (!Array.isArray(collection)) return;
+    ownedUserCollection = collection;
+    ownedCollectionByBaseSpecies.clear();
+    ownedExactNamesSet.clear();
+    ownedMegaSpeciesSet.clear();
+
+    for (let i = 0; i < collection.length; i++) {
+        const p = collection[i];
+        if (!p || !p.name) continue;
+        const rawName = String(p.name).trim();
+        const variant = p.variant || 'Normal';
+        const cleanName = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const cleanFullName = ((variant !== 'Normal' ? variant + ' ' : '') + rawName).toLowerCase().replace(/[^a-z0-9]/g, '');
+        const base = getPreloadBaseSpecies(rawName);
+        const isMega = isPreloadActualMega(rawName);
+
+        ownedExactNamesSet.add(cleanName);
+        ownedExactNamesSet.add(cleanFullName);
+
+        if (isMega) {
+            ownedMegaSpeciesSet.add(base);
+        }
+
+        let list = ownedCollectionByBaseSpecies.get(base);
+        if (!list) {
+            list = [];
+            ownedCollectionByBaseSpecies.set(base, list);
+        }
+        list.push({
+            id: p.id,
+            name: rawName,
+            variant: variant,
+            level: p.level || 100,
+            isMega: isMega
+        });
+    }
+}
+
+try {
+    const cachedCollRaw = sessionStorage.getItem('deluge_cached_collection');
+    if (cachedCollRaw) {
+        const cachedColl = JSON.parse(cachedCollRaw);
+        if (Array.isArray(cachedColl) && cachedColl.length > 0) {
+            updateUserCollectionIndex(cachedColl);
+        }
+    }
+} catch (_) {}
+
+ipcRenderer.on('sync-user-collection', (event, collection) => {
+    if (Array.isArray(collection)) {
+        updateUserCollectionIndex(collection);
+        try {
+            sessionStorage.setItem('deluge_cached_collection', JSON.stringify(collection));
+        } catch (_) {}
+    }
+});
+
+try {
+    ipcRenderer.sendToHost('request-user-collection');
+} catch (_) {}
+
+function evaluateOwnershipAndMegaEquivalence(nameOrText) {
+    if (!nameOrText || ownedUserCollection.length === 0) {
+        return {
+            isDuplicate: false,
+            isOwned: false,
+            hasMegaOwned: false,
+            hasExactOwned: false,
+            ownedPokemon: null,
+            type: 'UNOWNED',
+            alertTitle: '',
+            alertMessage: '',
+            reason: ''
+        };
+    }
+
+    let candidate = String(nameOrText).trim();
+    const appearedMatch = candidate.match(/(?:wild|caught)\s+([A-Za-z0-9\s\(\)\-']+?)\s+appeared/i);
+    if (appearedMatch) {
+        candidate = appearedMatch[1];
+    }
+    candidate = candidate.replace(/^(ULTRABEAST|PARADOX POKEMON|LEGENDARY POKEMON|MEGA EVOLUTION)\s+/i, '');
+    candidate = candidate.replace(/^A wild\s+/i, '');
+
+    const cleanCandidate = candidate.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const baseSpecies = getPreloadBaseSpecies(candidate);
+    if (!baseSpecies) {
+        return {
+            isDuplicate: false,
+            isOwned: false,
+            hasMegaOwned: false,
+            hasExactOwned: false,
+            ownedPokemon: null,
+            type: 'UNOWNED',
+            alertTitle: '',
+            alertMessage: '',
+            reason: ''
+        };
+    }
+
+    const matchingSpecies = ownedCollectionByBaseSpecies.get(baseSpecies) || [];
+    const matchingMegas = matchingSpecies.filter(p => p.isMega);
+    const exactMatch = matchingSpecies.find(p => {
+        const pClean = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const pFullClean = ((p.variant !== 'Normal' ? p.variant + ' ' : '') + p.name).toLowerCase().replace(/[^a-z0-9]/g, '');
+        return pClean === cleanCandidate || pFullClean === cleanCandidate;
+    });
+
+    const capitalize = (s) => s ? (s.charAt(0).toUpperCase() + s.slice(1)) : '';
+
+    if (matchingMegas.length > 0) {
+        matchingMegas.sort((a, b) => (b.level || 0) - (a.level || 0));
+        const topMega = matchingMegas[0];
+        const fullMegaName = (topMega.name.toLowerCase().startsWith((topMega.variant || 'Normal').toLowerCase()) || topMega.variant === 'Normal')
+            ? topMega.name
+            : `${topMega.variant} ${topMega.name}`;
+
+        return {
+            isDuplicate: true,
+            isOwned: true,
+            hasMegaOwned: true,
+            hasExactOwned: Boolean(exactMatch),
+            ownedPokemon: topMega,
+            type: 'MEGA_ALREADY_OWNED',
+            alertTitle: 'STOP: MEGA EVOLUTION ALREADY OWNED',
+            alertMessage: `You already own ${fullMegaName} (Lv ${topMega.level || 100})!`,
+            reason: `You already own the Mega Evolution of ${capitalize(baseSpecies)}. 100% uniqueness protection active.`
+        };
+    }
+
+    if (exactMatch) {
+        const fullExactName = (exactMatch.name.toLowerCase().startsWith((exactMatch.variant || 'Normal').toLowerCase()) || exactMatch.variant === 'Normal')
+            ? exactMatch.name
+            : `${exactMatch.variant} ${exactMatch.name}`;
+
+        return {
+            isDuplicate: true,
+            isOwned: true,
+            hasMegaOwned: false,
+            hasExactOwned: true,
+            ownedPokemon: exactMatch,
+            type: 'EXACT_ALREADY_OWNED',
+            alertTitle: 'STOP: POKEMON ALREADY OWNED',
+            alertMessage: `You already own ${fullExactName} (Lv ${exactMatch.level || 100})!`,
+            reason: `Exact Pokemon already exists in your collection. 100% uniqueness protection active.`
+        };
+    }
+
+    if (matchingSpecies.length > 0) {
+        matchingSpecies.sort((a, b) => (b.level || 0) - (a.level || 0));
+        const topSp = matchingSpecies[0];
+        const fullSpName = (topSp.name.toLowerCase().startsWith((topSp.variant || 'Normal').toLowerCase()) || topSp.variant === 'Normal')
+            ? topSp.name
+            : `${topSp.variant} ${topSp.name}`;
+
+        return {
+            isDuplicate: true,
+            isOwned: true,
+            hasMegaOwned: false,
+            hasExactOwned: false,
+            ownedPokemon: topSp,
+            type: 'SPECIES_ALREADY_OWNED',
+            alertTitle: 'STOP: SPECIES ALREADY IN COLLECTION',
+            alertMessage: `You already own ${fullSpName} (Lv ${topSp.level || 100})!`,
+            reason: `Species ${capitalize(baseSpecies)} already exists in your collection. 100% uniqueness protection active.`
+        };
+    }
+
+    return {
+        isDuplicate: false,
+        isOwned: false,
+        hasMegaOwned: false,
+        hasExactOwned: false,
+        ownedPokemon: null,
+        type: 'UNOWNED',
+        alertTitle: '',
+        alertMessage: '',
+        reason: ''
+    };
+}
+
+function renderUniquenessAlertBanner(ownStatus) {
+    // Stealth zero-DOM-injection: guarantees DelugeRPG page DOM remains 100% clean and pristine
+    removeUniquenessAlertBanner();
+}
+
+function removeUniquenessAlertBanner() {
+    const existing = document.getElementById('deluge-uniqueness-alert-banner');
+    if (existing && existing.parentElement) {
+        existing.parentElement.removeChild(existing);
+    }
+}
 
 // --- MODULE ROOT SCOPE HELPERS ---
 function getRandomCatchDelay(minMs = 1000, maxMs = 10000) {
@@ -927,6 +1207,10 @@ function dispatchHumanClick(el, callback) {
         const relY = hasSize ? Math.floor(rect.top + rect.height * (0.2 + Math.random() * 0.6)) : 50;
         const scrX = (window.screenX || 0) + relX;
         const scrY = (window.screenY || 0) + relY;
+
+        try {
+            ipcRenderer.sendToHost('trusted-mouse-telemetry', { x: relX, y: relY });
+        } catch (_) {}
 
         const moveProps = {
             bubbles: true,
@@ -977,7 +1261,13 @@ function dispatchHumanClick(el, callback) {
             } catch (_) {}
 
             el.dispatchEvent(new MouseEvent('mouseup', upProps));
+            let isAuthorized = false;
+            try {
+                isAuthorized = sessionStorage.getItem('deluge_autocatch_active') === 'true';
+            } catch (_) {}
+            if (isAuthorized) window.__delugeAutoCatchAuthorizedClick = true;
             try { el.click(); } catch (_) {}
+            window.__delugeAutoCatchAuthorizedClick = false;
             if (typeof callback === 'function') callback();
         };
 
@@ -988,7 +1278,13 @@ function dispatchHumanClick(el, callback) {
             finishAction();
         }
     } catch (_) {
+        let isAuthorized = false;
+        try {
+            isAuthorized = sessionStorage.getItem('deluge_autocatch_active') === 'true';
+        } catch (_) {}
+        if (isAuthorized) window.__delugeAutoCatchAuthorizedClick = true;
         try { el.click(); } catch (_) {}
+        window.__delugeAutoCatchAuthorizedClick = false;
         if (typeof callback === 'function') callback();
     }
 }
@@ -1226,7 +1522,14 @@ function checkEncounterIsDuplicate(container, shouldLog = false) {
         const checkText = container ? (container.innerText || container.textContent || '') : '';
         const rawText = checkText.toLowerCase();
 
-        // 1A. Explicit UNCAUGHT text
+        // 1A. Hardened Collection Ownership & Mega Evolution Uniqueness Awareness
+        const ownStatus = evaluateOwnershipAndMegaEquivalence(checkText || rawText);
+        if (ownStatus && ownStatus.isDuplicate) {
+            if (shouldLog) console.log('[PokePreload] Duplicate check: OVERRIDE via collection awareness (' + ownStatus.alertTitle + ' -> ' + ownStatus.alertMessage + ')');
+            return true;
+        }
+
+        // 1B. Explicit UNCAUGHT text
         if (rawText.indexOf("don't have this pokemon") !== -1 ||
             rawText.indexOf("dont have this pokemon") !== -1 ||
             rawText.indexOf("do not have this pokemon") !== -1 ||
@@ -1599,11 +1902,22 @@ function checkHasCaptchaElement() {
         if (path.indexOf('/unlock') !== -1) return true;
         const cEl = document.querySelector(
             'iframe[src*="captcha" i], iframe[src*="turnstile" i], iframe[src*="recaptcha" i], iframe[src*="challenges.cloudflare.com" i], ' +
-            '#captcha, .captcha, #recaptcha, .g-recaptcha, .cf-turnstile, [id*="captcha" i], [class*="captcha" i]'
+            'iframe[src*="hcaptcha" i], iframe[src*="arkose" i], .h-captcha, ' +
+            '#captcha, .captcha, #recaptcha, .g-recaptcha, .cf-turnstile, [id*="captcha" i], [class*="captcha" i], img[src*="captcha" i]'
         );
         if (cEl) {
             const st = window.getComputedStyle(cEl);
             if (st.display !== 'none' && st.visibility !== 'hidden') return true;
+        }
+        const bodyText = (document.body ? document.body.innerText || '' : '').toLowerCase();
+        if (bodyText.length > 0 && bodyText.length < 5000) {
+            if (bodyText.includes('security check') ||
+                bodyText.includes('verify you are human') ||
+                bodyText.includes('prove you are human') ||
+                bodyText.includes('enter the code below') ||
+                bodyText.includes('robot verification')) {
+                return true;
+            }
         }
     } catch (_) {}
     return false;
@@ -1615,13 +1929,25 @@ function checkAndSyncMapPresence() {
         const hasMapElement = !!(document.getElementById('map') || document.getElementById('mapcanvas') || document.querySelector('.trainer') || document.getElementById('user'));
         const hasDpad = !!document.getElementById('dpad');
         const isMapPage = (path.indexOf('/map') !== -1) || (hasMapElement && hasDpad);
+        const hasCatchUI = !!findCatchActionElement();
+        const hasCaptcha = checkHasCaptchaElement();
+
+        if (hasCaptcha) {
+            clearAutoCatchSession();
+            if (!unlockNoticeSent) {
+                unlockNoticeSent = true;
+                ipcRenderer.sendToHost('unlock-detected', { path: path, url: window.location.href });
+            }
+        }
+
         if (isMapPage) {
             try {
                 sessionStorage.setItem('deluge_last_map_url', window.location.href);
             } catch (_) {}
+            if (!hasCatchUI && !pendingCatchTimeoutId) {
+                clearAutoCatchSession();
+            }
         }
-        const hasCatchUI = !!findCatchActionElement();
-        const hasCaptcha = checkHasCaptchaElement();
 
         ipcRenderer.sendToHost('map-presence', {
             isMap: isMapPage,
@@ -1662,8 +1988,8 @@ function scanForTargets() {
         return;
     }
 
-    // 2. STRICT PAGE GUARD: Only scan on map or catch page (never on team, box, or trade pages)
-    const isHuntingPage = path.indexOf('/map') !== -1 || path.indexOf('/catch') !== -1;
+    // 2. STRICT PAGE GUARD: Only scan on map page (never on catch, team, box, or trade pages)
+    const isHuntingPage = path.indexOf('/map') !== -1;
     if (!isHuntingPage) {
         return;
     }
@@ -1674,6 +2000,11 @@ function scanForTargets() {
 
     if (!hasCatchUI) {
         lastFoundTarget = '';
+        if (!pendingCatchTimeoutId && typeof clearAutoCatchSession === 'function') {
+            clearAutoCatchSession();
+        }
+    } else if (typeof blurCatchButtonsOnMap === 'function') {
+        blurCatchButtonsOnMap();
     }
 
     // Aggregate encounter container text across all candidate containers
@@ -1883,16 +2214,30 @@ function scanForTargets() {
 
     if (isNewEncounter) {
         lastEvaluatedEncounterSignature = encounterSig;
+        lastFoundTarget = '';
+        if (typeof clearAutoCatchSession === 'function') clearAutoCatchSession();
         console.log('[TargetEngine] Encounter: "' + shortName + '" | Variant: ' + detectedVariant.toUpperCase() + (currentLevel !== null ? (' | Lv: ' + currentLevel) : ''));
     }
 
     const encContainer = getEncounterContainer();
-    const isEncounterDuplicate = checkEncounterIsDuplicate(encContainer, isNewEncounter);
+    const ownStatus = (typeof evaluateOwnershipAndMegaEquivalence === 'function')
+        ? evaluateOwnershipAndMegaEquivalence(encounterBoxText || pageText || shortName)
+        : null;
+    if (ownStatus && ownStatus.isDuplicate) {
+        if (typeof renderUniquenessAlertBanner === 'function') renderUniquenessAlertBanner(ownStatus);
+        if (isNewEncounter && typeof ipcRenderer !== 'undefined' && ipcRenderer && ipcRenderer.sendToHost) {
+            ipcRenderer.sendToHost('duplicate-owned-alert', ownStatus);
+        }
+    } else {
+        if (typeof removeUniquenessAlertBanner === 'function') removeUniquenessAlertBanner();
+    }
+
+    const isEncounterDuplicate = (ownStatus && ownStatus.isDuplicate) || checkEncounterIsDuplicate(encContainer, isNewEncounter);
     const avoidDupesActive = (config.avoidDuplicates !== false);
 
     if (avoidDupesActive && isEncounterDuplicate) {
         if (isNewEncounter) {
-            console.log('[TargetEngine] DUPLICATE ENCOUNTER: "' + shortName + '" (already owned in Dex). Skipping to preserve hunting flow.');
+            console.log('[TargetEngine] DUPLICATE ENCOUNTER: "' + shortName + '" (' + (ownStatus && ownStatus.isDuplicate ? ownStatus.alertMessage : 'already owned in Dex') + '). Skipping to preserve hunting flow.');
         }
         return;
     }
@@ -2194,17 +2539,26 @@ function scanForTargets() {
         triggerTargetFound(foundName, 'Level Match');
         return;
     }
+
+    if (typeof pendingCatchTimeoutId !== 'undefined' && !pendingCatchTimeoutId && typeof clearAutoCatchSession === 'function') {
+        clearAutoCatchSession();
+    }
 }
 
 // --- 4. TARGET FOUND HANDLER ---
 function triggerTargetFound(targetName, category) {
+    const currentPath = (window.location.pathname || '').toLowerCase();
+    if (currentPath.indexOf('/map') === -1) return;
     if (!isHuntingActive) return;
     if (targetName === lastFoundTarget) return;
 
     const encContainer = getEncounterContainer();
-    const isDupe = checkEncounterIsDuplicate(encContainer, false);
+    const ownCheck = (typeof evaluateOwnershipAndMegaEquivalence === 'function')
+        ? evaluateOwnershipAndMegaEquivalence(targetName)
+        : null;
+    const isDupe = (ownCheck && ownCheck.isDuplicate) || checkEncounterIsDuplicate(encContainer, false);
     if (config.avoidDuplicates !== false && isDupe) {
-        console.log('[PokePreload] Duplicate target detected during trigger: ' + targetName + ' - skipping.');
+        console.log('[PokePreload] Duplicate target detected during trigger: ' + targetName + ' (' + (ownCheck && ownCheck.isDuplicate ? ownCheck.alertMessage : 'duplicate') + ') - skipping.');
         return;
     }
 
@@ -2270,7 +2624,30 @@ function triggerTargetFound(targetName, category) {
             delay: catchDelay
         });
 
-        setTimeout(() => {
+        if (pendingCatchTimeoutId) {
+            clearTimeout(pendingCatchTimeoutId);
+            pendingCatchTimeoutId = null;
+        }
+
+        pendingCatchTimeoutId = setTimeout(() => {
+            pendingCatchTimeoutId = null;
+            if ((window.location.pathname || '').toLowerCase().indexOf('/map') === -1) {
+                clearAutoCatchSession('No longer on map page');
+                return;
+            }
+            let active = false;
+            try {
+                active = sessionStorage.getItem('deluge_autocatch_active') === 'true';
+            } catch (_) {}
+            if (!active) {
+                console.log('[PokePreload] Auto-catch Try to Catch cancelled: deluge_autocatch_active cleared');
+                return;
+            }
+            if (!config.autoCatchMasterBall || config.hideAdsCosmetically === false) {
+                console.log('[PokePreload] Auto-catch Try to Catch cancelled: autoCatchMasterBall is disabled');
+                clearAutoCatchSession('autoCatchMasterBall disabled');
+                return;
+            }
             const catchBtn = findCatchActionElement();
             if (catchBtn) {
                 dispatchHumanClick(catchBtn);
@@ -2467,13 +2844,7 @@ ipcRenderer.on('click-nav-button', (event, data) => {
     if (selector) {
         const btn = document.querySelector(selector);
         if (btn && !isNavButtonBlocked(dir)) {
-            try {
-                btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
-                btn.click();
-                btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-            } catch (_) {
-                try { btn.click(); } catch (_) {}
-            }
+            dispatchHumanClick(btn, () => {});
         }
     }
 });
@@ -2681,6 +3052,96 @@ ipcRenderer.on('step-dispatched', (event, data) => {
     }, 850);
 });
 
+let lastTrustedPointerOnCatchBtnTs = 0;
+
+function isMapCatchElement(el) {
+    if (!el || !el.closest) return false;
+    const match = el.closest(
+        'input[type="submit"]#catch, input#catch, button#catch, a#catch, ' +
+        'input[name*="catch" i], button[name*="catch" i], ' +
+        'input[type="submit"][value*="Catch" i], button[value*="Catch" i], ' +
+        'form[action*="catch"] input[type="submit"], form[action*="catch"] button, ' +
+        'form[action*="catch"] a, a[href*="/catch"]'
+    );
+    return !!match;
+}
+
+function blurCatchButtonsOnMap() {
+    try {
+        const path = (window.location.pathname || '').toLowerCase();
+        if (path.indexOf('/map') === -1) return;
+        const activeEl = document.activeElement;
+        if (activeEl && isMapCatchElement(activeEl) && !window.__delugeAutoCatchAuthorizedClick) {
+            activeEl.blur();
+        }
+    } catch (_) {}
+}
+
+window.addEventListener('focusin', (e) => {
+    try {
+        const path = (window.location.pathname || '').toLowerCase();
+        if (path.indexOf('/map') !== -1 && isMapCatchElement(e.target) && !window.__delugeAutoCatchAuthorizedClick) {
+            e.target.blur();
+        }
+    } catch (_) {}
+}, true);
+
+window.addEventListener('pointerdown', (e) => {
+    if (e.isTrusted && isMapCatchElement(e.target)) {
+        lastTrustedPointerOnCatchBtnTs = Date.now();
+    }
+}, true);
+
+window.addEventListener('mousedown', (e) => {
+    if (e.isTrusted && isMapCatchElement(e.target)) {
+        lastTrustedPointerOnCatchBtnTs = Date.now();
+    }
+}, true);
+
+window.addEventListener('click', (e) => {
+    try {
+        const path = (window.location.pathname || '').toLowerCase();
+        if (path.indexOf('/map') === -1) return;
+        if (!isMapCatchElement(e.target)) return;
+
+        let isAuthorizedAutoCatch = false;
+        try {
+            isAuthorizedAutoCatch = !!(window.__delugeAutoCatchAuthorizedClick && sessionStorage.getItem('deluge_autocatch_active') === 'true');
+        } catch (_) {}
+        const isTrustedMouseClick = !!(e.isTrusted && (e.detail > 0 || (Date.now() - lastTrustedPointerOnCatchBtnTs < 1500)));
+
+        if (!isAuthorizedAutoCatch && !isTrustedMouseClick) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.log('[PokePreload] Blocked unauthorized non-mouse trigger on Try to Catch It');
+        }
+    } catch (_) {}
+}, true);
+
+window.addEventListener('submit', (e) => {
+    try {
+        const path = (window.location.pathname || '').toLowerCase();
+        if (path.indexOf('/map') === -1) return;
+        const form = e.target;
+        const action = (form && form.getAttribute ? (form.getAttribute('action') || form.action || '') : '').toLowerCase();
+        if (action.indexOf('catch') === -1) return;
+
+        let isAuthorizedAutoCatch = false;
+        try {
+            isAuthorizedAutoCatch = !!(window.__delugeAutoCatchAuthorizedClick && sessionStorage.getItem('deluge_autocatch_active') === 'true');
+        } catch (_) {}
+        const isTrustedMouseSubmit = (Date.now() - lastTrustedPointerOnCatchBtnTs < 1500);
+
+        if (!isAuthorizedAutoCatch && !isTrustedMouseSubmit) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.log('[PokePreload] Blocked unauthorized form submit to /catch');
+        }
+    } catch (_) {}
+}, true);
+
 // Guest Context Spacebar Toggle & F8 Snapshot Handlers
 window.addEventListener('keydown', (e) => {
     if (e.key === 'F8') {
@@ -2688,13 +3149,40 @@ window.addEventListener('keydown', (e) => {
         captureCurrentDom('manual-F8');
         return;
     }
-    if (e.code === 'Space' || e.key === ' ') {
+    if (e.code === 'Space' || e.key === ' ' || e.key === 'F2') {
         const activeEl = document.activeElement;
-        const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT' || activeEl.isContentEditable);
-        if (!isInput) {
+        if (!isGuestInputField(activeEl)) {
+            if (activeEl && activeEl !== document.body) {
+                try { activeEl.blur(); } catch (_) {}
+            }
             e.preventDefault();
             e.stopPropagation();
-            ipcRenderer.sendToHost('toggle-hunting-hotkey');
+            e.stopImmediatePropagation();
+            if (!e.repeat) {
+                ipcRenderer.sendToHost('toggle-hunting-hotkey');
+            }
+        }
+    }
+}, true);
+
+window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' || e.key === ' ' || e.key === 'F2') {
+        const activeEl = document.activeElement;
+        if (!isGuestInputField(activeEl)) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        }
+    }
+}, true);
+
+window.addEventListener('keypress', (e) => {
+    if (e.code === 'Space' || e.key === ' ' || e.key === 'F2') {
+        const activeEl = document.activeElement;
+        if (!isGuestInputField(activeEl)) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
         }
     }
 }, true);
@@ -2943,6 +3431,15 @@ window.addEventListener('wheel', (e) => {
     }
 }, { capture: true, passive: false });
 
+ipcRenderer.on('guest-zoom-update', (event, factor) => {
+    try {
+        const { webFrame } = require('electron');
+        if (webFrame && typeof webFrame.setZoomFactor === 'function' && typeof factor === 'number') {
+            webFrame.setZoomFactor(factor);
+        }
+    } catch (_) {}
+});
+
 // --- LIVE BALL INVENTORY & AUTO-CATCH METRICS ---
 let lastScrapedMasterBall = null;
 
@@ -3036,11 +3533,41 @@ function checkAndSyncBallInventory(force = false) {
 // --- AUTO-CATCH (MASTER BALL) LIFECYCLE ENGINE ---
 let autoCatchStepInProgress = false;
 
+function extractWildPokemonFromCatchPage() {
+    try {
+        const path = window.location.pathname || '';
+        const urlMatch = path.match(/\/catch\/([^\/]+)/i);
+        if (urlMatch && urlMatch[1]) {
+            const decoded = decodeURIComponent(urlMatch[1]).replace(/\+/g, ' ').trim();
+            if (decoded && decoded.toLowerCase() !== 'catch') {
+                return decoded;
+            }
+        }
+        const oppEl = document.getElementById('opponent') || document.querySelector('.opponent');
+        if (oppEl) {
+            return (oppEl.innerText || oppEl.textContent || '').trim();
+        }
+    } catch (_) {}
+    return '';
+}
+
 function runAutoCatchLifecycle() {
     let isCatchActive = false;
     try {
         isCatchActive = sessionStorage.getItem('deluge_autocatch_active') === 'true';
     } catch (_) {}
+
+    // Uniqueness Safety Gate: If target or on-screen encounter is owned / Mega-owned, abort auto-catch!
+    if (window.location.pathname.includes('/catch/')) {
+        const catchTargetName = extractWildPokemonFromCatchPage();
+        const ownCatchCheck = catchTargetName ? evaluateOwnershipAndMegaEquivalence(catchTargetName) : null;
+        if (ownCatchCheck && ownCatchCheck.isDuplicate) {
+            clearAutoCatchSession('Uniqueness protection: ' + ownCatchCheck.alertMessage);
+            renderUniquenessAlertBanner(ownCatchCheck);
+            ipcRenderer.sendToHost('duplicate-owned-alert', ownCatchCheck);
+            return;
+        }
+    }
 
     if (!isCatchActive) return;
 
@@ -3088,11 +3615,6 @@ function runAutoCatchLifecycle() {
                     caughtData = JSON.parse(rawDetails);
                 } catch (_) {}
             }
-            sessionStorage.removeItem('deluge_autocatch_active');
-            sessionStorage.removeItem('deluge_autocatch_thrown');
-            sessionStorage.removeItem('deluge_autocatch_target');
-            sessionStorage.removeItem('deluge_autocatch_stock');
-            sessionStorage.removeItem('deluge_autocatch_details');
         } catch (_) {}
 
         if (!caughtData) {
@@ -3118,7 +3640,26 @@ function runAutoCatchLifecycle() {
             delay: returnDelay
         });
 
-        setTimeout(() => {
+        if (pendingLifecycleTimeoutId) {
+            clearTimeout(pendingLifecycleTimeoutId);
+            pendingLifecycleTimeoutId = null;
+        }
+
+        pendingLifecycleTimeoutId = setTimeout(() => {
+            pendingLifecycleTimeoutId = null;
+            let active = false;
+            try { active = sessionStorage.getItem('deluge_autocatch_active') === 'true'; } catch (_) {}
+            if (!active) {
+                autoCatchStepInProgress = false;
+                return;
+            }
+            try {
+                sessionStorage.removeItem('deluge_autocatch_active');
+                sessionStorage.removeItem('deluge_autocatch_thrown');
+                sessionStorage.removeItem('deluge_autocatch_target');
+                sessionStorage.removeItem('deluge_autocatch_stock');
+                sessionStorage.removeItem('deluge_autocatch_details');
+            } catch (_) {}
             ipcRenderer.sendToHost('autocatch-status', {
                 step: 'completed',
                 target: targetName,
@@ -3155,7 +3696,18 @@ function runAutoCatchLifecycle() {
                     step: 'starting-battle',
                     delay: startDelay
                 });
-                setTimeout(() => {
+                if (pendingLifecycleTimeoutId) {
+                    clearTimeout(pendingLifecycleTimeoutId);
+                    pendingLifecycleTimeoutId = null;
+                }
+                pendingLifecycleTimeoutId = setTimeout(() => {
+                    pendingLifecycleTimeoutId = null;
+                    let active = false;
+                    try { active = sessionStorage.getItem('deluge_autocatch_active') === 'true'; } catch (_) {}
+                    if (!active) {
+                        autoCatchStepInProgress = false;
+                        return;
+                    }
                     dispatchHumanClick(startBattleBtn, () => {
                         autoCatchStepInProgress = false;
                     });
@@ -3264,7 +3816,19 @@ function runAutoCatchLifecycle() {
                 stock: masterStock
             });
 
-            setTimeout(() => {
+            if (pendingLifecycleTimeoutId) {
+                clearTimeout(pendingLifecycleTimeoutId);
+                pendingLifecycleTimeoutId = null;
+            }
+
+            pendingLifecycleTimeoutId = setTimeout(() => {
+                pendingLifecycleTimeoutId = null;
+                let active = false;
+                try { active = sessionStorage.getItem('deluge_autocatch_active') === 'true'; } catch (_) {}
+                if (!active) {
+                    autoCatchStepInProgress = false;
+                    return;
+                }
                 const targetEl = (masterRadio.id ? document.querySelector('label[for="' + masterRadio.id + '"]') : null) || masterRadio.closest('label') || masterRadio;
                 dispatchHumanClick(targetEl, () => {
                     masterRadio.checked = true;
@@ -3278,7 +3842,19 @@ function runAutoCatchLifecycle() {
                         stock: masterStock
                     });
 
-                    setTimeout(() => {
+                    if (pendingLifecycleTimeoutId) {
+                        clearTimeout(pendingLifecycleTimeoutId);
+                        pendingLifecycleTimeoutId = null;
+                    }
+
+                    pendingLifecycleTimeoutId = setTimeout(() => {
+                        pendingLifecycleTimeoutId = null;
+                        let innerActive = false;
+                        try { innerActive = sessionStorage.getItem('deluge_autocatch_active') === 'true'; } catch (_) {}
+                        if (!innerActive) {
+                            autoCatchStepInProgress = false;
+                            return;
+                        }
                         const activeThrowBtn = document.querySelector('input[type="submit"][value*="Throw" i], button[value*="Throw" i], input[value*="Throw" i]') || throwBtn;
                         if (activeThrowBtn) {
                             try { sessionStorage.setItem('deluge_autocatch_thrown', 'true'); } catch (_) {}
@@ -3302,7 +3878,19 @@ function runAutoCatchLifecycle() {
                 stock: masterStock
             });
 
-            setTimeout(() => {
+            if (pendingLifecycleTimeoutId) {
+                clearTimeout(pendingLifecycleTimeoutId);
+                pendingLifecycleTimeoutId = null;
+            }
+
+            pendingLifecycleTimeoutId = setTimeout(() => {
+                pendingLifecycleTimeoutId = null;
+                let active = false;
+                try { active = sessionStorage.getItem('deluge_autocatch_active') === 'true'; } catch (_) {}
+                if (!active) {
+                    autoCatchStepInProgress = false;
+                    return;
+                }
                 const activeThrowBtn = document.querySelector('input[type="submit"][value*="Throw" i], button[value*="Throw" i], input[value*="Throw" i]') || throwBtn;
                 if (activeThrowBtn) {
                     try { sessionStorage.setItem('deluge_autocatch_thrown', 'true'); } catch (_) {}
@@ -3321,7 +3909,12 @@ function runAutoCatchLifecycle() {
     }
 }
 
-// Attach Auto-Catch and Ball Inventory sync listeners
+function guardManualCatchButtonsOnCatchPage() {
+    // Stealth zero-DOM-injection: ensure pristine DelugeRPG DOM with zero foreign elements or modal blocking
+    removeUniquenessAlertBanner();
+}
+
+// Attach Auto-Catch and Ball Inventory listeners
 setInterval(runAutoCatchLifecycle, 400);
 setInterval(() => checkAndSyncBallInventory(false), 4000);
 if (document.readyState === 'loading') {
@@ -3431,7 +4024,7 @@ ipcRenderer.on('start-scan-pokemon', async () => {
 
         for (let page = 2; page <= maxPages; page++) {
             ipcRenderer.sendToHost('scan-pokemon-status', { step: 'reading-page', page: page, total: maxPages });
-            await new Promise(r => setTimeout(r, 450));
+            await new Promise(r => setTimeout(r, getGaussianDelay(920, 180, 650)));
             try {
                 const res = await fetch('/pokemon/page/' + page, { credentials: 'include' });
                 const html = await res.text();
@@ -3538,6 +4131,7 @@ ipcRenderer.on('start-scan-trainer-rosters', async (event, data) => {
         let parsedProbe = parsePokemonFromTrainerProfile(probeHtml);
 
         if (parsedProbe.length === 0) {
+            await new Promise(r => setTimeout(r, getGaussianDelay(850, 150, 600)));
             probeRes = await fetch('/npc/5145', { credentials: 'include' });
             probeHtml = await probeRes.text();
             parsedProbe = parsePokemonFromTrainerProfile(probeHtml);
@@ -3980,6 +4574,10 @@ function extractProfileMetadataFromContainer(root) {
     return meta;
 }
 
+let lastBroadcastBattleSig = null;
+let lastKnownUserTeam = [];
+const knownVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
+
 function detectBattleOpponents(isManualCheck) {
     try {
         const path = (window.location.pathname || '').toLowerCase();
@@ -4020,7 +4618,444 @@ function detectBattleOpponents(isManualCheck) {
             }
         }
 
-        // Mode 1: Live PvP Battle (#teamleft)
+        // Mode 1: Active Battle Screen (#opponent or on-screen combat arena) - Takes top priority during combat
+        const oppEl = document.getElementById('opponent') || document.querySelector('.opponent, #opp, [id*="opponent" i], .opp');
+        const activePokeEl = oppEl ? (oppEl.querySelector('.pokemon') || (oppEl.classList && oppEl.classList.contains('pokemon') ? oppEl : null) || oppEl) : null;
+        if (oppEl && activePokeEl) {
+            const rawFullText = (activePokeEl.innerText || activePokeEl.textContent || '').trim();
+            const fullText = rawFullText.replace(/\s+/g, ' ').trim();
+            let trainerName = '';
+            const m = rawFullText.match(/^(.+?)['']s\s+/i) || fullText.match(/^(.+?)['']s\s+/i);
+            if (m) {
+                trainerName = m[1].replace(/[\r\n]+/g, ' ').trim();
+            } else {
+                const wildM = fullText.match(/^Wild\s+(.+)/i);
+                if (wildM) trainerName = 'Wild Pokemon';
+                else trainerName = 'Challenger';
+            }
+
+            const nameSpan = activePokeEl.querySelector('.smallcaps, h4, .name');
+            let pokeName = nameSpan ? nameSpan.textContent.trim() : '';
+            if (!pokeName && fullText) {
+                let stripped = fullText.replace(/^(.+?)['']s\s+/i, '').replace(/^Wild\s+/i, '');
+                stripped = stripped.replace(/HP:\s*\d+(\/\d+)?/i, '').replace(/Level:\s*\d+/i, '').replace(/Lv\s*\d+/i, '').trim();
+                pokeName = stripped;
+            }
+            if (pokeName) {
+                pokeName = pokeName.split(/(?:HP:|Level:|Lv|\d+\/\d+)/i)[0].trim();
+            }
+            const imgEl = activePokeEl.querySelector('img');
+            const sprite = imgEl ? (imgEl.getAttribute('src') || '') : '';
+            if (!pokeName && imgEl) {
+                pokeName = (imgEl.getAttribute('alt') || imgEl.getAttribute('title') || '').trim();
+            }
+            if (!pokeName) pokeName = 'Opponent Pokemon';
+            if (!trainerName) trainerName = 'Opponent';
+
+            const types = [];
+            const typeBtns = activePokeEl.querySelectorAll('i.tbtn, .tbtn, span.type');
+            for (let j = 0; j < typeBtns.length; j++) {
+                const t = typeBtns[j].getAttribute('title') || typeBtns[j].textContent.trim();
+                if (t && types.indexOf(t) === -1) types.push(t);
+            }
+
+            let level = 100;
+            let hp = 400;
+            let maxHp = 400;
+            const hpEl = activePokeEl.querySelector('.hp');
+            const hpSource = hpEl ? hpEl.textContent : rawFullText;
+            const hpM = hpSource.match(/HP:\s*(\d+)(?:\s*\/\s*(\d+))?/i) || hpSource.match(/(\d+)\s*\/\s*(\d+)/i);
+            if (hpM) {
+                hp = parseInt(hpM[1], 10);
+                if (hpM[2]) maxHp = parseInt(hpM[2], 10);
+                if (maxHp <= 100) level = Math.max(1, Math.round(maxHp / 2));
+                else level = 100;
+            }
+
+            const isFainted = (hp <= 0);
+
+            // Extract Active Player Pokemon from #player, #user, or any container with "Your <Pokemon>"
+            let userActivePokemon = null;
+            let playerPokeEl = null;
+
+            const playerCandidates = [
+                document.getElementById('player'),
+                document.getElementById('user'),
+                document.getElementById('you'),
+                document.querySelector('.player, #yourpoke, #userpoke, .yourpokemon, .userpokemon')
+            ];
+            for (let pc = 0; pc < playerCandidates.length; pc++) {
+                if (playerCandidates[pc]) {
+                    playerPokeEl = playerCandidates[pc].querySelector('.pokemon') || playerCandidates[pc];
+                    break;
+                }
+            }
+
+            if (!playerPokeEl) {
+                const allPokeEls = document.querySelectorAll('.pokemon');
+                for (let p = 0; p < allPokeEls.length; p++) {
+                    const el = allPokeEls[p];
+                    if (oppEl && (el === oppEl || oppEl.contains(el))) continue;
+                    playerPokeEl = el;
+                    break;
+                }
+            }
+
+            if (!playerPokeEl) {
+                const candEls = document.querySelectorAll('h3, h4, .smallcaps, strong, b, div, span');
+                for (let c = 0; c < candEls.length; c++) {
+                    const el = candEls[c];
+                    if (oppEl && oppEl.contains(el)) continue;
+                    const t = (el.textContent || '').trim();
+                    if (/^Your\s+[A-Za-z0-9]/i.test(t) && !t.includes('Your Opponent') && !t.includes('Your Team')) {
+                        playerPokeEl = el.closest('.pokemon') || el.parentElement || el;
+                        break;
+                    }
+                }
+            }
+
+            if (playerPokeEl) {
+                const pFullText = (playerPokeEl.textContent || '').trim();
+                let pName = '';
+                const mP = pFullText.match(/^Your\s+([A-Za-z0-9\s\-_()]+?)(?:\s+HP:|\s+Lv|\s*$)/i);
+                if (mP) {
+                    pName = mP[1].trim();
+                } else {
+                    const pNameSpan = playerPokeEl.querySelector('.smallcaps, h4, .name');
+                    if (pNameSpan) {
+                        pName = pNameSpan.textContent.trim();
+                    } else {
+                        pName = pFullText.replace(/^Your\s+/i, '').split(/[\r\n]+/)[0].trim();
+                    }
+                }
+                pName = pName.replace(/^Your\s+/i, '').trim();
+
+                const pTypes = [];
+                const pTypeBtns = playerPokeEl.querySelectorAll('i.tbtn, .tbtn, span.type');
+                for (let j = 0; j < pTypeBtns.length; j++) {
+                    const t = pTypeBtns[j].getAttribute('title') || pTypeBtns[j].textContent.trim();
+                    if (t && pTypes.indexOf(t) === -1) pTypes.push(t);
+                }
+                if (pTypes.length === 0 && Array.isArray(lastKnownUserTeam)) {
+                    const matched = lastKnownUserTeam.find(u => (u.name || '').toLowerCase() === pName.toLowerCase() || pName.toLowerCase().includes((u.name || '').toLowerCase()));
+                    if (matched && Array.isArray(matched.types)) {
+                        pTypes.push(...matched.types);
+                    }
+                }
+
+                let pLevel = 100;
+                let pHp = 400;
+                let pMaxHp = 400;
+                const pHpEl = playerPokeEl.querySelector('.hp');
+                const pHpSource = pHpEl ? pHpEl.textContent : pFullText;
+                const pHpM = pHpSource.match(/HP:\s*(\d+)(?:\s*\/\s*(\d+))?/i) || pHpSource.match(/(\d+)\s*\/\s*(\d+)/i);
+                if (pHpM) {
+                    pHp = parseInt(pHpM[1], 10);
+                    if (pHpM[2]) pMaxHp = parseInt(pHpM[2], 10);
+                    if (pMaxHp <= 100) pLevel = Math.max(1, Math.round(pMaxHp / 2));
+                    else pLevel = 100;
+                }
+
+                const pImgEl = playerPokeEl.querySelector('img');
+                const pSprite = pImgEl ? (pImgEl.getAttribute('src') || '') : '';
+
+                if (pName) {
+                    let uVariant = 'Normal';
+                    for (let kv = 0; kv < knownVariants.length; kv++) {
+                        const vName = knownVariants[kv];
+                        if (new RegExp('^' + vName + '\\b', 'i').test(pName) || (pSprite && pSprite.toLowerCase().includes('/' + vName.toLowerCase() + '/'))) {
+                            uVariant = vName;
+                            break;
+                        }
+                    }
+                    userActivePokemon = {
+                        name: pName,
+                        variant: uVariant,
+                        types: pTypes.length > 0 ? pTypes : ['Normal'],
+                        level: pLevel,
+                        hp: pHp,
+                        maxHp: pMaxHp,
+                        isFainted: (pHp <= 0),
+                        sprite: pSprite
+                    };
+                }
+            }
+
+            // Extract available attack options strictly (excluding switch/pokeselect inputs)
+            const availableMoves = [];
+            let atkEls = Array.from(document.querySelectorAll(
+                'input[type="radio"][name="selected"], ' +
+                'input[type="radio"][name*="attk" i], ' +
+                'input[type="radio"][name*="attack" i], ' +
+                'input[type="radio"][name*="move" i], ' +
+                'input[type="radio"][name="action"], ' +
+                'input[type="radio"][name="battleaction"]'
+            ));
+            if (atkEls.length === 0) {
+                const allRadios = Array.from(document.querySelectorAll('input[type="radio"]'));
+                atkEls = allRadios.filter(r => {
+                    if (r.name && /switch|pokeselect|spoke|team/i.test(r.name)) return false;
+                    if (r.closest && (r.closest('#teamright') || r.closest('#switchpoke') || r.closest('.switchform') || r.closest('.switchpoke') || r.closest('[id*="switch" i]') || r.closest('[class*="switch" i]'))) return false;
+                    return true;
+                });
+            }
+
+            const allTypesRegex = /\b(Normal|Fire|Water|Electric|Grass|Ice|Fighting|Poison|Ground|Flying|Psychic|Bug|Rock|Ghost|Dragon|Dark|Steel|Fairy)\b/i;
+
+            for (let a = 0; a < atkEls.length; a++) {
+                const aEl = atkEls[a];
+                const aType = (aEl.type || '').toLowerCase();
+                if (aType === 'submit' || aType === 'button' || aType === 'hidden') continue;
+                if (aEl.name && /switch|pokeselect|spoke|team/i.test(aEl.name)) continue;
+                if (aEl.closest && (aEl.closest('#teamright') || aEl.closest('#switchpoke') || aEl.closest('.switchform') || aEl.closest('.switchpoke') || aEl.closest('[id*="switch" i]') || aEl.closest('[class*="switch" i]'))) {
+                    continue;
+                }
+
+                let box = aEl.parentElement;
+                while (box && box !== document.body && box.parentElement) {
+                    if (box.parentElement.querySelectorAll('input[type="radio"]').length > 1) {
+                        break;
+                    }
+                    if (box.tagName === 'LABEL' || box.tagName === 'TD') break;
+                    box = box.parentElement;
+                }
+                if (!box) box = aEl.parentElement;
+
+                let mType = null;
+                if (box) {
+                    const tEl = box.querySelector('i.tbtn, .tbtn, span.type, [class*="type" i], b, span');
+                    if (tEl) {
+                        const tText = tEl.getAttribute('title') || tEl.textContent || '';
+                        const tM = tText.match(allTypesRegex);
+                        if (tM) mType = tM[1];
+                    }
+                }
+
+                let lbl = '';
+                if (aEl.labels && aEl.labels.length > 0) lbl = aEl.labels[0].textContent.trim();
+                else if (aEl.parentElement && aEl.parentElement.tagName.toLowerCase() === 'label') lbl = aEl.parentElement.textContent.trim();
+                else if (box) {
+                    lbl = box.textContent.trim();
+                }
+                if (!lbl && aEl.nextSibling && aEl.nextSibling.nodeType === 3) lbl = aEl.nextSibling.textContent.trim();
+                if (!lbl && aEl.parentElement) lbl = aEl.parentElement.textContent.trim();
+                if (!lbl) lbl = (aEl.value || '').trim();
+
+                lbl = lbl.replace(/\s+/g, ' ').trim();
+                if (!lbl) continue;
+
+                let mName = lbl;
+                const typeMatch = lbl.match(/^(.*?)\s*[\(\[]?([A-Za-z]+)[\)\]]?$/);
+                if (typeMatch && allTypesRegex.test(typeMatch[2])) {
+                    mName = typeMatch[1].trim();
+                    if (!mType) mType = typeMatch[2].trim();
+                } else if (mType) {
+                    mName = lbl.replace(new RegExp('\\b' + mType + '\\b', 'gi'), '').trim();
+                }
+                mName = mName.replace(/[\(\)\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+
+                const trailingType = mName.match(/^(.*?)\s+(Normal|Fire|Water|Electric|Grass|Ice|Fighting|Poison|Ground|Flying|Psychic|Bug|Rock|Ghost|Dragon|Dark|Steel|Fairy)$/i);
+                if (trailingType) {
+                    mName = trailingType[1].trim();
+                    if (!mType) mType = trailingType[2].trim();
+                }
+
+                const exists = availableMoves.some(m => m.name.toLowerCase() === mName.toLowerCase());
+                if (!exists && mName) {
+                    availableMoves.push({
+                        name: mName,
+                        type: mType || 'Normal',
+                        rawLabel: mType ? `${mName} (${mType})` : mName,
+                        checked: !!aEl.checked,
+                        value: aEl.value || ''
+                    });
+                }
+            }
+
+            // Extract bench team on screen
+            const userTeam = [];
+            const benchContainer = document.getElementById('teamright') || document.getElementById('switchpoke') || document.querySelector('.bench, .teamlist, #userteam');
+            if (benchContainer) {
+                const rItems = benchContainer.querySelectorAll('.battlelistitem, .pokemon, .row');
+                for (let i = 0; i < rItems.length; i++) {
+                    const rItem = rItems[i];
+                    const rNameEl = rItem.querySelector('.batname span, .batname, h4, .name');
+                    const rName = rNameEl ? rNameEl.textContent.trim() : '';
+                    if (!rName) continue;
+                    const rTypes = [];
+                    const rTypeBtns = rItem.querySelectorAll('i.tbtn, .tbtn, span.type');
+                    for (let j = 0; j < rTypeBtns.length; j++) {
+                        const t = rTypeBtns[j].getAttribute('title') || rTypeBtns[j].textContent.trim();
+                        if (t && rTypes.indexOf(t) === -1) rTypes.push(t);
+                    }
+                    let rLevel = 100;
+                    let rHp = 100;
+                    let rMaxHp = 100;
+                    const rLvlEl = rItem.querySelector('.battlelistlvlhp, .hp');
+                    if (rLvlEl) {
+                        const rTxt = rLvlEl.textContent || '';
+                        const m2 = rTxt.match(/Level:\s*(\d+)/i) || rTxt.match(/Lv\s*(\d+)/i);
+                        if (m2) rLevel = parseInt(m2[1], 10);
+                        const hpM2 = rTxt.match(/HP:\s*(\d+)(?:\s*\/\s*(\d+))?/i);
+                        if (hpM2) {
+                            rHp = parseInt(hpM2[1], 10);
+                            if (hpM2[2]) rMaxHp = parseInt(hpM2[2], 10);
+                        }
+                    }
+                    const rStyle = rItem.getAttribute('style') || '';
+                    const rFainted = (rHp <= 0) || rItem.classList.contains('fainted') || rItem.classList.contains('dead') || rStyle.includes('opacity: 0.5') || rStyle.includes('opacity:0.5');
+                    userTeam.push({
+                        name: rName,
+                        types: rTypes.length > 0 ? rTypes : ['Normal'],
+                        level: rLevel,
+                        hp: rHp,
+                        maxHp: rMaxHp,
+                        isFainted: rFainted,
+                        index: i
+                    });
+                }
+            }
+            if (userActivePokemon) {
+                const alreadyInTeam = userTeam.some(u => u.name.toLowerCase() === userActivePokemon.name.toLowerCase());
+                if (!alreadyInTeam) {
+                    userTeam.unshift(userActivePokemon);
+                }
+            }
+
+            // Extract full opponent roster from #teamleft if present on side panel
+            let roster = [];
+            const teamLeftEl = document.getElementById('teamleft');
+            let trainerTitle = trainerName + "'s Team";
+            if (teamLeftEl) {
+                const h2 = teamLeftEl.querySelector('h2');
+                if (h2 && h2.textContent.trim()) {
+                    trainerTitle = h2.textContent.trim();
+                    trainerName = trainerTitle.replace(/['']s\s*Team$/i, '').trim();
+                }
+                const items = teamLeftEl.querySelectorAll('.battlelistitem');
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    const nameEl = item.querySelector('.batname span, .batname, h4');
+                    const rName = nameEl ? nameEl.textContent.trim() : '';
+                    if (!rName) continue;
+                    const rTypes = [];
+                    const typeBtns = item.querySelectorAll('.batname i.tbtn, i.tbtn');
+                    for (let j = 0; j < typeBtns.length; j++) {
+                        const t = typeBtns[j].getAttribute('title');
+                        if (t && rTypes.indexOf(t) === -1) rTypes.push(t);
+                    }
+                    let rLevel = 100;
+                    let rHp = 100;
+                    let rMaxHp = 100;
+                    const lvlHpEl = item.querySelector('.battlelistlvlhp');
+                    if (lvlHpEl) {
+                        const txt = lvlHpEl.textContent || '';
+                        const m = txt.match(/Level:\s*(\d+)/i);
+                        if (m) rLevel = parseInt(m[1], 10);
+                        const hpM = txt.match(/HP:\s*(\d+)(?:\s*\/\s*(\d+))?/i);
+                        if (hpM) {
+                            rHp = parseInt(hpM[1], 10);
+                            if (hpM[2]) rMaxHp = parseInt(hpM[2], 10);
+                        }
+                    }
+                    const itemStyle = item.getAttribute('style') || '';
+                    const isF = (rHp <= 0) || item.classList.contains('fainted') || item.classList.contains('dead') || itemStyle.includes('opacity: 0.5') || itemStyle.includes('opacity:0.5');
+                    const imgEl2 = item.querySelector('.battlelistimg img, img');
+                    const spr = imgEl2 ? (imgEl2.getAttribute('src') || '') : '';
+                    let rVar = 'Normal';
+                    for (let kv = 0; kv < knownVariants.length; kv++) {
+                        const vName = knownVariants[kv];
+                        if (new RegExp('^' + vName + '\\b', 'i').test(rName) || (spr && spr.toLowerCase().includes('/' + vName.toLowerCase() + '/'))) {
+                            rVar = vName;
+                            break;
+                        }
+                    }
+                    roster.push({
+                        name: rName,
+                        variant: rVar,
+                        types: rTypes.length > 0 ? rTypes : ['Normal'],
+                        level: rLevel,
+                        hp: rHp,
+                        maxHp: rMaxHp,
+                        isFainted: isF,
+                        sprite: spr
+                    });
+                }
+            }
+
+            let oppVariant = 'Normal';
+            for (let kv = 0; kv < knownVariants.length; kv++) {
+                const vName = knownVariants[kv];
+                if (new RegExp('^' + vName + '\\b', 'i').test(pokeName) || (sprite && sprite.toLowerCase().includes('/' + vName.toLowerCase() + '/'))) {
+                    oppVariant = vName;
+                    break;
+                }
+            }
+
+            if (roster.length === 0) {
+                roster = [{
+                    name: pokeName,
+                    variant: oppVariant,
+                    types: types.length > 0 ? types : ['Normal'],
+                    level: level,
+                    hp: hp,
+                    maxHp: maxHp,
+                    isFainted: isFainted,
+                    sprite: sprite
+                }];
+            } else {
+                const activeMatch = roster.find(p => p.name.toLowerCase() === pokeName.toLowerCase() || pokeName.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(pokeName.toLowerCase()));
+                if (activeMatch) {
+                    activeMatch.hp = hp;
+                    activeMatch.maxHp = maxHp;
+                    activeMatch.isFainted = isFainted;
+                }
+            }
+
+            const hasAttackBtn = (availableMoves.length > 0) || Boolean(document.querySelector('input[type="submit"][value*="Attack" i], button[type="submit"][value*="Attack" i], input[value*="Attack" i]'));
+
+            // Check if Continue or Next Turn button is currently present on screen
+            let hasContinueBtn = false;
+            if (!hasAttackBtn || isFainted) {
+                const allActionButtons = document.querySelectorAll('input[type="submit"], input[type="button"], button, a.btn');
+                for (let b = 0; b < allActionButtons.length; b++) {
+                    const btn = allActionButtons[b];
+                    const bTxt = ((btn.value || '') + ' ' + (btn.textContent || '')).toLowerCase();
+                    if (bTxt.indexOf('switch') !== -1) continue;
+                    if (bTxt.indexOf('continue') !== -1 || bTxt.indexOf('next') !== -1) {
+                        hasContinueBtn = true;
+                        break;
+                    }
+                }
+            }
+            const benchRadios = document.querySelectorAll('#teamright input[type="radio"], #switchpoke input[type="radio"], .switchform input[type="radio"]');
+            const hasBenchRadios = benchRadios.length > 0;
+
+            const activeBattleSig = 'ACTIVE:' + trainerName + ':' + pokeName + '_' + hp + '_' + isFainted + ':' + (userActivePokemon ? userActivePokemon.name + '_' + userActivePokemon.hp + '_' + userActivePokemon.isFainted : '') + ':cnt=' + hasContinueBtn + ':atk=' + hasAttackBtn + ':br=' + hasBenchRadios + ':' + availableMoves.map(m => m.name).join(',');
+            if (!isManualCheck && activeBattleSig === lastBroadcastBattleSig) {
+                return;
+            }
+            lastBroadcastBattleSig = activeBattleSig;
+
+            ipcRenderer.sendToHost('battle-opponents-detected', {
+                trainerName: trainerName,
+                trainerTitle: trainerTitle,
+                roster: roster,
+                userActivePokemon: userActivePokemon,
+                availableMoves: availableMoves,
+                userTeam: userTeam,
+                hasContinueBtn: hasContinueBtn,
+                hasAttackBtn: hasAttackBtn,
+                hasBenchRadios: hasBenchRadios,
+                isInActiveBattle: true,
+                isPreparationScreen: false,
+                battleUrl: window.location.pathname + window.location.search,
+                isManualCheck: !!isManualCheck
+            });
+            return;
+        }
+
+        // Mode 2: Live PvP / Challenge Battle Preparation Screen (#teamleft without active #opponent)
         const teamLeft = document.getElementById('teamleft');
         if (teamLeft) {
             const h2 = teamLeft.querySelector('h2');
@@ -4040,25 +5075,89 @@ function detectBattleOpponents(isManualCheck) {
                         if (t && types.indexOf(t) === -1) types.push(t);
                     }
                     let level = 100;
+                    let hp = 100;
+                    let maxHp = 100;
                     const lvlHpEl = item.querySelector('.battlelistlvlhp');
                     if (lvlHpEl) {
-                        const m = lvlHpEl.textContent.match(/Level:\s*(\d+)/i);
+                        const txt = lvlHpEl.textContent || '';
+                        const m = txt.match(/Level:\s*(\d+)/i);
                         if (m) level = parseInt(m[1], 10);
+                        const hpM = txt.match(/HP:\s*(\d+)(?:\s*\/\s*(\d+))?/i);
+                        if (hpM) {
+                            hp = parseInt(hpM[1], 10);
+                            if (hpM[2]) maxHp = parseInt(hpM[2], 10);
+                        }
                     }
+                    const itemStyle = item.getAttribute('style') || '';
+                    const isFainted = (hp <= 0) || item.classList.contains('fainted') || item.classList.contains('dead') || itemStyle.includes('opacity: 0.5') || itemStyle.includes('opacity:0.5');
                     const imgEl = item.querySelector('.battlelistimg img');
                     const sprite = imgEl ? (imgEl.getAttribute('src') || '') : '';
                     roster.push({
                         name: name,
                         types: types.length > 0 ? types : ['Normal'],
                         level: level,
+                        hp: hp,
+                        maxHp: maxHp,
+                        isFainted: isFainted,
                         sprite: sprite
                     });
                 }
                 if (roster.length > 0) {
+                    const teamRight = document.getElementById('teamright');
+                    const userTeam = [];
+                    if (teamRight) {
+                        const rItems = teamRight.querySelectorAll('.battlelistitem');
+                        for (let i = 0; i < rItems.length; i++) {
+                            const rItem = rItems[i];
+                            const rNameEl = rItem.querySelector('.batname span, .batname, h4');
+                            const rName = rNameEl ? rNameEl.textContent.trim() : 'Unknown';
+                            const rTypes = [];
+                            const rTypeBtns = rItem.querySelectorAll('i.tbtn');
+                            for (let j = 0; j < rTypeBtns.length; j++) {
+                                const t = rTypeBtns[j].getAttribute('title');
+                                if (t && rTypes.indexOf(t) === -1) rTypes.push(t);
+                            }
+                            let rLevel = 100;
+                            let rHp = 100;
+                            let rMaxHp = 100;
+                            const rLvlEl = rItem.querySelector('.battlelistlvlhp');
+                            if (rLvlEl) {
+                                const rTxt = rLvlEl.textContent || '';
+                                const m = rTxt.match(/Level:\s*(\d+)/i);
+                                if (m) rLevel = parseInt(m[1], 10);
+                                const hpM = rTxt.match(/HP:\s*(\d+)(?:\s*\/\s*(\d+))?/i);
+                                if (hpM) {
+                                    rHp = parseInt(hpM[1], 10);
+                                    if (hpM[2]) rMaxHp = parseInt(hpM[2], 10);
+                                }
+                            }
+                            const rStyle = rItem.getAttribute('style') || '';
+                            const rFainted = (rHp <= 0) || rItem.classList.contains('fainted') || rItem.classList.contains('dead') || rStyle.includes('opacity: 0.5') || rStyle.includes('opacity:0.5');
+                            const rRadio = rItem.querySelector('input[type="radio"]');
+                            userTeam.push({
+                                name: rName,
+                                types: rTypes.length > 0 ? rTypes : ['Normal'],
+                                level: rLevel,
+                                hp: rHp,
+                                maxHp: rMaxHp,
+                                isFainted: rFainted,
+                                checked: rRadio ? !!rRadio.checked : false,
+                                index: i
+                            });
+                        }
+                    }
+                    const battleSig = `${trainerName}:${roster.map(p => `${p.name}_${p.hp}_${p.isFainted}`).join(',')}:${userTeam.map(u => `${u.name}_${u.hp}_${u.checked}`).join(',')}`;
+                    if (!isManualCheck && battleSig === lastBroadcastBattleSig) {
+                        return;
+                    }
+                    lastBroadcastBattleSig = battleSig;
                     ipcRenderer.sendToHost('battle-opponents-detected', {
                         trainerName: trainerName,
                         trainerTitle: trainerTitle,
                         roster: roster,
+                        userTeam: userTeam,
+                        isPreparationScreen: true,
+                        isInActiveBattle: false,
                         battleUrl: window.location.pathname + window.location.search,
                         isManualCheck: !!isManualCheck
                     });
@@ -4067,53 +5166,106 @@ function detectBattleOpponents(isManualCheck) {
             }
         }
 
-        // Mode 2: NPC Battle (#opponent .pokemon on active battle screen)
-        const oppEl = document.getElementById('opponent');
-        if (oppEl) {
-            const pokeEl = oppEl.querySelector('.pokemon');
-            if (pokeEl) {
-                const fullText = (pokeEl.textContent || '').trim();
-                let trainerName = '';
-                const m = fullText.match(/^(.+?)['']s\s+/i);
-                if (m) trainerName = m[1].trim();
+        // Mode 1B: Challenge / Arena Preview Screen (e.g. G-Max Challenge / Arena)
+        if (!teamLeft) {
+            const pageText = document.body ? (document.body.innerText || document.body.textContent || '') : '';
+            const challengeMatch = pageText.match(/(?:Your\s+(?:First|Next|\d+(?:st|nd|rd|th))?\s+Opponent\s+is|Opponent\s+is)\s*[\r\n\s]*([A-Za-z0-9\s\-_]+?)(?:\s*[\r\n\s]*who\s+has|\s*[\r\n]|$)/i);
+            if (challengeMatch && challengeMatch[1]) {
+                const trainerName = challengeMatch[1].trim();
+                const isGmax = /g[- ]?max/i.test(pageText) || (path.indexOf('gmax') !== -1) || /completed\s+\d+\s+of\s+\d+\s+battles/i.test(pageText);
+                const trainerTitle = isGmax ? `${trainerName} (G-Max Challenge)` : `${trainerName} (Challenge Arena)`;
 
-                const nameSpan = pokeEl.querySelector('.smallcaps');
-                const pokeName = nameSpan ? nameSpan.textContent.trim() : '';
-
-                const types = [];
-                const typeBtns = pokeEl.querySelectorAll('i.tbtn');
-                for (let j = 0; j < typeBtns.length; j++) {
-                    const t = typeBtns[j].getAttribute('title');
-                    if (t && types.indexOf(t) === -1) types.push(t);
-                }
-
-                let level = 100;
-                const hpEl = pokeEl.querySelector('.hp');
-                if (hpEl) {
-                    const hpM = hpEl.textContent.match(/HP:\s*(\d+)\/(\d+)/i);
-                    if (hpM) {
-                        const maxHp = parseInt(hpM[2], 10);
-                        if (maxHp <= 100) level = Math.max(1, Math.round(maxHp / 2));
-                        else level = 100;
+                const roster = [];
+                const candidateCards = Array.from(document.querySelectorAll('.row, .card, .viewpoketable, .teamwrap > div, .showteam > div, div[class*="pokemon"], div[class*="poke"]'));
+                let cardElements = candidateCards;
+                if (cardElements.length === 0) {
+                    const allTbtns = document.querySelectorAll('i.tbtn, .tbtn');
+                    const parents = new Set();
+                    for (let t = 0; t < allTbtns.length; t++) {
+                        const p = allTbtns[t].closest('div[style*="border"], div[class*="box"], div[class*="col"], div, li');
+                        if (p) parents.add(p);
                     }
+                    cardElements = Array.from(parents);
                 }
 
-                const imgEl = pokeEl.querySelector('img');
-                const sprite = imgEl ? (imgEl.getAttribute('src') || '') : '';
+                const seenNames = new Set();
+                for (let c = 0; c < cardElements.length; c++) {
+                    const cardEl = cardElements[c];
+                    const img = cardEl.querySelector('img');
+                    const tBtns = cardEl.querySelectorAll('i.tbtn, .tbtn, span.type');
+                    if (!img || tBtns.length === 0) continue;
 
-                if (trainerName && pokeName) {
+                    let pName = '';
+                    const nameEl = cardEl.querySelector('h4, .name, .nnfield, [data-name]');
+                    if (nameEl) {
+                        pName = (nameEl.getAttribute('data-name') || nameEl.textContent || '').trim();
+                    }
+                    if (!pName) {
+                        pName = (img.getAttribute('alt') || img.getAttribute('title') || '').trim();
+                    }
+                    if (!pName) {
+                        const lines = (cardEl.textContent || '').split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+                        if (lines.length > 0) pName = lines[0];
+                    }
+                    if (!pName || seenNames.has(pName.toLowerCase())) continue;
+                    seenNames.add(pName.toLowerCase());
+
+                    const types = [];
+                    for (let j = 0; j < tBtns.length; j++) {
+                        const t = tBtns[j].getAttribute('title') || tBtns[j].textContent.trim();
+                        if (t && types.indexOf(t) === -1) types.push(t);
+                    }
+
+                    const moves = [];
+                    const moveEls = cardEl.querySelectorAll('.attk > div, a[href*="/moves/"], .moves span');
+                    for (let m = 0; m < moveEls.length; m++) {
+                        const mv = moveEls[m].textContent.trim();
+                        if (mv && moves.indexOf(mv) === -1) moves.push(mv);
+                    }
+
+                    let pVariant = 'Normal';
+                    const knownVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
+                    for (let kv = 0; kv < knownVariants.length; kv++) {
+                        const vName = knownVariants[kv];
+                        if (new RegExp('^' + vName + '\\b', 'i').test(pName) || (img && (img.src || '').toLowerCase().includes('/' + vName.toLowerCase() + '/'))) {
+                            pVariant = vName;
+                            break;
+                        }
+                    }
+
+                    roster.push({
+                        name: pName,
+                        variant: pVariant,
+                        types: types.length > 0 ? types : ['Normal'],
+                        level: 100,
+                        hp: 400,
+                        maxHp: 400,
+                        isFainted: false,
+                        moves: moves,
+                        sprite: img ? (img.getAttribute('src') || '') : ''
+                    });
+                    if (roster.length >= 6) break;
+                }
+
+                if (roster.length > 0) {
+                    const previewSig = `PREVIEW:${trainerName}:${roster.map(p => p.name).join(',')}`;
+                    if (!isManualCheck && previewSig === lastBroadcastBattleSig) {
+                        return;
+                    }
+                    lastBroadcastBattleSig = previewSig;
                     ipcRenderer.sendToHost('battle-opponents-detected', {
                         trainerName: trainerName,
-                        trainerTitle: trainerName + "'s Team",
-                        roster: [{
-                            name: pokeName,
-                            types: types.length > 0 ? types : ['Normal'],
-                            level: level,
-                            sprite: sprite
-                        }],
+                        trainerTitle: trainerTitle,
+                        roster: roster,
+                        isPreparationScreen: true,
+                        isChallengePreview: true,
+                        isGmaxChallenge: isGmax,
+                        isChallengeLocked: true,
+                        isInActiveBattle: false,
                         battleUrl: window.location.pathname + window.location.search,
                         isManualCheck: !!isManualCheck
                     });
+                    return;
                 }
             }
         }
@@ -4167,6 +5319,7 @@ function detectBattleOpponents(isManualCheck) {
                         trainerName: trainerName,
                         trainerTitle: trainerName + "'s Team",
                         roster: roster,
+                        isVictoryScreen: true,
                         battleUrl: window.location.pathname + window.location.search,
                         isManualCheck: !!isManualCheck
                     });
@@ -4243,6 +5396,284 @@ function detectBattleOpponents(isManualCheck) {
 
 ipcRenderer.on('check-battle-opponents', () => {
     detectBattleOpponents(true);
+    if (typeof syncEvolveCardState === 'function') {
+        syncEvolveCardState(true);
+    }
+});
+
+ipcRenderer.on('apply-ai-battle-action', (event, data) => {
+    if (!data || !data.action) return;
+    try {
+        if (data.action === 'select-lead-and-start') {
+            const teamRight = document.getElementById('teamright');
+            let targetRadio = null;
+            const targetName = (data.pokemonName || '').toLowerCase().trim();
+            const targetClean = targetName.replace(/[^a-z0-9]/g, '');
+            if (teamRight) {
+                const rItems = teamRight.querySelectorAll('.battlelistitem');
+                for (let i = 0; i < rItems.length; i++) {
+                    const item = rItems[i];
+                    const itemTxt = (item.textContent || '').toLowerCase();
+                    const itemClean = itemTxt.replace(/[^a-z0-9]/g, '');
+                    if (targetClean && (itemTxt.indexOf(targetName) !== -1 || itemClean.indexOf(targetClean) !== -1 || targetClean.indexOf(itemClean) !== -1)) {
+                        targetRadio = item.querySelector('input[type="radio"]');
+                        break;
+                    }
+                }
+            }
+            if (!targetRadio) {
+                const allRadios = document.querySelectorAll('input[type="radio"]');
+                for (let i = 0; i < allRadios.length; i++) {
+                    const r = allRadios[i];
+                    const p = r.parentElement ? (r.parentElement.textContent || '').toLowerCase() : '';
+                    const pClean = p.replace(/[^a-z0-9]/g, '');
+                    if (targetClean && (p.indexOf(targetName) !== -1 || pClean.indexOf(targetClean) !== -1 || targetClean.indexOf(pClean) !== -1)) {
+                        targetRadio = r;
+                        break;
+                    }
+                }
+            }
+            if (targetRadio) {
+                targetRadio.checked = true;
+                targetRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                targetRadio.dispatchEvent(new Event('input', { bubbles: true }));
+                dispatchHumanClick(targetRadio);
+            }
+
+            const autoStart = data.autoStart !== false;
+            if (autoStart) {
+                const submitDelay = data.delay || 250;
+                setTimeout(() => {
+                    let startBtn = document.querySelector('input[type="submit"][value*="Start Battle" i], input[value*="Start Battle" i], button[type="submit"]');
+                    if (!startBtn) {
+                        const allButtons = document.querySelectorAll('input[type="submit"], input[type="button"], button');
+                        for (let b = 0; b < allButtons.length; b++) {
+                            const bTxt = ((allButtons[b].value || '') + ' ' + (allButtons[b].textContent || '')).toLowerCase();
+                            if (bTxt.indexOf('switch') !== -1) continue;
+                            if (bTxt.indexOf('start battle') !== -1 || bTxt.indexOf('battle!') !== -1 || bTxt.indexOf('continue') !== -1) {
+                                startBtn = allButtons[b];
+                                break;
+                            }
+                        }
+                    }
+                    if (startBtn) {
+                        dispatchHumanClick(startBtn, () => {
+                            ipcRenderer.sendToHost('ai-battle-action-status', {
+                                success: true,
+                                action: 'select-lead-and-start',
+                                pokemon: data.pokemonName,
+                                message: 'Deployed ' + (data.pokemonName || 'Lead') + ' and started battle.'
+                            });
+                        });
+                    }
+                }, submitDelay);
+            } else {
+                ipcRenderer.sendToHost('ai-battle-action-status', {
+                    success: true,
+                    action: 'select-lead',
+                    pokemon: data.pokemonName,
+                    message: 'Selected lead ' + (data.pokemonName || 'Lead')
+                });
+            }
+        } else if (data.action === 'click-battle-button') {
+            const allButtons = document.querySelectorAll('input[type="submit"], input[type="button"], button, a.btn');
+            let battleBtn = null;
+            for (let b = 0; b < allButtons.length; b++) {
+                const bTxt = ((allButtons[b].value || '') + ' ' + (allButtons[b].textContent || '')).toLowerCase();
+                if (bTxt.indexOf('switch') !== -1) continue;
+                if (bTxt.indexOf('continue') !== -1 || bTxt.indexOf('next') !== -1 || bTxt.indexOf('battle!') !== -1 || bTxt.indexOf('start battle') !== -1) {
+                    battleBtn = allButtons[b];
+                    break;
+                }
+            }
+            if (battleBtn) {
+                dispatchHumanClick(battleBtn, () => {
+                    ipcRenderer.sendToHost('ai-battle-action-status', {
+                        success: true,
+                        action: 'click-battle-button',
+                        message: 'Clicked ' + (battleBtn.value || battleBtn.textContent || 'Continue')
+                    });
+                });
+            }
+        } else if (data.action === 'execute-battle-move') {
+            const rawTargetMove = (data.moveName || '').toLowerCase().trim();
+            const cleanTargetMove = rawTargetMove.replace(/\s*\([a-z0-9]+\)/i, '').replace(/\s*\[[0-9]+\s*pwr\]/i, '').trim();
+            let attackInputs = Array.from(document.querySelectorAll(
+                'input[type="radio"][name="selected"], ' +
+                'input[type="radio"][name*="attk" i], ' +
+                'input[type="radio"][name*="attack" i], ' +
+                'input[type="radio"][name*="move" i], ' +
+                'input[type="radio"][name="action"], ' +
+                'input[type="radio"][name="battleaction"]'
+            ));
+            if (attackInputs.length === 0) {
+                const allRadios = Array.from(document.querySelectorAll('input[type="radio"]'));
+                attackInputs = allRadios.filter(r => {
+                    if (r.name && /switch|pokeselect|spoke|team/i.test(r.name)) return false;
+                    if (r.closest && (r.closest('#teamright') || r.closest('#switchpoke') || r.closest('.switchform') || r.closest('.switchpoke') || r.closest('[id*="switch" i]') || r.closest('[class*="switch" i]'))) return false;
+                    return true;
+                });
+            }
+            let matchedInput = null;
+            for (let i = 0; i < attackInputs.length; i++) {
+                const inp = attackInputs[i];
+                if (inp.name && /switch|pokeselect|spoke|team/i.test(inp.name)) continue;
+                if (inp.closest && (inp.closest('#teamright') || inp.closest('#switchpoke') || inp.closest('.switchform') || inp.closest('.switchpoke') || inp.closest('[id*="switch" i]') || inp.closest('[class*="switch" i]'))) {
+                    continue;
+                }
+                const box = inp.closest ? (inp.closest('div[style*="background"], div[style*="border"], td, label, div') || inp.parentElement) : inp.parentElement;
+                let labelText = '';
+                if (inp.labels && inp.labels.length > 0) labelText = inp.labels[0].textContent;
+                else if (inp.parentElement && inp.parentElement.tagName.toLowerCase() === 'label') labelText = inp.parentElement.textContent;
+                else if (box) labelText = box.textContent || '';
+                else if (inp.nextSibling && inp.nextSibling.nodeType === 3) labelText = inp.nextSibling.textContent;
+                else if (inp.parentElement) labelText = inp.parentElement.textContent;
+                else labelText = inp.value || '';
+
+                labelText = labelText.toLowerCase().trim();
+                const cleanLabel = labelText.replace(/\s*\([a-z0-9]+\)/i, '').replace(/\s*\[[0-9]+\s*pwr\]/i, '').replace(/\s+/g, ' ').trim();
+
+                if (cleanTargetMove && (labelText.indexOf(cleanTargetMove) !== -1 || cleanLabel.indexOf(cleanTargetMove) !== -1 || cleanTargetMove.indexOf(cleanLabel) !== -1 || (inp.value && inp.value.toLowerCase() === cleanTargetMove))) {
+                    matchedInput = inp;
+                    break;
+                }
+            }
+            if (!matchedInput && attackInputs.length > 0) {
+                for (let i = 0; i < attackInputs.length; i++) {
+                    const inp = attackInputs[i];
+                    if (inp.name && /switch|pokeselect|spoke|team/i.test(inp.name)) continue;
+                    if (!inp.closest || (!inp.closest('#teamright') && !inp.closest('#switchpoke') && !inp.closest('.switchform') && !inp.closest('.switchpoke') && !inp.closest('[id*="switch" i]') && !inp.closest('[class*="switch" i]'))) {
+                        matchedInput = inp;
+                        break;
+                    }
+                }
+            }
+
+            if (matchedInput) {
+                if (matchedInput.type === 'radio') {
+                    matchedInput.checked = true;
+                    matchedInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    matchedInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    try { matchedInput.click(); } catch (_) {}
+                }
+
+                // Locate the visible, clickable DelugeRPG Attack submit button
+                let atkSubmit = null;
+                const candidates = [];
+                const searchScopes = (matchedInput && matchedInput.form) ? [matchedInput.form, document] : [document];
+                for (let sc = 0; sc < searchScopes.length; sc++) {
+                    const scope = searchScopes[sc];
+                    const found = Array.from(scope.querySelectorAll(
+                        'input[type="submit"], button[type="submit"], input[type="button"], button, a.btn, input.btn, [role="button"]'
+                    )).filter(el => {
+                        if (!el) return false;
+                        const t = (el.type || '').toLowerCase();
+                        if (t === 'hidden' || t === 'radio' || t === 'checkbox') return false;
+                        const combined = ((el.value || '') + ' ' + (el.textContent || '') + ' ' + (el.name || '') + ' ' + (el.id || '')).toLowerCase();
+                        if (combined.includes('switch') || combined.includes('item') || combined.includes('potion')) return false;
+                        return true;
+                    });
+                    found.forEach(f => {
+                        if (!candidates.includes(f)) candidates.push(f);
+                    });
+
+                    // 1. Explicit Attack button by value, text, name, or id
+                    atkSubmit = found.find(el => {
+                        const v = (el.value || '').trim().toLowerCase();
+                        const txt = (el.textContent || '').trim().toLowerCase();
+                        const nm = (el.name || '').trim().toLowerCase();
+                        const id = (el.id || '').trim().toLowerCase();
+                        return v === 'attack' || v.includes('attack') || txt === 'attack' || txt.includes('attack') || nm === 'attk' || nm.includes('attack') || id.includes('attack');
+                    });
+                    if (atkSubmit) break;
+
+                    // 2. If inside the form, take the first non-switch submit button
+                    if (scope === matchedInput.form && found.length > 0) {
+                        atkSubmit = found.find(el => (el.type || '').toLowerCase() === 'submit' || el.tagName.toLowerCase() === 'button');
+                        if (atkSubmit) break;
+                    }
+                }
+
+                const targetForm = atkSubmit ? (atkSubmit.form || (matchedInput ? matchedInput.form : null)) : (matchedInput ? matchedInput.form : null);
+
+                // Forward bot action execution telemetry to terminal
+                ipcRenderer.sendToHost('battle-action-tracked', {
+                    event: 'bot-action-detail',
+                    action: 'execute-battle-move',
+                    targetMove: data.moveName,
+                    matchedRadio: matchedInput ? `<input type="${matchedInput.type}" name="${matchedInput.name}" value="${matchedInput.value}">` : 'NONE',
+                    submitBtn: atkSubmit ? `<${atkSubmit.tagName} name="${atkSubmit.name || ''}" type="${atkSubmit.type || ''}" value="${atkSubmit.value || atkSubmit.textContent || ''}" id="${atkSubmit.id || ''}">` : 'NONE',
+                    targetForm: targetForm ? `id="${targetForm.id || ''}" action="${targetForm.getAttribute('action') || ''}"` : 'NONE',
+                    candidates: candidates.map(c => `<${c.tagName} name="${c.name || ''}" type="${c.type || ''}" val="${c.value || c.textContent || ''}">`)
+                });
+
+                if (atkSubmit) {
+                    dispatchHumanClick(atkSubmit, () => {
+                        // Fallback: If form submission did not fire from click, requestSubmit directly
+                        if (targetForm && typeof targetForm.requestSubmit === 'function') {
+                            try { targetForm.requestSubmit(atkSubmit); } catch (_) {}
+                        }
+                        ipcRenderer.sendToHost('ai-battle-action-status', {
+                            success: true,
+                            action: 'execute-battle-move',
+                            move: data.moveName,
+                            message: 'Cast optimal move ' + (data.moveName || 'Attack')
+                        });
+                    });
+                } else if (targetForm) {
+                    try {
+                        if (typeof targetForm.requestSubmit === 'function') {
+                            targetForm.requestSubmit();
+                        } else {
+                            targetForm.submit();
+                        }
+                        ipcRenderer.sendToHost('ai-battle-action-status', {
+                            success: true,
+                            action: 'execute-battle-move',
+                            move: data.moveName,
+                            message: 'Submitted attack form for ' + (data.moveName || 'Attack')
+                        });
+                    } catch (_) {
+                        ipcRenderer.sendToHost('ai-battle-action-status', {
+                            success: false,
+                            action: 'execute-battle-move',
+                            message: 'Could not find Attack button on screen'
+                        });
+                    }
+                } else {
+                    ipcRenderer.sendToHost('ai-battle-action-status', {
+                        success: false,
+                        action: 'execute-battle-move',
+                        message: 'Could not find Attack button on screen'
+                    });
+                }
+            } else {
+                // Turn transition fallback: If no attack inputs, click Continue / Next (NEVER switch)
+                const allButtons = document.querySelectorAll('input[type="submit"], input[type="button"], button, a.btn');
+                let fallbackBtn = null;
+                for (let b = 0; b < allButtons.length; b++) {
+                    const bTxt = ((allButtons[b].value || '') + ' ' + (allButtons[b].textContent || '')).toLowerCase();
+                    if (bTxt.indexOf('switch') !== -1) continue;
+                    if (bTxt.indexOf('continue') !== -1 || bTxt.indexOf('next') !== -1) {
+                        fallbackBtn = allButtons[b];
+                        break;
+                    }
+                }
+                if (fallbackBtn) {
+                    dispatchHumanClick(fallbackBtn, () => {
+                        ipcRenderer.sendToHost('ai-battle-action-status', {
+                            success: true,
+                            action: 'execute-battle-move',
+                            move: 'Continue',
+                            message: 'Turn transition: Clicked ' + (fallbackBtn.value || fallbackBtn.textContent || 'Continue')
+                        });
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('[AI Action Error]:', err);
+    }
 });
 
 // --- 7. LIVE PLAYER SCOUT ENGINE ---
@@ -4618,12 +6049,345 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch (_) {}
     }
 
-    if (path.indexOf('/battle') !== -1 || path.indexOf('/npc') !== -1) {
+    const isBattleOrChallenge = path.indexOf('/battle') !== -1 ||
+                                path.indexOf('/challenge') !== -1 ||
+                                path.indexOf('/arena') !== -1 ||
+                                path.indexOf('/npc') !== -1 ||
+                                path.indexOf('/gym') !== -1;
+    if (isBattleOrChallenge) {
         detectBattleOpponents(false);
-        setTimeout(() => detectBattleOpponents(false), 500);
+        setTimeout(() => detectBattleOpponents(false), 300);
+        setTimeout(() => detectBattleOpponents(false), 800);
         setTimeout(() => detectBattleOpponents(false), 1500);
     }
 });
 
+// Real-Time Continuous Battle Telemetry Sensor (400ms interval + click responsive)
+function runRealtimeBattleSensors() {
+    try {
+        const path = (window.location.pathname || '').toLowerCase();
+        const isBattlePath = path.indexOf('/battle') !== -1 ||
+                             path.indexOf('/challenge') !== -1 ||
+                             path.indexOf('/arena') !== -1 ||
+                             path.indexOf('/npc') !== -1 ||
+                             path.indexOf('/gym') !== -1;
+        const hasBattleDom = !!(document.getElementById('teamleft') ||
+                                document.getElementById('opponent') ||
+                                document.querySelector('form[action*="battle"]') ||
+                                document.querySelector('input[value*="CONTINUE" i], input[value*="Continue" i]') ||
+                                (document.body && (document.body.innerText || '').indexOf('Opponent is') !== -1));
+        if (isBattlePath || hasBattleDom) {
+            detectBattleOpponents(false);
+        }
+    } catch (_) {}
+}
 
+setInterval(runRealtimeBattleSensors, 400);
 
+window.addEventListener('click', () => {
+    setTimeout(runRealtimeBattleSensors, 150);
+    setTimeout(runRealtimeBattleSensors, 450);
+    setTimeout(runRealtimeBattleSensors, 900);
+}, { passive: true });
+
+// --- 7. LIVE EVOLVE CARD DETECTOR ---
+let lastEvolveCardSignature = null;
+
+function detectEvolveCard() {
+    try {
+        const dModal = document.getElementById('DModal');
+        const dmBody = document.getElementById('DMbody');
+        const modalContainer = dModal || dmBody || document.querySelector('.modal, div[id*="modal" i]');
+        
+        if (!modalContainer) return null;
+        if (modalContainer.style && modalContainer.style.display === 'none') return null;
+        const ariaHidden = modalContainer.getAttribute ? modalContainer.getAttribute('aria-hidden') : null;
+        if (ariaHidden === 'true' && !(modalContainer.classList && (modalContainer.classList.contains('in') || modalContainer.classList.contains('show')))) {
+            return null;
+        }
+
+        const titleEl = modalContainer.querySelector('#DMtitle, .modal-title, h1, h2, h3, h4');
+        const titleText = titleEl ? (titleEl.textContent || '').trim() : '';
+        const bodyText = modalContainer.textContent || '';
+
+        const isEvolveTitle = /evolve/i.test(titleText);
+        const hasEvolvePrompt = /can evolve into/i.test(bodyText);
+        if (!isEvolveTitle && !hasEvolvePrompt) return null;
+
+        const match = bodyText.match(/Your\s+(?:level\s+(\d+)\s+)?([A-Za-z0-9\s\(\)\-]+?)\s+can evolve into/i);
+        if (!match) return null;
+
+        const level = match[1] ? parseInt(match[1], 10) : 50;
+        const rawFullName = match[2].trim();
+
+        let variant = 'Normal';
+        const knownVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
+        for (let i = 0; i < knownVariants.length; i++) {
+            const v = knownVariants[i];
+            if (rawFullName.toLowerCase().indexOf(v.toLowerCase() + ' ') === 0) {
+                variant = v;
+                break;
+            }
+        }
+
+        let baseSpecies = rawFullName;
+        if (variant !== 'Normal' && baseSpecies.toLowerCase().indexOf(variant.toLowerCase() + ' ') === 0) {
+            baseSpecies = baseSpecies.substring(variant.length + 1).trim();
+        }
+        baseSpecies = baseSpecies.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+
+        const options = [];
+        const radios = modalContainer.querySelectorAll('input[type="radio"]');
+        if (radios && radios.length > 0) {
+            for (let i = 0; i < radios.length; i++) {
+                const radio = radios[i];
+                let labelText = '';
+                if (radio.id) {
+                    const lbl = modalContainer.querySelector(`label[for="${radio.id}"]`);
+                    if (lbl) labelText = (lbl.textContent || '').trim();
+                }
+                if (!labelText && radio.parentElement) {
+                    labelText = (radio.parentElement.textContent || '').trim();
+                }
+                if (!labelText && radio.nextSibling) {
+                    labelText = (radio.nextSibling.textContent || '').trim();
+                }
+                if (labelText) {
+                    const optMatch = labelText.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
+                    const optName = optMatch ? optMatch[1].trim() : labelText;
+                    const optReq = optMatch && optMatch[2] ? optMatch[2].trim() : '';
+
+                    const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optName);
+
+                    options.push({
+                        fullName: optName,
+                        requirement: optReq,
+                        radioValue: radio.value,
+                        isOwned: optOwnStatus ? optOwnStatus.isOwned : false,
+                        hasMegaOwned: optOwnStatus ? optOwnStatus.hasMegaOwned : false,
+                        ownedPokemon: optOwnStatus ? optOwnStatus.ownedPokemon : null,
+                        alertMessage: optOwnStatus ? optOwnStatus.alertMessage : ''
+                    });
+                }
+            }
+        }
+
+        if (options.length === 0) {
+            const lines = bodyText.split(/[\r\n]+/);
+            let afterPrompt = false;
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                if (/can evolve into/i.test(line)) {
+                    afterPrompt = true;
+                    continue;
+                }
+                if (afterPrompt) {
+                    if (/^(?:evolve|close|cancel)$/i.test(line)) break;
+                    const m = line.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
+                    if (m) {
+                        options.push({
+                            fullName: m[1].trim(),
+                            requirement: m[2] ? m[2].trim() : ''
+                        });
+                    }
+                }
+            }
+        }
+
+        let types = [];
+        let moves = [];
+        const pageRows = document.querySelectorAll('.row, tr, div[data-pkid]');
+        for (let i = 0; i < pageRows.length; i++) {
+            const row = pageRows[i];
+            const rowText = row.textContent || '';
+            if (rowText.indexOf(rawFullName) !== -1 || (row.getAttribute && row.getAttribute('data-name') && row.getAttribute('data-name').toLowerCase() === baseSpecies)) {
+                const tBtns = row.querySelectorAll('i.tbtn, .tbtn, span.type');
+                for (let j = 0; j < tBtns.length; j++) {
+                    const t = tBtns[j].getAttribute('title') || tBtns[j].textContent.trim();
+                    if (t && types.indexOf(t) === -1) types.push(t);
+                }
+                const moveLinks = row.querySelectorAll('a[href*="/moves/"], .moves span, .move');
+                for (let j = 0; j < moveLinks.length; j++) {
+                    const mName = moveLinks[j].textContent.trim();
+                    if (mName && mName !== 'CHANGE MOVES' && moves.indexOf(mName) === -1) {
+                        moves.push({ name: mName });
+                    }
+                }
+                break;
+            }
+        }
+
+        const existingEvolveBanner = modalContainer.querySelector('#deluge-evolve-uniqueness-banner');
+        if (existingEvolveBanner && existingEvolveBanner.parentElement) {
+            existingEvolveBanner.parentElement.removeChild(existingEvolveBanner);
+        }
+
+        return {
+            isOpen: true,
+            fullName: rawFullName,
+            baseSpecies: baseSpecies,
+            variant: variant,
+            level: level,
+            types: types,
+            moves: moves,
+            options: options
+        };
+    } catch (err) {
+        return null;
+    }
+}
+
+function syncEvolveCardState(force) {
+    const card = detectEvolveCard();
+    if (card) {
+        const sig = `${card.fullName}:${card.level}:${card.options.map(o => o.fullName).join(',')}`;
+        if (force || sig !== lastEvolveCardSignature) {
+            lastEvolveCardSignature = sig;
+            ipcRenderer.sendToHost('evolve-card-detected', card);
+        }
+    } else {
+        if (lastEvolveCardSignature !== null) {
+            lastEvolveCardSignature = null;
+            ipcRenderer.sendToHost('evolve-card-closed');
+        }
+    }
+}
+
+ipcRenderer.on('check-evolve-card', () => {
+    syncEvolveCardState(true);
+});
+
+setInterval(() => {
+    syncEvolveCardState(false);
+}, 500);
+
+window.addEventListener('click', () => {
+    setTimeout(() => syncEvolveCardState(true), 150);
+    setTimeout(() => syncEvolveCardState(true), 450);
+});
+
+// --- 8. TEMPORARY HTML ACTION TRACKER FOR ACTIVE BATTLES ---
+function initTemporaryBattleTracker() {
+    if (window.__delugeBattleActionTrackerActive) return;
+    window.__delugeBattleActionTrackerActive = true;
+
+    function isBattleContext(el) {
+        try {
+            const path = (window.location.pathname || '').toLowerCase();
+            if (path.indexOf('battle') !== -1) return true;
+            if (document.getElementById('battle') || document.getElementById('battleform') || document.getElementById('opponent') || document.getElementById('teamleft')) return true;
+            if (el && el.closest && el.closest('#battle, #battleform, #teamleft, #teamright, form[action*="battle" i]')) return true;
+            if (el && el.getAttribute) {
+                const n = (el.getAttribute('name') || '').toLowerCase();
+                const v = (el.getAttribute('value') || '').toLowerCase();
+                if (n.indexOf('attk') !== -1 || v.indexOf('attack') !== -1 || n.indexOf('switch') !== -1 || v.indexOf('switch') !== -1) return true;
+            }
+        } catch (_) {}
+        return false;
+    }
+
+    function summarizeInputs(formEl) {
+        if (!formEl || !formEl.elements) return [];
+        const result = [];
+        for (let i = 0; i < formEl.elements.length; i++) {
+            const el = formEl.elements[i];
+            if (!el || !el.name || el.type === 'password') continue;
+            result.push({
+                name: el.name,
+                type: el.type || '',
+                value: (el.value !== undefined ? String(el.value) : '').substring(0, 40),
+                checked: Boolean(el.checked)
+            });
+            if (result.length >= 15) break;
+        }
+        return result;
+    }
+
+    // 1. Capture Click Events
+    window.addEventListener('click', (e) => {
+        try {
+            const target = e.target;
+            if (!target || !isBattleContext(target)) return;
+
+            const form = target.form || (target.closest ? target.closest('form') : null);
+            const tag = (target.tagName || '').toUpperCase();
+            const inpType = target.type || '';
+            const id = target.id || '';
+            const name = target.name || '';
+            const val = (target.value !== undefined ? String(target.value) : '').trim().substring(0, 50);
+            const text = (target.textContent || '').trim().replace(/\s+/g, ' ').substring(0, 60);
+
+            ipcRenderer.sendToHost('battle-action-tracked', {
+                event: 'click',
+                isTrusted: Boolean(e.isTrusted),
+                tag: tag,
+                type: inpType,
+                id: id,
+                name: name,
+                value: val,
+                text: text,
+                formId: form ? (form.id || '') : '',
+                formName: form ? (form.name || '') : '',
+                formAction: form ? (form.getAttribute('action') || '') : '',
+                inputs: form ? summarizeInputs(form) : []
+            });
+        } catch (_) {}
+    }, true);
+
+    // 2. Capture Form Submissions
+    window.addEventListener('submit', (e) => {
+        try {
+            const target = e.target;
+            if (!target || !isBattleContext(target)) return;
+
+            const form = target;
+            const submitter = e.submitter;
+            const subData = submitter ? {
+                tag: (submitter.tagName || '').toUpperCase(),
+                type: submitter.type || '',
+                id: submitter.id || '',
+                name: submitter.name || '',
+                value: (submitter.value !== undefined ? String(submitter.value) : '').substring(0, 40)
+            } : null;
+
+            ipcRenderer.sendToHost('battle-action-tracked', {
+                event: 'submit',
+                isTrusted: Boolean(e.isTrusted),
+                tag: (form.tagName || 'FORM').toUpperCase(),
+                formId: form.id || '',
+                formName: form.name || '',
+                formAction: form.getAttribute('action') || '',
+                formMethod: (form.getAttribute('method') || 'POST').toUpperCase(),
+                submitter: subData,
+                inputs: summarizeInputs(form)
+            });
+        } catch (_) {}
+    }, true);
+
+    // 3. Capture Radio/Checkbox/Select Changes
+    window.addEventListener('change', (e) => {
+        try {
+            const target = e.target;
+            if (!target || !isBattleContext(target)) return;
+
+            const tag = (target.tagName || '').toUpperCase();
+            const inpType = target.type || '';
+            const name = target.name || '';
+            const val = (target.value !== undefined ? String(target.value) : '').trim().substring(0, 50);
+            const checked = Boolean(target.checked);
+
+            ipcRenderer.sendToHost('battle-action-tracked', {
+                event: 'change',
+                isTrusted: Boolean(e.isTrusted),
+                tag: tag,
+                type: inpType,
+                name: name,
+                value: val,
+                checked: checked
+            });
+        } catch (_) {}
+    }, true);
+}
+
+initTemporaryBattleTracker();

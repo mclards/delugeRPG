@@ -106,7 +106,7 @@ const dexy1 = new MockNode('div', { id: 'dexy' }, 'Level: 25');
 dexy1.appendChild(new MockNode('img', { alt: 'Normal Heracross', src: 'https://img.delugerpg.com/pokemon/regular/heracross.png' }));
 const text1 = extractEncounterText(dexy1);
 const match1 = scanTarget(text1);
-console.log('✔ Test 1 (Image alt/src Heracross):', match1);
+console.log('[PASS] Test 1 (Image alt/src Heracross):', match1);
 assert.strictEqual(match1, 'Mega Line: Heracross', 'Must detect Heracross from image alt/src');
 
 // Test Case 2: Heracross in catch button value inside form
@@ -115,10 +115,10 @@ const catchForm = new MockNode('form', { action: '/catch/123' });
 catchForm.appendChild(new MockNode('input', { type: 'submit', value: 'Catch Heracross' }));
 const text2 = extractEncounterText(dexy2, [catchForm]);
 const match2 = scanTarget(text2);
-console.log('✔ Test 2 (Catch button Heracross):', match2);
+console.log('[PASS] Test 2 (Catch button Heracross):', match2);
 assert.strictEqual(match2, 'Mega Line: Heracross', 'Must detect Heracross from catch button');
 
-// Test Case 3: Other Mega-capable Pokémon (Pinsir, Kangaskhan, Mawile, Lucario)
+// Test Case 3: Other Mega-capable Pokemon (Pinsir, Kangaskhan, Mawile, Lucario)
 const testMegaSpecies = ['Pinsir', 'Kangaskhan', 'Mawile', 'Absol', 'Riolu', 'Lucario', 'Larvitar', 'Tyranitar', 'Gible', 'Garchomp'];
 for (const species of testMegaSpecies) {
     const d = new MockNode('div', { id: 'dexy' }, `A wild ${species} appeared!`);
@@ -126,9 +126,9 @@ for (const species of testMegaSpecies) {
     const m = scanTarget(t);
     assert(m && m.includes(species), `Must detect ${species}`);
 }
-console.log(`✔ Test 3 (All tested Mega-capable species matched): ${testMegaSpecies.join(', ')}`);
+console.log(`[PASS] Test 3 (All tested Mega-capable species matched): ${testMegaSpecies.join(', ')}`);
 
-// Test Case 4: Non-Mega regular Pokémon must NOT match
+// Test Case 4: Non-Mega regular Pokemon must NOT match
 const nonMegas = ['Mankey', 'Primeape', 'Pawniard', 'Charcadet', 'Tinkatink', 'Rattata', 'Zorua'];
 for (const species of nonMegas) {
     const d = new MockNode('div', { id: 'dexy' }, `A wild ${species} appeared!`);
@@ -136,7 +136,7 @@ for (const species of nonMegas) {
     const m = scanTarget(t);
     assert.strictEqual(m, null, `${species} must NOT match`);
 }
-console.log(`✔ Test 4 (Non-Mega simple Pokémon safely ignored): ${nonMegas.join(', ')}`);
+console.log(`[PASS] Test 4 (Non-Mega simple Pokemon safely ignored): ${nonMegas.join(', ')}`);
 
 console.log('--- ALL HERACROSS AND MEGA ENCOUNTER EXTRACTION TESTS PASSED! ---');
 

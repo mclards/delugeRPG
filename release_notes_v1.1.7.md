@@ -3,7 +3,7 @@
 ## Highlights & Improvements
 
 ### 1. Zero-Stock Master Ball Safeguard (Option A Safe Redirection)
-- **Zero Risk Catch Halting**: If Master Ball stock is 0 (or unavailable/disabled) during Wild Battle, the client strictly halts the catch sequence and **never** throws regular Pokéballs.
+- **Zero Risk Catch Halting**: If Master Ball stock is 0 (or unavailable/disabled) during Wild Battle, the client strictly halts the catch sequence and **never** throws regular Pokeballs.
 - **Audio & Desktop Notification**: Triggers an immediate warning chime alert and system notification informing the user of empty stock.
 - **Direct Map Redirection**: DelugeRPG's Wild Battle interface contains no exit/return button; the client directly navigates back to the stored previous map URL via `window.location.href` after a natural randomized delay (5s - 15s).
 - **Auto-Pause Persistence**: Upon returning to the map, hunting automatically stays paused (`Paused (0 Master Balls - Restock)`) until the user manually restocks inventory.

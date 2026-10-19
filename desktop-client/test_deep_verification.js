@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+const vm = require('vm');
 
 console.log('================================================================');
 console.log('    DELUGERPG FULL DEEP VERIFICATION SUITE - ALL PIPELINES      ');
@@ -35,6 +36,8 @@ const clientFiles = [
   'app.js',
   'game-preload.js',
   'team_engine.js',
+  'ai_agent_bridge.js',
+  'evolution_engine.js',
   'targets.js',
   'config.json',
   'package.json',
@@ -42,13 +45,18 @@ const clientFiles = [
   'gym_leaders.json',
   'user_collection.json',
   'daily_catch_log.json',
+  'daily_safety_log.json',
   'favorite_trainers.json',
   'skills_database.json',
   'type_chart_database.json',
   'test_client.js',
   'test_duplicate_and_catch.js',
   'test_buttons_verification.js',
-  'test_deep_verification.js'
+  'test_dropdowns_and_filters.js',
+  'test_ai_assistant_live.js',
+  'test_safety_limits.js',
+  'test_deep_verification.js',
+  'test_full_trainer_audit.js'
 ];
 
 for (const f of clientFiles) {
@@ -63,6 +71,17 @@ for (const f of clientFiles) {
       }
     }
   });
+}
+
+for (const f of clientFiles) {
+  if (f.endsWith('.js')) {
+    runTest(`JavaScript Syntax Compilation Audit: ${f}`, () => {
+      const fullPath = path.join(__dirname, f);
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const wrapped = '(function (exports, require, module, __filename, __dirname) {\n' + content + '\n});';
+      new vm.Script(wrapped, { filename: f });
+    });
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -159,6 +178,7 @@ runTest('Champions & Elite 4 canonical 6-Pokemon rosters audit', () => {
 console.log('\n--- PIPELINE 3: USER POKEMON COLLECTION & HTML PARSING AUDIT ---');
 
 const teamEngine = require('./team_engine');
+const aiAssistant = require('./ai_agent_bridge');
 
 runTest('HTML Parser extraction from production DOM dump (Page 1)', () => {
   const dumpPath1 = path.join(__dirname, 'dom_dumps', 'dump_pokemon.html');
@@ -359,7 +379,7 @@ runTest('Roster Countering: Blue Matchup produces 6 tailored counters (Not 6 Fig
   assert(team[4].bestMove.includes('(Electric)'), `Slot 5 vs Gyarados must use Electric: ${team[4].bestMove}`);
 
   assert.strictEqual(team[5].targetName, 'Arcanine');
-  assert(team[5].bestMove.includes('(Ground)') || team[5].bestMove.includes('(Water)') || team[5].bestMove.includes('(Rock)'), `Slot 6 vs Arcanine must use Ground/Water/Rock: ${team[5].bestMove}`);
+  assert(team[5].bestMove.includes('(Ground)') || team[5].bestMove.includes('(Water)') || team[5].bestMove.includes('(Rock)') || (team[5].variant === 'Negative' && team[5].bestMove.includes('(Grass)')), `Slot 6 vs Arcanine must use Ground/Water/Rock or Negative Grass: ${team[5].bestMove}`);
 });
 
 runTest('Team Builder Edge Cases (Empty collection & Small collection)', () => {
@@ -581,6 +601,50 @@ runTest('Hardened Team Builder & Matchup Intelligence Audit', () => {
   const rankedCarries = teamEngine.rankCarries(userCollection, diverseTrainer);
   assert(Array.isArray(rankedCarries) && rankedCarries.length > 0, 'rankCarries must find carries even against diverse 6-type rosters');
   assert(rankedCarries[0].exposure.worst < 4.0, 'Top carry anchor against diverse roster must not have quad weaknesses');
+  assert(rankedCarries[0].exposure.leadExposure <= 1.0, 'Top carry must have leadExposure <= 1.0 (never weak to opponent lead)');
+  assert(rankedCarries[0].poke.level >= diverseTrainer.avgLevel, 'Top carry must be at or above trainer level to guarantee team survival');
+
+  // 6B. Double-Type Intelligence & Move Guidance Audit
+  assert(typeof teamEngine.getCarryMoveGuidance === 'function', 'getCarryMoveGuidance must be exported');
+  const dualBossTrainer = {
+    name: 'Ace Trainer Ariel',
+    avgLevel: 97,
+    roster: [
+      { name: 'Blastoise', types: ['Water'], level: 94 },
+      { name: 'Arcanine', types: ['Fire'], level: 95 },
+      { name: 'Mismagius', types: ['Ghost'], level: 96 },
+      { name: 'Ampharos', types: ['Electric'], level: 96 },
+      { name: 'Mega Scizor', types: ['Bug', 'Steel'], level: 100 },
+      { name: 'Mega Glalie', types: ['Ice'], level: 100 }
+    ]
+  };
+  const dualCarries = teamEngine.rankCarries(userCollection, dualBossTrainer);
+  assert(Array.isArray(dualCarries) && dualCarries.length > 0, 'Must rank carries for dual-type boss roster');
+  assert.strictEqual(dualCarries[0].dualTypeResistedTrapCount, 0, 'Top carry must not be trapped with resisted moves against dual-type boss');
+  assert(dualCarries[0].quadHitsCount >= 1, 'Top carry must exploit dual-type 4x quad weakness (e.g. Fire vs Bug/Steel)');
+  const guidance = teamEngine.getCarryMoveGuidance(dualCarries[0].poke, dualBossTrainer);
+  assert(typeof guidance === 'string' && guidance.includes('/'), 'Carry move guidance must provide multi-target coverage (e.g. Lead / Boss)');
+
+  // 6C. Super-Effective Attack Selection Audit
+  const reshiramTest = {
+    name: 'Reshiram',
+    types: ['Dragon', 'Fire'],
+    level: 78,
+    moves: [
+      { name: 'Fire Blast', type: 'Fire' },
+      { name: 'Dragon Rage', type: 'Dragon' },
+      { name: 'Ancient Power', type: 'Rock' }
+    ]
+  };
+  // Against Arcanine (Fire), Ancient Power (Rock) is 2x super effective while Fire Blast is resisted (0.5x)
+  const reshiramVsArcanine = teamEngine.scoreVsSingleOpponent(reshiramTest, ['Fire'], 95);
+  assert.strictEqual(reshiramVsArcanine.bestMove.name, 'Ancient Power', 'Must select super-effective move (Ancient Power) over resisted move');
+  assert.strictEqual(reshiramVsArcanine.bestMove.multiplier, 2.0, 'Multiplier must be 2.0x super-effective');
+
+  // Against Mega Scizor (Bug/Steel), Fire Blast (Fire) is 4x quad super-effective
+  const reshiramVsScizor = teamEngine.scoreVsSingleOpponent(reshiramTest, ['Bug', 'Steel'], 100);
+  assert.strictEqual(reshiramVsScizor.bestMove.name, 'Fire Blast', 'Must select 4x quad super-effective move (Fire Blast) against Bug/Steel');
+  assert.strictEqual(reshiramVsScizor.bestMove.multiplier, 4.0, 'Multiplier must be 4.0x quad super-effective');
 
   // 7. Universal meta move selection
   assert(typeof teamEngine.getBestUniversalMove === 'function', 'getBestUniversalMove must be exported');
@@ -628,6 +692,10 @@ runTest('Candidate Pool Categorization & List Accuracy Audit', () => {
   assert.strictEqual(allPokes.length, userCollection.length, 'ANY must return all collection');
   const gmaxPokes = teamEngine.filterCandidatePool(userCollection, 'GMAX');
   assert(gmaxPokes.length > 0 && gmaxPokes.every(teamEngine.isGmaxPokemon), 'GMAX must return only G-Max');
+  assert(gmaxPokes.every(p => !teamEngine.isAlreadyGmax(p)), 'GMAX pool must exclude already G-Max Pokemon');
+  assert(teamEngine.isAlreadyGmax('Dark G-Max Urshifu (Rapid Strike)'), 'isAlreadyGmax must identify G-Max');
+  assert(!teamEngine.isGmaxEligible('Dark G-Max Urshifu (Rapid Strike)'), 'isGmaxEligible must reject already G-Max');
+  assert(teamEngine.isGmaxEligible('Venusaur'), 'Venusaur must be G-Max eligible');
   const ubPokes = teamEngine.filterCandidatePool(userCollection, 'ULTRABEAST');
   assert(ubPokes.length > 0 && ubPokes.every(teamEngine.isUltraBeast), 'ULTRABEAST must return only UBs');
   const paraPokes = teamEngine.filterCandidatePool(userCollection, 'PARADOX');
@@ -850,7 +918,7 @@ runTest('app.html & app.js: Favorite Opponents Star Button & Preset Filtering Au
 runTest('app.js: Training Mode Carry Anchor Leads in Slot 1 Audit', () => {
   const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
   assert(appJsContent.includes("targetName: 'Safety Anchor & Carry'") && appJsContent.includes('slot: 1'), 'Carry Anchor must lead at Slot 1 in Training mode');
-  assert(appJsContent.includes("targetName: isSolo ? 'Solo Sweeper' : ('Trainee #' + (slotNum - (carry ? 1 : 0)))"), 'Trainee counters must follow sequentially in slots 2 through 6');
+  assert(appJsContent.includes("targetName: 'Primary Trainee Partner'") && appJsContent.includes("targetName: 'Trainee #' + (hybridTeam.length + 1)"), 'Trainee counters must follow sequentially in slots 2 through 6');
 });
 
 runTest('app.html & app.js: Ads Inspector docked panel & telemetry UI audit', () => {
@@ -972,6 +1040,13 @@ runTest('IPC Channel: battle-opponents-detected parity', () => {
 runTest('IPC Channel: check-battle-opponents parity', () => {
   assert(appJs.includes("delugeView.send('check-battle-opponents')"), 'app.js must send check-battle-opponents');
   assert(preloadJs.includes("ipcRenderer.on('check-battle-opponents'"), 'game-preload.js must listen for check-battle-opponents');
+});
+
+runTest('IPC Channel: apply-ai-battle-action and ai-battle-action-status parity', () => {
+  assert(appJs.includes("delugeView.send('apply-ai-battle-action'"), 'app.js must send apply-ai-battle-action');
+  assert(preloadJs.includes("ipcRenderer.on('apply-ai-battle-action'"), 'game-preload.js must listen for apply-ai-battle-action');
+  assert(preloadJs.includes("ipcRenderer.sendToHost('ai-battle-action-status'"), 'game-preload.js must emit ai-battle-action-status');
+  assert(appJs.includes("event.channel === 'ai-battle-action-status'"), 'app.js must handle ai-battle-action-status');
 });
 
 runTest('IPC Channel: scout-player-roster, player-scouted-roster & Manual Profile Modal Stalking parity', () => {
@@ -1321,6 +1396,183 @@ runTest('Strict Mega and Legendary Exclusion Guards & Per-Tier Variant Assignmen
 });
 
 // -----------------------------------------------------------------------------
+// PIPELINE 10: DELUGERPG NEGATIVE CLASS & INVERSE BATTLE MECHANICS AUDIT
+// -----------------------------------------------------------------------------
+console.log('\n--- PIPELINE 10: NEGATIVE CLASS & INVERSE BATTLE MECHANICS AUDIT ---');
+
+runTest('Negative Attacker: Aqua Tail vs Dark Palkia (Origin) [User Case: 4.0x Fatal KO]', () => {
+  const darkPalkia = { name: 'Dark Palkia (Origin)', types: ['Water', 'Dragon'], variant: 'Dark', level: 100 };
+  const negativeFeraligatr = { name: 'Negative Feraligatr', types: ['Water'], variant: 'Negative', level: 100 };
+
+  // Standard regular matchup: Water vs Water (0.5x) * Water vs Dragon (0.5x) = 0.25x double resist
+  const standardIncoming = teamEngine.incomingEffectiveness(darkPalkia, 'Water');
+  assert.strictEqual(standardIncoming, 0.25, 'Standard Water vs Water/Dragon must be 0.25x');
+
+  // Negative attacker matchup: Water vs Water (2.0x) * Water vs Dragon (2.0x) = 4.0x quad super-effective!
+  const negativeIncoming = teamEngine.incomingEffectiveness(darkPalkia, 'Water', negativeFeraligatr);
+  assert.strictEqual(negativeIncoming, 4.0, 'Negative Feraligatr Aqua Tail (Water) vs Water/Dragon must be 4.0x quad super-effective');
+
+  // scoreVsSingleOpponent must evaluate worst incoming STAB as 4.0x quad vulnerability
+  const scoreResult = teamEngine.scoreVsSingleOpponent(darkPalkia, negativeFeraligatr.types, 100, [{ name: 'Aqua Tail', type: 'Water', power: 90 }], negativeFeraligatr);
+  assert.strictEqual(scoreResult.worstDefRisk, 4.0, 'Negative Feraligatr must expose Dark Palkia to 4.0x quad fatal risk');
+});
+
+runTest('Negative Attacker: Dragon STAB vs Zacian (Fairy/Steel) [User Case: 4.0x Fatal KO]', () => {
+  const zacian = { name: 'Zacian (Crowned Sword)', types: ['Fairy', 'Steel'], variant: 'Normal', level: 100 };
+  const negativeZygarde = { name: 'Negative Zygarde (Complete Forme)', types: ['Dragon', 'Ground'], variant: 'Negative', level: 100 };
+
+  // Standard regular matchup: Dragon vs Fairy (0x immune) * Dragon vs Steel (0.5x) = 0x immunity
+  const standardIncoming = teamEngine.incomingEffectiveness(zacian, 'Dragon');
+  assert.strictEqual(standardIncoming, 0.0, 'Standard Dragon vs Fairy/Steel must be 0.0x immunity');
+
+  // Negative attacker matchup: Dragon vs Fairy (2.0x) * Dragon vs Steel (2.0x) = 4.0x quad super-effective!
+  const negativeIncoming = teamEngine.incomingEffectiveness(zacian, 'Dragon', negativeZygarde);
+  assert.strictEqual(negativeIncoming, 4.0, 'Negative Zygarde Dragon move vs Fairy/Steel must be 4.0x quad super-effective');
+});
+
+runTest('Negative Attacker: Dragon & Ground STAB vs Xerneas and Moltres', () => {
+  const xerneas = { name: 'Metallic Xerneas', types: ['Fairy'], variant: 'Metallic', level: 100 };
+  const moltres = { name: 'Dark Galarian Moltres', types: ['Dark', 'Flying'], variant: 'Dark', level: 100 };
+  const negativeZygarde = { name: 'Negative Zygarde', types: ['Dragon', 'Ground'], variant: 'Negative', level: 100 };
+
+  // Dragon vs Fairy (normally 0x immune -> 2.0x super-effective under Negative attacker)
+  const dragonVsXerneas = teamEngine.incomingEffectiveness(xerneas, 'Dragon', negativeZygarde);
+  assert.strictEqual(dragonVsXerneas, 2.0, 'Negative Dragon move vs Fairy must be 2.0x super-effective');
+
+  // Ground vs Dark/Flying (normally Ground vs Flying is 0x immune -> 2.0x super-effective under Negative attacker)
+  const groundVsMoltres = teamEngine.incomingEffectiveness(moltres, 'Ground', negativeZygarde);
+  assert.strictEqual(groundVsMoltres, 2.0, 'Negative Ground move vs Dark/Flying must be 2.0x super-effective');
+});
+
+runTest('Outgoing Attacks vs Negative Defender: Inverted Vulnerabilities and Resistances', () => {
+  const normalAttacker = { name: 'Attacker', types: ['Normal'], variant: 'Normal', level: 100 };
+  const negZygarde = { name: 'Negative Zygarde', types: ['Dragon', 'Ground'], variant: 'Negative', level: 100 };
+  const negFeraligatr = { name: 'Negative Feraligatr', types: ['Water'], variant: 'Negative', level: 100 };
+
+  // Vs Negative Zygarde (Dragon/Ground):
+  // Fairy: normally 2.0x -> 0.5x resisted
+  assert.strictEqual(teamEngine.outgoingEffectiveness(normalAttacker, 'Fairy', negZygarde.types, negZygarde), 0.5);
+  // Ice: normally 4.0x -> 0.25x quad resisted
+  assert.strictEqual(teamEngine.outgoingEffectiveness(normalAttacker, 'Ice', negZygarde.types, negZygarde), 0.25);
+  // Electric: normally 0.0x immune -> 4.0x quad super-effective!
+  assert.strictEqual(teamEngine.outgoingEffectiveness(normalAttacker, 'Electric', negZygarde.types, negZygarde), 4.0);
+  // Fire: normally 0.5x resisted -> 2.0x super-effective!
+  assert.strictEqual(teamEngine.outgoingEffectiveness(normalAttacker, 'Fire', negZygarde.types, negZygarde), 2.0);
+  // Poison: normally 0.5x resisted -> 2.0x super-effective!
+  assert.strictEqual(teamEngine.outgoingEffectiveness(normalAttacker, 'Poison', negZygarde.types, negZygarde), 2.0);
+
+  // Vs Negative Feraligatr (Water):
+  // Electric & Grass: normally 2.0x -> 0.5x resisted
+  assert.strictEqual(teamEngine.outgoingEffectiveness(normalAttacker, 'Electric', negFeraligatr.types, negFeraligatr), 0.5);
+  assert.strictEqual(teamEngine.outgoingEffectiveness(normalAttacker, 'Grass', negFeraligatr.types, negFeraligatr), 0.5);
+  // Fire, Water, Ice, Steel: normally 0.5x resisted -> 2.0x super-effective!
+  assert.strictEqual(teamEngine.outgoingEffectiveness(normalAttacker, 'Fire', negFeraligatr.types, negFeraligatr), 2.0);
+  assert.strictEqual(teamEngine.outgoingEffectiveness(normalAttacker, 'Water', negFeraligatr.types, negFeraligatr), 2.0);
+  assert.strictEqual(teamEngine.outgoingEffectiveness(normalAttacker, 'Ice', negFeraligatr.types, negFeraligatr), 2.0);
+  assert.strictEqual(teamEngine.outgoingEffectiveness(normalAttacker, 'Steel', negFeraligatr.types, negFeraligatr), 2.0);
+});
+
+runTest('Double Negative Cancellation & Defensive Inversion Profile', () => {
+  const negAttacker = { name: 'Negative Attacker', types: ['Fire'], variant: 'Negative', level: 100 };
+  const negDefender = { name: 'Negative Defender', types: ['Grass'], variant: 'Negative', level: 100 };
+
+  // Double Negative: cancels out back to regular type chart (Fire vs Grass is 2.0x)
+  assert.strictEqual(teamEngine.outgoingEffectiveness(negAttacker, 'Fire', negDefender.types, negDefender), 2.0);
+  assert.strictEqual(teamEngine.incomingEffectiveness(negDefender, 'Fire', negAttacker), 2.0);
+
+  // Negative Feraligatr defensive profile
+  const negFeraligatrProfile = teamEngine.getDefensiveProfile(['Water'], true);
+  assert(negFeraligatrProfile.weaknesses.includes('Fire'), 'Negative Water must be weak to Fire');
+  assert(negFeraligatrProfile.weaknesses.includes('Ice'), 'Negative Water must be weak to Ice');
+  assert(negFeraligatrProfile.weaknesses.includes('Steel'), 'Negative Water must be weak to Steel');
+  assert(negFeraligatrProfile.resists.includes('Electric'), 'Negative Water must resist Electric');
+  assert(negFeraligatrProfile.resists.includes('Grass'), 'Negative Water must resist Grass');
+});
+
+// -----------------------------------------------------------------------------
+// PIPELINE 11: SMART BATTLE FLOW BUTTON & HP TELEMETRY AUDIT
+// -----------------------------------------------------------------------------
+console.log('\n--- PIPELINE 11: SMART BATTLE FLOW BUTTON & HP TELEMETRY AUDIT ---');
+
+runTest('AI Assistant: Attack Mode (Full Opponent HP)', () => {
+  const battle = {
+    trainerName: 'Brock',
+    isInActiveBattle: true,
+    roster: [{ name: 'Geodude', types: ['Rock', 'Ground'], level: 100, hp: 400, maxHp: 400, isFainted: false }],
+    userActivePokemon: { name: 'Dark Chesnaught', types: ['Grass', 'Fighting', 'Dark'], level: 100, hp: 400, maxHp: 400, isFainted: false },
+    availableMoves: [{ name: 'Wood Hammer', type: 'Grass', rawLabel: 'Wood Hammer (Grass)' }]
+  };
+  const analysis = aiAssistant.analyzeBattle(battle, []);
+  assert.strictEqual(analysis.isInActiveBattle, true);
+  assert.strictEqual(analysis.activeOpponentHp, 400);
+  assert.strictEqual(analysis.isActiveOpponentFainted, false);
+  assert.strictEqual(analysis.isActiveBattlerFainted, false);
+  assert(analysis.bestMoveObj && analysis.bestMoveObj.name === 'Wood Hammer');
+});
+
+runTest('AI Assistant: Reattack Mode (Damaged Opponent HP)', () => {
+  const battle = {
+    trainerName: 'Brock',
+    isInActiveBattle: true,
+    roster: [{ name: 'Geodude', types: ['Rock', 'Ground'], level: 100, hp: 160, maxHp: 400, isFainted: false }],
+    userActivePokemon: { name: 'Dark Chesnaught', types: ['Grass', 'Fighting', 'Dark'], level: 100, hp: 320, maxHp: 400, isFainted: false },
+    availableMoves: [{ name: 'Wood Hammer', type: 'Grass', rawLabel: 'Wood Hammer (Grass)' }]
+  };
+  const analysis = aiAssistant.analyzeBattle(battle, []);
+  const isReattack = (analysis.activeOpponentHp < analysis.activeOpponentMaxHp && analysis.activeOpponentHp > 0);
+  assert.strictEqual(isReattack, true);
+});
+
+runTest('AI Assistant: Turn Result Continue Mode', () => {
+  const battle = {
+    trainerName: 'Brock',
+    isInActiveBattle: true,
+    hasContinueBtn: true,
+    availableMoves: [],
+    roster: [{ name: 'Geodude', types: ['Rock', 'Ground'], level: 100, hp: 160, maxHp: 400, isFainted: false }],
+    userActivePokemon: { name: 'Dark Chesnaught', types: ['Grass', 'Fighting', 'Dark'], level: 100, hp: 320, maxHp: 400, isFainted: false }
+  };
+  const analysis = aiAssistant.analyzeBattle(battle, []);
+  assert.strictEqual(analysis.hasContinueBtn, true);
+  assert.strictEqual(analysis.isActiveOpponentFainted, false);
+});
+
+runTest('AI Assistant: Opponent KO Continue Mode', () => {
+  const battle = {
+    trainerName: 'Brock',
+    isInActiveBattle: true,
+    hasContinueBtn: true,
+    availableMoves: [],
+    roster: [{ name: 'Geodude', types: ['Rock', 'Ground'], level: 100, hp: 0, maxHp: 400, isFainted: true }],
+    userActivePokemon: { name: 'Dark Chesnaught', types: ['Grass', 'Fighting', 'Dark'], level: 100, hp: 320, maxHp: 400, isFainted: false }
+  };
+  const analysis = aiAssistant.analyzeBattle(battle, []);
+  assert.strictEqual(analysis.isActiveOpponentFainted, true);
+});
+
+runTest('AI Assistant: Player Pokemon Fainted Bench Deploy Mode', () => {
+  const battle = {
+    trainerName: 'Brock',
+    isInActiveBattle: true,
+    roster: [{ name: 'Onix', types: ['Rock', 'Ground'], level: 100, hp: 400, maxHp: 400, isFainted: false }],
+    userActivePokemon: { name: 'Dark Chesnaught', types: ['Grass', 'Fighting', 'Dark'], level: 100, hp: 0, maxHp: 400, isFainted: true },
+    userTeam: [
+      { name: 'Dark Chesnaught', types: ['Grass', 'Fighting', 'Dark'], level: 100, hp: 0, maxHp: 400, isFainted: true },
+      { name: 'Shiny Greninja', types: ['Water', 'Dark'], level: 100, hp: 400, maxHp: 400, isFainted: false }
+    ]
+  };
+  const analysis = aiAssistant.analyzeBattle(battle, []);
+  assert.strictEqual(analysis.isActiveBattlerFainted, true);
+  assert.strictEqual(analysis.nextAliveCounter, 'Shiny Greninja');
+
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+  const pkgFiles = new Set((pkg.build && pkg.build.files) || []);
+  for (const mod of ['evolution_engine.js', 'ai_agent_bridge.js', 'team_engine.js', 'daily_safety_log.json', 'favorite_trainers.json']) {
+    assert(pkgFiles.has(mod), `package.json build.files must include ${mod} so packaged app.asar never throws MODULE_NOT_FOUND`);
+  }
+});
+
+// -----------------------------------------------------------------------------
 // PIPELINE 9: EXISTING TEST SUITES INTEGRATION
 // -----------------------------------------------------------------------------
 console.log('\n--- PIPELINE 9: RUNNING INTEGRATED TEST SUITES ---');
@@ -1335,6 +1587,18 @@ runTest('test_duplicate_and_catch.js execution', () => {
 
 runTest('test_buttons_verification.js execution', () => {
   require('./test_buttons_verification.js');
+});
+
+runTest('test_dropdowns_and_filters.js execution', () => {
+  require('./test_dropdowns_and_filters.js');
+});
+
+runTest('test_ai_assistant_live.js execution', () => {
+  require('./test_ai_assistant_live.js');
+});
+
+runTest('test_safety_limits.js execution', () => {
+  require('./test_safety_limits.js');
 });
 
 // -----------------------------------------------------------------------------

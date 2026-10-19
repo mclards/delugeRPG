@@ -111,9 +111,9 @@ for (const spawn of simpleEvolutionSpawns) {
     const result = scan(spawn);
     assert.strictEqual(result, null, `Simple evolution should NOT match: ${spawn} (got: ${result})`);
 }
-console.log(`✔ Verified: None of the ${simpleEvolutionSpawns.length} simple evolution Pokémon matched!`);
+console.log(`[PASS] Verified: None of the ${simpleEvolutionSpawns.length} simple evolution Pokemon matched!`);
 
-// 2. Verify that MEGA-CAPABLE POKÉMON MATCH
+// 2. Verify that MEGA-CAPABLE POKMON MATCH
 const megaSpawns = [
     { text: 'A wild Bulbasaur appeared! Level 5', expectedPrefix: 'Mega Line: Bulbasaur' },
     { text: 'A wild Charmander appeared! Level 5', expectedPrefix: 'Mega Line: Charmander' },
@@ -163,7 +163,7 @@ for (const item of megaSpawns) {
     const result = scan(item.text);
     assert.strictEqual(result, item.expectedPrefix, `Expected ${item.expectedPrefix} for ${item.text}`);
 }
-console.log(`✔ Verified: All ${megaSpawns.length} Mega-capable lines matched!`);
+console.log(`[PASS] Verified: All ${megaSpawns.length} Mega-capable lines matched!`);
 
 // 3. Verify that LEGENDARIES & FORMS MATCH
 const legendSpawns = [
@@ -188,6 +188,6 @@ for (const item of legendSpawns) {
     const result = scan(item.text);
     assert.strictEqual(result, item.expected, `Expected ${item.expected} for ${item.text} (got: ${result})`);
 }
-console.log(`✔ Verified: All ${legendSpawns.length} Legendaries and Special Forms matched!`);
+console.log(`[PASS] Verified: All ${legendSpawns.length} Legendaries and Special Forms matched!`);
 
 console.log('--- ALL PRIORITY AND FILTERING TESTS PASSED PERFECTLY! ---');

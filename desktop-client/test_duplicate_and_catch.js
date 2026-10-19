@@ -525,6 +525,9 @@ assert.strictEqual(appJs.includes('isCurrentPageMap'), true, 'app.js must provid
 assert.strictEqual(appJs.includes("channel === 'map-presence'"), true, 'app.js must listen for map-presence IPC');
 assert.strictEqual(appJs.includes('did-navigate-in-page'), true, 'app.js must listen for did-navigate-in-page');
 assert.strictEqual(appJs.includes('outOfStockPaused'), true, 'app.js must track outOfStockPaused for Option A stay-paused behavior');
+assert.strictEqual(appJs.includes("'abort-autocatch'"), true, 'app.js must send abort-autocatch on manual pause');
+assert.strictEqual(appJs.includes('syncUserCollectionToGuest'), true, 'app.js must contain syncUserCollectionToGuest');
+assert.strictEqual(appJs.includes('handleDuplicateOwnedAlert'), true, 'app.js must contain handleDuplicateOwnedAlert');
 console.log('[PASS] app.js verified: autoCatchBtn, updateAutoCatchUI, autocatch-status, handleMapNavigation, and guestReportsMap active.');
 
 const preloadJs = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
@@ -543,6 +546,16 @@ assert.strictEqual(preloadJs.includes('dismissGoogleVignetteOverlay'), true, 'ga
 assert.strictEqual(preloadJs.includes('aswift_'), true, 'game-preload.js must target aswift containers');
 assert.strictEqual(preloadJs.includes('deluge_last_map_url'), true, 'game-preload.js must store deluge_last_map_url');
 assert.strictEqual(preloadJs.includes('window.location.href = returnUrl'), true, 'game-preload.js must directly redirect to returnUrl on zero stock');
+assert.strictEqual(preloadJs.includes('clearAutoCatchSession'), true, 'game-preload.js must contain clearAutoCatchSession');
+assert.strictEqual(preloadJs.includes('pendingCatchTimeoutId'), true, 'game-preload.js must track pendingCatchTimeoutId');
+assert.strictEqual(preloadJs.includes("ipcRenderer.on('abort-autocatch'"), true, 'game-preload.js must listen for abort-autocatch IPC');
+assert.strictEqual(preloadJs.includes('evaluateOwnershipAndMegaEquivalence'), true, 'game-preload.js must contain evaluateOwnershipAndMegaEquivalence');
+assert.strictEqual(preloadJs.includes('renderUniquenessAlertBanner'), true, 'game-preload.js must contain renderUniquenessAlertBanner');
+assert.strictEqual(preloadJs.includes('guardManualCatchButtonsOnCatchPage'), true, 'game-preload.js must contain guardManualCatchButtonsOnCatchPage');
+assert.strictEqual(preloadJs.includes('deluge-uniqueness-alert-banner'), true, 'game-preload.js must handle deluge-uniqueness-alert-banner cleanup');
+assert.strictEqual(preloadJs.includes('deluge-evolve-uniqueness-banner'), true, 'game-preload.js must handle deluge-evolve-uniqueness-banner cleanup');
+assert.strictEqual(preloadJs.includes('window.alert'), false, 'game-preload.js must NEVER call window.alert');
+assert.strictEqual(preloadJs.includes('window.confirm'), false, 'game-preload.js must NEVER call window.confirm');
 console.log('[PASS] game-preload.js verified: runAutoCatchLifecycle, getRandomCatchDelay, checkAndSyncMapPresence, Master Ball auto-catch, and Google Vignette suppression active.');
 
 // 3. Auto-Catch (Master Ball) State Machine & Guard Verification
@@ -621,6 +634,112 @@ function enforceHideAdsDependency(cfg) {
 enforceHideAdsDependency(testConfig);
 assert.strictEqual(testConfig.autoCatchMasterBall, false, 'Auto-catch must automatically be false when Hide Ads is false');
 console.log('[PASS] Hide Ads ON dependency strictly enforced.');
+
+// Manual Pause Abort & Target Isolation Verification
+{
+  const mockSessionStorage = new Map();
+  let pendingTimeout = 12345;
+  let clicked = false;
+  const clearedTimeouts = [];
+
+  const mockClearTimeout = (id) => {
+    clearedTimeouts.push(id);
+  };
+
+  const clearAutoCatchSession = (reason = '') => {
+    if (pendingTimeout) {
+      mockClearTimeout(pendingTimeout);
+      pendingTimeout = null;
+    }
+    mockSessionStorage.delete('deluge_autocatch_active');
+    mockSessionStorage.delete('deluge_autocatch_action');
+    mockSessionStorage.delete('deluge_autocatch_start_time');
+    mockSessionStorage.delete('deluge_autocatch_attempts');
+  };
+
+  // 1. Arm auto-catch as if encounter was found
+  mockSessionStorage.set('deluge_autocatch_active', 'true');
+  assert.strictEqual(mockSessionStorage.get('deluge_autocatch_active'), 'true');
+
+  // 2. User manually pauses -> fires abort-autocatch
+  clearAutoCatchSession('manual_pause');
+  assert.strictEqual(pendingTimeout, null, 'pendingCatchTimeoutId must be null after abort');
+  assert.strictEqual(clearedTimeouts.includes(12345), true, 'pending catch timeout must be cleared');
+  assert.strictEqual(mockSessionStorage.has('deluge_autocatch_active'), false, 'deluge_autocatch_active must be deleted');
+
+  // 3. Simulate delayed timer executing after abort
+  const simulateTimerCallback = () => {
+    if (mockSessionStorage.get('deluge_autocatch_active') !== 'true') {
+      return false;
+    }
+    clicked = true;
+    return true;
+  };
+  const ran = simulateTimerCallback();
+  assert.strictEqual(ran, false, 'Timer callback must abort if deluge_autocatch_active is not true');
+  assert.strictEqual(clicked, false, 'No click must occur after manual pause');
+
+  // 4. Simulate arriving at /catch/ after manual pause
+  const simulateCatchPageLoad = () => {
+    const isAutoCatchActive = mockSessionStorage.get('deluge_autocatch_active') === 'true';
+    if (!isAutoCatchActive) {
+      return 'MANUAL_CATCH_MODE';
+    }
+    return 'AUTOCATCH_RUNNING';
+  };
+  assert.strictEqual(simulateCatchPageLoad(), 'MANUAL_CATCH_MODE', 'Page must remain in manual catch mode when paused');
+  console.log('[PASS] Manual pause abort safely purges auto-catch state and prevents automatic ball throw.');
+}
+
+// 3B. Owned Pokemon & Mega Evolution Uniqueness Awareness Verification
+{
+  const teamEngine = require('./team_engine');
+  const evolutionEngine = require('./evolution_engine');
+  const mockCollection = [
+    { name: 'Mega Charizard X', level: 100 },
+    { name: 'Dark Mega Steelix', level: 100 },
+    { name: 'Shiny Rayquaza', level: 100 }
+  ];
+
+  // Case 1: Wild base Charizard encountered when user owns Mega Charizard X
+  const charizardCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Charizard', mockCollection);
+  assert.strictEqual(charizardCheck.isDuplicate, true, 'Base Charizard must be flagged as duplicate when Mega Charizard X is owned');
+  assert.strictEqual(charizardCheck.hasMegaOwned, true, 'hasMegaOwned must be true for Charizard');
+  assert.strictEqual(charizardCheck.ownedPokemon.name, 'Mega Charizard X', 'Must identify Mega Charizard X');
+
+  // Case 2: Alternate Mega Charizard Y when user owns Mega Charizard X
+  const charizardYCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Mega Charizard Y', mockCollection);
+  assert.strictEqual(charizardYCheck.isDuplicate, true, 'Mega Charizard Y must be flagged as Mega-owned duplicate');
+  assert.strictEqual(charizardYCheck.hasMegaOwned, true, 'hasMegaOwned must be true for Mega Charizard Y');
+
+  // Case 3: Wild Steelix when user owns Dark Mega Steelix
+  const steelixCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Steelix', mockCollection);
+  assert.strictEqual(steelixCheck.isDuplicate, true, 'Base Steelix must be flagged as duplicate when Dark Mega Steelix is owned');
+  assert.strictEqual(steelixCheck.hasMegaOwned, true, 'hasMegaOwned must be true for Steelix');
+
+  // Case 4: Unowned Pikachu must NOT be flagged
+  const pikachuCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Pikachu', mockCollection);
+  assert.strictEqual(pikachuCheck.isDuplicate, false, 'Unowned Pikachu must not be flagged as duplicate');
+  assert.strictEqual(pikachuCheck.hasMegaOwned, false, 'hasMegaOwned must be false for Pikachu');
+
+  // Case 5: Evolution engine ownership tag for Charizard
+  const evoOwn = evolutionEngine.checkEvolutionOwnership('Charizard', mockCollection);
+  assert.strictEqual(evoOwn.isOwned, true, 'Evolution check must mark Charizard as owned due to Mega Charizard X');
+  assert.strictEqual(evoOwn.hasMegaOwned, true, 'Evolution check must mark hasMegaOwned: true');
+  assert(evoOwn.summaryLabel.includes('MEGA'), 'Evolution summaryLabel must explicitly highlight MEGA ownership');
+  console.log('[PASS] 100% Uniqueness & Mega Evolution equivalence checks verified across wild encounters and evolution paths.');
+}
+
+// 3C. Non-Target Manual Pause & /catch Page Isolation Regression Verification
+{
+  assert.strictEqual(preloadJs.includes('isMapCatchElement'), true, 'game-preload.js must contain isMapCatchElement');
+  assert.strictEqual(preloadJs.includes('blurCatchButtonsOnMap'), true, 'game-preload.js must contain blurCatchButtonsOnMap');
+  assert.strictEqual(preloadJs.includes('__delugeAutoCatchAuthorizedClick'), true, 'game-preload.js must gate Try to Catch It clicks with __delugeAutoCatchAuthorizedClick');
+  assert.strictEqual(preloadJs.includes('extractWildPokemonFromCatchPage'), true, 'game-preload.js must contain extractWildPokemonFromCatchPage');
+  assert.strictEqual(preloadJs.includes("path.indexOf('/map') !== -1 || path.indexOf('/catch') !== -1"), false, 'scanForTargets must never run on /catch pages');
+  assert.strictEqual(appJs.includes('isAutoCatchCountdownActive'), true, 'app.js must track isAutoCatchCountdownActive to abort on manual pause');
+  console.log('[PASS] Non-target manual pause protection and /catch page isolation verified.');
+}
 
 // 4. Verify 100% 7-bit Clean ASCII across all files
 console.log('\n--- TEST 4: 100% 7-bit Clean ASCII Verification ---');

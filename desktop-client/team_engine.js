@@ -98,8 +98,14 @@ function getDefensiveResistance(defenderTypes, attackerTypes) {
   return mult;
 }
 
-function getDefensiveProfile(defenderTypes) {
-  const defs = normalizeDefenderTypes(defenderTypes);
+function getDefensiveProfile(defenderTypes, isInverse = false) {
+  let targetTypes = defenderTypes;
+  let inverseMode = Boolean(isInverse);
+  if (defenderTypes && typeof defenderTypes === 'object' && !Array.isArray(defenderTypes)) {
+    if (defenderTypes.types) targetTypes = defenderTypes.types;
+    if (isNegativePokemon(defenderTypes)) inverseMode = true;
+  }
+  const defs = normalizeDefenderTypes(targetTypes);
   const matchups = {};
   const quadWeaknesses = [];
   const weaknesses = [];
@@ -109,7 +115,7 @@ function getDefensiveProfile(defenderTypes) {
   const immunities = [];
 
   for (const atk of ALL_TYPES) {
-    const m = getMoveEffectiveness(atk, defs);
+    const m = getTypeMultiplier(atk, defs, inverseMode);
     matchups[atk] = m;
     if (m === 0) immunities.push(atk);
     else if (m === 0.25) doubleResists.push(atk);
@@ -198,8 +204,21 @@ function getVariantMultipliers(variant) {
   return { offense, defense: hp, hp, speed: 1.0, crit, statusImmune, flinch, inverse };
 }
 
+function isNegativePokemon(poke) {
+  if (!poke) return false;
+  if (typeof poke === 'string') {
+    const s = poke.trim().toLowerCase();
+    return s === 'negative' || /(?:^|\s)negative\b/i.test(s);
+  }
+  if (typeof poke === 'object') {
+    if (poke.variant && poke.variant.toString().trim().toLowerCase() === 'negative') return true;
+    if (typeof poke.name === 'string' && /(?:^|\s)negative\b/i.test(poke.name)) return true;
+  }
+  return false;
+}
+
 function isInverseVariant(variant) {
-  return (variant || '').toLowerCase().trim() === 'negative';
+  return isNegativePokemon(variant);
 }
 
 // Type multiplier with optional inverse-battle rules (used for Negative class Pokemon):
@@ -220,25 +239,32 @@ function getTypeMultiplier(attackType, defenderTypes, inverse) {
 }
 
 // Damage multiplier of OUR Pokemon's move against an opponent typing.
-// Negative class: DelugeRPG states it uses inverse matchups, but whether that
-// applies to its own attacks, incoming attacks, or both is unconfirmed. To never
-// mis-recommend, Negative Pokemon are evaluated PESSIMISTICALLY: the weaker of
-// normal/inverse for offense and the stronger of normal/inverse for defense.
-function outgoingEffectiveness(poke, moveType, oppTypes) {
+// Negative class: DelugeRPG applies Inverse Battle type matchups in regular battles.
+// If exactly one of (attacker, defender) is Negative, inverse chart applies.
+// If both or neither are Negative, regular chart applies.
+function outgoingEffectiveness(poke, moveType, oppTypes, opp = null) {
+  let targetTypes = oppTypes;
+  let targetOpp = opp;
+  if (oppTypes && typeof oppTypes === 'object' && !Array.isArray(oppTypes)) {
+    if (oppTypes.types) targetTypes = oppTypes.types;
+    if (!targetOpp) targetOpp = oppTypes;
+  }
   const mType = normalizeType(moveType);
-  const defs = normalizeDefenderTypes(oppTypes);
-  const normal = getMoveEffectiveness(mType, defs);
-  if (!isInverseVariant(poke && poke.variant)) return normal;
-  return Math.min(normal, getTypeMultiplier(mType, defs, true));
+  const defs = normalizeDefenderTypes(targetTypes);
+  const attackerIsNegative = isNegativePokemon(poke);
+  const defenderIsNegative = isNegativePokemon(targetOpp);
+  const isInverse = Boolean(attackerIsNegative ^ defenderIsNegative);
+  return getTypeMultiplier(mType, defs, isInverse);
 }
 
 // Damage multiplier of an opponent attack type against OUR Pokemon
-function incomingEffectiveness(poke, attackType) {
+function incomingEffectiveness(poke, attackType, attacker = null) {
   const defTypes = normalizeDefenderTypes((poke && poke.types) || ['Normal']);
   const atk = normalizeType(attackType);
-  const normal = getMoveEffectiveness(atk, defTypes);
-  if (!isInverseVariant(poke && poke.variant)) return normal;
-  return Math.max(normal, getTypeMultiplier(atk, defTypes, true));
+  const defenderIsNegative = isNegativePokemon(poke);
+  const attackerIsNegative = isNegativePokemon(attacker);
+  const isInverse = Boolean(defenderIsNegative ^ attackerIsNegative);
+  return getTypeMultiplier(atk, defTypes, isInverse);
 }
 
 // Defensive exposure of a Pokemon across a trainer's whole roster.
@@ -252,62 +278,398 @@ function getRosterExposure(poke, trainer) {
     : [{ name: (trainer && trainer.name) || 'Opponent', types: (trainer && trainer.types) || ['Normal'] }];
   let total = 0;
   let worst = 0;
+  let leadExposure = 0;
   let resisted = 0;
-  for (const opp of oppList) {
-    const attackTypes = [].concat(opp.types || ['Normal'], opp.knownMoveTypes || []);
+  let immuneCount = 0;
+  let weakCount = 0;
+  let quadWeakCount = 0;
+
+  for (let i = 0; i < oppList.length; i++) {
+    const opp = oppList[i];
+    const moveTypesFromMoves = Array.isArray(opp.moves)
+      ? opp.moves.map(m => {
+          const rm = resolveMove(m);
+          return (!rm.isStatus && rm.power > 0) ? rm.type : null;
+        }).filter(Boolean)
+      : [];
+    const attackTypes = Array.from(new Set([].concat(
+      normalizeDefenderTypes(opp.types || ['Normal']),
+      opp.knownMoveTypes || [],
+      moveTypesFromMoves
+    )));
+
     let m = 0;
     for (const at of attackTypes) {
-      const inc = incomingEffectiveness(poke, at);
+      const inc = incomingEffectiveness(poke, at, opp);
       if (inc > m) m = inc;
     }
     total += m;
+    if (i === 0) leadExposure = m;
     if (m > worst) worst = m;
-    if (m <= 0.5) resisted++;
+    if (m === 0.0) immuneCount++;
+    else if (m <= 0.5) resisted++;
+    else if (m >= 4.0) quadWeakCount++;
+    else if (m >= 2.0) weakCount++;
   }
+
+  const isMixedTrainer = (trainer && (
+    (trainer.types && trainer.types.some(t => /mixed/i.test(t))) ||
+    (!trainer.types || trainer.types.length === 0)
+  ));
+  if (isMixedTrainer) {
+    const defProfile = getDefensiveProfile(poke && poke.types);
+    if (defProfile.quadWeaknesses.length > 0) {
+      worst = 4.0;
+      quadWeakCount = Math.max(quadWeakCount, defProfile.quadWeaknesses.length);
+      leadExposure = Math.max(leadExposure, 4.0);
+    } else if (defProfile.weaknesses.length > 0) {
+      worst = Math.max(worst, 2.0);
+      weakCount = Math.max(weakCount, defProfile.weaknesses.length);
+    }
+  }
+
   const avg = oppList.length > 0 ? total / oppList.length : 1.0;
   const v = getVariantMultipliers(poke && poke.variant);
-  return { avg, worst, resisted, count: oppList.length, effective: avg / v.hp };
+  return {
+    avg,
+    worst,
+    leadExposure,
+    resisted,
+    immuneCount,
+    weakCount,
+    quadWeakCount,
+    count: oppList.length,
+    effective: avg / v.hp
+  };
 }
 
-// Rank carry candidates defense-first: a carry must SURVIVE the whole roster
-// (resists / immunities), then deal damage. Pure offense carries that take
-// neutral hits from every opponent get one-shot by critical STAB attacks.
+// Rank carry candidates defense-first with Double-Type Intelligence:
+// A carry must GUARANTEE the survival of the low-level team by:
+// 1. Dominating Opponent 1 (the Lead) so it never faints on Turn 1.
+// 2. Intelligently countering Double-Type opponents (especially high-level/Mega bosses):
+//    - Exploiting 4.0x quad weaknesses on dual-type bosses for instant 1-shot KOs.
+//    - Strictly avoiding dual-type resistance traps (< 1.0x resisted attacks).
+//    - Resisting dual-type boss STABs to prevent fatal physical/special damage.
+// 3. Ensuring no roster-wide quad weaknesses or wall immunities.
 function rankCarries(pool, trainer) {
   const oppList = (trainer && trainer.roster && trainer.roster.length > 0)
     ? trainer.roster
     : [{ types: (trainer && trainer.types) || ['Normal'] }];
   const avgLvl = (trainer && trainer.avgLevel) || 50;
+
   const mapped = (pool || []).map(p => {
     const exposure = getRosterExposure(p, trainer);
     let offense = 0;
     let superEffectiveCount = 0;
+    let quadHitsCount = 0;
+    let walledCount = 0;
+    let dualTypeResistedTrapCount = 0;
+    let dualTypeBossSniperBonus = 0;
+    let dualTypeDoubleResistBonus = 0;
+    let dualTypeWeakPenalty = 0;
+    let hasOhkoTrap = false;
+
     oppList.forEach(opp => {
-      const scoreObj = scoreVsSingleOpponent(p, opp.types || ['Normal'], avgLvl);
+      const oppTypes = normalizeDefenderTypes(opp.types || ['Normal']);
+      const scoreObj = scoreVsSingleOpponent(p, oppTypes, avgLvl, opp.moves, opp);
       offense += scoreObj.totalScore;
-      if (scoreObj.bestMove && scoreObj.bestMove.multiplier >= 2.0) {
-        superEffectiveCount++;
+      const bestMult = scoreObj.bestMove ? scoreObj.bestMove.multiplier : 0;
+      if (scoreObj.bestMove && scoreObj.bestMove.isOhko) {
+        hasOhkoTrap = true;
+      }
+
+      if (bestMult >= 4.0) quadHitsCount++;
+      else if (bestMult >= 2.0) superEffectiveCount++;
+
+      if (!scoreObj.bestMove || bestMult === 0.0 || scoreObj.bestMove.power === 0) {
+        walledCount++;
+      }
+
+      // Double-Type Opponent Intelligence
+      const isDual = oppTypes.length >= 2;
+      if (isDual) {
+        // Resistance trap: If our best move is resisted (< 1.0x) by a dual-type opponent,
+        // it leaves the carry vulnerable to retaliatory STAB attacks!
+        if (bestMult < 1.0) {
+          dualTypeResistedTrapCount++;
+        }
+        // Quad-weakness sniping: If a dual-type boss (>= 80 or Mega) has a 4.0x weakness,
+        // reward candidates that can 1-shot it before it can ever attack!
+        if (bestMult >= 4.0) {
+          const isBoss = (opp.level && opp.level >= 80) || /mega/i.test(opp.name || '');
+          dualTypeBossSniperBonus += isBoss ? 250 : 150;
+        }
+
+        // Defensive resistance check against dual-type boss STABs
+        const inc1 = incomingEffectiveness(p, oppTypes[0], opp);
+        const inc2 = incomingEffectiveness(p, oppTypes[1], opp);
+        if (inc1 <= 0.5 && inc2 <= 0.5) {
+          dualTypeDoubleResistBonus += 80; // Resists BOTH STABs of the dual-type boss!
+        } else if ((inc1 <= 0.5 && inc2 <= 1.0) || (inc2 <= 0.5 && inc1 <= 1.0)) {
+          dualTypeDoubleResistBonus += 35; // Resists one STAB, neutral to other
+        }
+        if (inc1 >= 2.0 || inc2 >= 2.0) {
+          dualTypeWeakPenalty += 150;
+        }
       }
     });
     offense = offense / oppList.length;
+
     const v = getVariantMultipliers(p.variant);
-    const statusBonus = v.statusImmune ? 35 : 0;
-    const flinchBonus = v.flinch ? 25 : 0;
-    const critBonus = v.crit > 1 ? 30 : 0;
-    const coverageBonus = (superEffectiveCount / oppList.length) * 120;
-    const quadPenalty = exposure.worst >= 4.0 ? 300 : (exposure.worst >= 2.0 ? 100 : 0);
-    const carryScore = offense - (exposure.effective * 500) - quadPenalty + statusBonus + flinchBonus + critBonus + coverageBonus;
-    return { poke: p, exposure, offense, carryScore };
+    const pokeLevel = typeof p.level === 'number' ? p.level : 50;
+    const levelScore = (pokeLevel / 100) * 150;
+
+    // Severe level deficit penalty: An under-leveled Pokemon cannot reliably carry
+    let levelDeficitPenalty = 0;
+    if (pokeLevel < avgLvl && exposure.immuneCount < oppList.length) {
+      levelDeficitPenalty = (avgLvl - pokeLevel) * 35;
+    }
+
+    // Lead Opponent (Slot 1) Safety:
+    // Carry must never take super-effective damage on Turn 1
+    const leadOpp = oppList[0] || { types: ['Normal'] };
+    const leadScoreObj = scoreVsSingleOpponent(p, leadOpp.types || ['Normal'], avgLvl, leadOpp.moves, leadOpp);
+    const leadEff = (leadScoreObj.bestMove && leadScoreObj.bestMove.multiplier) || 1.0;
+    const leadOHKO = (pokeLevel >= avgLvl) && (leadEff >= 2.0) && (leadScoreObj.bestMove.effectivePower >= 90);
+
+    let leadDefenseScore = 0;
+    if (exposure.leadExposure === 0.0) leadDefenseScore = +100;
+    else if (exposure.leadExposure <= 0.25) leadDefenseScore = +60;
+    else if (exposure.leadExposure <= 0.5) leadDefenseScore = +40;
+    else if (exposure.leadExposure <= 1.0) leadDefenseScore = +20;
+    else if (exposure.leadExposure >= 4.0) leadDefenseScore = -600;
+    else if (exposure.leadExposure >= 2.0) leadDefenseScore = -300;
+
+    if (leadOHKO) leadDefenseScore += 100;
+
+    // Roster-wide defense bonuses & penalties
+    // Boost immunity and resistance scores so true defensive walls are prioritized
+    // against opposing counter-attacks over frail glass cannons
+    const immunityScore = exposure.immuneCount * 150;
+    const resistScore = exposure.resisted * 60;
+    const weakPenalty = exposure.weakCount * 150;
+    const quadPenalty = exposure.quadWeakCount * 600;
+    const walledPenalty = walledCount * 600;
+
+    // Cumulative neutral attrition penalty:
+    // On teams with >= 5 opponents, taking full neutral (1.0x) damage from 4+ opponents
+    // causes heavy cumulative wear-down across consecutive rounds.
+    const neutralCount = oppList.length - (exposure.immuneCount + exposure.resisted + exposure.weakCount + exposure.quadWeakCount);
+    const neutralAttritionPenalty = (oppList.length >= 5 && (exposure.resisted + exposure.immuneCount) < 2)
+      ? (neutralCount * 45)
+      : 0;
+
+    // Class abilities for bulk and sweep reliability
+    const statusBonus = v.statusImmune ? 60 : 0;
+    const hpBonus = (v.hp > 1) ? Math.round((v.hp - 1) * 150) : 0;
+    const flinchBonus = v.flinch ? 30 : 0;
+    const critBonus = v.crit > 1 ? 40 : 0;
+    const offenseBonus = v.offense > 1 ? 40 : 0;
+    const coverageBonus = (superEffectiveCount / oppList.length) * 120 + (quadHitsCount * 80);
+
+    const carryScore = offense
+      + levelScore
+      + leadDefenseScore
+      + immunityScore
+      + resistScore
+      + dualTypeBossSniperBonus
+      + dualTypeDoubleResistBonus
+      - (dualTypeResistedTrapCount * 400)
+      - dualTypeWeakPenalty
+      - weakPenalty
+      - quadPenalty
+      - walledPenalty
+      - neutralAttritionPenalty
+      - levelDeficitPenalty
+      - (exposure.effective * 250)
+      + statusBonus
+      + hpBonus
+      + flinchBonus
+      + critBonus
+      + offenseBonus
+      + coverageBonus;
+
+    return {
+      poke: p,
+      exposure,
+      offense,
+      carryScore,
+      leadOHKO,
+      walledCount,
+      dualTypeResistedTrapCount,
+      quadHitsCount,
+      hasOhkoTrap
+    };
   });
 
-  const safeCarries = mapped.filter(x => x.exposure.worst < 2.0);
-  if (safeCarries.length > 0) {
-    return safeCarries.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
+  // Tier 1: Lead-safe (<= 1.0x), zero elemental weaknesses (< 2.0x), not walled, no dual-type resisted traps, no OHKO reliance, level >= avgLvl
+  const tier1 = mapped.filter(x => x.exposure.leadExposure <= 1.0 && x.exposure.worst < 2.0 && x.walledCount === 0 && x.dualTypeResistedTrapCount === 0 && !x.hasOhkoTrap && x.poke.level >= avgLvl);
+  if (tier1.length > 0) {
+    return tier1.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
   }
-  const nonQuadCarries = mapped.filter(x => x.exposure.worst < 4.0);
-  if (nonQuadCarries.length > 0) {
-    return nonQuadCarries.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
+
+  // Tier 2: Lead-safe (<= 1.0x), no quad weaknesses (< 4.0x), not walled, no OHKO reliance, level >= avgLvl
+  const tier2 = mapped.filter(x => x.exposure.leadExposure <= 1.0 && x.exposure.worst < 4.0 && x.walledCount === 0 && !x.hasOhkoTrap && x.poke.level >= avgLvl);
+  if (tier2.length > 0) {
+    return tier2.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
   }
+
+  // Tier 3: Non-quad carries (< 4.0x) with lead OHKO or level advantage
+  const tier3 = mapped.filter(x => x.exposure.worst < 4.0 && (x.leadOHKO || x.exposure.leadExposure <= 1.0));
+  if (tier3.length > 0) {
+    return tier3.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
+  }
+
+  // Tier 4: Fallback
   return mapped.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
+}
+
+// Dynamic Move Guidance for Carry:
+// Evaluates best move vs Lead (Turn 1), and checks if any dual-type or high-level boss
+// requires a different super-effective or quad-effective coverage move (e.g. Dragon Rush / Lava Plume).
+function getCarryMoveGuidance(poke, trainer) {
+  if (!poke) return 'Attack';
+  const oppList = (trainer && trainer.roster && trainer.roster.length > 0)
+    ? trainer.roster
+    : [{ types: (trainer && trainer.types) || ['Normal'] }];
+
+  const leadOpp = oppList[0] || { types: ['Normal'] };
+  const leadScore = scoreVsSingleOpponent(poke, leadOpp.types || ['Normal'], leadOpp.level || 50, leadOpp.moves, leadOpp);
+  const leadMove = (leadScore && leadScore.bestMove) ? leadScore.bestMove.name : 'Attack';
+  const leadType = (leadScore && leadScore.bestMove) ? leadScore.bestMove.type : 'Normal';
+  const leadPwr = (leadScore && leadScore.bestMove) ? leadScore.bestMove.power : 40;
+
+  let bossMove = null;
+  let maxBossMult = 0;
+  for (let i = 1; i < oppList.length; i++) {
+    const opp = oppList[i];
+    const s = scoreVsSingleOpponent(poke, opp.types || ['Normal'], opp.level || 50, opp.moves, opp);
+    if (s.bestMove && s.bestMove.name !== leadMove) {
+      if (s.bestMove.multiplier >= 2.0 && s.bestMove.multiplier > maxBossMult) {
+        maxBossMult = s.bestMove.multiplier;
+        bossMove = s.bestMove.name;
+      }
+    }
+  }
+
+  if (bossMove) {
+    return leadMove + ' / ' + bossMove;
+  }
+  const movePwrStr = leadPwr > 0 ? ' [' + leadPwr + ' Pwr]' : '';
+  return leadMove + ' (' + leadType + ')' + movePwrStr;
+}
+
+// Get the single most effective or super-effective attack for a Pokemon across the trainer's ENTIRE roster.
+// Does NOT assume 1v1 matchup: this Pokemon may fight multiple opponents (or the entire team).
+function getRosterWideBestAttack(poke, trainer) {
+  if (!poke) return 'Attack';
+  const oppList = (trainer && trainer.roster && trainer.roster.length > 0)
+    ? trainer.roster
+    : [{ types: (trainer && trainer.types) || ['Normal'] }];
+
+  const pokeMoves = (poke.moves || []).map(resolveMove).filter(m => !m.isStatus && m.power > 0);
+  if (pokeMoves.length === 0) {
+    const primaryType = (poke.types && poke.types[0]) ? normalizeType(poke.types[0]) : 'Normal';
+    return primaryType + ' Attack';
+  }
+
+  const pokeTypes = normalizeDefenderTypes(poke.types || ['Normal']);
+  const vMultipliers = getVariantMultipliers(poke.variant);
+
+  let bestMove = null;
+  let maxMoveScore = -Infinity;
+
+  for (const m of pokeMoves) {
+    const mType = normalizeType(m.type);
+    const isStab = pokeTypes.includes(mType);
+    let quadCount = 0;
+    let seCount = 0;
+    let neutralCount = 0;
+    let resistedCount = 0;
+    let immuneCount = 0;
+    let totalEffPower = 0;
+
+    for (const opp of oppList) {
+      const oppTypes = normalizeDefenderTypes(opp.types || ['Normal']);
+      const eff = outgoingEffectiveness(poke, mType, oppTypes, opp);
+      const acc = m.isOhko ? 0.30 : (m.accuracy ? m.accuracy / 100 : 1.0);
+      const effPwr = m.power * acc * eff * (isStab ? 1.5 : 1.0) * vMultipliers.offense;
+      totalEffPower += effPwr;
+
+      if (eff >= 4.0) quadCount++;
+      else if (eff >= 2.0) seCount++;
+      else if (eff >= 1.0) neutralCount++;
+      else if (eff > 0.0) resistedCount++;
+      else immuneCount++;
+    }
+
+    let score = totalEffPower
+      + (quadCount * (m.isOhko ? 60 : 300))
+      + (seCount * (m.isOhko ? 30 : 120))
+      + (neutralCount * 30)
+      - (resistedCount * 100)
+      - (immuneCount * 600);
+
+    if (isStab) score += 75;
+    else score -= 40;
+    if (m.isOhko) score -= 350;
+    if (m.isLocking) score -= 160;
+    if (m.isRecharge) score -= 260;
+    if (m.isCharge) score -= 130;
+    if (m.isSuicide) score -= 2500;
+
+    if (score > maxMoveScore) {
+      maxMoveScore = score;
+      bestMove = {
+        name: m.name,
+        type: mType,
+        power: m.power,
+        quadCount,
+        seCount,
+        resistedCount,
+        immuneCount,
+        totalEffPower
+      };
+    }
+  }
+
+  if (!bestMove) {
+    return pokeMoves[0].name;
+  }
+
+  const pwrStr = bestMove.power > 0 ? ' [' + bestMove.power + ' Pwr]' : '';
+  return bestMove.name + ' (' + bestMove.type + ')' + pwrStr;
+}
+
+// Rank trainees by their ability to sweep/defeat opponents alongside the carry:
+// Evaluates roster-wide super-effective power, quad hits, level, and survivability.
+function rankTraineePartners(traineeList, trainer) {
+  const oppList = (trainer && trainer.roster && trainer.roster.length > 0)
+    ? trainer.roster
+    : [{ types: (trainer && trainer.types) || ['Normal'] }];
+
+  return (traineeList || []).map(t => {
+    let quadHits = 0;
+    let seHits = 0;
+    let totalEffPower = 0;
+    let walledCount = 0;
+
+    oppList.forEach(opp => {
+      const s = scoreVsSingleOpponent(t, opp.types || ['Normal'], opp.level || 50, opp.moves, opp);
+      if (s.bestMove) {
+        if (s.bestMove.multiplier >= 4.0) quadHits++;
+        else if (s.bestMove.multiplier >= 2.0) seHits++;
+        else if (s.bestMove.multiplier === 0.0) walledCount++;
+        totalEffPower += s.bestMove.effectivePower;
+      }
+    });
+
+    const exp = getRosterExposure(t, trainer);
+    const lvlScore = (t.level || 1) * 3;
+    const score = (quadHits * 400) + (seHits * 150) + (totalEffPower / oppList.length) + lvlScore - (exp.worst >= 4.0 ? 300 : (exp.worst >= 2.0 ? 100 : 0)) - (walledCount * 400);
+
+    return { poke: t, score, quadHits, seHits, totalEffPower, exp };
+  }).sort((a, b) => b.score - a.score);
 }
 
 const MULTI_HIT_MOVES = {
@@ -337,9 +699,10 @@ function resolveMove(m) {
   const declaredType = (typeof m === 'object' && m && m.type) ? m.type : null;
   const cleanKey = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
   const skillData = (skillsMap && skillsMap[cleanKey]) ? skillsMap[cleanKey] : null;
-
   const name = rawName || (skillData ? skillData.name : 'Tackle');
-  const type = declaredType || (skillData ? skillData.type : 'Normal');
+  const normDeclared = normalizeType(declaredType);
+  const validDeclared = ALL_TYPES.includes(normDeclared) ? normDeclared : null;
+  const type = (skillData && skillData.type) ? skillData.type : (validDeclared || 'Normal');
   let category = skillData ? (skillData.category || 'Physical') : 'Physical';
   let power = 40;
 
@@ -359,13 +722,23 @@ function resolveMove(m) {
     }
   }
   const isStatus = category === 'Status' || power === 0;
+  const isLocking = ['outrage', 'thrash', 'petaldance'].includes(cleanKey);
+  const isRecharge = ['hyperbeam', 'gigaimpact', 'blastburn', 'frenzyplant', 'hydrocannon', 'roaroftime', 'prismaticlaser', 'eternabeam'].includes(cleanKey);
+  const isCharge = ['skyattack', 'solarbeam', 'solarblade', 'skullbash', 'razorwind', 'geomancy', 'fly', 'dig', 'dive', 'bounce', 'shadowforce'].includes(cleanKey);
+  const isOhko = !!(skillData && skillData.special && skillData.special.mechanic === 'ohko') || ['fissure', 'guillotine', 'horndrill', 'sheercold'].includes(cleanKey);
+  const isSuicide = ['explosion', 'selfdestruct', 'mistyexplosion', 'finalgambit'].includes(cleanKey);
 
   return {
     name,
     type: normalizeType(type),
     power,
     category,
-    isStatus
+    isStatus,
+    isLocking,
+    isRecharge,
+    isCharge,
+    isOhko,
+    isSuicide
   };
 }
 
@@ -438,11 +811,18 @@ function extractPokemonFromHtml(html) {
   return pokemons;
 }
 
-function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null) {
+function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null, opp = null) {
+  let targetTypes = oppTypes;
+  let targetOpp = opp;
+  if (oppTypes && typeof oppTypes === 'object' && !Array.isArray(oppTypes)) {
+    if (oppTypes.types) targetTypes = oppTypes.types;
+    if (!targetOpp) targetOpp = oppTypes;
+  }
   let bestMove = null;
+  let bestMoveScore = -Infinity;
   let maxOffense = 0;
 
-  const normalizedOppTypes = normalizeDefenderTypes(oppTypes);
+  const normalizedOppTypes = normalizeDefenderTypes(targetTypes);
   const vMultipliers = getVariantMultipliers(poke.variant);
   const pokeTypes = normalizeDefenderTypes(poke.types || ['Normal']);
 
@@ -451,19 +831,47 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null) {
 
   if (moves.length > 0) {
     for (const m of moves) {
-      const eff = outgoingEffectiveness(poke, m.type, normalizedOppTypes);
+      const eff = outgoingEffectiveness(poke, m.type, normalizedOppTypes, targetOpp);
       const isStab = pokeTypes.includes(normalizeType(m.type));
       const totalMult = eff * (isStab ? 1.5 : 1.0);
+      const accFactor = m.isOhko ? 0.30 : (m.accuracy ? m.accuracy / 100 : 1.0);
       const effectivePower = m.power * eff * (isStab ? 1.5 : 1.0) * vMultipliers.offense;
+      const evPower = effectivePower * accFactor;
 
-      if (effectivePower > maxOffense) {
-        maxOffense = effectivePower;
+      // Prioritize moves by super-effectiveness first, then expected power:
+      // Quad super-effective (>= 4.0x) > super-effective (>= 2.0x) > neutral (>= 1.0x) > resisted (< 1.0x)
+      let moveScore = evPower;
+      if (eff >= 4.0) moveScore += (m.isOhko ? 100 : 500);
+      else if (eff >= 2.0) moveScore += (m.isOhko ? 50 : 200);
+      else if (eff < 1.0) moveScore -= 300;
+      if (eff === 0.0) moveScore -= 2000;
+
+      // STAB consistency & solo carry reliability hardening:
+      if (isStab) {
+        moveScore += 75; // Reward STAB consistency
+      } else if (eff <= 1.0) {
+        moveScore -= 50; // Penalize non-STAB attacks on neutral or resisted targets
+      }
+      if (m.isOhko) moveScore -= 450; // 30% OHKO moves are unacceptable for reliable solo sweeps
+      if (m.isLocking) moveScore -= 160; // Outrage / Thrash locking & confusion trap
+      if (m.isRecharge) moveScore -= 260; // Recharge turns leave carry vulnerable to defeat
+      if (m.isCharge) moveScore -= 130; // 2-turn charge moves waste turns
+      if (m.isSuicide) moveScore -= 2500; // Never suicide
+
+      if (moveScore > bestMoveScore) {
+        bestMoveScore = moveScore;
+        maxOffense = evPower;
         bestMove = {
           name: m.name,
           type: normalizeType(m.type),
           power: m.power,
           multiplier: eff,
           isStab: isStab,
+          isOhko: !!m.isOhko,
+          isLocking: !!m.isLocking,
+          isRecharge: !!m.isRecharge,
+          isCharge: !!m.isCharge,
+          accuracy: m.accuracy || (m.isOhko ? 30 : 100),
           totalPowerMult: totalMult,
           effectivePower: effectivePower
         };
@@ -472,10 +880,12 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null) {
   } else {
     // Universal STAB fallback when candidate has no damaging moves (empty moveset or status-only moves)
     for (const pType of pokeTypes) {
-      const eff = outgoingEffectiveness(poke, pType, normalizedOppTypes);
+      const eff = outgoingEffectiveness(poke, pType, normalizedOppTypes, targetOpp);
       const totalMult = eff * 1.5;
       const effectivePower = 40 * totalMult * vMultipliers.offense;
-      if (effectivePower > maxOffense) {
+      let moveScore = effectivePower + (eff >= 2.0 ? 100 : 0);
+      if (moveScore > bestMoveScore) {
+        bestMoveScore = moveScore;
         maxOffense = effectivePower;
         bestMove = {
           name: pType + ' Attack',
@@ -510,7 +920,7 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null) {
   let isMutualSelfTrap = false;
 
   for (const ot of normalizedOppTypes) {
-    const risk = incomingEffectiveness(poke, ot);
+    const risk = incomingEffectiveness(poke, ot, targetOpp);
     if (risk > worstDefRisk) worstDefRisk = risk;
     if (risk > 0.5) resistsAll = false;
     if (risk === 0.0) hasImmunity = true;
@@ -540,7 +950,7 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null) {
     for (const rawM of oppMoves) {
       const rm = resolveMove(rawM);
       if (!rm.isStatus && rm.power > 0 && rm.type) {
-        const covRisk = incomingEffectiveness(poke, rm.type);
+        const covRisk = incomingEffectiveness(poke, rm.type, targetOpp);
         if (covRisk > worstCovRisk) worstCovRisk = covRisk;
       }
     }
@@ -558,8 +968,14 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null) {
   if (vMultipliers.statusImmune) defScore += 10;
   if (vMultipliers.flinch) defScore += 5;
 
+  let traitDeduction = 0;
+  if (bestMove.isOhko) traitDeduction += 300;
+  if (bestMove.isLocking) traitDeduction += 90;
+  if (bestMove.isRecharge) traitDeduction += 140;
+  if (bestMove.isCharge) traitDeduction += 70;
+
   const offenseScore = (bestMove.effectivePower > 0)
-    ? (bestMove.effectivePower / 40) * 35 + (bestMove.multiplier >= 2.0 ? 30 : 0) + (bestMove.multiplier >= 4.0 ? 25 : 0) + (bestMove.isStab ? 15 : 0)
+    ? Math.max(0, (bestMove.effectivePower / 40) * 35 + (bestMove.multiplier >= 2.0 ? 30 : 0) + (bestMove.multiplier >= 4.0 ? 25 : 0) + (bestMove.isStab ? 15 : 0) - traitDeduction)
     : -200;
 
   // Universal Level Scaling: level contributes to combat stats and survivability
@@ -671,12 +1087,27 @@ function isCommonPokemon(pokeOrName) {
   return !isLegendaryPokemon(pokeOrName) && !isUltraBeast(pokeOrName) && !isParadoxPokemon(pokeOrName);
 }
 
+function isAlreadyGmax(pokeOrName) {
+  if (!pokeOrName) return false;
+  const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
+  const lower = raw.toLowerCase().trim();
+  const variant = (typeof pokeOrName === 'object' && pokeOrName.variant) ? String(pokeOrName.variant).toLowerCase() : '';
+  return lower.includes('g-max') || lower.includes('gigantamax') || lower.includes('gmax') || variant.includes('g-max') || variant.includes('gmax');
+}
+
+function isGmaxEligible(pokeOrName) {
+  if (!pokeOrName) return false;
+  if (isAlreadyGmax(pokeOrName)) return false;
+  return isGmaxPokemon(pokeOrName);
+}
+
 function isGmaxPokemon(pokeOrName) {
   if (!pokeOrName) return false;
   const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
-  const lower = raw.toLowerCase();
+  const lower = raw.toLowerCase().trim();
+  const variant = (typeof pokeOrName === 'object' && pokeOrName.variant) ? String(pokeOrName.variant).toLowerCase() : '';
+  if (lower.includes('mega ') || lower.includes('mega-') || lower.includes('primal ') || lower.endsWith(' mega') || lower.endsWith(' primal') || variant.includes('mega')) return false;
   if (lower.includes('g-max') || lower.includes('gigantamax') || lower.includes('gmax')) return true;
-  if (lower.includes('mega ')) return false;
   const base = getBaseSpecies(raw);
   return GMAX_SPECIES.includes(base);
 }
@@ -708,17 +1139,161 @@ function isMegaPokemon(pokeOrName) {
   return MEGA_SPECIES.includes(base);
 }
 
+function isActualMegaEvolution(pokeOrName) {
+  if (!pokeOrName) return false;
+  const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
+  const lower = raw.toLowerCase().trim();
+  return lower.includes('mega ') || lower.includes('primal ') || lower.startsWith('mega-') || lower.endsWith(' mega') || lower.endsWith(' primal');
+}
+
+function evaluateOwnershipAndMegaEquivalence(nameOrText, collection) {
+  if (!nameOrText || !Array.isArray(collection) || collection.length === 0) {
+    return {
+      isDuplicate: false,
+      isOwned: false,
+      hasMegaOwned: false,
+      hasExactOwned: false,
+      ownedPokemon: null,
+      type: 'UNOWNED',
+      alertTitle: '',
+      alertMessage: '',
+      reason: ''
+    };
+  }
+
+  let candidate = String(nameOrText).trim();
+  const appearedMatch = candidate.match(/(?:wild|caught)\s+([A-Za-z0-9\s\(\)\-']+?)\s+appeared/i);
+  if (appearedMatch) {
+    candidate = appearedMatch[1];
+  }
+  candidate = candidate.replace(/^(ULTRABEAST|PARADOX POKEMON|LEGENDARY POKEMON|MEGA EVOLUTION)\s+/i, '');
+  candidate = candidate.replace(/^A wild\s+/i, '');
+
+  const cleanCandidate = candidate.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const baseSpecies = getBaseSpecies(candidate);
+  if (!baseSpecies) {
+    return {
+      isDuplicate: false,
+      isOwned: false,
+      hasMegaOwned: false,
+      hasExactOwned: false,
+      ownedPokemon: null,
+      type: 'UNOWNED',
+      alertTitle: '',
+      alertMessage: '',
+      reason: ''
+    };
+  }
+
+  const matchingSpecies = [];
+  const matchingMegas = [];
+  let exactMatch = null;
+
+  for (let i = 0; i < collection.length; i++) {
+    const p = collection[i];
+    if (!p || !p.name) continue;
+    const pBase = getBaseSpecies(p.name);
+    const pClean = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const pFullClean = ((p.variant || 'Normal') + ' ' + p.name).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    if (pClean === cleanCandidate || pFullClean === cleanCandidate) {
+      if (!exactMatch || (p.level || 0) > (exactMatch.level || 0)) {
+        exactMatch = p;
+      }
+    }
+
+    if (pBase === baseSpecies) {
+      matchingSpecies.push(p);
+      if (isActualMegaEvolution(p.name)) {
+        matchingMegas.push(p);
+      }
+    }
+  }
+
+  const capitalize = (s) => s ? (s.charAt(0).toUpperCase() + s.slice(1)) : '';
+
+  if (matchingMegas.length > 0) {
+    matchingMegas.sort((a, b) => (b.level || 0) - (a.level || 0));
+    const topMega = matchingMegas[0];
+    const fullMegaName = (topMega.name.toLowerCase().startsWith((topMega.variant || 'Normal').toLowerCase()) || topMega.variant === 'Normal')
+      ? topMega.name
+      : `${topMega.variant} ${topMega.name}`;
+
+    return {
+      isDuplicate: true,
+      isOwned: true,
+      hasMegaOwned: true,
+      hasExactOwned: Boolean(exactMatch),
+      ownedPokemon: topMega,
+      type: 'MEGA_ALREADY_OWNED',
+      alertTitle: 'STOP: MEGA EVOLUTION ALREADY OWNED',
+      alertMessage: `You already own ${fullMegaName} (Lv ${topMega.level || 100})!`,
+      reason: `You already own the Mega Evolution of ${capitalize(baseSpecies)}. 100% uniqueness protection active.`
+    };
+  }
+
+  if (exactMatch) {
+    const fullExactName = (exactMatch.name.toLowerCase().startsWith((exactMatch.variant || 'Normal').toLowerCase()) || exactMatch.variant === 'Normal')
+      ? exactMatch.name
+      : `${exactMatch.variant} ${exactMatch.name}`;
+
+    return {
+      isDuplicate: true,
+      isOwned: true,
+      hasMegaOwned: false,
+      hasExactOwned: true,
+      ownedPokemon: exactMatch,
+      type: 'EXACT_ALREADY_OWNED',
+      alertTitle: 'STOP: POKEMON ALREADY OWNED',
+      alertMessage: `You already own ${fullExactName} (Lv ${exactMatch.level || 100})!`,
+      reason: `Exact Pokemon already exists in your collection. 100% uniqueness protection active.`
+    };
+  }
+
+  if (matchingSpecies.length > 0) {
+    matchingSpecies.sort((a, b) => (b.level || 0) - (a.level || 0));
+    const topSp = matchingSpecies[0];
+    const fullSpName = (topSp.name.toLowerCase().startsWith((topSp.variant || 'Normal').toLowerCase()) || topSp.variant === 'Normal')
+      ? topSp.name
+      : `${topSp.variant} ${topSp.name}`;
+
+    return {
+      isDuplicate: true,
+      isOwned: true,
+      hasMegaOwned: false,
+      hasExactOwned: false,
+      ownedPokemon: topSp,
+      type: 'SPECIES_ALREADY_OWNED',
+      alertTitle: 'STOP: SPECIES ALREADY IN COLLECTION',
+      alertMessage: `You already own ${fullSpName} (Lv ${topSp.level || 100})!`,
+      reason: `Species ${capitalize(baseSpecies)} already exists in your collection. 100% uniqueness protection active.`
+    };
+  }
+
+  return {
+    isDuplicate: false,
+    isOwned: false,
+    hasMegaOwned: false,
+    hasExactOwned: false,
+    ownedPokemon: null,
+    type: 'UNOWNED',
+    alertTitle: '',
+    alertMessage: '',
+    reason: ''
+  };
+}
+
 function filterCandidatePool(collection, filterType) {
   if (!collection || !Array.isArray(collection)) return [];
   const type = (filterType || 'ANY').toUpperCase();
   switch (type) {
     case 'GMAX':
-      return collection.filter(isGmaxPokemon);
+      return collection.filter(isGmaxEligible);
     case 'MEGA':
     case 'MEGAS':
       return collection.filter(isMegaPokemon);
     case 'GMAX_MEGA':
-      return collection.filter(p => isGmaxPokemon(p) || isMegaPokemon(p));
+      return collection.filter(p => isGmaxEligible(p) || isMegaPokemon(p));
     case 'LEGENDARY':
       return collection.filter(isLegendaryPokemon);
     case 'ULTRABEAST':
@@ -733,8 +1308,122 @@ function filterCandidatePool(collection, filterType) {
   }
 }
 
-function buildBestTeam(trainer, collection) {
+function buildBestTeam(trainer, collection, fullCollection = null) {
   if (!trainer || !collection || collection.length === 0) return [];
+
+  const isChallenge = Boolean(
+    trainer.isChallenge ||
+    (trainer.name && trainer.name.toLowerCase().includes('challenge')) ||
+    (trainer.battleUrl && trainer.battleUrl.toLowerCase().includes('challenge'))
+  );
+
+  let candidatePool = collection;
+  if (isChallenge) {
+    candidatePool = candidatePool.filter(p => !isAlreadyGmax(p));
+  }
+  if (candidatePool.length === 0) return [];
+
+  // Dedicated G-Max Challenge Hybrid Team: 1 Level 100 G-Max Target (to evolve) + 5 Top Universal Carries (to sweep)
+  if (isChallenge && (!trainer.roster || trainer.roster.length === 0)) {
+    const fullPool = (fullCollection && Array.isArray(fullCollection) && fullCollection.length > 0)
+      ? fullCollection
+      : collection;
+
+    // 1. Pick the best Level 100 G-Max eligible Pokemon as Slot 1 Target
+    const gmaxEligible = candidatePool.concat(fullPool).filter(isGmaxEligible);
+    const lvl100Gmax = gmaxEligible.filter(p => (p.level || 0) === 100);
+    const targetPool = (lvl100Gmax.length > 0 ? lvl100Gmax : gmaxEligible).slice();
+
+    targetPool.sort((a, b) => {
+      const aScore = scoreVsSingleOpponent(a, ['Mixed'], 100).totalScore;
+      const bScore = scoreVsSingleOpponent(b, ['Mixed'], 100).totalScore;
+      return bScore - aScore;
+    });
+
+    const chosen = [];
+    const chosenIds = new Set();
+    const chosenSpecies = new Set();
+
+    const targetPoke = targetPool[0];
+    if (targetPoke) {
+      chosenIds.add(targetPoke.id);
+      chosenSpecies.add(getBaseSpecies(targetPoke.name));
+      const bestM = getBestUniversalMove(targetPoke);
+      const movePwr = (bestM && bestM.power > 0) ? ' [' + bestM.power + ' Pwr]' : '';
+      const pTypes = (targetPoke.types && targetPoke.types.length > 0) ? targetPoke.types : ['Normal'];
+      chosen.push({
+        slot: 1,
+        id: targetPoke.id,
+        name: targetPoke.name,
+        variant: targetPoke.variant || 'Normal',
+        level: targetPoke.level || 100,
+        types: pTypes,
+        sprite: targetPoke.sprite || '',
+        role: 'G-MAX TARGET',
+        targetName: 'G-Max Evolution Target',
+        bestMove: bestM ? (bestM.name + ' (' + bestM.type + ')' + movePwr) : `${pTypes[0]} Attack`,
+        score: 1000
+      });
+    }
+
+    // 2. Slots 2 through 6: Fill with the 5 BEST CARRIES from the collection (strictly 0 quad weaknesses)
+    const carriesPool = fullPool.filter(p => !chosenIds.has(p.id) && !isAlreadyGmax(p));
+    const cleanCarries = carriesPool.filter(p => {
+      const prof = getDefensiveProfile(p.types || ['Normal']);
+      return prof.quadWeaknesses.length === 0;
+    });
+    const effectiveCarryPool = cleanCarries.length >= 5 ? cleanCarries : carriesPool;
+    const godSquad = buildGodSquadTeam(effectiveCarryPool, 'ANY');
+
+    for (const c of godSquad) {
+      if (chosen.length >= 6) break;
+      if (chosenIds.has(c.id)) continue;
+      const spec = getBaseSpecies(c.name);
+      if (chosenSpecies.has(spec)) continue;
+
+      chosenIds.add(c.id);
+      chosenSpecies.add(spec);
+      chosen.push(Object.assign({}, c, {
+        slot: chosen.length + 1,
+        targetName: 'Mystery Trainer Sweeper'
+      }));
+    }
+
+    // Pass 2: If small pool or unfilled slots, fill up to targetCount
+    const targetCount = Math.min(6, (candidatePool.length > fullPool.length ? candidatePool.length : fullPool.length));
+    if (chosen.length < targetCount) {
+      const remainingCarries = carriesPool.filter(p => !chosenIds.has(p.id));
+      remainingCarries.sort((a, b) => {
+        const aLvl = (a.level || 0);
+        const bLvl = (b.level || 0);
+        if (bLvl !== aLvl) return bLvl - aLvl;
+        return scoreVsSingleOpponent(b, ['Mixed'], 100).totalScore - scoreVsSingleOpponent(a, ['Mixed'], 100).totalScore;
+      });
+
+      for (const pick of remainingCarries) {
+        if (chosen.length >= targetCount) break;
+        chosenIds.add(pick.id);
+        const bestM = getBestUniversalMove(pick);
+        const movePwr = (bestM && bestM.power > 0) ? ' [' + bestM.power + ' Pwr]' : '';
+        const pTypes = (pick.types && pick.types.length > 0) ? pick.types : ['Normal'];
+        chosen.push({
+          slot: chosen.length + 1,
+          id: pick.id,
+          name: pick.name,
+          variant: pick.variant || 'Normal',
+          level: pick.level || 100,
+          types: pTypes,
+          sprite: pick.sprite || '',
+          role: 'MYSTERY CARRIER',
+          targetName: 'Mystery Trainer Sweeper',
+          bestMove: bestM ? (bestM.name + ' (' + bestM.type + ')' + movePwr) : `${pTypes[0]} Attack`,
+          score: 800
+        });
+      }
+    }
+
+    return chosen;
+  }
 
   // 1. Roster-based counter matching (Champions, Elite 4, Gym Leaders with rosters, or live battle page scan)
   if (trainer.roster && Array.isArray(trainer.roster) && trainer.roster.length > 0) {
@@ -747,10 +1436,12 @@ function buildBestTeam(trainer, collection) {
       const oppTypes = (opp.types && opp.types.length > 0) ? opp.types : ['Normal'];
       const oppLevel = opp.level || trainer.avgLevel || 50;
 
-      const available = collection.filter(p => !chosenIds.has(p.id));
+      const available = candidatePool.filter(p => !chosenIds.has(p.id));
       const scored = available
         .map(p => {
-          const s = scoreVsSingleOpponent(p, oppTypes, oppLevel, opp.moves);
+          const evalPoke = isChallenge ? Object.assign({}, p, { level: 100 }) : p;
+          const s = scoreVsSingleOpponent(evalPoke, oppTypes, oppLevel, opp.moves, opp);
+          s.pokemon = p;
           let versatilityBonus = 0;
           for (let oi = 0; oi < trainer.roster.length; oi++) {
             if (oi === i) continue;
@@ -758,7 +1449,7 @@ function buildBestTeam(trainer, collection) {
             const otherTypes = (otherOpp.types && otherOpp.types.length > 0) ? otherOpp.types : ['Normal'];
             for (const m of (p.moves || []).map(resolveMove)) {
               if (!m.isStatus && m.power > 0) {
-                const eff = outgoingEffectiveness(p, m.type, otherTypes);
+                const eff = outgoingEffectiveness(p, m.type, otherTypes, otherOpp);
                 if (eff >= 2.0) {
                   versatilityBonus += (eff >= 4.0 ? 4 : 2);
                   break;
@@ -813,26 +1504,21 @@ function buildBestTeam(trainer, collection) {
     }
 
     // Fill remaining slots up to 6
-    const targetCount = Math.min(6, collection.length);
+    const targetCount = Math.min(6, candidatePool.length);
     if (chosen.length < targetCount) {
       const trainerTypes = (trainer.types && trainer.types.length > 0) ? trainer.types : ['Normal'];
       const trainerAvgLvl = trainer.avgLevel || 50;
-      const available = collection.filter(p => !chosenIds.has(p.id));
+      const available = candidatePool.filter(p => !chosenIds.has(p.id));
       const remainingScored = available
-        .map(p => scoreVsSingleOpponent(p, trainerTypes, trainerAvgLvl));
+        .map(p => {
+          const evalPoke = isChallenge ? Object.assign({}, p, { level: 100 }) : p;
+          const s = scoreVsSingleOpponent(evalPoke, trainerTypes, trainerAvgLvl);
+          s.pokemon = p;
+          return s;
+        });
+      remainingScored.sort((a, b) => b.totalScore - a.totalScore);
 
-      const diverseRemaining = remainingScored.filter(s => !chosenSpecies.has(getBaseSpecies(s.pokemon.name)));
-      const pool = (diverseRemaining.length >= (targetCount - chosen.length) && diverseRemaining.some(s => s.totalScore > 0))
-        ? diverseRemaining
-        : remainingScored;
-
-      pool.sort((a, b) => b.totalScore - a.totalScore);
-
-      for (let j = 0; j < pool.length && chosen.length < targetCount; j++) {
-        const item = pool[j];
-        chosenIds.add(item.pokemon.id);
-        chosenSpecies.add(getBaseSpecies(item.pokemon.name));
-
+      function formatReserveMember(item, slotNum) {
         let anchorRole = '';
         if (item.worstDefRisk <= 0.0) {
           anchorRole = 'Immune Anchor';
@@ -845,10 +1531,9 @@ function buildBestTeam(trainer, collection) {
         } else {
           anchorRole = 'High-Level Anchor';
         }
-
         const movePwrStr = item.bestMove.power > 0 ? ' [' + item.bestMove.power + ' Pwr]' : '';
-        chosen.push({
-          slot: chosen.length + 1,
+        return {
+          slot: slotNum,
           id: item.pokemon.id,
           name: item.pokemon.name,
           variant: item.pokemon.variant,
@@ -859,7 +1544,52 @@ function buildBestTeam(trainer, collection) {
           targetName: 'Reserve Anchor',
           role: anchorRole,
           score: Math.round(item.totalScore)
-        });
+        };
+      }
+
+      // Pass 1: Diverse species (skip low-level babies < 80 if powerhouse >= 90 is available, unless challenge mode)
+      for (const item of remainingScored) {
+        if (chosen.length >= targetCount) break;
+        const spec = getBaseSpecies(item.pokemon.name);
+        if (!chosenSpecies.has(spec)) {
+          if (!isChallenge) {
+            const topRemaining = remainingScored.find(x => !chosenIds.has(x.pokemon.id));
+            if (topRemaining && (topRemaining.pokemon.level || 0) >= 90 && (item.pokemon.level || 0) < 80) {
+              continue;
+            }
+          }
+          chosenIds.add(item.pokemon.id);
+          chosenSpecies.add(spec);
+          chosen.push(formatReserveMember(item, chosen.length + 1));
+        }
+      }
+
+      // Pass 2: Fill remaining unfilled slots up to targetCount (prioritizing high levels/powerhouses)
+      const remainingUnchosen = remainingScored.filter(item => !chosenIds.has(item.pokemon.id));
+      remainingUnchosen.sort((a, b) => {
+        const aLvl = isChallenge ? 100 : (a.pokemon.level || 0);
+        const bLvl = isChallenge ? 100 : (b.pokemon.level || 0);
+        const aBonus = aLvl >= 90 ? 1000 : 0;
+        const bBonus = bLvl >= 90 ? 1000 : 0;
+        return (bBonus + b.totalScore) - (aBonus + a.totalScore);
+      });
+      for (const item of remainingUnchosen) {
+        if (chosen.length >= targetCount) break;
+        chosenIds.add(item.pokemon.id);
+        chosen.push(formatReserveMember(item, chosen.length + 1));
+      }
+    }
+
+    // Ensure challenge team has at least one Lv 100 member if available in pool (DelugeRPG Rule 2)
+    if (isChallenge && !chosen.some(p => p.level === 100) && candidatePool.some(p => p.level === 100)) {
+      const bestLvl100 = candidatePool.filter(p => p.level === 100 && !chosenIds.has(p.id))[0];
+      if (bestLvl100 && chosen.length > 0) {
+        chosen[chosen.length - 1] = formatReserveMember({
+          pokemon: bestLvl100,
+          bestMove: { name: (bestLvl100.moves && bestLvl100.moves[0] ? bestLvl100.moves[0].name : 'Attack'), type: 'Normal', power: 0, multiplier: 1.0 },
+          worstDefRisk: 1.0,
+          totalScore: 100
+        }, chosen.length);
       }
     }
 
@@ -869,47 +1599,93 @@ function buildBestTeam(trainer, collection) {
   // 2. Gym theme type matching
   const trainerTypes = trainer.types && trainer.types.length > 0 ? trainer.types : ['Normal'];
   const trainerAvgLvl = trainer.avgLevel || 50;
-  const scored = collection.map(p => scoreVsSingleOpponent(p, trainerTypes, trainerAvgLvl));
+  const scored = candidatePool.map(p => {
+    const evalPoke = isChallenge ? Object.assign({}, p, { level: 100 }) : p;
+    const s = scoreVsSingleOpponent(evalPoke, trainerTypes, trainerAvgLvl);
+    s.pokemon = p;
+    return s;
+  });
   scored.sort((a, b) => b.totalScore - a.totalScore);
 
+  const targetCount = Math.min(6, candidatePool.length);
   const selected = [];
   const seenIds = new Set();
   const seenSpecies = new Set();
+
+  function formatSelectedMember(s, slotNum) {
+    let roleDesc = '';
+    if (s.worstDefRisk <= 0.0) {
+      roleDesc = 'Immune Anchor';
+    } else if (s.bestMove.multiplier >= 4.0) {
+      roleDesc = 'Critical Counter (STAB 4.0x)';
+    } else if (s.worstDefRisk <= 0.5) {
+      roleDesc = 'Defensive Counter (Resists Gym)';
+    } else if (s.bestMove.multiplier >= 2.0) {
+      roleDesc = 'Super-Effective (' + s.bestMove.multiplier.toFixed(1) + 'x)';
+    } else if (s.pokemon.level === 100) {
+      roleDesc = 'High-Level Tank';
+    } else {
+      roleDesc = 'Neutral Anchor';
+    }
+    const movePwrStr = s.bestMove.power > 0 ? ' [' + s.bestMove.power + ' Pwr]' : '';
+    return {
+      slot: slotNum,
+      id: s.pokemon.id,
+      name: s.pokemon.name,
+      variant: s.pokemon.variant,
+      level: s.pokemon.level,
+      types: s.pokemon.types,
+      sprite: s.pokemon.sprite,
+      bestMove: s.bestMove.name + ' (' + s.bestMove.type + ')' + movePwrStr,
+      role: roleDesc,
+      score: Math.round(s.totalScore)
+    };
+  }
+
+  // Pass 1: Select top scorers preferring diverse species (skip low-level babies < 80 if powerhouse >= 90 is available, unless challenge mode)
   for (const s of scored) {
     const spec = getBaseSpecies(s.pokemon.name);
-    if (!seenIds.has(s.pokemon.id) && (!seenSpecies.has(spec) || selected.length >= collection.length)) {
+    if (!seenIds.has(s.pokemon.id) && !seenSpecies.has(spec)) {
+      if (!isChallenge) {
+        const topRemaining = scored.find(x => !seenIds.has(x.pokemon.id));
+        if (topRemaining && (topRemaining.pokemon.level || 0) >= 90 && (s.pokemon.level || 0) < 80) {
+          continue;
+        }
+      }
       seenIds.add(s.pokemon.id);
       seenSpecies.add(spec);
+      selected.push(formatSelectedMember(s, selected.length + 1));
+      if (selected.length === targetCount) break;
+    }
+  }
 
-      let roleDesc = '';
-      if (s.worstDefRisk <= 0.0) {
-        roleDesc = 'Immune Anchor';
-      } else if (s.bestMove.multiplier >= 4.0) {
-        roleDesc = 'Critical Counter (STAB 4.0x)';
-      } else if (s.worstDefRisk <= 0.5) {
-        roleDesc = 'Defensive Counter (Resists Gym)';
-      } else if (s.bestMove.multiplier >= 2.0) {
-        roleDesc = 'Super-Effective (' + s.bestMove.multiplier.toFixed(1) + 'x)';
-      } else if (s.pokemon.level === 100) {
-        roleDesc = 'High-Level Tank';
-      } else {
-        roleDesc = 'Neutral Anchor';
-      }
+  // Pass 2: Fill any remaining slots up to targetCount (prioritizing high levels/powerhouses)
+  if (selected.length < targetCount) {
+    const remainingScoredUnseen = scored.filter(s => !seenIds.has(s.pokemon.id));
+    remainingScoredUnseen.sort((a, b) => {
+      const aLvl = isChallenge ? 100 : (a.pokemon.level || 0);
+      const bLvl = isChallenge ? 100 : (b.pokemon.level || 0);
+      const aBonus = aLvl >= 90 ? 1000 : 0;
+      const bBonus = bLvl >= 90 ? 1000 : 0;
+      return (bBonus + b.totalScore) - (aBonus + a.totalScore);
+    });
+    for (const s of remainingScoredUnseen) {
+      seenIds.add(s.pokemon.id);
+      selected.push(formatSelectedMember(s, selected.length + 1));
+      if (selected.length === targetCount) break;
+    }
+  }
 
-      const movePwrStr = s.bestMove.power > 0 ? ' [' + s.bestMove.power + ' Pwr]' : '';
-      selected.push({
-        slot: selected.length + 1,
-        id: s.pokemon.id,
-        name: s.pokemon.name,
-        variant: s.pokemon.variant,
-        level: s.pokemon.level,
-        types: s.pokemon.types,
-        sprite: s.pokemon.sprite,
-        bestMove: s.bestMove.name + ' (' + s.bestMove.type + ')' + movePwrStr,
-        role: roleDesc,
-        score: Math.round(s.totalScore)
-      });
-      if (selected.length === 6) break;
+  // Ensure challenge team has at least one Lv 100 member if available in pool (DelugeRPG Rule 2)
+  if (isChallenge && !selected.some(p => p.level === 100) && candidatePool.some(p => p.level === 100)) {
+    const bestLvl100 = candidatePool.filter(p => p.level === 100 && !seenIds.has(p.id))[0];
+    if (bestLvl100 && selected.length > 0) {
+      selected[selected.length - 1] = formatSelectedMember({
+        pokemon: bestLvl100,
+        bestMove: { name: (bestLvl100.moves && bestLvl100.moves[0] ? bestLvl100.moves[0].name : 'Attack'), type: 'Normal', power: 0, multiplier: 1.0 },
+        worstDefRisk: 1.0,
+        totalScore: 100
+      }, selected.length);
     }
   }
 
@@ -947,7 +1723,7 @@ function canSoloTrainer(poke, trainer) {
     )));
     let oppMaxDamage = 0;
     for (const ot of oppAttackTypes) {
-      const inc = incomingEffectiveness(poke, ot);
+      const inc = incomingEffectiveness(poke, ot, opp);
       if (inc > worstIncoming) worstIncoming = inc;
       if (inc > oppMaxDamage) oppMaxDamage = inc;
       if ((ot === 'Dragon' || ot === 'Ghost') && pokeTypes.includes(ot) && inc >= 1.5) {
@@ -957,22 +1733,34 @@ function canSoloTrainer(poke, trainer) {
     if (oppMaxDamage > 0) allOpponentsZeroDamage = false;
   }
 
+  const isMixedTrainer = (
+    (trainer.types && trainer.types.some(t => /mixed/i.test(t))) ||
+    (!trainer.types || trainer.types.length === 0)
+  );
+  if (isMixedTrainer) {
+    const defProfile = getDefensiveProfile(poke.types);
+    if (defProfile.quadWeaknesses.length > 0) {
+      return false; // Cannot guarantee solo against unpredictable mixed roster with 4x OHKO vulnerability
+    }
+  }
+
   // Fatal weakness: soloer cannot have super-effective elemental weaknesses (>= 2.0x)
   if (worstIncoming >= 2.0) return false;
   // Mutual self-type trap (Dragon vs Dragon, Ghost vs Ghost): cannot solo unless user has decisive level advantage
   if (isMutualSelfTrap && pokeLvl < (trainerAvgLvl + 25)) return false;
 
   // Level deficit guard:
-  // If opponent is > 15 levels higher:
-  // - Complete immune wall (all incoming attacks deal 0 damage): safe!
-  // - Or moderate gap (<= 25 levels) with strictly safe defense (worstIncoming <= 1.0)
-  // Severe level deficit (> 25 levels) with non-zero incoming damage will get one-shot
+  // An under-leveled Pokemon can ONLY solo if:
+  // - Complete immune wall: all incoming attacks deal 0 damage
+  // - Early-game gym (trainerAvgLvl <= 30) with moderate gap (<= 25 levels) and strictly safe defense (worstIncoming <= 1.0)
+  //   (e.g. Kangaskhan Lv 2 vs Ghost Morty Lv 23, Comfey Lv 3 vs Brock Lv 13)
+  // In high-level battles (trainerAvgLvl > 30), any non-immune level deficit will take non-zero damage and faint!
   const lvlDeficit = trainerAvgLvl - pokeLvl;
-  if (lvlDeficit > 15) {
+  if (lvlDeficit > 0) {
     if (allOpponentsZeroDamage) {
       // 100% immune wall: safe
-    } else if (lvlDeficit <= 25 && worstIncoming <= 1.0) {
-      // Moderate gap with safe defense (e.g. Kangaskhan Lv 2 vs Morty Lv 23)
+    } else if (trainerAvgLvl <= 30 && lvlDeficit <= 25 && worstIncoming <= 1.0) {
+      // Early-game gym moderate gap
     } else {
       return false;
     }
@@ -990,8 +1778,8 @@ function canSoloTrainer(poke, trainer) {
 
     for (let j = 0; j < pokeMoves.length; j++) {
       const m = pokeMoves[j];
-      const eff = outgoingEffectiveness(poke, m.type, oppTypes);
-      if (eff > bestEff) {
+      const eff = outgoingEffectiveness(poke, m.type, oppTypes, opp);
+      if (eff > bestEff || (eff === bestEff && m.power > maxPower)) {
         bestEff = eff;
         maxPower = m.power;
       }
@@ -1006,7 +1794,11 @@ function canSoloTrainer(poke, trainer) {
     }
   }
 
-  const minRequiredSE = oppList.length <= 2 ? oppList.length : Math.ceil(oppList.length * 0.6);
+  const isHighLvlSafe = (pokeLvl >= 95 || pokeLvl >= trainerAvgLvl + 15) && worstIncoming <= 1.0;
+  const hasMassiveLevelDominance = (pokeLvl >= trainerAvgLvl + 25) && worstIncoming <= 1.0;
+  const minRequiredSE = hasMassiveLevelDominance
+    ? 0
+    : (isHighLvlSafe ? 1 : (oppList.length <= 2 ? oppList.length : Math.ceil(oppList.length * 0.6)));
   if (seCount < minRequiredSE) return false;
 
   return true;
@@ -1035,7 +1827,7 @@ function getBestMoveVsTrainer(poke, trainer) {
     let minEff = 999;
     let sumEff = 0;
     for (const opp of oppList) {
-      const eff = outgoingEffectiveness(poke, mType, opp.types || ['Normal']);
+      const eff = outgoingEffectiveness(poke, mType, opp.types || ['Normal'], opp);
       if (eff < minEff) minEff = eff;
       sumEff += eff;
     }
@@ -1085,7 +1877,19 @@ function getBestUniversalMove(poke) {
       sumEff += getMoveEffectiveness(mType, [defType]);
     }
     const avgEff = sumEff / ALL_TYPES.length;
-    const effectivePower = m.power * (isStab ? 1.5 : 1.0) * avgEff * vMultipliers.offense;
+
+    let movePenalty = 0;
+    if (m.isOhko) movePenalty += 2000;
+    if (m.isSuicide) movePenalty += 3000;
+    if (m.isRecharge) movePenalty += 1500;
+    if (m.isLocking) movePenalty += 1000;
+    if (m.isCharge) movePenalty += 800;
+    const lowerName = (m.name || '').toLowerCase();
+    if (lowerName.includes('focus punch')) movePenalty += 1200;
+    if (lowerName.includes('mind blown')) movePenalty += 500;
+
+    const accFactor = (m.accuracy !== undefined && m.accuracy !== null) ? (m.accuracy / 100) : 1.0;
+    const effectivePower = (m.power * (isStab ? 1.5 : 1.0) * avgEff * vMultipliers.offense * accFactor) - movePenalty;
     if (effectivePower > maxScore) {
       maxScore = effectivePower;
       best = {
@@ -1112,44 +1916,54 @@ function buildGodSquadTeam(collection, tierFilter) {
       role: 'LEAD SWEEPER',
       desc: 'High-speed fast starter & offensive breaker',
       evaluator: (p) => {
-        let s = (p.level || 0);
+        let s = (p.level || 0) * 3;
+        const prof = getDefensiveProfile(p.types || ['Normal']);
+        if (prof.quadWeaknesses.length > 0) s -= 300;
+        if (prof.immunities.length > 0) s += prof.immunities.length * 25;
+        if (prof.weaknesses.length <= 2) s += 35;
         const name = (p.name || '').toLowerCase();
-        if (/calyrex|pheromosa|regieleki|rayquaza|deoxys|dragapult|mewtwo|darkrai|koraidon|miraidon/i.test(name)) s += 80;
+        if (/flutter mane|mewtwo|darkrai|zeraora|calyrex|regieleki|palkia/i.test(name)) s += 70;
         const v = getVariantMultipliers(p.variant);
         if (v.offense > 1) s += 25;
         if (v.flinch) s += 25;
         const uMove = getBestUniversalMove(p);
-        if (uMove && uMove.power >= 90) s += 20;
+        if (uMove && uMove.effectivePower >= 70) s += uMove.effectivePower;
         return s;
       }
     },
     {
       role: 'WALLBREAKER',
-      desc: 'High physical attack nuke',
+      desc: 'High attack nuke with safe defense',
       evaluator: (p) => {
-        let s = (p.level || 0);
+        let s = (p.level || 0) * 3;
+        const prof = getDefensiveProfile(p.types || ['Normal']);
+        if (prof.quadWeaknesses.length > 0) s -= 300;
+        if (prof.weaknesses.length <= 2) s += 40;
         const name = (p.name || '').toLowerCase();
-        if (/kartana|groudon|zacian|urshifu|buzzwole|hoopa|kyurem|roaring moon|slither wing/i.test(name)) s += 80;
+        if (/zacian|dialga|palkia|kartana|groudon|urshifu|hoopa/i.test(name)) s += 70;
         const v = getVariantMultipliers(p.variant);
         if (v.offense > 1) s += 30;
         if (v.crit > 1) s += 20;
         const uMove = getBestUniversalMove(p);
-        if (uMove && uMove.power >= 100) s += 25;
+        if (uMove && uMove.effectivePower >= 80) s += uMove.effectivePower;
         return s;
       }
     },
     {
       role: 'IMMORTAL TANK',
-      desc: 'Massive bulk with status immunity',
+      desc: 'Massive bulk with status immunity & zero fatal weakness',
       evaluator: (p) => {
-        let s = (p.level || 0);
+        let s = (p.level || 0) * 3;
+        const prof = getDefensiveProfile(p.types || ['Normal']);
+        if (prof.quadWeaknesses.length > 0) s -= 400;
+        s += (prof.immunities.length * 35) + (prof.doubleResists.length * 20) + (prof.resists.length * 10) - (prof.weaknesses.length * 15);
         const name = (p.name || '').toLowerCase();
-        if (/eternatus|zygarde|melmetal|blissey|giratina|kyogre|regigigas|dondozo|ting-lu/i.test(name)) s += 80;
+        if (/zacian|melmetal|ting-lu|giratina|kyogre|regigigas|dondozo|zygarde/i.test(name)) s += 70;
         const v = getVariantMultipliers(p.variant);
         if (v.statusImmune) s += 40;
         if (v.hp > 1) s += 25;
-        const prof = getDefensiveProfile(p.types || ['Normal']);
-        s += (prof.immunities.length * 15) + (prof.resists.length * 5) - (prof.quadWeaknesses.length * 20);
+        const uMove = getBestUniversalMove(p);
+        if (uMove && uMove.effectivePower >= 70) s += 30;
         return s;
       }
     },
@@ -1157,28 +1971,33 @@ function buildGodSquadTeam(collection, tierFilter) {
       role: 'FAIRY DRAGON-SLAYER',
       desc: 'Dragon immunity & fairy STAB check',
       evaluator: (p) => {
-        let s = (p.level || 0);
+        let s = (p.level || 0) * 3;
+        const prof = getDefensiveProfile(p.types || ['Normal']);
+        if (prof.quadWeaknesses.length > 0) s -= 300;
         const types = (p.types || []).map(t => normalizeType(t));
-        if (types.includes('Fairy')) s += 60;
+        if (types.includes('Fairy')) s += 70;
+        if (prof.immunities.includes('Dragon')) s += 40;
         const name = (p.name || '').toLowerCase();
-        if (/xerneas|diancie|iron valiant|tapu lele|tapu koko|flutter mane|enamorus|magearna|zacian/i.test(name)) s += 60;
+        if (/flutter mane|zacian|magearna|xerneas|diancie|iron valiant/i.test(name)) s += 60;
         const v = getVariantMultipliers(p.variant);
         if (v.statusImmune) s += 25;
         const uMove = getBestUniversalMove(p);
-        if (uMove && uMove.type === 'Fairy') s += 20;
+        if (uMove && uMove.type === 'Fairy' && uMove.effectivePower >= 70) s += 25;
         return s;
       }
     },
     {
       role: 'GROUND/ELECTRIC PIVOT',
-      desc: 'Immunities to ground & electric with high crit',
+      desc: 'Immunities to ground & electric with high defense',
       evaluator: (p) => {
-        let s = (p.level || 0);
+        let s = (p.level || 0) * 3;
         const types = (p.types || []).map(t => normalizeType(t));
         const prof = getDefensiveProfile(types);
+        if (prof.quadWeaknesses.length > 0) s -= 300;
         if (prof.immunities.includes('Ground') || prof.immunities.includes('Electric')) s += 50;
+        if (prof.weaknesses.length <= 2) s += 40;
         const name = (p.name || '').toLowerCase();
-        if (/landorus|thundurus|gliscor|zapdos|rotom|garchomp|ting-lu|great tusk/i.test(name)) s += 60;
+        if (/thundurus|celesteela|zeraora|rotom|zapdos|gliscor|ting-lu/i.test(name)) s += 60;
         const v = getVariantMultipliers(p.variant);
         if (v.crit > 1) s += 30;
         if (v.hp > 1) s += 20;
@@ -1189,15 +2008,16 @@ function buildGodSquadTeam(collection, tierFilter) {
       role: 'ARMOR ANCHOR',
       desc: 'Heavy steel resistance wall',
       evaluator: (p) => {
-        let s = (p.level || 0);
+        let s = (p.level || 0) * 3;
         const types = (p.types || []).map(t => normalizeType(t));
+        const prof = getDefensiveProfile(types);
+        if (prof.quadWeaknesses.length > 0) s -= 300;
         if (types.includes('Steel')) s += 60;
         const name = (p.name || '').toLowerCase();
-        if (/dialga|melmetal|celesteela|iron crown|cobalion|registeel|heatran|corviknight/i.test(name)) s += 60;
+        if (/dialga|melmetal|celesteela|iron crown|cobalion|registeel|heatran/i.test(name)) s += 60;
         const v = getVariantMultipliers(p.variant);
-        if (v.statusImmune) s += 25;
-        const prof = getDefensiveProfile(types);
-        s += (prof.resists.length * 5) + (prof.doubleResists.length * 10);
+        if (v.statusImmune) s += 30;
+        s += (prof.resists.length * 8) + (prof.doubleResists.length * 15);
         return s;
       }
     }
@@ -1284,6 +2104,9 @@ if (typeof module !== 'undefined' && module.exports) {
     incomingEffectiveness,
     getRosterExposure,
     rankCarries,
+    getCarryMoveGuidance,
+    getRosterWideBestAttack,
+    rankTraineePartners,
     ULTRA_BEASTS,
     PARADOX_SPECIES,
     GMAX_SPECIES,
@@ -1295,6 +2118,12 @@ if (typeof module !== 'undefined' && module.exports) {
     isCommonPokemon,
     isGmaxPokemon,
     isMegaPokemon,
-    filterCandidatePool
+    isActualMegaEvolution,
+    evaluateOwnershipAndMegaEquivalence,
+    isAlreadyGmax,
+    isGmaxEligible,
+    filterCandidatePool,
+    isNegativePokemon,
+    isInverseVariant
   };
 }

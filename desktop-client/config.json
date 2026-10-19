@@ -24,7 +24,8 @@
     "autoStartOnMap": true,
     "autoStartDelay": 3,
     "hideAdsCosmetically": true,
-    "autoCatchMasterBall": true,
+    "autoCatchMasterBall": false,
+    "pvpCandidateTier": "ANY",
     "targetPreset": "custom",
     "findLegendaries": true,
     "findMegasAndGigantamax": true,
@@ -66,15 +67,33 @@
     ],
     "customTargetList": "",
     "blacklistList": "",
-    "teamRosterMode": "TRAINING",
-    "teamPoolFilter": "ANY",
+    "teamRosterMode": "ALL",
+    "teamPoolFilter": "GMAX",
     "enableVariantFilter": false,
     "teamBattleMode": "NPC",
     "pvpStrategy": "GODSQUAD",
-    "teamCategoryFilter": "ALL",
-    "lastSelectedTrainer": "",
+    "teamCategoryFilter": "GMAX_CHALLENGE",
+    "lastSelectedTrainer": "STRONG_TRAINERS__40",
     "favoriteTrainers": [
-      "Veteran Tamaki"
+      "Veteran Tamaki",
+      "Veteran Shareef",
+      "Ace Trainer Bryce"
     ]
+  },
+  "safety": {
+    "enableDeadManSwitch": true,
+    "autoStopMinMinutes": 5,
+    "autoStopMaxMinutes": 30,
+    "enableForcedBreaks": true,
+    "breakMinSteps": 50,
+    "breakMaxSteps": 200,
+    "breakMinDurationSec": 45,
+    "breakMaxDurationSec": 200,
+    "enableDailyCeilings": true,
+    "dailyStepMin": 500,
+    "dailyStepMax": 1000,
+    "dailyCatchMin": 10,
+    "dailyCatchMax": 20,
+    "antiBotEmergencyHalt": true
   }
 }

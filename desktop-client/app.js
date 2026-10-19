@@ -79,8 +79,26 @@ let config = {
     autoPauseOnTarget: true,
     avoidDuplicates: true,
     autoStartOnMap: true,
+    autoStartDelay: 3,
     hideAdsCosmetically: true,
-    autoCatchMasterBall: false
+    autoCatchMasterBall: false,
+    pvpCandidateTier: "ANY"
+  },
+  safety: {
+    enableDeadManSwitch: true,
+    autoStopMinMinutes: 5,
+    autoStopMaxMinutes: 30,
+    enableForcedBreaks: true,
+    breakMinSteps: 50,
+    breakMaxSteps: 200,
+    breakMinDurationSec: 45,
+    breakMaxDurationSec: 200,
+    enableDailyCeilings: true,
+    dailyStepMin: 500,
+    dailyStepMax: 1000,
+    dailyCatchMin: 10,
+    dailyCatchMax: 20,
+    antiBotEmergencyHalt: true
   }
 };
 
@@ -101,9 +119,26 @@ function loadLocalConfig() {
       autoPauseOnTarget: true,
       avoidDuplicates: true,
       autoStartOnMap: true,
-      autoStartDelay: 5,
+      autoStartDelay: 3,
       hideAdsCosmetically: true,
-      autoCatchMasterBall: false
+      autoCatchMasterBall: false,
+      pvpCandidateTier: "ANY"
+    },
+    safety: {
+      enableDeadManSwitch: true,
+      autoStopMinMinutes: 5,
+      autoStopMaxMinutes: 30,
+      enableForcedBreaks: true,
+      breakMinSteps: 50,
+      breakMaxSteps: 200,
+      breakMinDurationSec: 45,
+      breakMaxDurationSec: 200,
+      enableDailyCeilings: true,
+      dailyStepMin: 500,
+      dailyStepMax: 1000,
+      dailyCatchMin: 10,
+      dailyCatchMax: 20,
+      antiBotEmergencyHalt: true
     }
   };
   try {
@@ -522,6 +557,87 @@ const catchStatMbUsed = document.getElementById('catchStatMbUsed');
 const ballStockDetails = document.getElementById('ballStockDetails');
 const navCaughtCountBadge = document.getElementById('navCaughtCountBadge');
 
+// Live AI Combat Assistant Elements & Bridge
+const aiAssistant = require('./ai_agent_bridge.js');
+const evolutionEngine = require('./evolution_engine.js');
+const aiAssistantModal = document.getElementById('aiAssistantModal');
+const aiAssistantTopBtn = document.getElementById('aiAssistantTopBtn');
+const aiAssistantMenuBtn = document.getElementById('aiAssistantMenuBtn');
+const closeAiAssistantBtn = document.getElementById('closeAiAssistantBtn');
+const switchTeamBuilderFromAiBtn = document.getElementById('switchTeamBuilderFromAiBtn');
+const switchAiAssistantFromTeamBtn = document.getElementById('switchAiAssistantFromTeamBtn');
+const liveAiHudOverlay = document.getElementById('liveAiHudOverlay');
+const aiHudMessage = document.getElementById('aiHudMessage');
+const aiHudExpandBtn = document.getElementById('aiHudExpandBtn');
+const aiHudDismissBtn = document.getElementById('aiHudDismissBtn');
+const aiStatusChip = document.getElementById('aiStatusChip');
+const aiBattleOpponentBadge = document.getElementById('aiBattleOpponentBadge');
+const aiTacticalBriefing = document.getElementById('aiTacticalBriefing');
+const aiQuickAnalyzeBtn = document.getElementById('aiQuickAnalyzeBtn');
+const aiQuickSimBtn = document.getElementById('aiQuickSimBtn');
+const aiQuickWhyBtn = document.getElementById('aiQuickWhyBtn');
+const aiQuickHazardsBtn = document.getElementById('aiQuickHazardsBtn');
+const aiSimResultStrip = document.getElementById('aiSimResultStrip');
+const aiSimWinRateBadge = document.getElementById('aiSimWinRateBadge');
+const aiSimHpVal = document.getElementById('aiSimHpVal');
+const aiSimScoreVal = document.getElementById('aiSimScoreVal');
+const aiChatStream = document.getElementById('aiChatStream');
+const aiChatInput = document.getElementById('aiChatInput');
+const aiChatSendBtn = document.getElementById('aiChatSendBtn');
+const aiQuickEvoBtn = document.getElementById('aiQuickEvoBtn');
+const aiQuickMovesBtn = document.getElementById('aiQuickMovesBtn');
+const aiInstantActionSlot = document.getElementById('aiInstantActionSlot');
+const aiHudActionBtn = document.getElementById('aiHudActionBtn');
+let activeAiBattleData = null;
+let activeEvolveCardData = null;
+let lastAnalyzedBattle = null;
+let lastKnownUserTeam = [];
+
+// Safety & Anti-Ban Limits Elements
+const safetySettingsModal = document.getElementById('safetySettingsModal');
+const safetySettingsTopBtn = document.getElementById('safetySettingsTopBtn');
+const safetySettingsMenuBtn = document.getElementById('safetySettingsMenuBtn');
+const closeSafetySettingsBtn = document.getElementById('closeSafetySettingsBtn');
+const switchTeamBuilderFromSafetyBtn = document.getElementById('switchTeamBuilderFromSafetyBtn');
+const safetyStatusChip = document.getElementById('safetyStatusChip');
+const safetyStatAutoStop = document.getElementById('safetyStatAutoStop');
+const safetyStatNextBreak = document.getElementById('safetyStatNextBreak');
+const safetyStatTodaySteps = document.getElementById('safetyStatTodaySteps');
+const safetyStatTodayCatches = document.getElementById('safetyStatTodayCatches');
+const safetyAutoStopToggle = document.getElementById('safetyAutoStopToggle');
+const safetyAutoStopMin = document.getElementById('safetyAutoStopMin');
+const safetyAutoStopMax = document.getElementById('safetyAutoStopMax');
+const safetyBreakToggle = document.getElementById('safetyBreakToggle');
+const safetyBreakMinSteps = document.getElementById('safetyBreakMinSteps');
+const safetyBreakMaxSteps = document.getElementById('safetyBreakMaxSteps');
+const safetyBreakMinDur = document.getElementById('safetyBreakMinDur');
+const safetyBreakMaxDur = document.getElementById('safetyBreakMaxDur');
+const safetyDailyToggle = document.getElementById('safetyDailyToggle');
+const safetyDailyMinSteps = document.getElementById('safetyDailyMinSteps');
+const safetyDailyMaxSteps = document.getElementById('safetyDailyMaxSteps');
+const safetyDailyMinCatches = document.getElementById('safetyDailyMinCatches');
+const safetyDailyMaxCatches = document.getElementById('safetyDailyMaxCatches');
+const safetyAntiBotToggle = document.getElementById('safetyAntiBotToggle');
+const testAlarmBtn = document.getElementById('testAlarmBtn');
+const silenceAlarmModalBtn = document.getElementById('silenceAlarmModalBtn');
+const saveSafetySettingsBtn = document.getElementById('saveSafetySettingsBtn');
+const rerollSafetyTargetsBtn = document.getElementById('rerollSafetyTargetsBtn');
+const resetDailySafetyBtn = document.getElementById('resetDailySafetyBtn');
+const captchaEmergencyBanner = document.getElementById('captchaEmergencyBanner');
+const silenceAlarmBtn = document.getElementById('silenceAlarmBtn');
+
+function getBaseSpecies(name) {
+  return teamEngine.getBaseSpecies ? teamEngine.getBaseSpecies(name) : (name || '');
+}
+
+function formatPokemonFullName(variant, name) {
+  const v = (variant || '').trim();
+  const n = (name || '').trim();
+  if (!v || v === 'Normal') return n;
+  if (n.toLowerCase().startsWith(v.toLowerCase() + ' ')) return n;
+  return `${v} ${n}`;
+}
+
 // State
 let isRunning = false;
 let stepCount = 0;
@@ -891,6 +1007,7 @@ function detectNetworkIdentity(callback) {
 function updateAvoidDupesUI() {
   const isAvoid = config.settings && config.settings.avoidDuplicates !== false;
   if (avoidDupesBadge) {
+    avoidDupesBadge.checked = isAvoid;
     avoidDupesBadge.textContent = '';
     avoidDupesBadge.className = isAvoid ? 'dropdown-switch switch-on dropdown-badge-on' : 'dropdown-switch switch-off dropdown-badge-off';
   }
@@ -906,8 +1023,9 @@ function updateAvoidDupesUI() {
 
 function updateAutoStartMapUI() {
   const isAuto = config.settings && config.settings.autoStartOnMap !== false;
-  const delaySec = (config.settings && config.settings.autoStartDelay) || 5;
+  const delaySec = (config.settings && config.settings.autoStartDelay) || 3;
   if (autoStartMapBadge) {
+    autoStartMapBadge.checked = isAuto;
     autoStartMapBadge.textContent = '';
     autoStartMapBadge.className = isAuto ? 'dropdown-switch switch-on dropdown-badge-on' : 'dropdown-switch switch-off dropdown-badge-off';
   }
@@ -932,6 +1050,7 @@ function updateHideAdsUI() {
     saveLocalConfig();
   }
   if (hideAdsBadge) {
+    hideAdsBadge.checked = isHide;
     hideAdsBadge.textContent = '';
     hideAdsBadge.className = isHide ? 'dropdown-switch switch-on dropdown-badge-on' : 'dropdown-switch switch-off dropdown-badge-off';
   }
@@ -951,6 +1070,7 @@ function updateAutoCatchUI() {
     saveLocalConfig();
   }
   if (autoCatchBadge) {
+    autoCatchBadge.checked = isCatch;
     autoCatchBadge.textContent = '';
     autoCatchBadge.className = isCatch ? 'dropdown-switch switch-on dropdown-badge-on' : 'dropdown-switch switch-off dropdown-badge-off';
   }
@@ -969,7 +1089,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.3.6';
+    let appVer = '1.3.7';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -1403,7 +1523,7 @@ accUser.value = (config.dummyAccount && config.dummyAccount.username) || '';
 accPass.value = (config.dummyAccount && config.dummyAccount.password) || '';
 walkModeSelect.value = (config.settings && config.settings.walkMode) || 'wander';
 if (stepsPerDirInput) {
-  stepsPerDirInput.value = (config.settings && config.settings.stepsPerDirection) || 1;
+  stepsPerDirInput.value = (config.settings && config.settings.stepsPerDirection) || 5;
 }
 updateToggleButton();
 updateNetworkBadgeUI();
@@ -1479,10 +1599,14 @@ function isMapUrl(rawUrl) {
   }
 }
 
+let isAutoCatchCountdownActive = false;
+
 function isCurrentPageMap() {
-  if (guestReportsMap) return true;
   const curUrl = (delugeView && delugeView.getURL()) || '';
-  return isMapUrl(curUrl);
+  if (curUrl) {
+    return isMapUrl(curUrl);
+  }
+  return !!guestReportsMap;
 }
 
 function autoPauseOutsideMap(source = '') {
@@ -1506,10 +1630,34 @@ function autoPauseOutsideMap(source = '') {
 function syncHuntingState() {
   try {
     if (delugeView) {
-      delugeView.send('hunting-state-changed', { isHunting: isRunning });
+      delugeView.send('hunting-state-changed', {
+        isHunting: isRunning,
+        userManuallyPaused: userManuallyPaused
+      });
       delugeView.send('update-config', config.settings);
+      if (userManuallyPaused) {
+        delugeView.send('abort-autocatch');
+      }
     }
   } catch (_) {}
+}
+
+function syncUserCollectionToGuest() {
+  try {
+    if (delugeView && typeof delugeView.send === 'function') {
+      delugeView.send('sync-user-collection', currentCollection || []);
+    }
+  } catch (_) {}
+}
+
+function handleDuplicateOwnedAlert(alertData) {
+  if (!alertData) return;
+  if (liveAiHudOverlay && !activeAiBattleData && !activeEvolveCardData) {
+    liveAiHudOverlay.style.display = 'none';
+  }
+  if (typeof backendLog === 'function') {
+    backendLog('UNIQUENESS', `Protected encounter uniqueness: ${alertData.alertTitle || ''} - ${alertData.alertMessage || ''}`);
+  }
 }
 
 function updateToggleButton() {
@@ -1538,14 +1686,39 @@ function updateToggleButton() {
 }
 
 function toggleHunting() {
+  try {
+    if (toggleBtn && typeof toggleBtn.blur === 'function') toggleBtn.blur();
+  } catch (_) {}
   // If an auto-start countdown is currently in progress, clicking the toggle aborts auto-start and enforces a manual pause!
   if (autoStartRemainingSeconds > 0) {
     cancelPendingAutoStart('Manual pause during auto-start countdown');
+    isAutoCatchCountdownActive = false;
     userManuallyPaused = true;
     wasHuntingBeforeAutoCatch = false;
     isRunning = false;
+    try {
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('abort-autocatch');
+      }
+    } catch (_) {}
     updateToggleButton();
     updateStatus('Auto-Start Cancelled (Paused)', '#f59e0b');
+    return;
+  }
+
+  // If an auto-catch countdown is in progress, clicking the toggle aborts auto-catch and enforces a manual pause!
+  if (isAutoCatchCountdownActive) {
+    isAutoCatchCountdownActive = false;
+    userManuallyPaused = true;
+    wasHuntingBeforeAutoCatch = false;
+    isRunning = false;
+    try {
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('abort-autocatch');
+      }
+    } catch (_) {}
+    updateToggleButton();
+    updateStatus('Auto-Catch Cancelled (Paused)', '#f59e0b');
     return;
   }
 
@@ -1557,10 +1730,23 @@ function toggleHunting() {
       }, 2000);
       return;
     }
+    ensureTodaySafetyState();
+    if (config.safety && config.safety.enableDailyCeilings !== false) {
+      if (dailySafetyState.todaySteps >= dailySafetyState.dailyStepCeiling) {
+        updateStatus(`Daily step limit reached (${dailySafetyState.todaySteps}/${dailySafetyState.dailyStepCeiling})`, '#ef4444');
+        return;
+      }
+      const curCatches = Math.max(dailySafetyState.todayCatches || 0, (dailyCatchData && dailyCatchData.caught) ? dailyCatchData.caught.length : 0);
+      if (curCatches >= dailySafetyState.dailyCatchCeiling) {
+        updateStatus(`Daily catch limit reached (${curCatches}/${dailySafetyState.dailyCatchCeiling})`, '#ef4444');
+        return;
+      }
+    }
   }
 
   isRunning = !isRunning;
   if (isRunning) {
+    isAutoCatchCountdownActive = false;
     userManuallyPaused = false;
     outOfStockPaused = false;
     isEncounterOnScreen = false;
@@ -1570,8 +1756,33 @@ function toggleHunting() {
     wanderStepsLeft = 0;
     isResumingFromMicroPause = false;
     isResumingFromIdlePause = false;
+
+    // Safety dead-man switch: randomized auto-stop duration
+    if (config.safety && config.safety.enableDeadManSwitch !== false) {
+      const stopMins = getRandomInRange(config.safety.autoStopMinMinutes || 5, config.safety.autoStopMaxMinutes || 30);
+      sessionAutoStopTime = Date.now() + stopMins * 60 * 1000;
+      sessionAutoStopTargetMins = stopMins;
+      if (sessionAutoStopTimer) clearTimeout(sessionAutoStopTimer);
+      sessionAutoStopTimer = setTimeout(() => {
+        stopHuntingWithReason(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, `Paused (Auto-Stop: ${sessionAutoStopTargetMins}m)`, '#f59e0b');
+        playAlarmSound();
+      }, stopMins * 60 * 1000);
+      backendLog('SafetyAutoStop', `Session auto-stop timer scheduled for ${stopMins} minutes`);
+    }
+
+    // Initialize forced break targets if not yet set
+    if (config.safety && config.safety.enableForcedBreaks !== false) {
+      if (!nextBreakStepTarget) {
+        rollNextBreakTargets();
+      }
+    }
+    updateSafetyTelemetryUI();
+
     try {
-      if (delugeView) delugeView.send('request-dom-dump');
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('abort-autocatch');
+        delugeView.send('request-dom-dump');
+      }
     } catch (_) {}
     if (isDirectionPhysicallyBlocked(currentDirectionKey)) {
       const evaded = chooseEvadeDirection(currentDirectionKey);
@@ -1584,6 +1795,7 @@ function toggleHunting() {
     updateToggleButton();
     scheduleNextStep(500);
   } else {
+    isAutoCatchCountdownActive = false;
     userManuallyPaused = true;
     wasHuntingBeforeAutoCatch = false;
     cancelPendingAutoStart('Hunting paused by user');
@@ -1596,6 +1808,23 @@ function toggleHunting() {
       clearTimeout(walkTimeout);
       walkTimeout = null;
     }
+    if (sessionAutoStopTimer) {
+      clearTimeout(sessionAutoStopTimer);
+      sessionAutoStopTimer = null;
+    }
+    sessionAutoStopTime = null;
+    if (breakCountdownTimer) {
+      clearInterval(breakCountdownTimer);
+      breakCountdownTimer = null;
+    }
+    isRestBreakActive = false;
+    updateSafetyTelemetryUI();
+
+    try {
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('abort-autocatch');
+      }
+    } catch (_) {}
     updateToggleButton();
   }
 }
@@ -2067,6 +2296,14 @@ function scheduleNextStep(customDelay = null) {
       searchWaitTicks = 0;
     }
 
+    if (isRestBreakActive) {
+      isRestBreakActive = false;
+      if (breakCountdownTimer) {
+        clearInterval(breakCountdownTimer);
+        breakCountdownTimer = null;
+      }
+    }
+
     // 0. Check if resuming from a micro-pause or idle pause
     // After the pause, change to another direction and start fresh compulsory steps!
     if (isResumingFromMicroPause || isResumingFromIdlePause) {
@@ -2216,6 +2453,30 @@ function handleMoveSuccess(dir) {
     stepCounterElem.textContent = `Steps: ${stepCount}`;
   }
 
+  // Defense-in-depth safety tracking
+  ensureTodaySafetyState();
+  dailySafetyState.todaySteps = (dailySafetyState.todaySteps || 0) + 1;
+  saveDailySafetyState();
+  updateSafetyTelemetryUI();
+
+  // 1. Check daily step ceiling
+  if (config.safety && config.safety.enableDailyCeilings !== false) {
+    if (dailySafetyState.todaySteps >= dailySafetyState.dailyStepCeiling) {
+      stopHuntingWithReason('Daily step ceiling reached', `Paused (Daily Steps: ${dailySafetyState.todaySteps}/${dailySafetyState.dailyStepCeiling})`, '#ef4444');
+      playAlarmSound();
+      return;
+    }
+  }
+
+  // 2. Check forced rest break
+  if (isRunning && config.safety && config.safety.enableForcedBreaks !== false) {
+    stepsSinceLastBreak++;
+    if (stepsSinceLastBreak >= (nextBreakStepTarget || 50)) {
+      triggerForcedRestBreak();
+      return;
+    }
+  }
+
   // Schedule next step only after previous step confirmed and new encounter has rendered on screen
   if (isRunning) {
     scheduleNextStep(getHardenedHumanDelay());
@@ -2266,7 +2527,20 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
 
   if (!isCurrentPageMap()) return;
 
-  const delaySec = Math.max(2, parseInt((config.settings && config.settings.autoStartDelay) || 5, 10));
+  ensureTodaySafetyState();
+  if (config.safety && config.safety.enableDailyCeilings !== false) {
+    if (dailySafetyState.todaySteps >= dailySafetyState.dailyStepCeiling) {
+      updateStatus(`Paused (Daily Steps: ${dailySafetyState.todaySteps}/${dailySafetyState.dailyStepCeiling})`, '#ef4444');
+      return;
+    }
+    const curCatches = Math.max(dailySafetyState.todayCatches || 0, (dailyCatchData && dailyCatchData.caught) ? dailyCatchData.caught.length : 0);
+    if (curCatches >= dailySafetyState.dailyCatchCeiling) {
+      updateStatus(`Paused (Daily Catches: ${curCatches}/${dailySafetyState.dailyCatchCeiling})`, '#ef4444');
+      return;
+    }
+  }
+
+  const delaySec = Math.max(2, parseInt((config.settings && config.settings.autoStartDelay) || 3, 10));
   autoStartRemainingSeconds = delaySec;
 
   backendLog('AutoStart', `${sourceReason}. Pending auto-start scheduled in ${delaySec}s to allow map scripts and security checks to settle.`);
@@ -2307,12 +2581,46 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
       return;
     }
 
+    ensureTodaySafetyState();
+    if (config.safety && config.safety.enableDailyCeilings !== false) {
+      if (dailySafetyState.todaySteps >= dailySafetyState.dailyStepCeiling) {
+        updateStatus(`Paused (Daily Steps: ${dailySafetyState.todaySteps}/${dailySafetyState.dailyStepCeiling})`, '#ef4444');
+        return;
+      }
+      const curCatches = Math.max(dailySafetyState.todayCatches || 0, (dailyCatchData && dailyCatchData.caught) ? dailyCatchData.caught.length : 0);
+      if (curCatches >= dailySafetyState.dailyCatchCeiling) {
+        updateStatus(`Paused (Daily Catches: ${curCatches}/${dailySafetyState.dailyCatchCeiling})`, '#ef4444');
+        return;
+      }
+    }
+
     backendLog('AutoStart', `Security delay (${delaySec}s) elapsed without captcha. Auto-starting hunting session.`);
     isRunning = true;
     userManuallyPaused = false;
     isGuestInputFocused = false;
     isStepPending = false;
     stepPendingTicks = 0;
+
+    if (config.safety && config.safety.enableDeadManSwitch !== false) {
+      if (!sessionAutoStopTimer || !sessionAutoStopTime) {
+        const stopMins = getRandomInRange(config.safety.autoStopMinMinutes || 5, config.safety.autoStopMaxMinutes || 30);
+        sessionAutoStopTime = Date.now() + stopMins * 60 * 1000;
+        sessionAutoStopTargetMins = stopMins;
+        if (sessionAutoStopTimer) clearTimeout(sessionAutoStopTimer);
+        sessionAutoStopTimer = setTimeout(() => {
+          stopHuntingWithReason(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, `Paused (Auto-Stop: ${sessionAutoStopTargetMins}m)`, '#f59e0b');
+          playAlarmSound();
+        }, stopMins * 60 * 1000);
+        backendLog('SafetyAutoStop', `Session auto-stop timer scheduled for ${stopMins} minutes`);
+      }
+    }
+    if (config.safety && config.safety.enableForcedBreaks !== false) {
+      if (!nextBreakStepTarget) {
+        rollNextBreakTargets();
+      }
+    }
+    updateSafetyTelemetryUI();
+
     updateToggleButton();
     syncHuntingState();
     updateStatus('Hunting Active (Auto-Started)', '#22c55e');
@@ -2322,7 +2630,10 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
 
 function handleMapNavigation(url) {
   isGuestInputFocused = false;
-  const onMap = isMapUrl(url) || guestReportsMap;
+  if (url && !isMapUrl(url)) {
+    guestReportsMap = false;
+  }
+  const onMap = url ? isMapUrl(url) : guestReportsMap;
   if (!onMap) {
     cancelPendingAutoStart('Navigated outside map');
     userManuallyPaused = false;
@@ -2367,13 +2678,28 @@ delugeView.addEventListener('did-finish-load', () => {
 
 delugeView.addEventListener('will-navigate', (event) => {
   const url = event.url || '';
-  if (!isMapUrl(url) && !guestReportsMap) {
+  if (url && !isMapUrl(url)) {
+    guestReportsMap = false;
     autoPauseOutsideMap(url);
   }
 });
 
 // IPC Listener from webview (game-preload.js)
 delugeView.addEventListener('ipc-message', (event) => {
+  if (event.channel === 'trusted-mouse-telemetry') {
+    const coords = event.args[0];
+    if (coords && typeof coords.x === 'number' && typeof coords.y === 'number') {
+      try {
+        delugeView.sendInputEvent({
+          type: 'mouseMove',
+          x: Math.max(1, Math.round(coords.x)),
+          y: Math.max(1, Math.round(coords.y))
+        });
+      } catch (_) {}
+    }
+    return;
+  }
+
   if (event.channel === 'debug-dom-dump') {
     backendLog('DOM_DUMP', event.args[0]);
   }
@@ -2467,6 +2793,7 @@ delugeView.addEventListener('ipc-message', (event) => {
       try {
         fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
       } catch (_) {}
+      syncUserCollectionToGuest();
       if (scanStatusDot) scanStatusDot.style.background = '#10b981';
       if (scanStatusBadge) {
         scanStatusBadge.style.color = '#c9d8ec';
@@ -2599,6 +2926,63 @@ delugeView.addEventListener('ipc-message', (event) => {
         updateTrainerIntelStats();
       }
     }
+  }
+
+  if (event.channel === 'ai-battle-action-status') {
+    const data = event.args[0] || {};
+    if (aiStatusChip) {
+      aiStatusChip.textContent = data.action === 'select-lead-and-start' ? 'Battle Started' : 'Move Cast';
+      aiStatusChip.style.color = '#10b981';
+    }
+    if (data.message) {
+      appendAiChatMessage('AI', data.message);
+    }
+  }
+
+  if (event.channel === 'battle-action-tracked') {
+    const data = event.args[0] || {};
+    const trustedTag = data.isTrusted ? '\x1b[32m[USER]\x1b[0m' : '\x1b[33m[BOT]\x1b[0m';
+    if (data.event === 'click') {
+      const elDesc = `<${data.tag}${data.name ? ' name="' + data.name + '"' : ''}${data.type ? ' type="' + data.type + '"' : ''}${data.value ? ' val="' + data.value + '"' : ''}${data.id ? ' id="' + data.id + '"' : ''}>`;
+      const formDesc = data.formAction || data.formId ? ` [Form: id="${data.formId || ''}" act="${data.formAction || ''}"]` : '';
+      console.log(`\x1b[36m[MATCH TRACKER]\x1b[0m ${trustedTag} \x1b[1mCLICK\x1b[0m ${elDesc} text="${data.text || ''}"${formDesc}`);
+      backendLog('MATCH_TRACK', `CLICK ${data.isTrusted ? 'USER' : 'BOT'} ${elDesc} text="${data.text || ''}"${formDesc}`);
+    } else if (data.event === 'submit') {
+      const subDesc = data.submitter ? `<${data.submitter.tag}${data.submitter.name ? ' name="' + data.submitter.name + '"' : ''} val="${data.submitter.value || ''}">` : 'none';
+      const inputsStr = Array.isArray(data.inputs) ? data.inputs.map(i => `${i.name}=${i.value}${i.checked ? '(*)' : ''}`).join(', ') : '';
+      console.log(`\x1b[35m[MATCH TRACKER]\x1b[0m ${trustedTag} \x1b[1mSUBMIT\x1b[0m Form: id="${data.formId}" act="${data.formAction}" Submitter: ${subDesc}`);
+      if (inputsStr) {
+        console.log(`\x1b[35m[MATCH TRACKER]\x1b[0m Form Inputs: [${inputsStr}]`);
+      }
+      backendLog('MATCH_TRACK', `SUBMIT ${data.isTrusted ? 'USER' : 'BOT'} Form id="${data.formId}" act="${data.formAction}" sub=${subDesc} inputs=[${inputsStr}]`);
+    } else if (data.event === 'change') {
+      console.log(`\x1b[34m[MATCH TRACKER]\x1b[0m ${trustedTag} \x1b[1mCHANGE\x1b[0m <${data.tag} name="${data.name}" type="${data.type}" val="${data.value}" checked=${data.checked}>`);
+      backendLog('MATCH_TRACK', `CHANGE ${data.isTrusted ? 'USER' : 'BOT'} <${data.tag} name="${data.name}" val="${data.value}" checked=${data.checked}>`);
+    } else if (data.event === 'bot-action-detail') {
+      console.log(`\x1b[33m[MATCH TRACKER]\x1b[0m \x1b[32m[BOT ACTION]\x1b[0m ${data.action}: TargetMove="${data.targetMove || ''}" MatchedRadio="${data.matchedRadio || 'NONE'}" SubmitBtn="${data.submitBtn || 'NONE'}" Form="${data.targetForm || 'NONE'}"`);
+      if (Array.isArray(data.candidates) && data.candidates.length > 0) {
+        console.log(`\x1b[33m[MATCH TRACKER]\x1b[0m Candidate Buttons: ${JSON.stringify(data.candidates)}`);
+      }
+      backendLog('MATCH_TRACK', `BOT_ACTION ${data.action} move="${data.targetMove}" radio="${data.matchedRadio}" btn="${data.submitBtn}"`);
+    }
+  }
+
+  if (event.channel === 'evolve-card-detected') {
+    const card = event.args[0] || {};
+    handleEvolveCardDetected(card);
+  }
+
+  if (event.channel === 'evolve-card-closed') {
+    handleEvolveCardClosed();
+  }
+
+  if (event.channel === 'request-user-collection') {
+    syncUserCollectionToGuest();
+  }
+
+  if (event.channel === 'duplicate-owned-alert') {
+    const alertData = event.args[0] || {};
+    handleDuplicateOwnedAlert(alertData);
   }
 
   if (event.channel === 'player-scout-status') {
@@ -2769,6 +3153,10 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'map-presence') {
     const data = event.args[0] || {};
+    if (data.hasCaptcha) {
+      handleCaptchaEmergencyHalt('Captcha challenge reported via map-presence');
+      return;
+    }
     guestReportsMap = !!data.isMap;
     const prevEncounter = isEncounterOnScreen;
     isEncounterOnScreen = !!data.hasEncounter;
@@ -2845,13 +3233,16 @@ delugeView.addEventListener('ipc-message', (event) => {
     const delaySec = data.delay ? (data.delay / 1000).toFixed(1) : '';
 
     if (step === 'clicking-try-catch') {
+      isAutoCatchCountdownActive = true;
       const name = data.target || 'Target Pokemon';
       updateStatus(`Auto-Catch: Try Catch (${delaySec}s)...`, '#38bdf8');
       backendLog('AutoCatch', `Target encounter: ${name}. Waiting ${data.delay}ms to click Try to Catch It.`);
     } else if (step === 'starting-battle') {
+      isAutoCatchCountdownActive = true;
       updateStatus(`Auto-Catch: Battle Start (${delaySec}s)...`, '#38bdf8');
       backendLog('AutoCatch', `Battle screen reached. Waiting ${data.delay}ms to click Start Battle.`);
     } else if (step === 'selecting-master-ball') {
+      isAutoCatchCountdownActive = true;
       const stockStr = (typeof data.stock === 'number') ? ` (Stock: ${data.stock})` : '';
       if (typeof data.stock === 'number') {
         dailyCatchData.masterBallStock = data.stock;
@@ -2862,6 +3253,7 @@ delugeView.addEventListener('ipc-message', (event) => {
       updateStatus(`Auto-Catch: Select Ball (${delaySec}s)...`, '#eab308');
       backendLog('AutoCatch', `Selecting Master Ball${stockStr}. Waiting ${data.delay}ms.`);
     } else if (step === 'throwing-master-ball') {
+      isAutoCatchCountdownActive = true;
       const stockStr = (typeof data.stock === 'number') ? ` (Stock: ${data.stock})` : '';
       if (typeof data.stock === 'number') {
         dailyCatchData.masterBallStock = data.stock;
@@ -2872,9 +3264,11 @@ delugeView.addEventListener('ipc-message', (event) => {
       updateStatus(`Auto-Catch: Throw Ball (${delaySec}s)...`, '#eab308');
       backendLog('AutoCatch', `Throwing Master Ball${stockStr}. Waiting ${data.delay}ms.`);
     } else if (step === 'returning-to-map') {
+      isAutoCatchCountdownActive = true;
       updateStatus(`Auto-Catch: Return Map (${delaySec}s)...`, '#22c55e');
       backendLog('AutoCatch', `Catch confirmed! Waiting ${data.delay}ms to click Return to Map.`);
     } else if (step === 'completed') {
+      isAutoCatchCountdownActive = false;
       const name = data.target || 'Target Pokemon';
       const remainingStr = (typeof data.stockRemaining === 'number') ? ` (Remaining Stock: ${data.stockRemaining})` : '';
       updateStatus(`Caught: ${name}! Resuming...`, '#22c55e');
@@ -2893,6 +3287,7 @@ delugeView.addEventListener('ipc-message', (event) => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       }, data.stockRemaining);
     } else if (step === 'out-of-stock') {
+      isAutoCatchCountdownActive = false;
       dailyCatchData.masterBallStock = 0;
       saveDailyCatchLog();
       updateCatchLogBadge();
@@ -2919,31 +3314,7 @@ delugeView.addEventListener('ipc-message', (event) => {
   }
 
   if (event.channel === 'unlock-detected') {
-    // Immediate emergency halt and cancellation on security challenge
-    cancelPendingAutoStart('Captcha (/unlock) security challenge detected');
-    if (walkTimeout) {
-      clearTimeout(walkTimeout);
-      walkTimeout = null;
-    }
-    isRunning = false;
-    updateToggleButton();
-    updateStatus('CAPTCHA DETECTED - Solve manually in window', '#ef4444');
-
-    if (!isUnlockChallengeActive) {
-      isUnlockChallengeActive = true;
-      playAlarmSound();
-      backendLog('SecurityChallenge', 'Captcha (/unlock) security challenge active. Automated hunting halted for manual solve.');
-      try {
-        new Notification('Security Check Detected', {
-          body: 'DelugeRPG requires a captcha (/unlock). Please solve it manually in the window to proceed.'
-        });
-      } catch (_) {}
-    }
-
-    // Immediately focus webview so the user can click and solve the captcha with zero obstruction
-    if (delugeView) {
-      try { delugeView.focus(); } catch (_) {}
-    }
+    handleCaptchaEmergencyHalt('Captcha (/unlock) security challenge detected');
   }
 
   if (event.channel === 'zoom-in') {
@@ -2961,6 +3332,7 @@ delugeView.addEventListener('ipc-message', (event) => {
 delugeView.addEventListener('dom-ready', () => {
   syncHuntingState();
   applyZoom(currentZoomFactor);
+  syncUserCollectionToGuest();
   delugeView.send('update-config', config.settings);
   syncHuntingState();
   if (config.dummyAccount && (config.dummyAccount.username || config.dummyAccount.autoLogin)) {
@@ -3020,7 +3392,7 @@ function closeAllModals() {
 closeAllModals();
 
 // Stop click bubbling on modals so clicks never reach backdrop or outside handlers
-[targetModal, networkModal, accountModal, wipeModal, teamBuilderModal, adsInspectorModal, catchLogModal].forEach(m => {
+[targetModal, networkModal, accountModal, wipeModal, teamBuilderModal, adsInspectorModal, catchLogModal, aiAssistantModal, safetySettingsModal].forEach(m => {
   if (m) {
     m.addEventListener('click', (e) => e.stopPropagation());
     m.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -3079,13 +3451,25 @@ window.addEventListener('keydown', (e) => {
       closeAdsInspectorPanel();
     } else if (catchLogModal && catchLogModal.style.display === 'flex') {
       closeCatchLogPanel();
+    } else if (aiAssistantModal && aiAssistantModal.style.display === 'flex') {
+      closeAiAssistantPanel();
+    } else if (safetySettingsModal && safetySettingsModal.style.display === 'flex') {
+      closeSafetySettingsPanel();
     }
   }
   if (e.code === 'Space' || e.key === ' ') {
+    if (e.repeat) return;
     const activeEl = document.activeElement;
-    const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT' || activeEl.isContentEditable);
-    if (!isInput && !document.body.classList.contains('modal-open')) {
+    const tag = activeEl ? (activeEl.tagName || '').toUpperCase() : '';
+    const type = activeEl && activeEl.type ? String(activeEl.type).toLowerCase() : '';
+    const isTextInput = tag === 'TEXTAREA' || tag === 'SELECT' || !!(activeEl && activeEl.isContentEditable) ||
+      (tag === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'hidden', 'image'].includes(type));
+    if (!isTextInput && !document.body.classList.contains('modal-open')) {
       e.preventDefault();
+      e.stopPropagation();
+      if (activeEl && (tag === 'BUTTON' || tag === 'INPUT')) {
+        try { activeEl.blur(); } catch (_) {}
+      }
       toggleHunting();
     }
   }
@@ -3641,6 +4025,9 @@ function openNavDropdown() {
   if (navMenuBtn) navMenuBtn.classList.add('btn-accent');
   const backdrop = document.getElementById('dropdownBackdrop');
   if (backdrop) backdrop.style.display = 'block';
+  if (typeof updateSafetyTelemetryUI === 'function') {
+    updateSafetyTelemetryUI();
+  }
 }
 
 function toggleNavDropdown() {
@@ -3695,6 +4082,29 @@ if (navMenuBtn && navDropdown) {
       closeNavDropdown();
     });
   });
+
+  // Accordion toggle handler for collapsible categories inside nav dropdown
+  navDropdown.querySelectorAll('.nav-group-header').forEach(header => {
+    header.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetId = header.getAttribute('data-target');
+      const content = document.getElementById(targetId);
+      const arrow = header.querySelector('.nav-group-arrow');
+      if (!content) return;
+      const isCollapsed = content.classList.contains('collapsed') || content.style.display === 'none';
+      if (isCollapsed) {
+        content.classList.remove('collapsed');
+        content.style.display = 'flex';
+        header.setAttribute('aria-expanded', 'true');
+        if (arrow) arrow.innerHTML = '&#9662;';
+      } else {
+        content.classList.add('collapsed');
+        content.style.display = 'none';
+        header.setAttribute('aria-expanded', 'false');
+        if (arrow) arrow.innerHTML = '&#9656;';
+      }
+    });
+  });
 }
 
 if (avoidDupesBtn) {
@@ -3734,7 +4144,7 @@ if (autoStartMapBtn) {
 if (autoStartDelaySelect) {
   autoStartDelaySelect.addEventListener('change', () => {
     if (!config.settings) config.settings = {};
-    const val = parseInt(autoStartDelaySelect.value, 10) || 5;
+    const val = parseInt(autoStartDelaySelect.value, 10) || 3;
     config.settings.autoStartDelay = val;
     saveLocalConfig();
     updateAutoStartMapUI();
@@ -3751,6 +4161,11 @@ if (hideAdsBtn) {
     if (!willHide && config.settings.autoCatchMasterBall) {
       config.settings.autoCatchMasterBall = false;
       backendLog('Settings', 'Auto-Catch disabled automatically because Hide Ads was turned OFF.');
+      try {
+        if (delugeView && typeof delugeView.send === 'function') {
+          delugeView.send('abort-autocatch');
+        }
+      } catch (_) {}
     }
     saveLocalConfig();
     updateHideAdsUI();
@@ -3775,6 +4190,13 @@ if (autoCatchBtn) {
     saveLocalConfig();
     updateAutoCatchUI();
     delugeView.send('update-config', config.settings);
+    if (!config.settings.autoCatchMasterBall) {
+      try {
+        if (delugeView && typeof delugeView.send === 'function') {
+          delugeView.send('abort-autocatch');
+        }
+      } catch (_) {}
+    }
     updateStatus('Auto-Catch (Master Ball): ' + (config.settings.autoCatchMasterBall ? 'ON' : 'OFF'), '#10b981');
     backendLog('Settings', `Auto-Catch (Master Ball) set to ${config.settings.autoCatchMasterBall}`);
   });
@@ -4022,15 +4444,17 @@ let lastSelectedBattleUrl = null;
 function getEffectiveFilteredPool(collection, filterType) {
   if (!collection || !Array.isArray(collection)) return [];
   const type = (filterType || 'ANY').toUpperCase();
-  if (type === 'GMAX') {
-    return teamEngine.filterCandidatePool(collection, 'GMAX_MEGA');
-  }
   return teamEngine.filterCandidatePool(collection, type);
 }
 
 function getActiveCandidates() {
   if (!currentCollection || currentCollection.length === 0) return [];
-  const filtered = getEffectiveFilteredPool(currentCollection, teamPoolFilter);
+  let filtered = getEffectiveFilteredPool(currentCollection, teamPoolFilter);
+  const isGmaxChallenge = (teamCategorySelect && teamCategorySelect.value === 'GMAX_CHALLENGE') ||
+                          (teamTrainerSelect && teamTrainerSelect.value === 'GMAX_CHALLENGE');
+  if (isGmaxChallenge) {
+    filtered = filtered.filter(p => !teamEngine.isAlreadyGmax(p));
+  }
   if (teamRosterMode === 'TRAINING') {
     return filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
   }
@@ -4038,7 +4462,12 @@ function getActiveCandidates() {
 }
 
 function updateRosterModeUI() {
-  const filtered = getEffectiveFilteredPool(currentCollection || [], teamPoolFilter);
+  let filtered = getEffectiveFilteredPool(currentCollection || [], teamPoolFilter);
+  const isGmaxChallenge = (teamCategorySelect && teamCategorySelect.value === 'GMAX_CHALLENGE') ||
+                          (teamTrainerSelect && teamTrainerSelect.value === 'GMAX_CHALLENGE');
+  if (isGmaxChallenge) {
+    filtered = filtered.filter(p => !teamEngine.isAlreadyGmax(p));
+  }
   const inTrainingCount = filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100).length;
   const totalCount = filtered.length;
 
@@ -4061,6 +4490,8 @@ function updateRosterModeUI() {
   const filterLabels = {
     ANY: 'Pokemon',
     GMAX: 'G-Max',
+    MEGA: 'Megas',
+    GMAX_MEGA: 'G-Max & Megas',
     LEGENDARY: 'Legendaries',
     ULTRABEAST: 'Ultra Beasts',
     PARADOX: 'Paradox',
@@ -4249,6 +4680,16 @@ function setTeamRosterMode(mode) {
   config.settings.teamRosterMode = mode;
   saveLocalConfig();
   updateRosterModeUI();
+
+  if (mode === 'TRAINING') {
+    if (teamCategorySelect && teamCategorySelect.value === 'GMAX_CHALLENGE') {
+      teamCategorySelect.value = 'ALL';
+      config.settings.teamCategoryFilter = 'ALL';
+      saveLocalConfig();
+      populateGymTrainerSelect('ALL');
+    }
+  }
+
   resetTeamPrompt();
 }
 
@@ -4334,11 +4775,153 @@ if (candidatePoolFilterSelect) {
     saveLocalConfig();
     updateRosterModeUI();
     resetTeamPrompt();
+
+    if (teamPoolFilter === 'GMAX') {
+      if (teamRosterMode === 'ALL' && teamCategorySelect && teamCategorySelect.value !== 'GMAX_CHALLENGE') {
+        teamCategorySelect.value = 'GMAX_CHALLENGE';
+        if (!config.settings) config.settings = {};
+        config.settings.teamCategoryFilter = 'GMAX_CHALLENGE';
+        saveLocalConfig();
+        populateGymTrainerSelect('GMAX_CHALLENGE');
+      }
+    } else {
+      if (teamCategorySelect && teamCategorySelect.value === 'GMAX_CHALLENGE') {
+        teamCategorySelect.value = 'ALL';
+        if (!config.settings) config.settings = {};
+        config.settings.teamCategoryFilter = 'ALL';
+        saveLocalConfig();
+        populateGymTrainerSelect('ALL');
+      }
+    }
   });
 }
 
 function handleLiveBattleOpponents(data) {
   if (!data || !Array.isArray(data.roster) || data.roster.length === 0) return;
+
+  // Mid-Battle Roster & Team Preservation
+  if (data.isInActiveBattle && data.roster.length === 1) {
+    const liveOpp = data.roster[0];
+    const liveOppName = (liveOpp.name || '').toLowerCase().trim();
+
+    const knownVariants = ['normal', 'shiny', 'metallic', 'ghostly', 'dark', 'shadow', 'mirage', 'retro', 'chrome', 'negative'];
+    const stripVar = (s) => {
+      let clean = (s || '').toLowerCase().trim();
+      for (let i = 0; i < knownVariants.length; i++) {
+        const v = knownVariants[i];
+        if (clean.indexOf(v + ' ') === 0) {
+          clean = clean.substring(v.length + 1).trim();
+          break;
+        }
+      }
+      return clean.replace(/[^a-z0-9]/g, '');
+    };
+    const cleanLiveBase = stripVar(liveOppName);
+
+    // 1. Check if previous activeAiBattleData had full roster for this trainer
+    if (activeAiBattleData && activeAiBattleData.trainerName &&
+        activeAiBattleData.trainerName.toLowerCase() === (data.trainerName || '').toLowerCase() &&
+        Array.isArray(activeAiBattleData.roster) && activeAiBattleData.roster.length > 1) {
+      const prevRoster = activeAiBattleData.roster;
+      const matchIdx = prevRoster.findIndex(p => {
+        const pClean = (p.name || '').toLowerCase().trim();
+        return pClean === liveOppName || stripVar(pClean) === cleanLiveBase;
+      });
+      if (matchIdx !== -1) {
+        for (let i = 0; i < matchIdx; i++) {
+          prevRoster[i].isFainted = true;
+          prevRoster[i].hp = 0;
+        }
+        prevRoster[matchIdx].hp = liveOpp.hp;
+        prevRoster[matchIdx].maxHp = liveOpp.maxHp;
+        prevRoster[matchIdx].level = liveOpp.level;
+        prevRoster[matchIdx].types = liveOpp.types;
+        prevRoster[matchIdx].isFainted = (liveOpp.hp !== undefined && liveOpp.hp <= 0);
+        if (liveOpp.sprite) prevRoster[matchIdx].sprite = liveOpp.sprite;
+        data.roster = prevRoster;
+      } else {
+        prevRoster.push(liveOpp);
+        data.roster = prevRoster;
+      }
+    } else if (gymLeadersData && data.trainerName) {
+      // 2. Check gymLeadersData for known roster of this trainer
+      const cleanName = data.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      let knownLeader = null;
+      const allGroups = [
+        gymLeadersData.ULTIMATE_TRAINERS,
+        gymLeadersData.STRONG_TRAINERS,
+        gymLeadersData.VIP_TRAINERS,
+        gymLeadersData.STANDARD_TRAINERS
+      ];
+      for (const group of allGroups) {
+        if (!group) continue;
+        knownLeader = group.find(t => t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanName);
+        if (knownLeader) break;
+      }
+      if (!knownLeader && gymLeadersData.GYM_LEAGUES) {
+        for (const reg in gymLeadersData.GYM_LEAGUES) {
+          knownLeader = gymLeadersData.GYM_LEAGUES[reg].find(t => t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanName);
+          if (knownLeader) break;
+        }
+      }
+      if (knownLeader && Array.isArray(knownLeader.roster) && knownLeader.roster.length > 1) {
+        const fullRoster = knownLeader.roster.map(p => ({
+          name: p.name,
+          types: p.types || ['Normal'],
+          level: p.level || 100,
+          hp: 400,
+          maxHp: 400,
+          isFainted: false,
+          moves: p.moves || []
+        }));
+        const mIdx = fullRoster.findIndex(p => {
+          const pClean = (p.name || '').toLowerCase().trim();
+          return pClean === liveOppName || stripVar(pClean) === cleanLiveBase;
+        });
+        if (mIdx !== -1) {
+          for (let i = 0; i < mIdx; i++) {
+            fullRoster[i].isFainted = true;
+            fullRoster[i].hp = 0;
+          }
+          fullRoster[mIdx].hp = liveOpp.hp;
+          fullRoster[mIdx].maxHp = liveOpp.maxHp;
+          fullRoster[mIdx].level = liveOpp.level;
+          fullRoster[mIdx].types = liveOpp.types;
+          fullRoster[mIdx].isFainted = (liveOpp.hp !== undefined && liveOpp.hp <= 0);
+        }
+        data.roster = fullRoster;
+      }
+    }
+
+    // Preserve userTeam if current turn data has empty userTeam but previous had it
+    if ((!data.userTeam || data.userTeam.length === 0) && activeAiBattleData && Array.isArray(activeAiBattleData.userTeam) && activeAiBattleData.userTeam.length > 0) {
+      data.userTeam = activeAiBattleData.userTeam;
+    }
+  }
+
+  // Track and retain userTeam across preparation, challenge preview, and active battle screens
+  if (Array.isArray(data.userTeam) && data.userTeam.length > 0) {
+    lastKnownUserTeam = data.userTeam;
+  } else if ((!data.userTeam || data.userTeam.length === 0) && Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > 0) {
+    data.userTeam = lastKnownUserTeam;
+  }
+
+  // Detect G-Max Challenge and Challenge Arena locks
+  const isChallenge = Boolean(
+    data.isChallengePreview ||
+    data.isGmaxChallenge ||
+    data.isChallengeLocked ||
+    (data.battleUrl && data.battleUrl.indexOf('challenge') !== -1) ||
+    (data.trainerTitle && data.trainerTitle.indexOf('Challenge') !== -1)
+  );
+  if (isChallenge) {
+    data.isChallengeLocked = true;
+  }
+
+  activeAiBattleData = data;
+  if (typeof updateLiveAiAssistantUI === 'function') {
+    updateLiveAiAssistantUI(data);
+  }
   liveBattleOpponent = {
     name: data.trainerName || 'Challenger',
     trainerName: data.trainerName || 'Challenger',
@@ -4403,6 +4986,12 @@ function handleLiveBattleOpponents(data) {
           fs.writeFileSync(gymPath, JSON.stringify(gymLeadersData, null, 2), 'utf8');
           backendLog('ROSTER_HARVESTER', `Updated ${targetTrainer.name} roster (${targetTrainer.roster.length}/6 known)`);
           populateGymTrainerSelect();
+          if (targetLeader && targetLeader.name && targetLeader.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanSearchName) {
+            targetLeader = targetTrainer;
+            if (typeof buildAndRenderTeam === 'function') {
+              buildAndRenderTeam();
+            }
+          }
         } catch (e) {
           backendLog('ROSTER_HARVESTER', `Failed saving roster: ${e.message}`);
         }
@@ -4471,6 +5060,7 @@ function loadTeamBuilderData() {
         pvpCandidateTierSelect.value = pvpCandidateTier;
       }
       updateRosterModeUI();
+      syncUserCollectionToGuest();
     }
   } catch (_) {}
 
@@ -4684,6 +5274,43 @@ function populateGymTrainerSelect(categoryFilter = null) {
     categoryFilter = (teamCategorySelect && teamCategorySelect.value) ? teamCategorySelect.value : 'ALL';
   }
 
+  if (categoryFilter === 'GMAX_CHALLENGE') {
+    teamTrainerSelect.innerHTML = '';
+    const opt = document.createElement('option');
+    opt.value = 'GMAX_CHALLENGE';
+    opt.selected = true;
+    opt.textContent = '[G-Max Challenge] Randomized Arena Opponents';
+    teamTrainerSelect.appendChild(opt);
+    teamTrainerSelect.disabled = true;
+    teamTrainerSelect.style.opacity = '0.6';
+    teamTrainerSelect.style.cursor = 'not-allowed';
+
+    if (favTrainerBtn) {
+      favTrainerBtn.disabled = true;
+      favTrainerBtn.style.opacity = '0.4';
+      favTrainerBtn.style.cursor = 'not-allowed';
+      favTrainerBtn.title = 'Trainer selection disabled for G-Max Challenge';
+      favTrainerBtn.classList.remove('is-fav');
+    }
+
+    if (filteredTrainerCountBadge) {
+      filteredTrainerCountBadge.textContent = 'Challenge Mode';
+      filteredTrainerCountBadge.style.color = '#388bfd';
+    }
+
+    lastSelectedBattleUrl = '/challenge/gmax';
+    return;
+  }
+
+  teamTrainerSelect.disabled = false;
+  teamTrainerSelect.style.opacity = '1';
+  teamTrainerSelect.style.cursor = 'default';
+  if (favTrainerBtn) {
+    favTrainerBtn.disabled = false;
+    favTrainerBtn.style.opacity = '1';
+    favTrainerBtn.style.cursor = 'pointer';
+  }
+
   const prevSelectedValue = teamTrainerSelect.value;
   teamTrainerSelect.innerHTML = '';
   let matchCount = 0;
@@ -4692,9 +5319,11 @@ function populateGymTrainerSelect(categoryFilter = null) {
     const liveGroup = document.createElement('optgroup');
     liveGroup.id = 'optgroup-live-battle';
     liveGroup.label = 'CURRENT BATTLE (LIVE DETECTED)';
+    liveGroup.style.cssText = 'color: #58a6ff; background: #0c1c38; font-weight: 800; font-style: normal; letter-spacing: 0.5px;';
     const opt = document.createElement('option');
     opt.value = 'LIVE__BATTLE';
     opt.textContent = `[LIVE] ${liveBattleOpponent.trainerTitle || liveBattleOpponent.trainerName} (${liveBattleOpponent.roster.length} Pokemon)`;
+    opt.style.cssText = 'color: #79c0ff; background: #070e1a; font-weight: 700;';
     liveGroup.appendChild(opt);
     teamTrainerSelect.appendChild(liveGroup);
     matchCount++;
@@ -4705,6 +5334,7 @@ function populateGymTrainerSelect(categoryFilter = null) {
   if (categoryFilter === 'FAVORITES') {
     const favGroup = document.createElement('optgroup');
     favGroup.label = `FAVORITE OPPONENTS (${favList.length})`;
+    favGroup.style.cssText = 'color: #f59e0b; background: #261c06; font-weight: 800; font-style: normal; letter-spacing: 0.5px;';
     const seenNames = new Set();
     const allTierKeys = [
       'VIP_TRAINERS', 'ULTIMATE_TRAINERS', 'STRONG_TRAINERS', 'STANDARD_TRAINERS',
@@ -4723,6 +5353,7 @@ function populateGymTrainerSelect(categoryFilter = null) {
           const lvlStr = leader.avgLevel ? `Lv ${leader.avgLevel}` : '';
           const rosterBadge = (Array.isArray(leader.roster) && leader.roster.length > 0) ? ` [${leader.roster.length}/6]` : '';
           opt.textContent = `\u2605 ${leader.name} (${typeStr}${lvlStr ? ' - ' + lvlStr : ''})${rosterBadge}`;
+          opt.style.cssText = 'color: #f59e0b; background: #070e1a; font-weight: 600;';
           favGroup.appendChild(opt);
           matchCount++;
         }
@@ -4735,25 +5366,26 @@ function populateGymTrainerSelect(categoryFilter = null) {
       emptyOpt.disabled = true;
       emptyOpt.selected = true;
       emptyOpt.textContent = 'No favorite opponents saved yet (Click \u2606 to favorite)';
+      emptyOpt.style.cssText = 'color: #64748b; background: #070e1a; font-style: italic;';
       favGroup.appendChild(emptyOpt);
     }
 
     teamTrainerSelect.appendChild(favGroup);
   } else {
     const groupOrder = [
-      { key: 'VIP_TRAINERS', label: 'VIP TRAINERS (Gym Leaders & Champions)' },
-      { key: 'ULTIMATE_TRAINERS', label: 'ULTIMATE TRAINERS (Lvl 100 Masters)' },
-      { key: 'STRONG_TRAINERS', label: 'STRONG TRAINERS (Bosses & Veterans)' },
-      { key: 'STANDARD_TRAINERS', label: 'STANDARD TRAINERS' },
-      { key: 'KANTO', label: 'KANTO LEAGUE' },
-      { key: 'JOHTO', label: 'JOHTO LEAGUE' },
-      { key: 'HOENN', label: 'HOENN LEAGUE' },
-      { key: 'SINNOH', label: 'SINNOH LEAGUE' },
-      { key: 'UNOVA', label: 'UNOVA LEAGUE' },
-      { key: 'KALOS', label: 'KALOS LEAGUE' },
-      { key: 'ALOLA', label: 'ALOLA LEAGUE' },
-      { key: 'GALAR', label: 'GALAR LEAGUE' },
-      { key: 'PALDEA', label: 'PALDEA LEAGUE' }
+      { key: 'VIP_TRAINERS', label: 'VIP TRAINERS (Gym Leaders & Champions)', color: '#f0883e', bg: '#251408' },
+      { key: 'ULTIMATE_TRAINERS', label: 'ULTIMATE TRAINERS (Lvl 100 Masters)', color: '#f85149', bg: '#2d0f11' },
+      { key: 'STRONG_TRAINERS', label: 'STRONG TRAINERS (Bosses & Veterans)', color: '#a371f7', bg: '#1d1233' },
+      { key: 'STANDARD_TRAINERS', label: 'STANDARD TRAINERS', color: '#8eaad0', bg: '#0e1b30' },
+      { key: 'KANTO', label: 'KANTO LEAGUE', color: '#3fb950', bg: '#0a2012' },
+      { key: 'JOHTO', label: 'JOHTO LEAGUE', color: '#3fb950', bg: '#0a2012' },
+      { key: 'HOENN', label: 'HOENN LEAGUE', color: '#3fb950', bg: '#0a2012' },
+      { key: 'SINNOH', label: 'SINNOH LEAGUE', color: '#3fb950', bg: '#0a2012' },
+      { key: 'UNOVA', label: 'UNOVA LEAGUE', color: '#3fb950', bg: '#0a2012' },
+      { key: 'KALOS', label: 'KALOS LEAGUE', color: '#3fb950', bg: '#0a2012' },
+      { key: 'ALOLA', label: 'ALOLA LEAGUE', color: '#3fb950', bg: '#0a2012' },
+      { key: 'GALAR', label: 'GALAR LEAGUE', color: '#3fb950', bg: '#0a2012' },
+      { key: 'PALDEA', label: 'PALDEA LEAGUE', color: '#3fb950', bg: '#0a2012' }
     ];
 
     for (const item of groupOrder) {
@@ -4771,6 +5403,7 @@ function populateGymTrainerSelect(categoryFilter = null) {
 
       const group = document.createElement('optgroup');
       group.label = `${item.label} (${trainers.length})`;
+      group.style.cssText = `color: ${item.color}; background: ${item.bg}; font-weight: 800; font-style: normal; letter-spacing: 0.5px;`;
 
       trainers.forEach((leader, idx) => {
         const opt = document.createElement('option');
@@ -4781,6 +5414,9 @@ function populateGymTrainerSelect(categoryFilter = null) {
         const isFav = favList.includes(leader.name);
         const favPrefix = isFav ? '\u2605 ' : '';
         opt.textContent = `${favPrefix}${leader.name} (${typeStr}${lvlStr ? ' - ' + lvlStr : ''})${rosterBadge}`;
+        opt.style.cssText = isFav
+          ? 'color: #f59e0b; background: #070e1a; font-weight: 700;'
+          : 'color: #e0ecfa; background: #070e1a; font-weight: 500;';
         group.appendChild(opt);
         matchCount++;
       });
@@ -4811,7 +5447,22 @@ if (teamCategorySelect) {
     if (!config.settings) config.settings = {};
     config.settings.teamCategoryFilter = teamCategorySelect.value;
     saveLocalConfig();
+
+    if (teamCategorySelect.value === 'GMAX_CHALLENGE') {
+      if (candidatePoolFilterSelect && candidatePoolFilterSelect.value !== 'GMAX') {
+        candidatePoolFilterSelect.value = 'GMAX';
+        teamPoolFilter = 'GMAX';
+        if (!config.settings) config.settings = {};
+        config.settings.teamPoolFilter = 'GMAX';
+        saveLocalConfig();
+        updateRosterModeUI();
+      }
+      if (teamRosterMode !== 'ALL') {
+        setTeamRosterMode('ALL');
+      }
+    }
     populateGymTrainerSelect(teamCategorySelect.value);
+    resetTeamPrompt();
   });
 }
 
@@ -4823,6 +5474,9 @@ function openTeamBuilderPanel() {
   if (!teamBuilderModal) return;
   if (adsInspectorModal) adsInspectorModal.style.display = 'none';
   if (catchLogModal) catchLogModal.style.display = 'none';
+  if (aiAssistantModal) aiAssistantModal.style.display = 'none';
+  if (safetySettingsModal) safetySettingsModal.style.display = 'none';
+  if (safetySettingsTopBtn) safetySettingsTopBtn.classList.remove('btn-accent');
   teamBuilderModal.style.display = 'flex';
   if (delugeView) {
     delugeView.classList.remove('full-width');
@@ -4853,7 +5507,9 @@ function closeTeamBuilderPanel() {
   if (!teamBuilderModal) return;
   teamBuilderModal.style.display = 'none';
   if ((!adsInspectorModal || adsInspectorModal.style.display !== 'flex') &&
-      (!catchLogModal || catchLogModal.style.display !== 'flex')) {
+      (!catchLogModal || catchLogModal.style.display !== 'flex') &&
+      (!aiAssistantModal || aiAssistantModal.style.display !== 'flex') &&
+      (!safetySettingsModal || safetySettingsModal.style.display !== 'flex')) {
     if (delugeView) {
       delugeView.classList.add('full-width');
       delugeView.style.width = '100%';
@@ -4992,6 +5648,14 @@ function openAdsInspectorPanel() {
   if (catchLogModal) {
     catchLogModal.style.display = 'none';
   }
+  if (aiAssistantModal) {
+    aiAssistantModal.style.display = 'none';
+    if (aiAssistantTopBtn) aiAssistantTopBtn.classList.remove('btn-accent');
+  }
+  if (safetySettingsModal) {
+    safetySettingsModal.style.display = 'none';
+    if (safetySettingsTopBtn) safetySettingsTopBtn.classList.remove('btn-accent');
+  }
   adsInspectorModal.style.display = 'flex';
   if (delugeView) {
     delugeView.classList.remove('full-width');
@@ -5011,7 +5675,9 @@ function closeAdsInspectorPanel() {
   if (!adsInspectorModal) return;
   adsInspectorModal.style.display = 'none';
   if ((!teamBuilderModal || teamBuilderModal.style.display !== 'flex') &&
-      (!catchLogModal || catchLogModal.style.display !== 'flex')) {
+      (!catchLogModal || catchLogModal.style.display !== 'flex') &&
+      (!aiAssistantModal || aiAssistantModal.style.display !== 'flex') &&
+      (!safetySettingsModal || safetySettingsModal.style.display !== 'flex')) {
     if (delugeView) {
       delugeView.classList.add('full-width');
       delugeView.style.width = '100%';
@@ -5228,9 +5894,16 @@ function renderTeamLineup(leader, team) {
     const right = document.createElement('div');
     right.style.cssText = 'text-align:right; white-space:nowrap; flex-shrink:0; display:flex; align-items:center;';
 
-    let targetBadgeHtml = '';
-    if (p.targetName === 'Safety Anchor & Carry') {
-      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid #388bfd; border-radius:4px;">CARRY ANCHOR</span>';
+    if (p.role === 'G-MAX TARGET' || p.targetName === 'G-Max Evolution Target') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#58a6ff; background:rgba(88, 166, 255, 0.15); border:1px solid #58a6ff; border-radius:4px;">G-MAX TARGET</span>';
+    } else if (p.targetName === 'Safety Anchor & Carry') {
+      if (p.isAtRisk) {
+        targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#f87171; background:rgba(248, 113, 113, 0.15); border:1px solid #f87171; border-radius:4px;" title="Carry takes super-effective damage; change trainer recommended">&#9888; CARRY AT RISK</span>';
+      } else {
+        targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid #388bfd; border-radius:4px;">CARRY ANCHOR</span>';
+      }
+    } else if (p.targetName === 'Primary Trainee Partner' || p.targetName === 'Primary Trainee') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#2ea043; background:rgba(46, 160, 67, 0.15); border:1px solid #2ea043; border-radius:4px;">PRIMARY TRAINEE</span>';
     } else if (p.targetName === 'Lead Solo Sweeper' || p.targetName === 'Solo Sweeper') {
       targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#d29922; background:rgba(210, 153, 34, 0.15); border:1px solid #d29922; border-radius:4px;">SOLO SWEEPER</span>';
     } else if (p.targetName === 'Gym Anchor' || p.targetName === 'Reserve Anchor') {
@@ -5249,6 +5922,8 @@ function renderTeamLineup(leader, team) {
       targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#238636; background:rgba(35, 134, 54, 0.15); border:1px solid #238636; border-radius:4px;">PIVOT</span>';
     } else if (p.role === 'ARMOR ANCHOR' || p.role === 'CLUTCH ANCHOR') {
       targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#e0ecfa; background:#1a283e; border:1px solid #388bfd; border-radius:4px;">ANCHOR</span>';
+    } else if (p.role === 'MYSTERY CARRIER') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid #388bfd; border-radius:4px;">CARRIER</span>';
     } else if (p.targetName) {
       targetBadgeHtml = `<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid #1a283e; border-radius:4px;">vs ${p.targetName}</span>`;
     } else {
@@ -5290,6 +5965,8 @@ function executeTeamBuild(targetLeader) {
       const filterLabels = {
         ANY: 'training candidates (< Lv 100)',
         GMAX: 'G-Max training candidates (< Lv 100)',
+        MEGA: 'Mega training candidates (< Lv 100)',
+        GMAX_MEGA: 'G-Max & Mega training candidates (< Lv 100)',
         LEGENDARY: 'Legendary training candidates (< Lv 100)',
         ULTRABEAST: 'Ultra Beast training candidates (< Lv 100)',
         PARADOX: 'Paradox training candidates (< Lv 100)',
@@ -5304,11 +5981,33 @@ function executeTeamBuild(targetLeader) {
       return;
     }
 
-    // 1. Pick carry defense-first: prefer from effectivePool if high-level exists, fallback to all lvl100s to protect trainees
-    const carryPool = lvl100Pokes.length > 0 ? lvl100Pokes : (highLvlPokes.length > 0 ? highLvlPokes : (currentCollection || []).filter(p => (p.level || 0) === 100));
-    let rankedCarries = teamEngine.rankCarries(carryPool.filter(p => teamEngine.canSoloTrainer(p, targetLeader)), targetLeader);
+    // 1. Pick carry defense-first: A carry must GUARANTEE the survival of the low-level trainees.
+    // First, try Level 100s from the user's selected candidate pool that can solo the trainer;
+    // If none can solo, search the ENTIRE collection for a Level 100 capable of soloing the trainer;
+    // If none can strictly solo, rank all collection Level 100s by lead-safety & survivability.
+    // This ensures a low-level team is NEVER led by a fragile or under-leveled Pokemon that dies first!
+    const collectionLvl100s = (currentCollection || []).filter(p => (p.level || 0) === 100);
+    const collectionHighLvls = (currentCollection || []).filter(p => (p.level || 0) >= 70);
+
+    let rankedCarries = [];
+    if (lvl100Pokes.length > 0) {
+      const poolSoloers = lvl100Pokes.filter(p => teamEngine.canSoloTrainer(p, targetLeader));
+      if (poolSoloers.length > 0) {
+        rankedCarries = teamEngine.rankCarries(poolSoloers, targetLeader);
+      }
+    }
+    if (rankedCarries.length === 0 && collectionLvl100s.length > 0) {
+      const allSoloers = collectionLvl100s.filter(p => teamEngine.canSoloTrainer(p, targetLeader));
+      if (allSoloers.length > 0) {
+        rankedCarries = teamEngine.rankCarries(allSoloers, targetLeader);
+      }
+    }
+    if (rankedCarries.length === 0 && collectionLvl100s.length > 0) {
+      rankedCarries = teamEngine.rankCarries(collectionLvl100s, targetLeader);
+    }
     if (rankedCarries.length === 0) {
-      rankedCarries = teamEngine.rankCarries(carryPool.length > 0 ? carryPool : (currentCollection || []).filter(p => (p.level || 0) >= 70), targetLeader);
+      const fallbackPool = highLvlPokes.length > 0 ? highLvlPokes : collectionHighLvls;
+      rankedCarries = teamEngine.rankCarries(fallbackPool.length > 0 ? fallbackPool : (currentCollection || []), targetLeader);
     }
     const carryPoke = rankedCarries.length > 0 ? rankedCarries[0].poke : null;
     const bestCarries = carryPoke ? teamEngine.buildBestTeam(targetLeader, [carryPoke]) : [];
@@ -5318,44 +6017,19 @@ function executeTeamBuild(targetLeader) {
     const carrySpecies = carry ? teamEngine.getBaseSpecies(carry.name) : '';
     const availableTrainees = trainees.filter(p => (!carry || p.id !== carry.id) && (!carrySpecies || teamEngine.getBaseSpecies(p.name) !== carrySpecies));
 
-    // 3. Pick top 5 trainees (< 100)
-    let traineeCounters = teamEngine.buildBestTeam(targetLeader, availableTrainees).slice(0, 5);
-
-    // 4. Check if any trainee can solo targetLeader
-    let soloTraineeIdx = -1;
-    for (let idx = 0; idx < traineeCounters.length; idx++) {
-      const tc = traineeCounters[idx];
-      const orig = availableTrainees.find(p => p.id === tc.id);
-      if (orig && teamEngine.canSoloTrainer(orig, targetLeader)) {
-        soloTraineeIdx = idx;
-        break;
-      }
-    }
-
-    // If none of top 5 can solo, check remaining available trainees
-    if (soloTraineeIdx === -1) {
-      for (const p of availableTrainees) {
-        if (teamEngine.canSoloTrainer(p, targetLeader)) {
-          const scored = teamEngine.buildBestTeam(targetLeader, [p]);
-          if (scored.length > 0) {
-            const soloTrainee = scored[0];
-            traineeCounters = traineeCounters.filter(t => teamEngine.getBaseSpecies(t.name) !== teamEngine.getBaseSpecies(p.name));
-            if (traineeCounters.length >= 5) traineeCounters.pop();
-            traineeCounters.unshift(soloTrainee);
-            soloTraineeIdx = 0;
-            break;
-          }
-        }
-      }
-    } else if (soloTraineeIdx > 0) {
-      // Reorder so solo-capable trainee leads in Slot 1
-      const soloTrainee = traineeCounters.splice(soloTraineeIdx, 1)[0];
-      traineeCounters.unshift(soloTrainee);
-      soloTraineeIdx = 0;
-    }
-
     const hybridTeam = [];
+
+    // Slot 1: Unstoppable Max Level Carry Anchor (Always Level 100)
     if (carry) {
+      const carryGuidance = (carryPoke && typeof teamEngine.getCarryMoveGuidance === 'function')
+        ? teamEngine.getCarryMoveGuidance(carryPoke, targetLeader)
+        : carry.bestMove;
+
+      const topRank = rankedCarries[0];
+      const isAtRisk = topRank
+        ? (topRank.exposure.worst >= 2.0 || topRank.walledCount > 0 || (carry.level || 0) < (targetLeader.avgLevel || 50))
+        : false;
+
       hybridTeam.push({
         slot: 1,
         id: carry.id,
@@ -5364,36 +6038,93 @@ function executeTeamBuild(targetLeader) {
         level: carry.level,
         types: carry.types,
         sprite: carry.sprite,
-        bestMove: carry.bestMove,
+        bestMove: carryGuidance,
         targetName: 'Safety Anchor & Carry',
-        role: 'Solo Sweeper Carry (Lv ' + carry.level + ')',
-        score: carry.score
+        role: isAtRisk ? 'Vulnerable Carry' : ('Solo Sweeper Carry (Lv ' + carry.level + ')'),
+        score: carry.score,
+        isAtRisk: isAtRisk
       });
     }
 
-    traineeCounters.forEach(t => {
-      if (carry && t.id === carry.id) return;
-      if (hybridTeam.length >= 6) return;
-      const orig = availableTrainees.find(p => p.id === t.id);
-      const isSolo = orig ? teamEngine.canSoloTrainer(orig, targetLeader) : false;
-      const slotNum = hybridTeam.length + 1;
-      hybridTeam.push({
-        slot: slotNum,
-        id: t.id,
-        name: t.name,
-        variant: t.variant,
-        level: t.level,
-        types: t.types,
-        sprite: t.sprite,
-        bestMove: t.bestMove,
-        targetName: isSolo ? 'Solo Sweeper' : ('Trainee #' + (slotNum - (carry ? 1 : 0))),
-        role: isSolo ? 'Solo Sweeper (100% Solo EXP)' : (t.role || ('Trainee Counter (Lv ' + t.level + ')')),
-        score: t.score
-      });
-    });
+    // Slot 2: Primary Trainee Partner (The trainee that can defeat/sweep the most opponents alongside the carry)
+      const rankedPartners = typeof teamEngine.rankTraineePartners === 'function'
+        ? teamEngine.rankTraineePartners(availableTrainees, targetLeader)
+        : availableTrainees.map(t => ({ poke: t }));
+
+      const primaryPartner = rankedPartners.length > 0 ? rankedPartners[0].poke : null;
+
+      if (primaryPartner) {
+        const partnerMove = teamEngine.getRosterWideBestAttack(primaryPartner, targetLeader);
+        hybridTeam.push({
+          slot: 2,
+          id: primaryPartner.id,
+          name: primaryPartner.name,
+          variant: primaryPartner.variant,
+          level: primaryPartner.level,
+          types: primaryPartner.types,
+          sprite: primaryPartner.sprite,
+          bestMove: partnerMove,
+          targetName: 'Primary Trainee Partner',
+          role: 'Primary Trainee Duo (Lv ' + primaryPartner.level + ')',
+          score: rankedPartners[0].score || 500
+        });
+      }
+
+      // Slots 3 to 6: Remaining trainees (Bench EXP receivers)
+      const otherTrainees = availableTrainees.filter(p => !primaryPartner || p.id !== primaryPartner.id);
+      for (let i = 0; i < otherTrainees.length && hybridTeam.length < 6; i++) {
+        const t = otherTrainees[i];
+        hybridTeam.push({
+          slot: hybridTeam.length + 1,
+          id: t.id,
+          name: t.name,
+          variant: t.variant,
+          level: t.level,
+          types: t.types,
+          sprite: t.sprite,
+          bestMove: teamEngine.getRosterWideBestAttack(t, targetLeader),
+          targetName: 'Trainee #' + (hybridTeam.length + 1),
+          role: 'Trainee EXP Receiver (Lv ' + t.level + ')',
+          score: 100
+        });
+      }
+
+      // Fill remaining slots up to 6 with high-level reserve anchors from collection
+      if (hybridTeam.length < 6) {
+        const usedIds = new Set(hybridTeam.map(m => m.id));
+        const reservePool = (currentCollection || [])
+          .filter(p => !usedIds.has(p.id))
+          .sort((a, b) => (b.level || 0) - (a.level || 0));
+        for (let i = 0; i < reservePool.length && hybridTeam.length < 6; i++) {
+          const res = reservePool[i];
+          usedIds.add(res.id);
+          hybridTeam.push({
+            slot: hybridTeam.length + 1,
+            id: res.id,
+            name: res.name,
+            variant: res.variant,
+            level: res.level,
+            types: res.types,
+            sprite: res.sprite,
+            bestMove: teamEngine.getRosterWideBestAttack(res, targetLeader),
+            targetName: 'Reserve Anchor',
+            role: 'Reserve Anchor (Lv ' + res.level + ')',
+            score: 200
+          });
+        }
+      }
 
     lastRecommendedTeam = hybridTeam;
     renderTeamLineup(targetLeader, hybridTeam);
+    if (teamActionStatus) {
+      const leadMember = hybridTeam[0];
+      if (leadMember && leadMember.isAtRisk) {
+        teamActionStatus.innerHTML = '<span style="color:#f87171; font-weight:600;">&#9888; Carry has elemental vulnerability - change trainer recommended.</span>';
+        teamActionStatus.style.display = 'block';
+      } else {
+        teamActionStatus.style.display = 'none';
+      }
+    }
     return;
   }
 
@@ -5402,6 +6133,8 @@ function executeTeamBuild(targetLeader) {
     const filterLabels = {
       ANY: 'Pokemon',
       GMAX: 'G-Max Pokemon',
+      MEGA: 'Mega Pokemon',
+      GMAX_MEGA: 'G-Max & Mega Pokemon',
       LEGENDARY: 'Legendaries',
       ULTRABEAST: 'Ultra Beasts',
       PARADOX: 'Paradox Pokemon',
@@ -5416,7 +6149,7 @@ function executeTeamBuild(targetLeader) {
     return;
   }
 
-  const team = teamEngine.buildBestTeam(targetLeader, candidates);
+  const team = teamEngine.buildBestTeam(targetLeader, candidates, currentCollection);
   lastRecommendedTeam = team;
   renderTeamLineup(targetLeader, team);
 }
@@ -5445,7 +6178,9 @@ function executePvPTeamBuild() {
         LEGENDARY: 'Legendaries',
         ULTRABEAST: 'Ultra Beasts',
         PARADOX: 'Paradox Pokemon',
-        GMAX: 'G-Max / Mega Pokemon'
+        GMAX: 'G-Max Pokemon',
+        MEGA: 'Mega Pokemon',
+        GMAX_MEGA: 'G-Max & Mega Pokemon'
       };
       const label = tierLabels[pvpTier] || 'Pokemon';
       if (teamResultContainer) teamResultContainer.style.display = 'block';
@@ -5486,7 +6221,9 @@ function executePvPTeamBuild() {
         LEGENDARY: 'Legendaries',
         ULTRABEAST: 'Ultra Beasts',
         PARADOX: 'Paradox Pokemon',
-        GMAX: 'G-Max / Mega Pokemon'
+        GMAX: 'G-Max Pokemon',
+        MEGA: 'Mega Pokemon',
+        GMAX_MEGA: 'G-Max & Mega Pokemon'
       };
       const label = tierLabels[pvpTier] || 'Pokemon';
       if (teamResultContainer) teamResultContainer.style.display = 'block';
@@ -5533,44 +6270,58 @@ if (buildTeamBtn) {
       }
       return;
     }
-    const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
-    if (!selVal) return;
+    const isGmaxChallenge = (teamCategorySelect && teamCategorySelect.value === 'GMAX_CHALLENGE') ||
+                            (teamTrainerSelect && teamTrainerSelect.value === 'GMAX_CHALLENGE');
 
     let targetLeader = null;
-    if (selVal === 'LIVE__BATTLE') {
-      if (!liveBattleOpponent || !liveBattleOpponent.roster) return;
-      let matchedTypes = ['Mixed'];
-      if (gymLeadersData && liveBattleOpponent.trainerName) {
-        const cleanSearchName = liveBattleOpponent.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const allGroups = [
-          gymLeadersData.ULTIMATE_TRAINERS,
-          gymLeadersData.STRONG_TRAINERS,
-          gymLeadersData.VIP_TRAINERS,
-          gymLeadersData.STANDARD_TRAINERS
-        ];
-        for (const group of allGroups) {
-          if (!group) continue;
-          const found = group.find(t => t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanSearchName);
-          if (found && found.types && found.types.length > 0) {
-            matchedTypes = found.types;
-            break;
+    if (isGmaxChallenge) {
+      targetLeader = {
+        name: 'G-Max Challenge Arena',
+        types: ['Mixed'],
+        avgLevel: 100,
+        isChallenge: true,
+        battleUrl: '/challenge/gmax'
+      };
+      lastSelectedBattleUrl = '/challenge/gmax';
+    } else {
+      const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
+      if (!selVal) return;
+
+      if (selVal === 'LIVE__BATTLE') {
+        if (!liveBattleOpponent || !liveBattleOpponent.roster) return;
+        let matchedTypes = ['Mixed'];
+        if (gymLeadersData && liveBattleOpponent.trainerName) {
+          const cleanSearchName = liveBattleOpponent.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const allGroups = [
+            gymLeadersData.ULTIMATE_TRAINERS,
+            gymLeadersData.STRONG_TRAINERS,
+            gymLeadersData.VIP_TRAINERS,
+            gymLeadersData.STANDARD_TRAINERS
+          ];
+          for (const group of allGroups) {
+            if (!group) continue;
+            const found = group.find(t => t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanSearchName);
+            if (found && found.types && found.types.length > 0) {
+              matchedTypes = found.types;
+              break;
+            }
           }
         }
-      }
-      targetLeader = {
-        name: liveBattleOpponent.trainerName,
-        roster: liveBattleOpponent.roster,
-        types: matchedTypes
-      };
-    } else {
-      const parts = selVal.split('__');
-      const groupKey = parts[0];
-      const idxOrName = parts[1];
-      const group = gymLeadersData[groupKey] || [];
-      if (/^\d+$/.test(idxOrName)) {
-        targetLeader = group[parseInt(idxOrName, 10)];
+        targetLeader = {
+          name: liveBattleOpponent.trainerName,
+          roster: liveBattleOpponent.roster,
+          types: matchedTypes
+        };
       } else {
-        targetLeader = group.find(l => l.name === idxOrName);
+        const parts = selVal.split('__');
+        const groupKey = parts[0];
+        const idxOrName = parts[1];
+        const group = gymLeadersData[groupKey] || [];
+        if (/^\d+$/.test(idxOrName)) {
+          targetLeader = group[parseInt(idxOrName, 10)];
+        } else {
+          targetLeader = group.find(l => l.name === idxOrName);
+        }
       }
     }
     if (!targetLeader) return;
@@ -5644,6 +6395,9 @@ function resolveTargetBattleUrl() {
       return pvpTarget.battleUrl;
     }
     return '/battle/live';
+  }
+  if (teamCategorySelect && teamCategorySelect.value === 'GMAX_CHALLENGE') {
+    return '/challenge/gmax';
   }
   if (lastSelectedBattleUrl) return lastSelectedBattleUrl;
 
@@ -5950,6 +6704,19 @@ function recordCaughtPokemon(pokemon, remainingStock) {
   saveDailyCatchLog();
   updateCatchLogBadge();
   renderCatchLogUI();
+
+  // Defense-in-depth safety tracking for daily catches
+  ensureTodaySafetyState();
+  dailySafetyState.todayCatches = (dailyCatchData.caught ? dailyCatchData.caught.length : 0);
+  saveDailySafetyState();
+  updateSafetyTelemetryUI();
+
+  if (config.safety && config.safety.enableDailyCeilings !== false) {
+    if (dailySafetyState.todayCatches >= dailySafetyState.dailyCatchCeiling) {
+      stopHuntingWithReason('Daily catch ceiling reached', `Paused (Daily Catches: ${dailySafetyState.todayCatches}/${dailySafetyState.dailyCatchCeiling})`, '#ef4444');
+      playAlarmSound();
+    }
+  }
 }
 
 function updateBallInventory(inv) {
@@ -5979,6 +6746,14 @@ function openCatchLogPanel() {
   if (adsInspectorModal) {
     adsInspectorModal.style.display = 'none';
   }
+  if (aiAssistantModal) {
+    aiAssistantModal.style.display = 'none';
+    if (aiAssistantTopBtn) aiAssistantTopBtn.classList.remove('btn-accent');
+  }
+  if (safetySettingsModal) {
+    safetySettingsModal.style.display = 'none';
+    if (safetySettingsTopBtn) safetySettingsTopBtn.classList.remove('btn-accent');
+  }
   catchLogModal.style.display = 'flex';
   if (delugeView) {
     delugeView.classList.remove('full-width');
@@ -5998,7 +6773,9 @@ function closeCatchLogPanel() {
   if (!catchLogModal) return;
   catchLogModal.style.display = 'none';
   if ((!teamBuilderModal || teamBuilderModal.style.display !== 'flex') &&
-      (!adsInspectorModal || adsInspectorModal.style.display !== 'flex')) {
+      (!adsInspectorModal || adsInspectorModal.style.display !== 'flex') &&
+      (!aiAssistantModal || aiAssistantModal.style.display !== 'flex') &&
+      (!safetySettingsModal || safetySettingsModal.style.display !== 'flex')) {
     if (delugeView) {
       delugeView.classList.add('full-width');
       delugeView.style.width = '100%';
@@ -6040,8 +6817,12 @@ if (clearCatchLogBtn) {
     ensureTodayCatchLog();
     dailyCatchData.caught = [];
     saveDailyCatchLog();
+    ensureTodaySafetyState();
+    dailySafetyState.todayCatches = 0;
+    saveDailySafetyState();
     updateCatchLogBadge();
     renderCatchLogUI();
+    updateSafetyTelemetryUI();
     updateStatus("Today's catch log cleared", '#388bfd');
   });
 }
@@ -6058,6 +6839,1403 @@ if (refreshCatchLogBtn) {
     }, 500);
   });
 }
+
+// =====================================================================
+// LIVE AI COMBAT ASSISTANT & TACTICAL COPILOT CONTROLLER
+// =====================================================================
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function openAiAssistantPanel() {
+  if (!aiAssistantModal) return;
+  if (teamBuilderModal) {
+    teamBuilderModal.style.display = 'none';
+    if (teamBuilderBtn) teamBuilderBtn.classList.remove('btn-accent');
+    updateTeamBuilderBadge(false);
+  }
+  if (adsInspectorModal) adsInspectorModal.style.display = 'none';
+  if (catchLogModal) catchLogModal.style.display = 'none';
+  if (safetySettingsModal) {
+    safetySettingsModal.style.display = 'none';
+    if (safetySettingsTopBtn) safetySettingsTopBtn.classList.remove('btn-accent');
+  }
+
+  aiAssistantModal.style.display = 'flex';
+  if (liveAiHudOverlay) liveAiHudOverlay.style.display = 'none';
+  if (delugeView) {
+    delugeView.classList.remove('full-width');
+    delugeView.style.width = '75%';
+    delugeView.style.flex = '3';
+    delugeView.style.pointerEvents = 'auto';
+  }
+  if (aiAssistantTopBtn) aiAssistantTopBtn.classList.add('btn-accent');
+  if (delugeView && typeof delugeView.send === 'function') {
+    delugeView.send('check-evolve-card');
+  }
+  renderAiAssistantUI();
+}
+
+function closeAiAssistantPanel() {
+  if (!aiAssistantModal) return;
+  aiAssistantModal.style.display = 'none';
+  if ((!teamBuilderModal || teamBuilderModal.style.display !== 'flex') &&
+      (!adsInspectorModal || adsInspectorModal.style.display !== 'flex') &&
+      (!catchLogModal || catchLogModal.style.display !== 'flex') &&
+      (!safetySettingsModal || safetySettingsModal.style.display !== 'flex')) {
+    if (delugeView) {
+      delugeView.classList.add('full-width');
+      delugeView.style.width = '100%';
+      delugeView.style.flex = '1';
+      delugeView.style.pointerEvents = 'auto';
+    }
+  }
+  if (aiAssistantTopBtn) aiAssistantTopBtn.classList.remove('btn-accent');
+  if (liveAiHudOverlay && (activeAiBattleData || activeEvolveCardData)) {
+    const isOtherPanelOpen = Boolean(
+      (teamBuilderModal && teamBuilderModal.style.display === 'flex') ||
+      (adsInspectorModal && adsInspectorModal.style.display === 'flex') ||
+      (catchLogModal && catchLogModal.style.display === 'flex') ||
+      (safetySettingsModal && safetySettingsModal.style.display === 'flex')
+    );
+    liveAiHudOverlay.style.right = isOtherPanelOpen ? 'calc(25% + 14px)' : '14px';
+    liveAiHudOverlay.style.display = 'flex';
+  }
+}
+
+function toggleAiAssistantPanel() {
+  if (!aiAssistantModal) return;
+  if (aiAssistantModal.style.display === 'flex') {
+    closeAiAssistantPanel();
+  } else {
+    openAiAssistantPanel();
+  }
+}
+
+function updateLiveAiAssistantUI(battleData) {
+  if (!battleData || !Array.isArray(battleData.roster) || battleData.roster.length === 0) {
+    if (liveAiHudOverlay && !activeEvolveCardData) liveAiHudOverlay.style.display = 'none';
+    if (aiHudActionBtn && !activeEvolveCardData) aiHudActionBtn.style.display = 'none';
+    activeAiBattleData = null;
+    renderAiAssistantUI();
+    return;
+  }
+  activeAiBattleData = battleData;
+  if (aiAssistant) {
+    aiAssistant.setLiveBattle(battleData);
+  }
+
+  // Update floating HUD overlay only when side panel is closed
+  const isAiPanelOpen = Boolean(aiAssistantModal && aiAssistantModal.style.display === 'flex');
+  const isOtherPanelOpen = Boolean(
+    (teamBuilderModal && teamBuilderModal.style.display === 'flex') ||
+    (adsInspectorModal && adsInspectorModal.style.display === 'flex') ||
+    (catchLogModal && catchLogModal.style.display === 'flex')
+  );
+  if (liveAiHudOverlay) {
+    if (isAiPanelOpen) {
+      liveAiHudOverlay.style.display = 'none';
+    } else {
+      liveAiHudOverlay.style.display = 'flex';
+      liveAiHudOverlay.style.right = isOtherPanelOpen ? 'calc(25% + 14px)' : '14px';
+      if (aiHudMessage) {
+        aiHudMessage.textContent = aiAssistant ? aiAssistant.getFloatingHudText(battleData, currentCollection) : 'Battle active';
+      }
+    }
+  }
+
+  // If panel is visible, re-render
+  if (isAiPanelOpen) {
+    renderAiAssistantUI();
+  }
+}
+
+function handleEvolveCardDetected(card) {
+  if (!card || !card.fullName) return;
+  activeEvolveCardData = card;
+
+  const rawName = card.fullName || '';
+  const species = card.baseSpecies || (getBaseSpecies ? getBaseSpecies(rawName) : rawName);
+  const resolvedTypes = (card.types && card.types.length > 0)
+    ? card.types
+    : (evolutionEngine && evolutionEngine.resolvePokemonTypes ? evolutionEngine.resolvePokemonTypes(card.fullName || species, currentCollection) : ['Normal']);
+  card.types = resolvedTypes;
+
+  const evoAnalysis = aiAssistant ? aiAssistant.analyzeEvolutionPath(species, currentCollection) : null;
+  const bestBranch = evoAnalysis ? evoAnalysis.bestBranch : null;
+  const bestBranchName = bestBranch ? bestBranch.name : '';
+
+  // 1. Update AI Assistant Panel Header Badges
+  if (aiBattleOpponentBadge) {
+    aiBattleOpponentBadge.textContent = `Evolve: ${card.fullName}`;
+    aiBattleOpponentBadge.style.color = '#388bfd';
+  }
+  if (aiStatusChip) {
+    aiStatusChip.textContent = 'Evolve Intel Active';
+    aiStatusChip.style.color = '#10b981';
+  }
+
+  // 2. Render Tactical Briefing Card
+  if (aiTacticalBriefing) {
+    let html = `
+      <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(card.fullName)}</span>
+          <span style="font-size: 9.5px; color: #8eaad0;">Lv ${card.level || 50} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(resolvedTypes.join('/'))}</span></span>
+        </div>
+        <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 4px;">TARGET EVOLUTIONS</div>
+    `;
+
+    const hasAnyMegaOwned = Array.isArray(card.options) && card.options.some(opt => {
+      const optRaw = opt.fullName || opt.name || '';
+      const optBase = getBaseSpecies ? getBaseSpecies(optRaw) : optRaw;
+      const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(optBase, currentCollection) : { isOwned: false };
+      return own.hasMegaOwned;
+    });
+
+    if (hasAnyMegaOwned) {
+      html += `
+        <div style="background: #2a1215; border: 1px solid #f85149; border-radius: 4px; padding: 5px 8px; margin-bottom: 6px; font-size: 10px; font-weight: 700; color: #ff7b72; text-align: center;">
+          &#9888; STOP: You already own the Mega Evolution of this Pokemon! 100% Uniqueness Protection Active.
+        </div>
+      `;
+    }
+
+    if (Array.isArray(card.options) && card.options.length > 0) {
+      card.options.forEach(opt => {
+        const optRaw = opt.fullName || opt.name || '';
+        const optBase = getBaseSpecies ? getBaseSpecies(optRaw) : optRaw;
+        const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(optBase, currentCollection) : { isOwned: false };
+        const isBest = Boolean(bestBranchName && (optBase.toLowerCase() === bestBranchName.toLowerCase() || optRaw.toLowerCase().includes(bestBranchName.toLowerCase())));
+
+        let badgeHtml = '';
+        if (own.isOwned) {
+          if (own.hasMegaOwned) {
+            badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #ff7b72; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: 3px;">&#9888; STOP: MEGA OWNED (Lv ${own.bestLevel})</span>`;
+          } else {
+            badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">OWNED (Lv ${own.bestLevel})</span>`;
+          }
+        } else {
+          badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #d29922; padding: 1px 4px; background: rgba(210, 153, 34, 0.15); border: 1px solid rgba(210, 153, 34, 0.3); border-radius: 3px;">NOT IN COLLECTION</span>`;
+        }
+
+        let metaHtml = '';
+        if (isBest) {
+          metaHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #388bfd; padding: 1px 4px; background: rgba(56, 139, 253, 0.15); border: 1px solid rgba(56, 139, 253, 0.3); border-radius: 3px; margin-left: 4px;">TOP META PATH</span>`;
+        }
+
+        html += `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-top: 1px solid #1a283e; margin-top: 2px;">
+            <div style="font-size: 10px; font-weight: 600; color: #e0ecfa;">
+              ${escapeHtml(optRaw)}
+              <span style="font-size: 9px; color: #8eaad0; margin-left: 3px;">${escapeHtml(opt.requirement || '')}</span>
+            </div>
+            <div style="display: flex; align-items: center;">
+              ${badgeHtml}
+              ${metaHtml}
+            </div>
+          </div>
+        `;
+      });
+    } else {
+      html += `<div style="font-size: 9.5px; color: #8eaad0; padding: 4px 0;">No evolution targets detected</div>`;
+    }
+
+    if (bestBranchName) {
+      html += `
+        <div style="margin-top: 5px; padding: 3px 6px; background: #0b1526; border: 1px solid #1a283e; border-radius: 3px; font-size: 9.5px; color: #8eaad0; display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: #566e96; font-weight: 700;">RECOMMENDED:</span>
+          <span style="color: #388bfd; font-weight: 700;">${escapeHtml(bestBranchName)} (${bestBranch ? bestBranch.types.join('/') : ''})</span>
+        </div>
+      `;
+    }
+
+    html += `</div>`;
+    aiTacticalBriefing.innerHTML = html;
+  }
+
+  // 3. Render Instant Action Buttons
+  if (aiInstantActionSlot) {
+    aiInstantActionSlot.innerHTML = '';
+
+    const pathBtn = document.createElement('button');
+    pathBtn.type = 'button';
+    pathBtn.id = 'aiEvolvePathBtn';
+    pathBtn.className = 'btn btn-accent';
+    pathBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
+    pathBtn.innerHTML = `&#129516; Path Details: ${escapeHtml(card.fullName)}`;
+    pathBtn.addEventListener('click', () => {
+      appendAiChatMessage('USER', `Evolution path for ${card.fullName}`);
+      const ans = aiAssistant ? aiAssistant.askAssistant(`evolve ${card.fullName}`, { activeEvolveCard: card, collection: currentCollection }) : '';
+      setTimeout(() => {
+        appendAiChatMessage('AI', ans);
+      }, 100);
+    });
+    aiInstantActionSlot.appendChild(pathBtn);
+
+    const movesBtn = document.createElement('button');
+    movesBtn.type = 'button';
+    movesBtn.id = 'aiEvolveMovesBtn';
+    movesBtn.className = 'btn';
+    movesBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 600; justify-content: center; gap: 6px; box-shadow: none !important;';
+    const finalSpecies = bestBranchName || (card.options && card.options.length > 0 ? (card.options[0].fullName || card.options[0].name) : card.fullName);
+    movesBtn.innerHTML = `&#9876; Final Moveset: ${escapeHtml(finalSpecies)}`;
+    movesBtn.addEventListener('click', () => {
+      appendAiChatMessage('USER', `Best attack moves for ${finalSpecies}`);
+      const ans = aiAssistant ? aiAssistant.askAssistant(`moves for ${finalSpecies}`, { activeEvolveCard: card, collection: currentCollection }) : '';
+      setTimeout(() => {
+        appendAiChatMessage('AI', ans);
+      }, 100);
+    });
+    aiInstantActionSlot.appendChild(movesBtn);
+  }
+
+  // 4. Update Floating HUD
+  if (liveAiHudOverlay) {
+    const isAiPanelOpen = Boolean(aiAssistantModal && aiAssistantModal.style.display === 'flex');
+    const isOtherPanelOpen = Boolean(
+      (teamBuilderModal && teamBuilderModal.style.display === 'flex') ||
+      (adsInspectorModal && adsInspectorModal.style.display === 'flex') ||
+      (catchLogModal && catchLogModal.style.display === 'flex')
+    );
+    if (!isAiPanelOpen) {
+      liveAiHudOverlay.style.display = 'flex';
+      liveAiHudOverlay.style.right = isOtherPanelOpen ? 'calc(25% + 14px)' : '14px';
+      if (aiHudMessage) {
+        const optSummary = card.options && card.options.length > 0 ? (card.options[0].fullName || card.options[0].name) : 'Evolutions';
+        aiHudMessage.textContent = `AI Evolve: ${card.fullName} -> ${optSummary}`;
+      }
+      if (aiHudActionBtn) {
+        aiHudActionBtn.style.display = 'inline-flex';
+        aiHudActionBtn.textContent = 'View Evolve Intel';
+        aiHudActionBtn.onclick = () => {
+          openAiAssistantPanel();
+        };
+      }
+    }
+  }
+}
+
+function handleEvolveCardClosed() {
+  activeEvolveCardData = null;
+  const isAiPanelOpen = Boolean(aiAssistantModal && aiAssistantModal.style.display === 'flex');
+  if (isAiPanelOpen) {
+    renderAiAssistantUI();
+  } else {
+    if (!activeAiBattleData && liveAiHudOverlay) {
+      liveAiHudOverlay.style.display = 'none';
+    }
+  }
+}
+
+function renderAiAssistantUI() {
+  if (!aiAssistantModal) return;
+
+  // Prioritize active on-screen Evolve dialog if present and no active battle taking place
+  if (activeEvolveCardData && (!activeAiBattleData || !activeAiBattleData.roster || activeAiBattleData.roster.length === 0)) {
+    handleEvolveCardDetected(activeEvolveCardData);
+    return;
+  }
+
+  const analysis = aiAssistant ? aiAssistant.analyzeBattle(activeAiBattleData, currentCollection) : null;
+  lastAnalyzedBattle = analysis;
+  if (!analysis || analysis.status === 'IDLE') {
+    if (aiBattleOpponentBadge) {
+      aiBattleOpponentBadge.textContent = 'Waiting for Battle';
+      aiBattleOpponentBadge.style.color = '#8eaad0';
+    }
+    if (aiTacticalBriefing) {
+      aiTacticalBriefing.innerHTML = '<div style="color: #566e96; text-align: center; padding: 8px 4px; font-size: 10px; font-weight: 600; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px;">No Active Battle Detected</div>';
+    }
+    if (aiInstantActionSlot) {
+      aiInstantActionSlot.innerHTML = '';
+    }
+    if (aiStatusChip) {
+      aiStatusChip.textContent = 'Ready';
+      aiStatusChip.style.color = '#10b981';
+    }
+    if (aiHudActionBtn) {
+      aiHudActionBtn.style.display = 'none';
+    }
+    return;
+  }
+
+  if (aiBattleOpponentBadge) {
+    aiBattleOpponentBadge.textContent = `${analysis.trainerName} (${analysis.rosterCount} Pkmn)`;
+    aiBattleOpponentBadge.style.color = '#388bfd';
+  }
+
+  if (aiStatusChip) {
+    aiStatusChip.textContent = 'Observing Battle';
+    aiStatusChip.style.color = '#388bfd';
+  }
+
+  const cleanActiveLead = analysis.bestActiveLead ? analysis.bestActiveLead.name.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+  const cleanBoxCarry = analysis.bestCarry ? analysis.bestCarry.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+  const isLeadSameAsCarry = cleanActiveLead && cleanBoxCarry && (cleanActiveLead === cleanBoxCarry || cleanActiveLead.includes(cleanBoxCarry) || cleanBoxCarry.includes(cleanActiveLead));
+  const activeTeamHasCarry = Boolean(isLeadSameAsCarry || (activeAiBattleData && activeAiBattleData.userTeam && cleanBoxCarry && activeAiBattleData.userTeam.some(u => {
+    const uClean = (u.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return uClean === cleanBoxCarry || cleanBoxCarry.includes(uClean);
+  })));
+
+  if (aiTacticalBriefing) {
+    const leadName = analysis.bestActiveLead ? analysis.bestActiveLead.name : (analysis.bestCarry || 'Auto Counter');
+    const leadMove = (analysis.bestActiveLead && analysis.bestActiveLead.recommendedMove) ? analysis.bestActiveLead.recommendedMove : (analysis.recommendedMove || 'Best STAB');
+
+    let html = `
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+          <div style="font-size: 9px; font-weight: 700; color: #566e96; text-transform: uppercase;">TARGET</div>
+          <div style="font-size: 11px; font-weight: 700; color: #e0ecfa; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(analysis.activeOpponent)}">
+            ${escapeHtml(analysis.activeOpponent)}
+          </div>
+          <div style="font-size: 9.5px; color: #8eaad0; margin-top: 2px;">
+            Lv ${analysis.activeOpponentLevel} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(analysis.activeOpponentTypes.join('/'))}</span>
+          </div>
+        </div>
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+          <div style="font-size: 9px; font-weight: 700; color: #10b981; text-transform: uppercase;">${analysis.isInActiveBattle ? 'ACTIVE BATTLER' : 'COUNTER LEAD'}</div>
+          <div style="font-size: 11px; font-weight: 700; color: #10b981; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(leadName)}">
+            ${escapeHtml(leadName)}
+          </div>
+          <div style="font-size: 9.5px; color: #e0ecfa; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(leadMove)}">
+            ${escapeHtml(leadMove)}
+          </div>
+        </div>
+      </div>
+    `;
+
+    if (analysis.hazards && analysis.hazards.length > 0) {
+      html += `<div style="margin-top: 5px; padding: 3px 6px; background: #1c1500; border: 1px solid #6e4900; border-radius: 3px; font-size: 9.5px; color: #d29922; text-align: center; font-weight: 600; box-shadow: none !important;">&#9888; ${escapeHtml(analysis.hazards.join(' &bull; '))}</div>`;
+    }
+
+    if (analysis.counterRoadmap && analysis.counterRoadmap.length > 0) {
+      let roadmapRows = '';
+      for (let i = 0; i < analysis.counterRoadmap.length; i++) {
+        const item = analysis.counterRoadmap[i];
+        const oppColor = item.isFainted ? '#566e96; text-decoration: line-through;' : (item.isActive ? '#e0ecfa; font-weight: 700;' : '#8eaad0;');
+        const badgeBg = item.multiplier >= 4.0 ? '#238636' : (item.multiplier >= 2.0 ? '#1f6feb' : '#21262d');
+        const badgeColor = (item.multiplier >= 2.0) ? '#ffffff' : '#8b949e';
+        const activeMarker = item.isActive ? '&#9654; ' : '';
+        const faintedTag = item.isFainted ? ' [KO]' : '';
+
+        roadmapRows += `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #142033; font-size: 9.5px;">
+            <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; max-width: 52%;">
+              <span style="color: ${oppColor} white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(item.opponentName)}">
+                ${activeMarker}${escapeHtml(item.opponentName)}${faintedTag}
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; max-width: 48%; justify-content: flex-end;">
+              <span style="color: ${item.isCounterAlive ? '#10b981' : '#ef4444'}; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(item.counterName)}">
+                ${escapeHtml(item.counterName)}
+              </span>
+              <span style="color: #6b84a6; font-size: 8.5px; white-space: nowrap;">${escapeHtml(item.bestMoveName)}</span>
+              <span style="background: ${badgeBg}; color: ${badgeColor}; font-size: 8px; font-weight: 700; padding: 1px 3px; border-radius: 2px; border: 1px solid #30363d; box-shadow: none !important;">${item.multiplier}x</span>
+            </div>
+          </div>
+        `;
+      }
+
+      html += `
+        <div style="margin-top: 6px; background: #0c1524; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+          <div style="font-size: 9px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: flex; justify-content: space-between;">
+            <span>ROSTER COUNTER ROADMAP</span>
+            <span style="color: #388bfd;">${analysis.counterRoadmap.length} Opponents</span>
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            ${roadmapRows}
+          </div>
+        </div>
+      `;
+    }
+
+    const isChallengeLocked = Boolean(
+      (activeAiBattleData && (activeAiBattleData.isChallengePreview || activeAiBattleData.isGmaxChallenge || activeAiBattleData.isChallengeLocked || (activeAiBattleData.battleUrl && activeAiBattleData.battleUrl.includes('challenge')))) ||
+      analysis.isChallengeLocked ||
+      analysis.isInActiveBattle
+    );
+
+    if (analysis.bestCarry && !activeTeamHasCarry && !isChallengeLocked) {
+      html += `
+        <div style="margin-top: 5px; padding-top: 4px; border-top: 1px solid #1a283e; font-size: 9.5px; color: #8eaad0; display: flex; justify-content: space-between; align-items: center;">
+          <span>Optimal Box Carry:</span>
+          <span style="color: #e0ecfa; font-weight: 600;">${escapeHtml(analysis.bestCarry)}</span>
+        </div>
+      `;
+    }
+
+    aiTacticalBriefing.innerHTML = html;
+  }
+
+  // Render Smart Unified Battle Action Button
+  if (aiInstantActionSlot) {
+    aiInstantActionSlot.innerHTML = '';
+
+    const isChallengeLocked = Boolean(
+      (activeAiBattleData && (activeAiBattleData.isChallengePreview || activeAiBattleData.isGmaxChallenge || activeAiBattleData.isChallengeLocked || (activeAiBattleData.battleUrl && activeAiBattleData.battleUrl.includes('challenge')))) ||
+      analysis.isChallengeLocked
+    );
+
+    const isOpponentTeamAllFainted = Boolean(
+      Array.isArray(activeAiBattleData && activeAiBattleData.roster) &&
+      activeAiBattleData.roster.length > 0 &&
+      activeAiBattleData.roster.every(p => p.isFainted || (p.hp !== undefined && p.hp <= 0))
+    );
+
+    const hasActiveBattleControls = Boolean(
+      analysis.hasContinueBtn ||
+      analysis.hasAttackBtn ||
+      (analysis.availableMoves && analysis.availableMoves.length > 0) ||
+      analysis.hasBenchRadios
+    );
+
+    // Battle Complete mode requires victory screen OR (all fainted AND no more continue/attack controls on screen)
+    const isBattleComplete = Boolean(
+      activeAiBattleData && (
+        activeAiBattleData.isVictoryScreen ||
+        (isOpponentTeamAllFainted && !hasActiveBattleControls)
+      )
+    );
+
+    let mainBtnConfig = null;
+
+    if (isBattleComplete) {
+      mainBtnConfig = {
+        labelHtml: '&#10003; Battle Complete',
+        hudText: '&#10003; Complete',
+        disabled: true,
+        btnClass: 'btn',
+        action: null
+      };
+    } else if (analysis.hasContinueBtn || analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0)) {
+      // Priority 1 when in battle: Continue (once HP is 0 or Continue button present)
+      const isOppKO = Boolean(analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0));
+      const label = isOppKO ? 'Opponent KO - Continue' : 'Continue to Next Turn';
+      mainBtnConfig = {
+        labelHtml: `&#9889; ${label}`,
+        hudText: label,
+        disabled: false,
+        btnClass: 'btn btn-accent',
+        action: () => {
+          executeAiBattleAction('click-battle-button', {});
+        }
+      };
+    } else if (analysis.hasBenchRadios && !analysis.hasAttackBtn) {
+      // Priority 2: Select Pokemon (bench/switch selection screen)
+      const nextName = analysis.nextAliveCounter || (analysis.bestActiveLead ? analysis.bestActiveLead.name : 'Next Counter');
+      mainBtnConfig = {
+        labelHtml: `&#9889; Deploy ${escapeHtml(nextName)} &amp; Continue`,
+        hudText: `Deploy ${nextName}`,
+        disabled: false,
+        btnClass: 'btn btn-accent',
+        action: () => {
+          executeAiBattleAction('select-lead-and-start', { pokemonName: nextName, autoStart: true });
+        }
+      };
+    } else if (analysis.isInActiveBattle) {
+      const oppHp = (analysis.activeOpponentHp !== undefined) ? analysis.activeOpponentHp : 100;
+      const oppMaxHp = (analysis.activeOpponentMaxHp !== undefined) ? analysis.activeOpponentMaxHp : 100;
+      const isOpponentAlive = !analysis.isActiveOpponentFainted && oppHp > 0;
+      const isBattlerAlive = !analysis.isActiveBattlerFainted && ((analysis.activeBattlerHp !== undefined) ? analysis.activeBattlerHp > 0 : true);
+
+      if (isOpponentAlive && isBattlerAlive && (analysis.hasAttackBtn || (analysis.availableMoves && analysis.availableMoves.length > 0))) {
+        // STEP 2: Select Move & Attack (until HP is 0)
+        const moveObj = analysis.bestMoveObj;
+        const moveName = moveObj ? moveObj.name : (analysis.recommendedMove || 'Attack');
+        const mult = moveObj && moveObj.multiplier ? moveObj.multiplier : null;
+        const multText = (mult !== null && mult !== undefined) ? ` (${mult}x)` : '';
+        const isReattack = (oppHp < oppMaxHp && oppHp > 0);
+        const verb = isReattack ? 'Reattack' : 'Attack';
+
+        mainBtnConfig = {
+          labelHtml: `&#9889; ${verb} with ${escapeHtml(moveName)}${multText}`,
+          hudText: `${verb}: ${moveName}${multText}`,
+          disabled: false,
+          btnClass: 'btn btn-accent',
+          action: () => {
+            executeAiBattleAction('execute-battle-move', { moveName: moveName });
+          }
+        };
+      } else if (!isBattlerAlive) {
+        // Active battler fainted - switch/deploy next counter
+        const nextName = analysis.nextAliveCounter || 'Next Counter';
+        mainBtnConfig = {
+          labelHtml: `&#9889; Deploy ${escapeHtml(nextName)} &amp; Continue`,
+          hudText: `Deploy ${nextName}`,
+          disabled: false,
+          btnClass: 'btn btn-accent',
+          action: () => {
+            executeAiBattleAction('select-lead-and-start', { pokemonName: nextName, autoStart: true });
+          }
+        };
+      } else {
+        // Fallback: If in active battle with alive opponent, default to Attack
+        const fallbackMove = analysis.recommendedMove || 'Attack';
+        mainBtnConfig = {
+          labelHtml: `&#9889; Attack with ${escapeHtml(fallbackMove)}`,
+          hudText: `Attack: ${fallbackMove}`,
+          disabled: false,
+          btnClass: 'btn btn-accent',
+          action: () => {
+            executeAiBattleAction('execute-battle-move', { moveName: fallbackMove });
+          }
+        };
+      }
+    } else if (analysis.isPreparationScreen) {
+      if (activeAiBattleData && activeAiBattleData.isChallengePreview) {
+        mainBtnConfig = {
+          labelHtml: '&#9876; Launch Challenge Battle',
+          hudText: 'Launch Battle',
+          disabled: false,
+          btnClass: 'btn btn-accent',
+          action: () => {
+            executeAiBattleAction('click-battle-button', {});
+          }
+        };
+      } else if (analysis.bestActiveLead) {
+        const hasFaintedOpponents = Boolean(activeAiBattleData && Array.isArray(activeAiBattleData.roster) && activeAiBattleData.roster.some(p => p.isFainted || (p.hp !== undefined && p.hp <= 0)));
+        const deployActionLabel = hasFaintedOpponents ? 'Continue' : 'Start';
+        mainBtnConfig = {
+          labelHtml: `&#9889; Deploy ${escapeHtml(analysis.bestActiveLead.name)} &amp; ${deployActionLabel}`,
+          hudText: `Deploy &amp; ${deployActionLabel}`,
+          disabled: false,
+          btnClass: 'btn btn-accent',
+          action: () => {
+            executeAiBattleAction('select-lead-and-start', { pokemonName: analysis.bestActiveLead.name, autoStart: true });
+          }
+        };
+      }
+    }
+
+    if (mainBtnConfig) {
+      const deployBtn = document.createElement('button');
+      deployBtn.type = 'button';
+      deployBtn.id = 'aiDeployLeadBtn';
+      deployBtn.className = mainBtnConfig.btnClass;
+      deployBtn.disabled = Boolean(mainBtnConfig.disabled);
+      deployBtn.style.cssText = 'width: 100%; height: 28px; font-size: 11px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
+      deployBtn.innerHTML = mainBtnConfig.labelHtml;
+      if (mainBtnConfig.action) {
+        deployBtn.addEventListener('click', mainBtnConfig.action);
+      }
+      aiInstantActionSlot.appendChild(deployBtn);
+
+      // In preparation mode, show Equip Carry if eligible
+      if (analysis.isPreparationScreen && !activeTeamHasCarry && analysis.bestCarryObj && !isChallengeLocked) {
+        const equipBtn = document.createElement('button');
+        equipBtn.type = 'button';
+        equipBtn.id = 'aiEquipCarryBtn';
+        equipBtn.className = 'btn';
+        equipBtn.style.cssText = 'width: 100%; height: 24px; font-size: 10px; font-weight: 600; justify-content: center; gap: 6px; box-shadow: none !important; margin-top: 4px;';
+        equipBtn.innerHTML = `&#128190; Equip ${escapeHtml(analysis.bestCarry)} to Slot 1`;
+        equipBtn.addEventListener('click', () => {
+          equipAiCarryToSlot1(analysis.bestCarryObj);
+        });
+        aiInstantActionSlot.appendChild(equipBtn);
+      }
+
+      // Update Floating HUD Action Button to match
+      if (aiHudActionBtn) {
+        aiHudActionBtn.style.display = 'inline-flex';
+        aiHudActionBtn.innerHTML = mainBtnConfig.hudText;
+        aiHudActionBtn.disabled = Boolean(mainBtnConfig.disabled);
+        if (mainBtnConfig.action) {
+          aiHudActionBtn.onclick = mainBtnConfig.action;
+        } else {
+          aiHudActionBtn.onclick = null;
+        }
+      }
+    } else {
+      if (aiHudActionBtn) {
+        aiHudActionBtn.style.display = 'none';
+      }
+    }
+  }
+}
+
+function executeAiBattleAction(action, payload) {
+  if (!delugeView) return;
+  if (aiStatusChip) {
+    aiStatusChip.textContent = 'Applying...';
+    aiStatusChip.style.color = '#388bfd';
+  }
+  delugeView.send('apply-ai-battle-action', Object.assign({ action: action }, payload || {}));
+}
+
+function equipAiCarryToSlot1(carryObj) {
+  if (!carryObj || !delugeView) return;
+  let targetTeam = (lastRecommendedTeam && lastRecommendedTeam.length > 0) ? [...lastRecommendedTeam] : [];
+  if (targetTeam.length === 0 && Array.isArray(currentCollection)) {
+    targetTeam = currentCollection.slice(0, 6);
+  }
+  const filtered = targetTeam.filter(p => p.id !== carryObj.id);
+  const newTeam = [carryObj, ...filtered].slice(0, 6);
+  lastRecommendedTeam = newTeam;
+  const ids = newTeam.map(p => p.id);
+  delugeView.send('apply-team-slots', { pokemonIds: ids, pokemons: newTeam });
+  if (aiStatusChip) {
+    aiStatusChip.textContent = 'Equipping Carry...';
+    aiStatusChip.style.color = '#388bfd';
+  }
+  appendAiChatMessage('AI', `Equipping ${formatPokemonFullName(carryObj.variant, carryObj.name)} to Slot 1.`);
+}
+
+function appendAiChatMessage(sender, text, isHtml = false) {
+  if (!aiChatStream) return;
+  const row = document.createElement('div');
+  row.style.display = 'flex';
+  row.style.gap = '6px';
+  row.style.alignItems = 'flex-start';
+  if (sender === 'USER') {
+    row.style.justifyContent = 'flex-end';
+    row.innerHTML = `<div style="background: #1f6feb; border: 1px solid #388bfd; border-radius: 4px; padding: 5px 8px; font-size: 10.5px; color: #ffffff; line-height: 1.35; max-width: 85%; box-shadow: none !important;">${escapeHtml(text)}</div>`;
+  } else {
+    const isFormattedCard = isHtml || (typeof text === 'string' && text.trim().startsWith('<div'));
+    const content = isFormattedCard ? text : `<div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 5px 8px; font-size: 10.5px; color: #e0ecfa; line-height: 1.35; max-width: 85%; box-shadow: none !important;">${escapeHtml(text)}</div>`;
+    row.innerHTML = `<span style="font-size: 12px; flex-shrink: 0; line-height: 1;">&#129302;</span>${content}`;
+  }
+  aiChatStream.appendChild(row);
+  aiChatStream.scrollTop = aiChatStream.scrollHeight;
+}
+
+function handleAiChatSubmit() {
+  if (!aiChatInput) return;
+  const q = (aiChatInput.value || '').trim();
+  if (!q) return;
+  aiChatInput.value = '';
+  appendAiChatMessage('USER', q);
+
+  const carry = (lastRecommendedTeam && lastRecommendedTeam.length > 0) ? lastRecommendedTeam[0] : null;
+  const ans = aiAssistant ? aiAssistant.askAssistant(q, { battle: activeAiBattleData, carry: carry, collection: currentCollection }) : 'I am monitoring the battle.';
+  setTimeout(() => {
+    appendAiChatMessage('AI', ans);
+  }, 120);
+}
+
+function handleRunMonteCarloSimulation() {
+  appendAiChatMessage('USER', 'Simulate (1,000x Rollouts)');
+  if (aiStatusChip) {
+    aiStatusChip.textContent = 'Simulating...';
+    aiStatusChip.style.color = '#388bfd';
+  }
+  const trainerQuery = (activeAiBattleData && activeAiBattleData.trainerName) || (targetLeader && targetLeader.name) || 'Surge';
+  if (!aiAssistant) return;
+
+  aiAssistant.runMonteCarloSimulation(trainerQuery).then(res => {
+    if (aiStatusChip) {
+      aiStatusChip.textContent = 'Observing Battle';
+      aiStatusChip.style.color = '#10b981';
+    }
+    if (aiSimResultStrip && res && res.win_rate !== undefined) {
+      aiSimResultStrip.style.display = 'block';
+      if (aiSimWinRateBadge) {
+        aiSimWinRateBadge.textContent = `${res.win_rate}% Win`;
+        aiSimWinRateBadge.style.color = res.win_rate >= 80 ? '#238636' : '#d29922';
+      }
+      if (aiSimHpVal) aiSimHpVal.textContent = `${res.avg_hp_pct}%`;
+      if (aiSimScoreVal) aiSimScoreVal.textContent = String(res.ml_score || '--');
+    }
+    const topCarry = res.top_carry || 'Selected Counter';
+    const msg = `Monte Carlo simulation complete across 1,000 rollouts for ${res.trainer || trainerQuery}: Predicted Win Rate is ${res.win_rate}%, Average Surviving HP is ${res.avg_hp_pct}%. Optimal policy carry: ${topCarry}.`;
+    appendAiChatMessage('AI', msg);
+  }).catch(err => {
+    if (aiStatusChip) {
+      aiStatusChip.textContent = 'Ready';
+      aiStatusChip.style.color = '#10b981';
+    }
+    appendAiChatMessage('AI', `Simulation error: ${err.message || err}`);
+  });
+}
+
+// Event Listeners for AI Combat Assistant
+if (aiAssistantTopBtn) {
+  aiAssistantTopBtn.addEventListener('click', toggleAiAssistantPanel);
+}
+if (aiAssistantMenuBtn) {
+  aiAssistantMenuBtn.addEventListener('click', () => {
+    closeNavDropdown();
+    toggleAiAssistantPanel();
+  });
+}
+if (closeAiAssistantBtn) {
+  closeAiAssistantBtn.addEventListener('click', closeAiAssistantPanel);
+}
+if (switchTeamBuilderFromAiBtn) {
+  switchTeamBuilderFromAiBtn.addEventListener('click', () => {
+    closeAiAssistantPanel();
+    openTeamBuilderPanel();
+  });
+}
+if (switchAiAssistantFromTeamBtn) {
+  switchAiAssistantFromTeamBtn.addEventListener('click', () => {
+    closeTeamBuilderPanel();
+    openAiAssistantPanel();
+  });
+}
+if (aiHudExpandBtn) {
+  aiHudExpandBtn.addEventListener('click', openAiAssistantPanel);
+}
+if (aiHudDismissBtn) {
+  aiHudDismissBtn.addEventListener('click', () => {
+    if (liveAiHudOverlay) liveAiHudOverlay.style.display = 'none';
+  });
+}
+if (aiQuickEvoBtn) {
+  aiQuickEvoBtn.addEventListener('click', () => {
+    let target = 'Eevee';
+    const carry = (lastRecommendedTeam && lastRecommendedTeam.length > 0) ? lastRecommendedTeam[0] : null;
+    if (activeEvolveCardData && activeEvolveCardData.fullName) {
+      target = activeEvolveCardData.fullName;
+    } else if (activeAiBattleData && activeAiBattleData.roster && activeAiBattleData.roster.length > 0) {
+      target = activeAiBattleData.roster[0].name;
+    } else if (carry && carry.pokemon) {
+      target = carry.pokemon.name;
+    } else if (Array.isArray(currentCollection) && currentCollection.length > 0) {
+      const cand = currentCollection.find(p => ['eevee', 'applin', 'tyrogue', 'scyther', 'slowpoke', 'charcadet', 'poliwag', 'abra', 'gastly', 'charmander'].includes(getBaseSpecies(p.name).toLowerCase()));
+      if (cand) target = cand.name;
+    }
+    appendAiChatMessage('USER', `Best evolution for ${target}`);
+    const ans = aiAssistant ? aiAssistant.askAssistant(`evolve ${target}`, { battle: activeAiBattleData, carry: carry, collection: currentCollection, activeEvolveCard: activeEvolveCardData }) : '';
+    setTimeout(() => {
+      appendAiChatMessage('AI', ans);
+    }, 100);
+  });
+}
+if (aiQuickMovesBtn) {
+  aiQuickMovesBtn.addEventListener('click', () => {
+    let target = 'Charizard';
+    let targetMoves = [];
+    const carry = (lastRecommendedTeam && lastRecommendedTeam.length > 0) ? lastRecommendedTeam[0] : null;
+    if (activeEvolveCardData && activeEvolveCardData.fullName) {
+      const evoAnalysis = aiAssistant ? aiAssistant.analyzeEvolutionPath(activeEvolveCardData.baseSpecies || activeEvolveCardData.fullName, currentCollection) : null;
+      target = (evoAnalysis && evoAnalysis.bestBranch) ? evoAnalysis.bestBranch.name : (activeEvolveCardData.options && activeEvolveCardData.options.length > 0 ? (activeEvolveCardData.options[0].fullName || activeEvolveCardData.options[0].name) : activeEvolveCardData.fullName);
+      targetMoves = activeEvolveCardData.moves || [];
+    } else if (carry && carry.pokemon) {
+      target = carry.pokemon.name;
+      targetMoves = carry.pokemon.moves || [];
+    } else if (activeAiBattleData && activeAiBattleData.roster && activeAiBattleData.roster.length > 0) {
+      target = activeAiBattleData.roster[0].name;
+    } else if (Array.isArray(currentCollection) && currentCollection.length > 0) {
+      target = currentCollection[0].name;
+      targetMoves = currentCollection[0].moves || [];
+    }
+    appendAiChatMessage('USER', `Best attack moves for ${target}`);
+    const ans = aiAssistant ? aiAssistant.askAssistant(`moves for ${target}`, { battle: activeAiBattleData, carry: carry, collection: currentCollection, activeEvolveCard: activeEvolveCardData, selectedPokemon: { name: target, moves: targetMoves } }) : '';
+    setTimeout(() => {
+      appendAiChatMessage('AI', ans);
+    }, 100);
+  });
+}
+if (aiQuickAnalyzeBtn) {
+  aiQuickAnalyzeBtn.addEventListener('click', () => {
+    appendAiChatMessage('USER', 'Matchup analysis');
+    const analysis = aiAssistant ? aiAssistant.analyzeBattle(activeAiBattleData, currentCollection) : null;
+    if (analysis) {
+      const msg = analysis.callout + (analysis.hazards && analysis.hazards.length ? ' ' + analysis.hazards.join('. ') : '');
+      appendAiChatMessage('AI', msg);
+    }
+  });
+}
+if (aiQuickWhyBtn) {
+  aiQuickWhyBtn.addEventListener('click', () => {
+    appendAiChatMessage('USER', 'Why this carry?');
+    const carry = (lastRecommendedTeam && lastRecommendedTeam.length > 0) ? lastRecommendedTeam[0] : null;
+    const ans = aiAssistant ? aiAssistant.askAssistant('Why this carry?', { battle: activeAiBattleData, carry: carry }) : '';
+    appendAiChatMessage('AI', ans);
+  });
+}
+if (aiQuickHazardsBtn) {
+  aiQuickHazardsBtn.addEventListener('click', () => {
+    appendAiChatMessage('USER', 'Check enemy hazards');
+    const ans = aiAssistant ? aiAssistant.askAssistant('What are the opponent weaknesses and hazards?', { battle: activeAiBattleData }) : '';
+    appendAiChatMessage('AI', ans);
+  });
+}
+if (aiQuickSimBtn) {
+  aiQuickSimBtn.addEventListener('click', handleRunMonteCarloSimulation);
+}
+if (aiChatSendBtn) {
+  aiChatSendBtn.addEventListener('click', handleAiChatSubmit);
+}
+if (aiChatInput) {
+  aiChatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAiChatSubmit();
+    }
+  });
+}
+
+// =============================================================================
+// DELUGERPG DEFENSE-IN-DEPTH SAFETY & RANDOMIZED ANTI-BAN CONTROLLER
+// =============================================================================
+
+const DAILY_SAFETY_STORAGE_KEY = 'deluge_daily_safety_state';
+
+let dailySafetyState = {
+  date: getTodayDateKey(),
+  todaySteps: 0,
+  todayCatches: 0,
+  dailyStepCeiling: null,
+  dailyCatchCeiling: null
+};
+
+function getRandomInRange(min, max) {
+  const low = Math.min(min, max);
+  const high = Math.max(min, max);
+  return Math.floor(Math.random() * (high - low + 1)) + low;
+}
+
+function ensureTodaySafetyState() {
+  const todayKey = getTodayDateKey();
+  const s = config.safety || {};
+  if (dailySafetyState.date !== todayKey) {
+    dailySafetyState.date = todayKey;
+    dailySafetyState.todaySteps = 0;
+    dailySafetyState.todayCatches = 0;
+    dailySafetyState.dailyStepCeiling = getRandomInRange(s.dailyStepMin || 500, s.dailyStepMax || 1000);
+    dailySafetyState.dailyCatchCeiling = getRandomInRange(s.dailyCatchMin || 10, s.dailyCatchMax || 20);
+    saveDailySafetyState();
+  } else {
+    if (!dailySafetyState.dailyStepCeiling || typeof dailySafetyState.dailyStepCeiling !== 'number') {
+      dailySafetyState.dailyStepCeiling = getRandomInRange(s.dailyStepMin || 500, s.dailyStepMax || 1000);
+      saveDailySafetyState();
+    }
+    if (!dailySafetyState.dailyCatchCeiling || typeof dailySafetyState.dailyCatchCeiling !== 'number') {
+      dailySafetyState.dailyCatchCeiling = getRandomInRange(s.dailyCatchMin || 10, s.dailyCatchMax || 20);
+      saveDailySafetyState();
+    }
+  }
+}
+
+function loadDailySafetyState() {
+  const todayKey = getTodayDateKey();
+  let loaded = null;
+  const s = config.safety || {};
+
+  try {
+    const raw = readDataFile('daily_safety_log.json');
+    if (raw) loaded = JSON.parse(raw);
+  } catch (_) {}
+
+  if (!loaded) {
+    try {
+      const raw = localStorage.getItem(DAILY_SAFETY_STORAGE_KEY);
+      if (raw) loaded = JSON.parse(raw);
+    } catch (_) {}
+  }
+
+  if (loaded && typeof loaded === 'object') {
+    if (loaded.date === todayKey) {
+      dailySafetyState.date = todayKey;
+      dailySafetyState.todaySteps = (typeof loaded.todaySteps === 'number') ? loaded.todaySteps : 0;
+      dailySafetyState.todayCatches = (typeof loaded.todayCatches === 'number') ? loaded.todayCatches : 0;
+      dailySafetyState.dailyStepCeiling = (typeof loaded.dailyStepCeiling === 'number') ? loaded.dailyStepCeiling : getRandomInRange(s.dailyStepMin || 500, s.dailyStepMax || 1000);
+      dailySafetyState.dailyCatchCeiling = (typeof loaded.dailyCatchCeiling === 'number') ? loaded.dailyCatchCeiling : getRandomInRange(s.dailyCatchMin || 10, s.dailyCatchMax || 20);
+    } else {
+      dailySafetyState.date = todayKey;
+      dailySafetyState.todaySteps = 0;
+      dailySafetyState.todayCatches = 0;
+      dailySafetyState.dailyStepCeiling = getRandomInRange(s.dailyStepMin || 500, s.dailyStepMax || 1000);
+      dailySafetyState.dailyCatchCeiling = getRandomInRange(s.dailyCatchMin || 10, s.dailyCatchMax || 20);
+    }
+  } else {
+    dailySafetyState.date = todayKey;
+    dailySafetyState.todaySteps = 0;
+    dailySafetyState.todayCatches = 0;
+    dailySafetyState.dailyStepCeiling = getRandomInRange(s.dailyStepMin || 500, s.dailyStepMax || 1000);
+    dailySafetyState.dailyCatchCeiling = getRandomInRange(s.dailyCatchMin || 10, s.dailyCatchMax || 20);
+  }
+
+  saveDailySafetyState();
+  updateSafetyTelemetryUI();
+}
+
+function saveDailySafetyState() {
+  try {
+    const jsonStr = JSON.stringify(dailySafetyState, null, 2);
+    localStorage.setItem(DAILY_SAFETY_STORAGE_KEY, jsonStr);
+    const filePath = getWritableDataPath('daily_safety_log.json');
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const tempPath = filePath + '.tmp';
+    const bakPath = filePath + '.bak';
+    fs.writeFileSync(tempPath, jsonStr, 'utf8');
+    if (fs.existsSync(filePath)) {
+      try { fs.copyFileSync(filePath, bakPath); } catch (_) {}
+    }
+    fs.renameSync(tempPath, filePath);
+  } catch (_) {}
+}
+
+let sessionStartTime = null;
+let sessionAutoStopTime = null;
+let sessionAutoStopTargetMins = null;
+let sessionAutoStopTimer = null;
+
+let stepsSinceLastBreak = 0;
+let nextBreakStepTarget = null;
+let nextBreakDurationSec = null;
+let isRestBreakActive = false;
+let breakCountdownTimer = null;
+
+function rollNextBreakTargets() {
+  const s = config.safety || {};
+  nextBreakStepTarget = getRandomInRange(s.breakMinSteps || 50, s.breakMaxSteps || 200);
+  nextBreakDurationSec = getRandomInRange(s.breakMinDurationSec || 45, s.breakMaxDurationSec || 200);
+}
+
+function stopHuntingWithReason(reason = 'Safety limit reached', statusMsg = 'Paused (Safety Limit)', statusColor = '#ef4444') {
+  cancelPendingAutoStart(reason);
+  userManuallyPaused = true;
+  isRunning = false;
+  if (walkTimeout) {
+    clearTimeout(walkTimeout);
+    walkTimeout = null;
+  }
+  if (sessionAutoStopTimer) {
+    clearTimeout(sessionAutoStopTimer);
+    sessionAutoStopTimer = null;
+  }
+  sessionAutoStopTime = null;
+  if (breakCountdownTimer) {
+    clearInterval(breakCountdownTimer);
+    breakCountdownTimer = null;
+  }
+  isRestBreakActive = false;
+  try {
+    if (delugeView && typeof delugeView.send === 'function') {
+      delugeView.send('abort-autocatch');
+    }
+  } catch (_) {}
+  updateToggleButton();
+  updateStatus(statusMsg, statusColor);
+  syncHuntingState();
+  updateSafetyTelemetryUI();
+  backendLog('SafetyHalt', `${reason}: ${statusMsg}`);
+}
+
+function triggerForcedRestBreak() {
+  isRestBreakActive = true;
+  const breakDuration = nextBreakDurationSec || 45;
+  backendLog('SafetyBreak', `Forced rest break triggered at ${stepsSinceLastBreak} steps. Resting for ${breakDuration}s.`);
+
+  stepsSinceLastBreak = 0;
+  rollNextBreakTargets();
+
+  let remainingSec = breakDuration;
+  updateStatus(`Rest break (${remainingSec}s)...`, '#e879f9');
+  updateSafetyTelemetryUI();
+
+  if (breakCountdownTimer) clearInterval(breakCountdownTimer);
+  breakCountdownTimer = setInterval(() => {
+    remainingSec--;
+    if (!isRunning || !isRestBreakActive || remainingSec <= 0) {
+      clearInterval(breakCountdownTimer);
+      breakCountdownTimer = null;
+      if (isRunning && isRestBreakActive) {
+        isRestBreakActive = false;
+        backendLog('SafetyBreak', 'Rest break finished. Resuming hunting.');
+        updateStatus('Resuming...', '#10b981');
+        updateSafetyTelemetryUI();
+      }
+    } else {
+      updateStatus(`Rest break (${remainingSec}s)...`, '#e879f9');
+      updateSafetyTelemetryUI();
+    }
+  }, 1000);
+
+  scheduleNextStep(breakDuration * 1000);
+}
+
+// Continuous Alarm Siren Engine
+let captchaAlarmInterval = null;
+let isCaptchaAlarmActive = false;
+
+function playEmergencyBeep(freq = 600, duration = 0.25) {
+  try {
+    const audioCtx = getAudioContext();
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch (_) {}
+}
+
+function playAlarmPulse() {
+  playEmergencyBeep(520, 0.2);
+  setTimeout(() => {
+    if (isCaptchaAlarmActive) {
+      playEmergencyBeep(880, 0.25);
+    }
+  }, 220);
+}
+
+function startContinuousCaptchaAlarm() {
+  if (isCaptchaAlarmActive) return;
+  isCaptchaAlarmActive = true;
+
+  if (captchaEmergencyBanner) {
+    captchaEmergencyBanner.style.display = 'flex';
+  }
+
+  playAlarmPulse();
+
+  if (captchaAlarmInterval) {
+    clearInterval(captchaAlarmInterval);
+  }
+  captchaAlarmInterval = setInterval(() => {
+    if (!isCaptchaAlarmActive) {
+      clearInterval(captchaAlarmInterval);
+      captchaAlarmInterval = null;
+      return;
+    }
+    playAlarmPulse();
+  }, 900);
+}
+
+function silenceCaptchaAlarm() {
+  isCaptchaAlarmActive = false;
+  if (captchaAlarmInterval) {
+    clearInterval(captchaAlarmInterval);
+    captchaAlarmInterval = null;
+  }
+  if (captchaEmergencyBanner) {
+    captchaEmergencyBanner.style.display = 'none';
+  }
+  isUnlockChallengeActive = false;
+  updateStatus('Ready (Captcha Alarm Silenced)', '#10b981');
+  backendLog('SecurityChallenge', 'Captcha alarm acknowledged and silenced by user.');
+}
+
+function handleCaptchaEmergencyHalt(reason = 'Captcha challenge detected') {
+  cancelPendingAutoStart(reason);
+  if (walkTimeout) {
+    clearTimeout(walkTimeout);
+    walkTimeout = null;
+  }
+  if (sessionAutoStopTimer) {
+    clearTimeout(sessionAutoStopTimer);
+    sessionAutoStopTimer = null;
+  }
+  sessionAutoStopTime = null;
+  if (breakCountdownTimer) {
+    clearInterval(breakCountdownTimer);
+    breakCountdownTimer = null;
+  }
+  isRestBreakActive = false;
+  isRunning = false;
+  userManuallyPaused = true;
+  try {
+    if (delugeView && typeof delugeView.send === 'function') {
+      delugeView.send('abort-autocatch');
+    }
+  } catch (_) {}
+  updateToggleButton();
+  updateStatus('CAPTCHA DETECTED - Solve manually in window', '#ef4444');
+  syncHuntingState();
+
+  if (!isUnlockChallengeActive) {
+    isUnlockChallengeActive = true;
+    backendLog('SecurityChallenge', `${reason}. Automated hunting halted for manual solve.`);
+    try {
+      new Notification('Security Check Detected', {
+        body: 'DelugeRPG requires a captcha. Please solve it manually in the window to proceed.'
+      });
+    } catch (_) {}
+  }
+
+  if (!config.safety || config.safety.antiBotEmergencyHalt !== false) {
+    startContinuousCaptchaAlarm();
+  }
+
+  if (delugeView) {
+    try { delugeView.focus(); } catch (_) {}
+  }
+}
+
+function loadSafetySettingsIntoUI() {
+  const s = config.safety || {};
+  if (safetyAutoStopToggle) safetyAutoStopToggle.checked = s.enableDeadManSwitch !== false;
+  if (safetyAutoStopMin) safetyAutoStopMin.value = s.autoStopMinMinutes || 5;
+  if (safetyAutoStopMax) safetyAutoStopMax.value = s.autoStopMaxMinutes || 30;
+
+  if (safetyBreakToggle) safetyBreakToggle.checked = s.enableForcedBreaks !== false;
+  if (safetyBreakMinSteps) safetyBreakMinSteps.value = s.breakMinSteps || 50;
+  if (safetyBreakMaxSteps) safetyBreakMaxSteps.value = s.breakMaxSteps || 200;
+  if (safetyBreakMinDur) safetyBreakMinDur.value = s.breakMinDurationSec || 45;
+  if (safetyBreakMaxDur) safetyBreakMaxDur.value = s.breakMaxDurationSec || 200;
+
+  if (safetyDailyToggle) safetyDailyToggle.checked = s.enableDailyCeilings !== false;
+  if (safetyDailyMinSteps) safetyDailyMinSteps.value = s.dailyStepMin || 500;
+  if (safetyDailyMaxSteps) safetyDailyMaxSteps.value = s.dailyStepMax || 1000;
+  if (safetyDailyMinCatches) safetyDailyMinCatches.value = s.dailyCatchMin || 10;
+  if (safetyDailyMaxCatches) safetyDailyMaxCatches.value = s.dailyCatchMax || 20;
+
+  if (safetyAntiBotToggle) safetyAntiBotToggle.checked = s.antiBotEmergencyHalt !== false;
+
+  updateSafetyTelemetryUI();
+}
+
+function saveSafetySettingsFromUI() {
+  if (!config.safety) config.safety = {};
+
+  const autoMin = Math.max(1, parseInt(safetyAutoStopMin.value, 10) || 5);
+  const autoMax = Math.max(autoMin, parseInt(safetyAutoStopMax.value, 10) || 30);
+
+  const bStepMin = Math.max(5, parseInt(safetyBreakMinSteps.value, 10) || 50);
+  const bStepMax = Math.max(bStepMin, parseInt(safetyBreakMaxSteps.value, 10) || 200);
+  const bDurMin = Math.max(5, parseInt(safetyBreakMinDur.value, 10) || 45);
+  const bDurMax = Math.max(bDurMin, parseInt(safetyBreakMaxDur.value, 10) || 200);
+
+  const dStepMin = Math.max(50, parseInt(safetyDailyMinSteps.value, 10) || 500);
+  const dStepMax = Math.max(dStepMin, parseInt(safetyDailyMaxSteps.value, 10) || 1000);
+  const dCatchMin = Math.max(1, parseInt(safetyDailyMinCatches.value, 10) || 10);
+  const dCatchMax = Math.max(dCatchMin, parseInt(safetyDailyMaxCatches.value, 10) || 20);
+
+  config.safety.enableDeadManSwitch = safetyAutoStopToggle ? safetyAutoStopToggle.checked : true;
+  config.safety.autoStopMinMinutes = autoMin;
+  config.safety.autoStopMaxMinutes = autoMax;
+
+  config.safety.enableForcedBreaks = safetyBreakToggle ? safetyBreakToggle.checked : true;
+  config.safety.breakMinSteps = bStepMin;
+  config.safety.breakMaxSteps = bStepMax;
+  config.safety.breakMinDurationSec = bDurMin;
+  config.safety.breakMaxDurationSec = bDurMax;
+
+  config.safety.enableDailyCeilings = safetyDailyToggle ? safetyDailyToggle.checked : true;
+  config.safety.dailyStepMin = dStepMin;
+  config.safety.dailyStepMax = dStepMax;
+  config.safety.dailyCatchMin = dCatchMin;
+  config.safety.dailyCatchMax = dCatchMax;
+
+  config.safety.antiBotEmergencyHalt = safetyAntiBotToggle ? safetyAntiBotToggle.checked : true;
+
+  // Immediately enforce new bounds on active daily ceilings, break targets, and session auto-stop
+  ensureTodaySafetyState();
+  let dailyChanged = false;
+  if (!dailySafetyState.dailyStepCeiling || dailySafetyState.dailyStepCeiling < dStepMin || dailySafetyState.dailyStepCeiling > dStepMax) {
+    dailySafetyState.dailyStepCeiling = getRandomInRange(dStepMin, dStepMax);
+    dailyChanged = true;
+  }
+  if (!dailySafetyState.dailyCatchCeiling || dailySafetyState.dailyCatchCeiling < dCatchMin || dailySafetyState.dailyCatchCeiling > dCatchMax) {
+    dailySafetyState.dailyCatchCeiling = getRandomInRange(dCatchMin, dCatchMax);
+    dailyChanged = true;
+  }
+  if (dailyChanged) {
+    saveDailySafetyState();
+  }
+
+  if (!nextBreakStepTarget || nextBreakStepTarget < bStepMin || nextBreakStepTarget > bStepMax ||
+      !nextBreakDurationSec || nextBreakDurationSec < bDurMin || nextBreakDurationSec > bDurMax) {
+    rollNextBreakTargets();
+  }
+
+  if (!config.safety.enableDeadManSwitch) {
+    if (sessionAutoStopTimer) {
+      clearTimeout(sessionAutoStopTimer);
+      sessionAutoStopTimer = null;
+    }
+    sessionAutoStopTime = null;
+  } else if (isRunning && (!sessionAutoStopTime || sessionAutoStopTargetMins < autoMin || sessionAutoStopTargetMins > autoMax)) {
+    const stopMins = getRandomInRange(autoMin, autoMax);
+    sessionAutoStopTime = Date.now() + stopMins * 60 * 1000;
+    sessionAutoStopTargetMins = stopMins;
+    if (sessionAutoStopTimer) clearTimeout(sessionAutoStopTimer);
+    sessionAutoStopTimer = setTimeout(() => {
+      stopHuntingWithReason(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, `Paused (Auto-Stop: ${sessionAutoStopTargetMins}m)`, '#f59e0b');
+      playAlarmSound();
+    }, stopMins * 60 * 1000);
+  }
+
+  saveLocalConfig();
+  loadSafetySettingsIntoUI();
+
+  if (safetyStatusChip) {
+    safetyStatusChip.textContent = 'Saved';
+    safetyStatusChip.style.color = '#388bfd';
+    setTimeout(() => {
+      if (safetyStatusChip) {
+        safetyStatusChip.textContent = 'Active';
+        safetyStatusChip.style.color = '#10b981';
+      }
+    }, 1500);
+  }
+}
+
+function rerollSafetyTargets() {
+  ensureTodaySafetyState();
+  const s = config.safety || {};
+  dailySafetyState.dailyStepCeiling = getRandomInRange(s.dailyStepMin || 500, s.dailyStepMax || 1000);
+  dailySafetyState.dailyCatchCeiling = getRandomInRange(s.dailyCatchMin || 10, s.dailyCatchMax || 20);
+  saveDailySafetyState();
+
+  rollNextBreakTargets();
+
+  if (isRunning && s.enableDeadManSwitch !== false) {
+    const stopMins = getRandomInRange(s.autoStopMinMinutes || 5, s.autoStopMaxMinutes || 30);
+    sessionAutoStopTime = Date.now() + stopMins * 60 * 1000;
+    sessionAutoStopTargetMins = stopMins;
+    if (sessionAutoStopTimer) clearTimeout(sessionAutoStopTimer);
+    sessionAutoStopTimer = setTimeout(() => {
+      stopHuntingWithReason(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, 'Paused (Session Auto-Stop Limit)', '#f59e0b');
+      playAlarmSound();
+    }, stopMins * 60 * 1000);
+  }
+
+  updateSafetyTelemetryUI();
+}
+
+function resetDailySafetyCounters() {
+  ensureTodaySafetyState();
+  dailySafetyState.todaySteps = 0;
+  dailySafetyState.todayCatches = 0;
+  if (dailyCatchData && Array.isArray(dailyCatchData.caught) && dailyCatchData.caught.length > 0) {
+    dailyCatchData.caught = [];
+    saveDailyCatchLog();
+    updateCatchLogBadge();
+    renderCatchLogUI();
+  }
+  rerollSafetyTargets();
+}
+
+function updateSafetyTelemetryUI() {
+  ensureTodaySafetyState();
+  const s = config.safety || {};
+
+  // 1. Session auto-stop
+  if (safetyStatAutoStop) {
+    if (!isRunning || !sessionAutoStopTime) {
+      safetyStatAutoStop.textContent = (s.enableDeadManSwitch !== false) ? `Ready (${s.autoStopMinMinutes || 5}-${s.autoStopMaxMinutes || 30}m)` : 'Disabled';
+      safetyStatAutoStop.style.color = '#8eaad0';
+    } else {
+      const remainingMs = Math.max(0, sessionAutoStopTime - Date.now());
+      const remMins = Math.floor(remainingMs / 60000);
+      const remSecs = Math.floor((remainingMs % 60000) / 1000);
+      safetyStatAutoStop.textContent = `${remMins}m ${remSecs < 10 ? '0' : ''}${remSecs}s`;
+      safetyStatAutoStop.style.color = '#388bfd';
+    }
+  }
+
+  // 2. Next break
+  if (safetyStatNextBreak) {
+    if (s.enableForcedBreaks === false) {
+      safetyStatNextBreak.textContent = 'Disabled';
+      safetyStatNextBreak.style.color = '#8eaad0';
+    } else if (isRestBreakActive) {
+      safetyStatNextBreak.textContent = 'Resting...';
+      safetyStatNextBreak.style.color = '#e879f9';
+    } else {
+      const stepsLeft = Math.max(0, (nextBreakStepTarget || 50) - stepsSinceLastBreak);
+      safetyStatNextBreak.textContent = `in ${stepsLeft}s (${nextBreakDurationSec || 45}s)`;
+      safetyStatNextBreak.style.color = '#388bfd';
+    }
+  }
+
+  // 3. Steps today
+  if (safetyStatTodaySteps) {
+    const curSteps = dailySafetyState.todaySteps || 0;
+    const maxSteps = dailySafetyState.dailyStepCeiling || (s.dailyStepMax || 1000);
+    safetyStatTodaySteps.textContent = `${curSteps} / ${maxSteps}`;
+    safetyStatTodaySteps.style.color = (curSteps >= maxSteps) ? '#ef4444' : '#e0ecfa';
+  }
+
+  // 4. Catches today
+  if (safetyStatTodayCatches) {
+    const curCatches = dailySafetyState.todayCatches || 0;
+    const maxCatches = dailySafetyState.dailyCatchCeiling || (s.dailyCatchMax || 20);
+    safetyStatTodayCatches.textContent = `${curCatches} / ${maxCatches}`;
+    safetyStatTodayCatches.style.color = (curCatches >= maxCatches) ? '#ef4444' : '#e0ecfa';
+  }
+}
+
+function openSafetySettingsPanel() {
+  if (navDropdown && navDropdown.classList.contains('hidden')) {
+    openNavDropdown();
+  }
+  const safetyContent = document.getElementById('navGroupSafety');
+  const safetyHeader = document.querySelector('[data-target="navGroupSafety"]');
+  if (safetyContent && (safetyContent.classList.contains('collapsed') || safetyContent.style.display === 'none')) {
+    safetyContent.classList.remove('collapsed');
+    safetyContent.style.display = 'flex';
+    if (safetyHeader) {
+      safetyHeader.setAttribute('aria-expanded', 'true');
+      const arrow = safetyHeader.querySelector('.nav-group-arrow');
+      if (arrow) arrow.innerHTML = '&#9662;';
+    }
+  }
+  if (safetySettingsModal) safetySettingsModal.style.display = 'none';
+  if (safetySettingsTopBtn) safetySettingsTopBtn.classList.remove('btn-accent');
+  loadSafetySettingsIntoUI();
+}
+
+function closeSafetySettingsPanel() {
+  if (safetySettingsModal) safetySettingsModal.style.display = 'none';
+  if (safetySettingsTopBtn) safetySettingsTopBtn.classList.remove('btn-accent');
+}
+
+function toggleSafetySettingsPanel() {
+  if (navDropdown && !navDropdown.classList.contains('hidden')) {
+    closeNavDropdown();
+  } else {
+    openSafetySettingsPanel();
+  }
+}
+
+if (safetySettingsTopBtn) safetySettingsTopBtn.addEventListener('click', toggleSafetySettingsPanel);
+if (safetySettingsMenuBtn) {
+  safetySettingsMenuBtn.addEventListener('click', () => {
+    closeNavDropdown();
+    toggleSafetySettingsPanel();
+  });
+}
+if (closeSafetySettingsBtn) closeSafetySettingsBtn.addEventListener('click', closeSafetySettingsPanel);
+if (switchTeamBuilderFromSafetyBtn) {
+  switchTeamBuilderFromSafetyBtn.addEventListener('click', () => {
+    closeSafetySettingsPanel();
+    openTeamBuilderPanel();
+  });
+}
+if (saveSafetySettingsBtn) saveSafetySettingsBtn.addEventListener('click', saveSafetySettingsFromUI);
+[
+  safetyAutoStopToggle, safetyBreakToggle, safetyDailyToggle, safetyAntiBotToggle,
+  safetyAutoStopMin, safetyAutoStopMax,
+  safetyBreakMinSteps, safetyBreakMaxSteps, safetyBreakMinDur, safetyBreakMaxDur,
+  safetyDailyMinSteps, safetyDailyMaxSteps, safetyDailyMinCatches, safetyDailyMaxCatches
+].forEach(el => {
+  if (el) el.addEventListener('change', saveSafetySettingsFromUI);
+});
+if (rerollSafetyTargetsBtn) rerollSafetyTargetsBtn.addEventListener('click', rerollSafetyTargets);
+if (resetDailySafetyBtn) resetDailySafetyBtn.addEventListener('click', resetDailySafetyCounters);
+if (testAlarmBtn) {
+  testAlarmBtn.addEventListener('click', () => {
+    startContinuousCaptchaAlarm();
+  });
+}
+if (silenceAlarmModalBtn) silenceAlarmModalBtn.addEventListener('click', silenceCaptchaAlarm);
+if (silenceAlarmBtn) silenceAlarmBtn.addEventListener('click', silenceCaptchaAlarm);
+
+// Initial load of today's safety state & targets
+loadDailySafetyState();
+rollNextBreakTargets();
+loadSafetySettingsIntoUI();
+
+setInterval(updateSafetyTelemetryUI, 1000);
 
 // Initial load of today's catch log
 loadDailyCatchLog();

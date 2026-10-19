@@ -8,9 +8,11 @@ const fs = require('fs');
 // Ensure unified application name so userData path is canonical across dev, portable, and installer updates
 app.setName('delugerpg-desktop-client');
 
-// 1. Anti-Detection Switches
+// 1. Anti-Detection & WebRTC Leak Protection Switches
 // Disable Chromium automation flags so navigator.webdriver is undefined natively
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+app.commandLine.appendSwitch('enforce-webrtc-ip-permission-check');
+app.commandLine.appendSwitch('force-webrtc-ip-handling-policy', 'disable_non_proxied_udp');
 
 // 2. Standard Google Chrome Identity (Matching exact Chromium 142 engine without Electron signature)
 const CHROME_VERSION = (process.versions && process.versions.chrome) || '142.0.7444.52';
@@ -54,8 +56,8 @@ function getResolvedConfigPath() {
     }
   }
 
-  // Automatic Migration: Seed user collection, gym leaders, daily catch log, and favorite trainers if missing in userData
-  const migrateFiles = ['user_collection.json', 'gym_leaders.json', 'daily_catch_log.json', 'favorite_trainers.json'];
+  // Automatic Migration: Seed user collection, gym leaders, daily catch/safety logs, and favorite trainers if missing in userData
+  const migrateFiles = ['user_collection.json', 'gym_leaders.json', 'daily_catch_log.json', 'daily_safety_log.json', 'favorite_trainers.json'];
   for (const f of migrateFiles) {
     const targetPath = path.join(userDataDir, f);
     if (!fs.existsSync(targetPath)) {
@@ -153,7 +155,26 @@ function loadConfig() {
       autoPauseOnTarget: true,
       avoidDuplicates: true,
       autoStartOnMap: true,
-      autoStartDelay: 5
+      autoStartDelay: 3,
+      hideAdsCosmetically: true,
+      autoCatchMasterBall: false,
+      pvpCandidateTier: 'ANY'
+    },
+    safety: {
+      enableDeadManSwitch: true,
+      autoStopMinMinutes: 5,
+      autoStopMaxMinutes: 30,
+      enableForcedBreaks: true,
+      breakMinSteps: 50,
+      breakMaxSteps: 200,
+      breakMinDurationSec: 45,
+      breakMaxDurationSec: 200,
+      enableDailyCeilings: true,
+      dailyStepMin: 500,
+      dailyStepMax: 1000,
+      dailyCatchMin: 10,
+      dailyCatchMax: 20,
+      antiBotEmergencyHalt: true
     }
   };
   try {
@@ -419,6 +440,11 @@ if (!gotTheLock) {
   // Register zoom shortcuts and security policies across all window frames, iframes and webviews
   app.on('web-contents-created', (event, contents) => {
     contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    try {
+      if (typeof contents.setWebRTCIPHandlingPolicy === 'function') {
+        contents.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
+      }
+    } catch (_) {}
 
     contents.on('console-message', (e, level, message) => {
       if (isAdOrTrackerNoise(message)) return;

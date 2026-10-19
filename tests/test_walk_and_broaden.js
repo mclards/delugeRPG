@@ -47,23 +47,23 @@ function simulateWalk(mode, steps, stepsPerDirection = 6) {
 }
 
 const horizPath = simulateWalk("line_horizontal", 12, 6);
-console.log('✔ Horizontal line path (12 steps):', horizPath.join(', '));
+console.log('[PASS] Horizontal line path (12 steps):', horizPath.join(', '));
 if (horizPath.slice(0, 6).every(d => d === 'Left') && horizPath.slice(6, 12).every(d => d === 'Right')) {
-    console.log('✔ PASS: Horizontal pacing works correctly (6 Left, 6 Right).');
+    console.log('[PASS] PASS: Horizontal pacing works correctly (6 Left, 6 Right).');
 } else {
-    console.error('❌ FAIL: Horizontal pacing failed.');
+    console.error('[FAIL] FAIL: Horizontal pacing failed.');
     process.exit(1);
 }
 
 const squarePath = simulateWalk("patrol_square", 24, 6);
-console.log('✔ Large square path (24 steps):', squarePath.join(', '));
+console.log('[PASS] Large square path (24 steps):', squarePath.join(', '));
 if (squarePath.slice(0, 6).every(d => d === 'Left') &&
     squarePath.slice(6, 12).every(d => d === 'Up') &&
     squarePath.slice(12, 18).every(d => d === 'Right') &&
     squarePath.slice(18, 24).every(d => d === 'Down')) {
-    console.log('✔ PASS: Large square patrol works correctly (6 Left, 6 Up, 6 Right, 6 Down).');
+    console.log('[PASS] PASS: Large square patrol works correctly (6 Left, 6 Up, 6 Right, 6 Down).');
 } else {
-    console.error('❌ FAIL: Large square patrol failed.');
+    console.error('[FAIL] FAIL: Large square patrol failed.');
     process.exit(1);
 }
 
@@ -148,9 +148,9 @@ let allPassed = true;
 for (const t of tests) {
     const res = checkEncounter(t.text);
     if (res === t.expected) {
-        console.log(`✔ Match: "${t.text}" => ${res}`);
+        console.log(`[PASS] Match: "${t.text}" => ${res}`);
     } else {
-        console.error(`❌ Mismatch for "${t.text}": got "${res}", expected "${t.expected}"`);
+        console.error(`[FAIL] Mismatch for "${t.text}": got "${res}", expected "${t.expected}"`);
         allPassed = false;
     }
 }

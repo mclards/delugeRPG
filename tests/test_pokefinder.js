@@ -15,18 +15,18 @@ for (let i = 0; i < scriptContent.length; i++) {
 }
 
 if (irregularMatches.length === 0) {
-    console.log('✔ Check 1: 100% clean ASCII. No irregular whitespace, no hidden tildes/unicode characters.');
+    console.log('[PASS] Check 1: 100% clean ASCII. No irregular whitespace, no hidden tildes/unicode characters.');
 } else {
-    console.error('❌ Check 1 Failed: Found irregular characters:', irregularMatches);
+    console.error('[FAIL] Check 1 Failed: Found irregular characters:', irregularMatches);
     process.exit(1);
 }
 
 // 2. Syntax Check: Parse via Node vm / Function
 try {
     new Function(scriptContent);
-    console.log('✔ Check 2: JavaScript syntax parses cleanly with zero errors.');
+    console.log('[PASS] Check 2: JavaScript syntax parses cleanly with zero errors.');
 } catch (e) {
-    console.error('❌ Check 2 Failed: Syntax error:', e);
+    console.error('[FAIL] Check 2 Failed: Syntax error:', e);
     process.exit(1);
 }
 
@@ -70,7 +70,7 @@ const LEGENDARY_BASE_LOWER = LEGENDARY_BASE.map(b => b.toLowerCase());
 const testPageText = "A wild Shiny Mewtwo appeared on the route!".toLowerCase();
 
 const hasLegendary = LEGENDARY_BASE_LOWER.some(b => testPageText.includes(b));
-console.log('✔ Check 3: Base legendary fast-path check matches "Mewtwo":', hasLegendary === true);
+console.log('[PASS] Check 3: Base legendary fast-path check matches "Mewtwo":', hasLegendary === true);
 
 // Test Level Regex
 const testLevelText1 = "Level: 50 (Male)";
@@ -78,8 +78,8 @@ const testLevelText2 = "level:   85<br>";
 const match1 = testLevelText1.match(/level[:\s]+(\d+)/i);
 const match2 = testLevelText2.match(/level[:\s]+(\d+)/i);
 
-console.log('✔ Check 4: Regex extracts level 50:', parseInt(match1[1], 10) === 50);
-console.log('✔ Check 5: Regex extracts level 85:', parseInt(match2[1], 10) === 85);
+console.log('[PASS] Check 4: Regex extracts level 50:', parseInt(match1[1], 10) === 50);
+console.log('[PASS] Check 5: Regex extracts level 85:', parseInt(match2[1], 10) === 85);
 
 // Test Battle Rebattle Link Finder
 const testElements = [
@@ -92,6 +92,6 @@ const foundRebattle = testElements.find(el => {
     return text.includes('rebattle');
 });
 
-console.log('✔ Check 6: Rebattle button correctly found without jQuery / :contains():', foundRebattle === mockDOM.rebattleLink);
+console.log('[PASS] Check 6: Rebattle button correctly found without jQuery / :contains():', foundRebattle === mockDOM.rebattleLink);
 
 console.log('--- ALL AUTOMATED VERIFICATION CHECKS PASSED ---');

@@ -1,72 +1,45 @@
 ---
 name: delugerpg-combat-engine
 description: >-
-  Use this skill when modifying, testing, or querying the DelugeRPG battle matchup calculator,
-  type counter algorithms, opponent database (gym_leaders.json), or live battle roster harvester.
+  Use this skill when modifying, testing, or querying the DelugeRPG battle matchup calculator (team_engine.js),
+  Python Monte Carlo combat engine (ml_combat_engine.py), Live AI Tactical Assistant, or gym_leaders.json database.
 ---
 
-# DelugeRPG Combat Matchup Engine & Trainer Database
+# DelugeRPG Combat Matchup & Live AI Tactical Engine (Token-Optimized)
 
-This skill documents the combat mathematics, counter selection logic, and opponent databases
-used by the DelugeRPG Gym Team Builder.
-
-## Combat Math & Scoring Algorithm
-
-The matchmaking engine (`team_engine.js`) evaluates candidate Pokemon from the user's box
-collection against target opponents using offensive coverage and defensive safety scoring.
-
-### 1. Offensive Multiplier
-* Uses the standard 18-type Pokemon effectiveness matrix (`TYPE_CHART`).
-* Dual-type defenders multiply multipliers: e.g. Water move vs Fire/Ground = 2.0 * 2.0 = 4.0x.
-* **STAB (Same Type Attack Bonus):** 1.5x damage boost when move type matches the user's Pokemon typing.
-* Base move power (default 40, OHKO moves scored as 250+).
-
-### 2. Defensive Resistance Penalty
-* Calculates incoming damage multiplier from opponent typing to candidate Pokemon typing.
-* Immunity (0.0x incoming) grants huge score bonus (`Immune Wall` or `Immune Anchor`).
-* Resistance (<= 0.5x incoming) grants defensive bonus (`Hard Counter`).
-* Weakness (>= 2.0x incoming) applies strong risk penalty.
-
-### 3. Final Composite Score
-```text
-TotalScore = (OffensePower * STAB * LevelWeight) - (DefensiveRisk * 40) + BaseStatBonus
+## 1. Zero-Token Database Queries (Never `view_file` JSON Databases)
+Query `gym_leaders.json`, `user_collection.json`, and `pokemon_moves_db.json` via `node -e` instead of loading them into context:
+```powershell
+node -e "const db=require('./gym_leaders.json'); console.log(Object.keys(db));"
+node -e "const te=require('./team_engine.js'); console.log(Object.keys(te));"
 ```
 
-## Opponent Database Architecture (`gym_leaders.json`)
+## 2. Combat Engine Line-Range Map
+* **`team_engine.js` (2130L):**
+  * `L45-268`: 18-type matrix (`TYPE_CHART`), variant multipliers (`Shiny`, `Dark`, `Metallic`, `Ghostly`, `Shadow`, `Chrome`, `Retro`, `Negative`/`Inverse`), `outgoingEffectiveness()`, `incomingEffectiveness()`
+  * `L275-673`: Roster exposure & Carry ranking (`getRosterExposure`, `rankCarries`, `getCarryMoveGuidance`, `getRosterWideBestAttack`, `rankTraineePartners`)
+  * `L697-1020`: Move resolver (`resolveMove`), single-opponent scorer (`scoreVsSingleOpponent`), `getBaseSpecies()`
+  * `L1063-1309`: Tier classifiers (`isUltraBeast`, `isParadoxPokemon`, `isLegendaryPokemon`, `isGmaxPokemon`, `isMegaPokemon`), `evaluateOwnershipAndMegaEquivalence()`, `filterCandidatePool()`
+  * `L1311-1856`: Gym/Trainer Team Builder (`buildBestTeam`, `canSoloTrainer`, `getBestMoveVsTrainer`)
+  * `L1858-2130`: PvP God Squad Builder (`getBestUniversalMove`, `buildGodSquadTeam`) + Evolution & Move Recommender exports
+* **`ml_combat_engine.py` (524L) & `bin/ml_combat_engine/ml_combat_engine.exe`:**
+  * `L120-207`: `MoveResolver` & `get_variant_stats()`
+  * `L208-365`: `DelugeBattleSimulator` (`simulate_1v1_turn`, `simulate_full_match`, `evaluate_carry_monte_carlo`)
+  * `L366-521`: `DelugeSmartEngine` (`rank_carries_ml`, `solve_trainer_counter`, CLI entrypoint)
 
-The database contains 449 total opponents categorized into regional leagues and tiers:
+## 3. Scoring, Anomalies & State Machines
+* **Composite Score:** `TotalScore = (OffensePower * STAB * LevelWeight) - (DefensiveRisk * 40) + BaseStatBonus`
+* **28-Trainer Anomaly Resolution:** Immune carries (e.g. Ground-type `Ting-Lu` vs Electric trainers `Lt. Surge`, `Wattson`, `Jasmine`, `Volkner`) avoid 1-hit KO / Fissure / Outrage traps with 0x defensive exposure.
+* **Smart Battle Flow Button (7 States in `renderAiAssistantUI` `L7124-7448`):**
+  1. `Prep`: `Deploy [Lead] & Start`
+  2. `Attack`: `Attack with [Move] (4.0x)`
+  3. `Reattack`: `Reattack with [Move] (4.0x)`
+  4. `Continue`: `Continue to Next Turn`
+  5. `KO Cont`: `Opponent KO - Continue`
+  6. `Switch`: `Deploy [Counter] & Continue`
+  7. `Complete`: `Battle Complete`
+* **Evolution & Move Recommender (`L6946-7110`, `L7578-7621`):** Evaluates multi-branch evolutions (e.g. Eevee 8 branches, Applin G-Max/Hydrapple), flags `[OWNED]` status, and critiques low-power/redundant/non-STAB moves.
 
-### 1. Regional Gym Leagues (131 Leaders & Elite Four - 100% Complete)
-* `KANTO`: 13 Leaders & Elite 4 (Brock, Misty, ..., Lance, Blue)
-* `JOHTO`: 14 Leaders & Elite 4 (Falkner, Bugsy, ..., Lance, Red)
-* `HOENN`: 15 Leaders & Elite 4 (Roxanne, ..., Steven, Wallace)
-* `SINNOH`: 13 Leaders & Elite 4 (Roark, ..., Cynthia)
-* `UNOVA`: 19 Leaders & Elite 4 (Cilan, ..., Alder, Iris)
-* `KALOS`: 13 Leaders & Elite 4 (Viola, ..., Diantha)
-* `ALOLA`: 17 Captains, Kahunas & Elite 4 (Ilima, ..., Kukui, Hau)
-* `GALAR`: 14 Leaders & Champions (Milo, ..., Leon)
-* `PALDEA`: 13 Leaders & Elite 4 (Katy, ..., Geeta)
-
-### 2. Computer & Player Tiers (318 Trainers)
-* `ULTIMATE_TRAINERS`: 6 high-level bosses (Ash, etc.)
-* `STRONG_TRAINERS`: 72 mid-high trainers
-* `VIP_TRAINERS`: 132 special opponents
-* `STANDARD_TRAINERS`: 108 baseline trainers
-
-## Battle & Profile Opponent Detection Lifecycle
-
-1. **Preload Monitor:** `detectBattleOpponents()` in `game-preload.js` inspects `#teamleft`, `#opponent`, `#viewpokes`, or `#DModal .pokemon` when triggered.
-2. **Manual-Only User Control:** Opening `#DModal` on a player profile must NEVER auto-trigger `battle-opponents-detected` in the background. Detection is performed on explicit user request (`Check Active Screen` or `Scout`).
-3. **Host Persistence:** `handleLiveBattleOpponents()` updates `gym_leaders.json` for NPC trainers, or updates the Live Opponent card in PvP mode when `isManualCheck` is true.
-
-## UI Presentation Guidelines (Team Builder & Matchup Renderers)
-
-1. **Zero Glowing Shadows:**
-   * Never render badges, buttons, or lineup cards with glowing box-shadows (`box-shadow: none !important`).
-2. **STRICT ZERO UNNECESSARY TEXT INFORMATION LINES RULE:**
-   * **Never** render verbose instructional sentences, helper paragraphs, or redundant header/subtitle text lines in Team Builder cards (`Live Opponent`, `Scout Player`, `#teamEmptyPrompt`, `renderTeamLineup`).
-   * In `renderTeamLineup()`, each Pokemon row must only display: slot number, sprite thumbnail, Pokemon name + level, clean move name, and a single right-hand badge (`targetBadgeHtml`) -- never render `cleanRole` (`Super-Effective 2.0x`) or `roleDesc` text lines underneath the badge, and never render a redundant `YOUR PVP TEAM / TARGET:` header row above the list.
-   * Preserve all standard CSS structural borders (`border: 1px solid #1a283e`, badge borders) -- never remove CSS borders when removing unnecessary text lines.
-3. **Species Diversity Guarantee:**
-   * The matchmaking engine strips forms and variant prefixes via `getBaseSpecies(name)` to enforce distinct species across trainees, ensuring optimal leveling spread without clone duplication.
-
+## 4. UI & Detection Rules
+* **Manual-Only Detection:** `detectBattleOpponents()` (`game-preload.js` `L4556`) and `scoutPlayerByUsername()` (`L5866`) only trigger on explicit user action (**Check Active Screen**, **Scout**, or **Build**).
+* **Lineup Card Rule (`renderTeamLineup` `app.js` `L5833`):** Render only slot #, sprite, Pokemon name + level, move name, and a single right-hand badge (`targetBadgeHtml`). Never stack `cleanRole` or `roleDesc` subtitles, and keep `box-shadow: none !important`.

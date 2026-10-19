@@ -13,7 +13,7 @@ assert(match, 'MEGA_CAPABLE_BASE must be defined');
 const MEGA_CAPABLE_BASE = eval(match[1]);
 const MEGA_CAPABLE_LOWER = MEGA_CAPABLE_BASE.map(x => x.toLowerCase());
 
-console.log(`✔ Loaded ${MEGA_CAPABLE_BASE.length} Pokémon in MEGA_CAPABLE_BASE`);
+console.log(`[PASS] Loaded ${MEGA_CAPABLE_BASE.length} Pokemon in MEGA_CAPABLE_BASE`);
 
 // Verify essential base and final forms for Megas across generations
 const testSpecies = [
@@ -76,7 +76,7 @@ for (const species of testSpecies) {
     assert(found, `Expected ${species} to be in MEGA_CAPABLE_BASE`);
 }
 
-console.log(`✔ All ${testSpecies.length} test species (all 46 Mega Evolution lines) verified present!`);
+console.log(`[PASS] All ${testSpecies.length} test species (all 46 Mega Evolution lines) verified present!`);
 
 // Test scanner simulation
 function simulateScan(text) {
@@ -96,5 +96,5 @@ assert.strictEqual(simulateScan('A wild Scyther appeared!'), 'Scyther');
 assert.strictEqual(simulateScan('A wild Weedle appeared!'), 'Weedle');
 assert.strictEqual(simulateScan('A wild Rattata appeared!'), null);
 
-console.log('✔ Scanner successfully matches base, middle, and mega forms.');
+console.log('[PASS] Scanner successfully matches base, middle, and mega forms.');
 console.log('--- ALL MEGA EVOLUTION TESTS PASSED ---');

@@ -56,11 +56,11 @@ function selectBestBall(radiosList) {
 
 // Test 1: User has 0 Master Balls, 3 Ultra Balls. Should pick Ultra Ball!
 const chosen1 = selectBestBall(radios);
-console.log('✔ Test 1: Picked ball when Master Ball is (0):', chosen1.parentElement.textContent);
+console.log('[PASS] Test 1: Picked ball when Master Ball is (0):', chosen1.parentElement.textContent);
 if (chosen1 === ultraBall) {
-    console.log('✔ PASS: Ultra Ball selected because Master Ball has (0).');
+    console.log('[PASS] PASS: Ultra Ball selected because Master Ball has (0).');
 } else {
-    console.error('❌ FAIL: Expected Ultra Ball!');
+    console.error('[FAIL] FAIL: Expected Ultra Ball!');
     process.exit(1);
 }
 
@@ -68,11 +68,11 @@ if (chosen1 === ultraBall) {
 pokeBall.checked = true;
 ultraBall.checked = false;
 const chosen2 = selectBestBall(radios);
-console.log('✔ Test 2: Preserved user-selected ball:', chosen2.parentElement.textContent);
+console.log('[PASS] Test 2: Preserved user-selected ball:', chosen2.parentElement.textContent);
 if (chosen2 === pokeBall) {
-    console.log('✔ PASS: User manual choice was preserved without unclicking.');
+    console.log('[PASS] PASS: User manual choice was preserved without unclicking.');
 } else {
-    console.error('❌ FAIL: User choice was overwritten!');
+    console.error('[FAIL] FAIL: User choice was overwritten!');
     process.exit(1);
 }
 
@@ -89,9 +89,9 @@ const throwBtn = allButtons.find(b => {
     return text.indexOf('throw') !== -1 && text.indexOf('ball') !== -1;
 });
 
-console.log('✔ Test 3: Found "THROW POKE BALL" button:', throwBtn === mockThrowBtn);
+console.log('[PASS] Test 3: Found "THROW POKE BALL" button:', throwBtn === mockThrowBtn);
 if (!throwBtn) {
-    console.error('❌ FAIL: Throw button not found!');
+    console.error('[FAIL] FAIL: Throw button not found!');
     process.exit(1);
 }
 

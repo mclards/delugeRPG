@@ -11,7 +11,7 @@
 
 Claude's audit report in `AUDIT_REPORT.md` is **exceptionally accurate, rigorous, and technically sound**. 
 
-Every single finding—from the Critical runtime deadlock down to the Low-severity resource leaks—has been verified against the live codebase. Not only are the findings valid, but Claude correctly identified subtle architectural and runtime realities (such as Electron context isolation neutralizing prototype monkey-patching, and the 750ms host fallback racing against the 1400ms preload collision timer) that previously led to false assumptions.
+Every single finding--from the Critical runtime deadlock down to the Low-severity resource leaks--has been verified against the live codebase. Not only are the findings valid, but Claude correctly identified subtle architectural and runtime realities (such as Electron context isolation neutralizing prototype monkey-patching, and the 750ms host fallback racing against the 1400ms preload collision timer) that previously led to false assumptions.
 
 Below is the line-by-line verification breakdown with definitive technical proofs.
 
@@ -22,7 +22,7 @@ Below is the line-by-line verification breakdown with definitive technical proof
 ### C-1: Hunting Loop Deadlock on Non-Target Wild Encounters
 * **Claimed in Audit:** When any non-target wild Pokemon (e.g. Rattata, Pidgey) appears, `isEncounterOnScreen` is set to `true`, causing `sendKeyStep` and `scheduleNextStep` to abort immediately without rescheduling. The hunting engine enters a silent, permanent deadlock.
 * **Code Verification:**
-  1. In `desktop-client/game-preload.js` (lines 234–246), `isEncounterOrCatchUIPresent()` checks:
+  1. In `desktop-client/game-preload.js` (lines 234--246), `isEncounterOrCatchUIPresent()` checks:
      ```javascript
      if (normText.indexOf('appeared') !== -1 || normText.indexOf('level') !== -1 || normText.indexOf('wild') !== -1) {
          return true;
@@ -50,7 +50,7 @@ Below is the line-by-line verification breakdown with definitive technical proof
      ```javascript
      if (!isRunning || isEncounterOnScreen) return; // BLOCKED without rescheduling!
      ```
-  6. Because Rattata is not in the target database, `target-found` is never triggered. `isRunning` remains `true` (UI button still displays `⏸ Hunting`), but no further steps can ever be dispatched or scheduled. Because no steps are dispatched, the encounter cannot despawn, so `isEncounterOnScreen` never clears.
+  6. Because Rattata is not in the target database, `target-found` is never triggered. `isRunning` remains `true` (UI button still displays ` Hunting`), but no further steps can ever be dispatched or scheduled. Because no steps are dispatched, the encounter cannot despawn, so `isEncounterOnScreen` never clears.
 * **Verification Verdict:** **CONFIRMED & CRITICAL.** This is a live deadlock introduced during the previous session's pause-accuracy edit. The bot will freeze at the very first common wild encounter.
 
 ---
@@ -65,8 +65,8 @@ Below is the line-by-line verification breakdown with definitive technical proof
     <webview id="delugeView" ... preload="./game-preload.js"></webview>
     ```
     No `webpreferences="contextIsolation=no"` is declared. Under Electron >= 12, `<webview>` defaults to `contextIsolation: true`.
-  * In `game-preload.js` lines 695–740, the monkey-patches operate on the window object of the isolated world. The main world's JavaScript (DelugeRPG's jQuery scripts) invokes the native, unmodified browser `XMLHttpRequest` and `fetch`.
-  * Furthermore, line 699 records `this._delugeUrl = url;` inside `XMLHttpRequest.prototype.open`, but `send` never inspects `this._delugeUrl` anyway—meaning even in an unisolated environment, unrelated network traffic (analytics, advertisements) would have triggered false move confirmations.
+  * In `game-preload.js` lines 695--740, the monkey-patches operate on the window object of the isolated world. The main world's JavaScript (DelugeRPG's jQuery scripts) invokes the native, unmodified browser `XMLHttpRequest` and `fetch`.
+  * Furthermore, line 699 records `this._delugeUrl = url;` inside `XMLHttpRequest.prototype.open`, but `send` never inspects `this._delugeUrl` anyway--meaning even in an unisolated environment, unrelated network traffic (analytics, advertisements) would have triggered false move confirmations.
 * **Verification Verdict:** **CONFIRMED & ACCURATE.** The previous assumption that client network requests were being passively intercepted was technically incorrect.
 
 ---
@@ -74,7 +74,7 @@ Below is the line-by-line verification breakdown with definitive technical proof
 ### H-2: Obstacle Detection Rendered Inert by Broad MutationObserver
 * **Claimed in Audit:** The `MutationObserver` on `document.body` monitors `{ childList: true, subtree: true, attributes: true, characterData: true }`. Background animations, player movements, ads, and timers immediately trigger `activeStep.resolved = true; success: true;`, preventing collision timeouts from ever evaluating real obstacles.
 * **Code Verification:**
-  * In `game-preload.js` lines 742–757:
+  * In `game-preload.js` lines 742--757:
     ```javascript
     const observer = new MutationObserver(() => {
         if (activeStep && !activeStep.resolved) {
@@ -87,7 +87,7 @@ Below is the line-by-line verification breakdown with definitive technical proof
     // Line 841:
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
     ```
-  * DelugeRPG maps feature other players moving, animated trainer sprites, and DOM timers. These trigger mutations within milliseconds of any keypress, instantly resolving `activeStep` as a "success" before the 1400ms collision timer in lines 780–821 can ever confirm a wall.
+  * DelugeRPG maps feature other players moving, animated trainer sprites, and DOM timers. These trigger mutations within milliseconds of any keypress, instantly resolving `activeStep` as a "success" before the 1400ms collision timer in lines 780--821 can ever confirm a wall.
 * **Verification Verdict:** **CONFIRMED & ACCURATE.** Real wall collisions are masked because ambient page activity falsely signals move success.
 
 ---
@@ -95,7 +95,7 @@ Below is the line-by-line verification breakdown with definitive technical proof
 ### H-3: CAPTCHA / Unlock Alarm Code Path Unreachable
 * **Claimed in Audit:** The `/unlock` security challenge check in `game-preload.js` is placed below an early return that exits if the path is not `/map` or `/catch`.
 * **Code Verification:**
-  * In `game-preload.js` lines 212–222:
+  * In `game-preload.js` lines 212--222:
     ```javascript
     // 2. STRICT PAGE GUARD: Only scan on map or catch page
     const path = (window.location.pathname || '').toLowerCase();
@@ -124,7 +124,7 @@ Below is the line-by-line verification breakdown with definitive technical proof
     ```
   * In `desktop-client/config.json`:
     The `"dummyAccount"` block contains the identical plaintext username and password.
-  * In `desktop-client/app.js` lines 1886–1890, user inputs in the Account modal are written back to disk in unencrypted JSON.
+  * In `desktop-client/app.js` lines 1886--1890, user inputs in the Account modal are written back to disk in unencrypted JSON.
 * **Verification Verdict:** **CONFIRMED & ACCURATE.** Exposing credentials in fallback source code and plaintext config files poses significant security and account safety risks.
 
 ---
@@ -164,7 +164,7 @@ Below is the line-by-line verification breakdown with definitive technical proof
 * **L-4 (User-Agent Discrepancy):** Confirmed. `app.html:1332` hardcodes Chrome `142.0.7444.52`, while `main.js:13` dynamically pulls from `process.versions.chrome`.
 * **L-5 (Target List Redundancy):** Confirmed. 136 legendaries and 107 mega families are duplicated identically across `targets.js`, `game-preload.js`, and `pokefinder.user.js`.
 * **L-6 (Preload Top-Level Return):** Confirmed. `game-preload.js` lines 8 and 11 use top-level `return;`.
-* **L-7 (Unused Keycode Maps):** Confirmed. `keyMap`, `codeMap`, `keyCode`, `keyName` at lines 761–764 are defined but never used.
+* **L-7 (Unused Keycode Maps):** Confirmed. `keyMap`, `codeMap`, `keyCode`, `keyName` at lines 761--764 are defined but never used.
 
 ---
 

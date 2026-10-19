@@ -1,11 +1,12 @@
 {
   "name": "delugerpg-desktop-client",
-  "version": "1.3.6",
+  "version": "1.3.7",
   "description": "Standalone Stealth Desktop Client for DelugeRPG",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
+    "build:python": "python -m PyInstaller --clean --noconfirm --onedir --name ml_combat_engine --distpath bin --workpath build_pyinstaller --specpath build_pyinstaller ml_combat_engine.py",
+    "dist": "npm run build:python && electron-builder"
   },
   "build": {
     "electronVersion": "39.0.0",
@@ -36,6 +37,15 @@
       "shortcutName": "DelugeRPG Stealth Client",
       "deleteAppDataOnUninstall": false
     },
+    "extraResources": [
+      {
+        "from": "bin/ml_combat_engine",
+        "to": "bin/ml_combat_engine",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "files": [
       "main.js",
       "app.html",
@@ -43,11 +53,16 @@
       "game-preload.js",
       "targets.js",
       "team_engine.js",
+      "ai_agent_bridge.js",
+      "evolution_engine.js",
+      "ml_combat_engine.py",
       "gym_leaders.json",
       "skills_database.json",
       "type_chart_database.json",
       "user_collection.json",
       "daily_catch_log.json",
+      "daily_safety_log.json",
+      "favorite_trainers.json",
       "config.json",
       "assets/**/*"
     ],

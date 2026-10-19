@@ -45,9 +45,9 @@ function findReturnButton(elements) {
 
 // Test 1: During battle (before throw), does it match navbar?
 const matchedBeforeThrow = findReturnButton(elementsDuringBattle);
-console.log('✔ Test 1: findReturnButton during battle returns null (no navbar false positive):', matchedBeforeThrow === undefined);
+console.log('[PASS] Test 1: findReturnButton during battle returns null (no navbar false positive):', matchedBeforeThrow === undefined);
 if (matchedBeforeThrow) {
-    console.error('❌ Failed Test 1: False positive matched navbar link!');
+    console.error('[FAIL] Failed Test 1: False positive matched navbar link!');
     process.exit(1);
 }
 
@@ -58,9 +58,9 @@ const elementsAfterBattle = [
 ];
 
 const matchedAfterThrow = findReturnButton(elementsAfterBattle);
-console.log('✔ Test 2: findReturnButton matches "Return to Map" button correctly:', matchedAfterThrow === returnToMapBtn);
+console.log('[PASS] Test 2: findReturnButton matches "Return to Map" button correctly:', matchedAfterThrow === returnToMapBtn);
 if (matchedAfterThrow !== returnToMapBtn) {
-    console.error('❌ Failed Test 2: Did not match Return to Map button!');
+    console.error('[FAIL] Failed Test 2: Did not match Return to Map button!');
     process.exit(1);
 }
 

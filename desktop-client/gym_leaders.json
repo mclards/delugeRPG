@@ -11821,7 +11821,51 @@
       ],
       "battleUrl": "/battle/trainer/5128",
       "inverseUrl": "/battle/trainer/5128/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/veteranm1.png"
+      "avatar": "https://i.dstatic.com/images/trainers/veteranm1.png",
+      "roster": [
+        {
+          "name": "Leafeon",
+          "types": [
+            "Grass"
+          ],
+          "level": 80,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/leafeon.png"
+        },
+        {
+          "name": "Gigalith",
+          "types": [
+            "Rock"
+          ],
+          "level": 85,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/gigalith.png"
+        },
+        {
+          "name": "Toxicroak",
+          "types": [
+            "Poison",
+            "Fighting"
+          ],
+          "level": 82,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/toxicroak.png"
+        },
+        {
+          "name": "Magmortar",
+          "types": [
+            "Fire"
+          ],
+          "level": 85,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/magmortar.png"
+        },
+        {
+          "name": "Hydreigon",
+          "types": [
+            "Dark",
+            "Dragon"
+          ],
+          "level": 86,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/hydreigon.png"
+        }
+      ]
     },
     {
       "name": "Veteran Tamaki",

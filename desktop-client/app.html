@@ -94,8 +94,8 @@
       height: 44px;
       background: #091322;
       border-bottom: 1px solid #1a283e;
-      padding: 0 14px;
-      gap: 8px;
+      padding: 0 10px;
+      gap: 6px;
       flex-shrink: 0;
       z-index: 10000;
       box-shadow: none !important;
@@ -107,15 +107,18 @@
       flex-shrink: 0;
     }
     .nav-left {
-      gap: 10px;
+      gap: 8px;
       justify-content: flex-start;
     }
     .nav-center {
+      flex: 1 1 auto;
+      min-width: 80px;
+      max-width: 340px;
       justify-content: center;
-      padding: 0 6px;
+      padding: 0 4px;
     }
     .nav-right {
-      gap: 6px;
+      gap: 5px;
       justify-content: flex-end;
     }
 
@@ -458,10 +461,14 @@
     }
     select {
       height: 26px;
-      background: #070e1a;
+      background-color: #070e1a;
+      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238eaad0' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 8px center !important;
+      background-size: 8px 5px !important;
       border: 1px solid #1a283e;
       color: #e0ecfa;
-      padding: 0 20px 0 8px;
+      padding: 0 22px 0 8px !important;
       border-radius: 4px !important;
       font-size: 11px;
       font-weight: 500;
@@ -471,13 +478,14 @@
       -webkit-appearance: none;
       transition: all 0.12s ease;
       box-shadow: none !important;
+      text-overflow: ellipsis;
     }
     #walkModeSelect {
       width: 100%;
     }
     select:hover {
       border-color: #243856;
-      background: #0e1b30;
+      background-color: #0e1b30;
     }
     select:focus {
       border-color: #388bfd;
@@ -501,10 +509,10 @@
       justify-content: center;
       gap: 8px;
       height: 26px;
-      width: 360px;
-      min-width: 320px;
-      max-width: 420px;
-      padding: 0 14px;
+      width: 100%;
+      min-width: 80px;
+      max-width: 340px;
+      padding: 0 10px;
       border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
@@ -512,7 +520,8 @@
       border: 1px solid #1a283e;
       box-shadow: none !important;
       box-sizing: border-box;
-      flex-shrink: 0;
+      flex-shrink: 1;
+      overflow: hidden;
     }
     .status-dot {
       width: 7px;
@@ -528,7 +537,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       text-align: center;
-      max-width: 375px;
+      max-width: 100%;
     }
     .counter {
       height: 26px;
@@ -778,17 +787,101 @@
       position: absolute;
       top: calc(100% + 6px);
       right: 0;
-      width: 245px;
+      width: 316px;
+      max-height: calc(100vh - 52px);
+      overflow-y: auto;
+      overflow-x: hidden;
       background: #0b1424;
-      border: 1px solid #1a283e;
-      border-radius: 4px;
+      border: 1px solid #243856;
+      border-radius: 6px;
       box-shadow: none !important;
-      padding: 6px;
-      z-index: 90;
+      padding: 8px;
+      z-index: 10001;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 6px;
       animation: dropdownFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .nav-dropdown::-webkit-scrollbar {
+      width: 6px;
+    }
+    .nav-dropdown::-webkit-scrollbar-track {
+      background: #070e1a;
+      border-radius: 3px;
+    }
+    .nav-dropdown::-webkit-scrollbar-thumb {
+      background: #243856;
+      border-radius: 3px;
+    }
+    .nav-dropdown::-webkit-scrollbar-thumb:hover {
+      background: #385072;
+    }
+    .nav-group {
+      border: 1px solid #1a283e;
+      border-radius: 5px;
+      background: #070e1a;
+      overflow: visible;
+      flex: 0 0 auto;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: none !important;
+    }
+    .nav-group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      flex-shrink: 0;
+      padding: 7px 10px;
+      background: #0e1b30;
+      border: none;
+      border-bottom: 1px solid #1a283e;
+      border-radius: 4px 4px 0 0;
+      color: #c9d8ec;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: none !important;
+      outline: none;
+      box-sizing: border-box;
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+    .nav-group-header[aria-expanded="false"] {
+      border-bottom: none;
+      border-radius: 4px;
+    }
+    .nav-group-header:hover {
+      background: #142542;
+      color: #ffffff;
+    }
+    .nav-group-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+    }
+    .nav-group-arrow {
+      font-size: 11px;
+      color: #8eaad0;
+      font-weight: 700;
+      width: 16px;
+      text-align: center;
+      display: inline-block;
+    }
+    .nav-group-content {
+      display: flex;
+      flex-direction: column;
+      flex: 0 0 auto;
+      flex-shrink: 0;
+      gap: 4px;
+      padding: 6px;
+    }
+    .nav-group-content.collapsed {
+      display: none !important;
     }
     .nav-dropdown.hidden {
       display: none;
@@ -814,8 +907,9 @@
     .dropdown-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 7px 10px;
+      gap: 9px;
+      min-height: 28px;
+      padding: 6px 8px;
       border-radius: 4px;
       border: none;
       background: transparent;
@@ -825,6 +919,7 @@
       cursor: pointer;
       text-align: left;
       width: 100%;
+      flex-shrink: 0;
       transition: background 0.12s ease, color 0.12s ease;
       outline: none;
       box-sizing: border-box;
@@ -853,13 +948,17 @@
       display: none;
     }
     .switch {
-      width: 36px;
+      width: 34px;
       height: 18px;
       position: relative;
       display: inline-block;
       flex-shrink: 0;
-      pointer-events: none;
+      pointer-events: auto;
+      cursor: pointer;
       vertical-align: middle;
+    }
+    .dropdown-toggle-item .switch {
+      pointer-events: none;
     }
     .slider {
       position: absolute;
@@ -868,33 +967,36 @@
       left: 0;
       right: 0;
       border-radius: 18px;
-      border: 2px solid #556277;
+      border: 1px solid #385072;
       box-shadow: none !important;
       cursor: pointer;
       overflow: hidden;
-      transition: 0.2s;
-      background: #0d1520;
+      transition: background-color 0.18s ease, border-color 0.18s ease;
+      background: #0d1626;
     }
     .slider:before {
       position: absolute;
       content: "";
-      width: 100%;
-      height: 100%;
-      background-color: #777;
-      border-radius: 18px;
-      transform: translateX(-18px);
-      /*translateX(-(w-h))*/
-      transition: 0.2s;
+      width: 12px;
+      height: 12px;
+      left: 2px;
+      top: 2px;
+      background-color: #8eaad0;
+      border-radius: 50%;
+      transform: translateX(0);
+      transition: transform 0.18s ease, background-color 0.18s ease;
     }
     input:checked + .slider:before,
+    input.switch-on + .slider:before,
     .switch.is-on .slider:before {
-      transform: translateX(18px);
-      /*translateX(w-h)*/
-      background-color: limeGreen;
+      transform: translateX(16px);
+      background-color: #ffffff;
     }
     input:checked + .slider,
+    input.switch-on + .slider,
     .switch.is-on .slider {
-      border-color: limeGreen;
+      background-color: #238636;
+      border-color: #2ea043;
       box-shadow: none !important;
     }
 
@@ -983,7 +1085,7 @@
       flex: 1;
       width: 100%;
     }
-    #teamBuilderModal, #adsInspectorModal, #catchLogModal {
+    #teamBuilderModal, #adsInspectorModal, #catchLogModal, #aiAssistantModal, #safetySettingsModal {
       flex: 1;
       width: 25%;
       min-width: 320px;
@@ -1000,6 +1102,7 @@
       overflow: hidden;
       flex-shrink: 0;
       z-index: 10;
+      pointer-events: auto !important;
     }
     .ad-telemetry-card {
       background: #0e1b30;
@@ -1048,7 +1151,6 @@
       display: block;
     }
 
-    body.modal-open #gameContainer,
     body.modal-open #delugeView {
       pointer-events: none !important;
     }
@@ -1126,26 +1228,29 @@
       position: relative;
       display: flex;
       flex-direction: row;
-      align-items: flex-start;
+      align-items: center;
       padding: 2px;
-      background-color: #dadadb;
-      border-radius: 7px;
+      background-color: #070e1a;
+      border: 1px solid #1a283e;
+      border-radius: 6px;
       width: 100%;
       box-sizing: border-box;
+      flex-shrink: 0;
+      box-shadow: none !important;
     }
 
     .indicator {
       content: "";
       width: calc((100% - 4px) / 3);
       height: 22px;
-      background: #ffffff;
+      background: linear-gradient(180deg, #1f6feb 0%, #1958b8 100%);
       position: absolute;
       top: 2px;
       left: 2px;
       z-index: 9;
-      border: 0.5px solid rgba(0, 0, 0, 0.04);
-      box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.12), 0px 1px 1px rgba(0, 0, 0, 0.04);
-      border-radius: 5px;
+      border: 1px solid #388bfd;
+      box-shadow: none !important;
+      border-radius: 4px;
       transition: all 0.2s ease-out;
     }
 
@@ -1172,17 +1277,17 @@
       border: 0;
       font-size: 10.5px;
       font-weight: 600;
-      color: #111827;
-      opacity: 0.65;
+      color: #8eaad0;
+      opacity: 0.85;
       cursor: pointer;
       white-space: nowrap;
-      transition: opacity 0.2s ease-out;
+      transition: opacity 0.2s ease-out, color 0.2s ease-out;
     }
 
     .tab:checked + .tab_label {
       opacity: 1;
       font-weight: 700;
-      color: #000000;
+      color: #ffffff;
     }
 
     .tab--1:checked ~ .indicator {
@@ -1204,12 +1309,12 @@
     .tab-container-2 .tab_label {
       flex: 1;
       width: 50%;
-      height: 21px;
+      height: 22px;
       font-size: 10.5px;
     }
     .tab-container-2 .indicator {
       width: calc(50% - 2px);
-      height: 21px;
+      height: 22px;
     }
     .tab-container-2 .tab--1:checked ~ .indicator {
       left: 2px;
@@ -1244,7 +1349,8 @@
       display: flex;
       align-items: stretch;
       width: 100%;
-      height: 26px;
+      height: 28px;
+      flex-shrink: 0;
       background: #070e1a;
       border: 1px solid #243856;
       border-radius: 30px;
@@ -1589,26 +1695,52 @@
     .clean-select {
       height: 26px;
       font-size: 11px;
-      background: #070e1a;
+      background-color: #070e1a;
       border: 1px solid #1a283e;
       color: #e0ecfa;
       border-radius: 4px;
-      padding: 0 8px;
+      padding: 0 22px 0 8px !important;
       cursor: pointer;
       box-shadow: none !important;
+      text-overflow: ellipsis;
+    }
+    .clean-select optgroup {
+      font-size: 11px;
+      font-weight: 800;
+      font-style: normal;
+      padding: 4px 6px;
+      letter-spacing: 0.5px;
+    }
+    .clean-select option {
+      font-size: 11px;
+      padding: 3px 6px;
+      background: #070e1a;
+      color: #e0ecfa;
     }
     .clean-num-input {
-      width: 55px;
-      height: 26px;
+      width: 54px;
+      height: 24px;
       background: #070e1a;
-      border: 1px solid #1a283e;
+      border: 1px solid #243856;
       color: #e0ecfa;
       border-radius: 4px;
-      padding: 0 6px;
+      padding: 0 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 11px;
       font-weight: 700;
       text-align: center;
+      box-sizing: border-box;
+      outline: none;
       box-shadow: none !important;
+      -moz-appearance: textfield;
+    }
+    .clean-num-input:focus {
+      border-color: #388bfd;
+    }
+    .clean-num-input::-webkit-outer-spin-button,
+    .clean-num-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
 
     /* Summary & Footer Actions */
@@ -1675,8 +1807,33 @@
 
     <!-- Right Section: Telemetry, Action Toggles & Collapsible Menu -->
     <div class="nav-section nav-right">
-      <!-- Steps Telemetry Counter -->
-      <div class="counter" id="stepCounter" title="Total steps walked in current session">Steps: 0</div>
+      <!-- Legacy Step Counter (Hidden to avoid redundancy with live Steps Today ceiling badge) -->
+      <div class="counter" id="stepCounter" style="display: none;" title="Total steps walked in current session">Steps: 0</div>
+
+      <!-- Main Page Live Safety Telemetry Badges -->
+      <div class="counter" title="Session Auto-Stop Limit" style="display: inline-flex; align-items: center; gap: 4px;">
+        <span style="color: #566e96; font-size: 9.5px; font-weight: 700;">AUTO-STOP:</span>
+        <span id="safetyStatAutoStop" style="color: #8eaad0; font-weight: 700;">--</span>
+      </div>
+      <div class="counter" title="Next Forced Rest Break" style="display: inline-flex; align-items: center; gap: 4px;">
+        <span style="color: #566e96; font-size: 9.5px; font-weight: 700;">NEXT BREAK:</span>
+        <span id="safetyStatNextBreak" style="color: #388bfd; font-weight: 700;">--</span>
+      </div>
+      <div class="counter" title="Steps Today / Safe Daily Ceiling" style="display: inline-flex; align-items: center; gap: 4px;">
+        <span style="color: #566e96; font-size: 9.5px; font-weight: 700;">STEPS:</span>
+        <span id="safetyStatTodaySteps" style="color: #e0ecfa; font-weight: 700;">0 / --</span>
+      </div>
+
+      <!-- Today's Auto-Catch Ceiling & Master Ball Stock Badge -->
+      <button id="dailyCaughtBtn" class="daily-caught-badge" title="Today's Auto-Catch Log &amp; Master Ball Stock (Click to view details)">
+        <span class="caught-badge-icon" style="display: inline-flex; align-items: center;"><span class="icon-pokeball-sm" style="width: 12px; height: 12px;"></span></span>
+        <span id="caughtSummaryText" style="display: none;">Today: 0</span>
+        <span style="color: #566e96; font-size: 9.5px; font-weight: 700;">CATCHES:</span>
+        <span id="safetyStatTodayCatches" style="color: #e0ecfa; font-weight: 700;">0 / --</span>
+        <span class="caught-badge-sep">&#183;</span>
+        <span class="mb-badge-icon">&#11088;</span>
+        <span id="mbSummaryText">MB: --</span>
+      </button>
 
       <!-- Zoom Controls Cluster -->
       <div class="zoom-cluster" title="Zoom in / out of DelugeRPG (Ctrl + Scroll or Ctrl +/-)">
@@ -1696,140 +1853,291 @@
         </button>
       </div>
 
-      <!-- Today's Auto-Catch & Master Ball Stock Badge -->
-      <button id="dailyCaughtBtn" class="daily-caught-badge" title="Today's Auto-Catch Log &amp; Master Ball Stock (Click to view details)">
-        <span class="caught-badge-icon" style="display: inline-flex; align-items: center;"><span class="icon-pokeball-sm" style="width: 12px; height: 12px;"></span></span>
-        <span id="caughtSummaryText">Today: 0</span>
-        <span class="caught-badge-sep">&#183;</span>
-        <span class="mb-badge-icon">&#11088;</span>
-        <span id="mbSummaryText">MB: --</span>
-      </button>
-
       <!-- Main Hunting Toggle Button (Relocated beside Nav Menu Button - Plain, Beveled, No Shadow) -->
       <button id="toggleBtn" class="btn btn-toggle-main btn-paused" title="Start / Pause Automated Hunting [Space / F2]">
         <span id="btnIcon">&#9654;</span>
         <span id="btnText">Paused</span>
       </button>
 
-      <!-- Collapsible Navigation Menu (Gracefully houses secondary settings) -->
+      <!-- Live AI Combat Assistant Toggle Button (Hidden on front page; relocated to top of Nav Menu) -->
+      <button id="aiAssistantTopBtn" class="btn btn-accent" title="Live AI Combat Assistant &amp; Tactical Copilot" style="display: none; height: 28px; font-size: 11px; font-weight: 700; padding: 0 10px; gap: 5px; box-shadow: none !important;">
+        <span style="font-size: 12px;">&#129302;</span>
+        <span>AI Assistant</span>
+      </button>
+
+      <!-- Safety & Anti-Ban Limits Toggle Button (Hidden to avoid redundant button on front page) -->
+      <button id="safetySettingsTopBtn" class="btn" title="Safety Precautions &amp; Anti-Ban Limits" style="display: none; height: 28px; font-size: 11px; font-weight: 700; padding: 0 10px; gap: 5px; box-shadow: none !important;">
+        <span style="font-size: 12px;">&#128737;</span>
+        <span>Safety</span>
+      </button>
+
+      <!-- Collapsible Navigation Menu (Houses secondary settings cleanly in collapsible groups) -->
       <div class="nav-menu-wrapper">
         <button id="navMenuBtn" class="btn btn-icon" title="Tools &amp; Settings Menu">&#9776;</button>
         <div id="navDropdown" class="nav-dropdown hidden">
+          
+          <!-- Top Action: Live AI Combat Assistant (Above Hunting & Targets) -->
+          <button id="aiAssistantMenuBtn" type="button" class="btn btn-accent" title="Open Live AI Combat Assistant &amp; Tactical Copilot" style="width: 100%; height: 30px; font-size: 11.5px; font-weight: 700; justify-content: center; gap: 6px; flex-shrink: 0; box-shadow: none !important;">
+            <span style="font-size: 13px;">&#129302;</span>
+            <span>AI Assistant</span>
+          </button>
+
           <!-- 1. Hunting & Targets -->
-          <div class="nav-dropdown-header">Hunting &amp; Targets</div>
-          <button id="targetModalBtn" class="dropdown-item" title="Configure Target Pokemon Filters &amp; Presets">
-            <span class="dropdown-icon">&#127919;</span>
-            <span class="dropdown-label">Target Pokemon Filters</span>
-          </button>
-          <button id="avoidDupesBtn" class="dropdown-item dropdown-toggle-item" title="Duplication Avoidance: Never pause or alert on already caught Pokemon">
-            <span class="dropdown-icon">&#128260;</span>
-            <span class="dropdown-label">Avoid Duplicates</span>
-            <label class="switch">
-              <input type="checkbox" id="avoidDupesBadge" checked>
-              <span class="slider"></span>
-            </label>
-          </button>
-          <button id="autoCatchBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Catch (Master Ball): Automatically catch detected target Pokemon using Master Ball (Requires Hide Ads ON)">
-            <span class="dropdown-icon">&#128080;</span>
-            <span class="dropdown-label">Auto-Catch (Master Ball)</span>
-            <label class="switch">
-              <input type="checkbox" id="autoCatchBadge">
-              <span class="slider"></span>
-            </label>
-          </button>
-          <button id="catchLogMenuBtn" class="dropdown-item" title="View Today's Auto-Catch Log &amp; Master Ball Stock">
-            <span class="dropdown-icon" style="display: inline-flex; align-items: center; justify-content: center;"><span class="icon-pokeball-sm"></span></span>
-            <span class="dropdown-label">Today's Catch Log</span>
-          </button>
-          <div class="dropdown-divider"></div>
+          <div class="nav-group">
+            <button type="button" class="nav-group-header" data-target="navGroupHunting" aria-expanded="true">
+              <span class="nav-group-title">&#127919; Hunting &amp; Targets</span>
+              <span class="nav-group-arrow">&#9662;</span>
+            </button>
+            <div id="navGroupHunting" class="nav-group-content">
+              <button id="targetModalBtn" class="dropdown-item" title="Configure Target Pokemon Filters &amp; Presets">
+                <span class="dropdown-icon">&#127919;</span>
+                <span class="dropdown-label">Target Pokemon Filters</span>
+              </button>
+              <button id="avoidDupesBtn" class="dropdown-item dropdown-toggle-item" title="Duplication Avoidance: Never pause or alert on already caught Pokemon">
+                <span class="dropdown-icon">&#128260;</span>
+                <span class="dropdown-label">Avoid Duplicates</span>
+                <span class="switch">
+                  <input type="checkbox" id="avoidDupesBadge" checked>
+                  <span class="slider"></span>
+                </span>
+              </button>
+              <button id="autoCatchBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Catch (Master Ball): Automatically catch detected target Pokemon using Master Ball (Requires Hide Ads ON)">
+                <span class="dropdown-icon">&#128080;</span>
+                <span class="dropdown-label">Auto-Catch (Master Ball)</span>
+                <span class="switch">
+                  <input type="checkbox" id="autoCatchBadge">
+                  <span class="slider"></span>
+                </span>
+              </button>
+              <!-- Hidden to avoid redundant button since dailyCaughtBtn is already on main front page -->
+              <button id="catchLogMenuBtn" style="display: none;" title="Today's Auto-Catch Log"></button>
+            </div>
+          </div>
 
           <!-- 2. Map & Movement Automation -->
-          <div class="nav-dropdown-header">Map &amp; Automation</div>
-          <button id="autoStartMapBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Start Hunting: Automatically begin walking whenever the game map is loaded">
-            <span class="dropdown-icon">&#9654;</span>
-            <span class="dropdown-label">Auto-Start on Maps</span>
-            <label class="switch">
-              <input type="checkbox" id="autoStartMapBadge" checked>
-              <span class="slider"></span>
-            </label>
-          </button>
-          <div id="autoStartDelayRow" style="padding: 2px 10px 4px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-            <label for="autoStartDelaySelect" style="font-size: 11px; color: #8eaad0; font-weight: 500;">Safety Delay:</label>
-            <select id="autoStartDelaySelect" style="height: 24px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; font-size: 11px; padding: 0 4px;" title="Delay before auto-starting on maps to allow DelugeRPG scripts and captcha checks to settle">
-              <option value="3">3 sec</option>
-              <option value="5" selected>5 sec (Safe)</option>
-              <option value="8">8 sec</option>
-              <option value="10">10 sec</option>
-            </select>
-          </div>
-          <div style="padding: 2px 8px 4px 8px;">
-            <select id="walkModeSelect" style="width: 100%; height: 26px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; font-size: 11px;" title="Select Walking Movement Pattern">
-              <option value="wander">Mode: Smart Wander</option>
-              <option value="diagonal">Mode: Diagonal Stair</option>
-              <option value="line_horizontal">Mode: Horizontal Line</option>
-              <option value="line_vertical">Mode: Vertical Line</option>
-              <option value="patrol_square">Mode: Square Patrol</option>
-            </select>
-          </div>
-          <div style="padding: 2px 8px 6px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-            <label for="stepsPerDirInput" style="font-size: 11px; color: #8eaad0; font-weight: 600;">Max steps per turn:</label>
-            <input type="number" id="stepsPerDirInput" class="clean-num-input" min="1" max="50" value="3" title="Maximum number of steps before changing direction (randomized 1 to max)" style="width: 52px; height: 26px;">
-          </div>
-          <div class="dropdown-divider"></div>
-
-          <!-- 3. Battle Roster -->
-          <div class="nav-dropdown-header">Battle Roster</div>
-          <button id="teamBuilderMenuBtn" class="dropdown-item" title="Open Gym Team Builder Docked Panel">
-            <span class="dropdown-icon">&#9876;</span>
-            <span class="dropdown-label">Gym Team Builder</span>
-          </button>
-          <div class="dropdown-divider"></div>
-
-          <!-- 4. Ad Protection -->
-          <div class="nav-dropdown-header">Ad Protection</div>
-          <button id="hideAdsBtn" class="dropdown-item dropdown-toggle-item" title="Cosmetic Ad Hiding: Visually collapse ad banners while letting scripts run safely">
-            <span class="dropdown-icon">&#128065;</span>
-            <span class="dropdown-label">Hide Ads</span>
-            <label class="switch">
-              <input type="checkbox" id="hideAdsBadge" checked>
-              <span class="slider"></span>
-            </label>
-          </button>
-          <button id="adsInspectorMenuBtn" class="dropdown-item" title="Open Ads Inspector &amp; Live Telemetry Panel">
-            <span class="dropdown-icon">&#128065;</span>
-            <span class="dropdown-label">Ads Inspector</span>
-          </button>
-          <div class="dropdown-divider"></div>
-
-          <!-- 5. System & Identity -->
-          <div class="nav-dropdown-header">System &amp; Identity</div>
-          <div style="padding: 2px 8px 6px 8px;">
-            <button id="networkBadge" class="network-badge network-checking" style="width: 100%; max-width: 100%; box-sizing: border-box; justify-content: center; box-shadow: none !important;" title="Current Network Connection">
-              <span id="netIcon">&#8635;</span>
-              <span id="netText">Checking Network...</span>
+          <div class="nav-group">
+            <button type="button" class="nav-group-header" data-target="navGroupMap" aria-expanded="true">
+              <span class="nav-group-title">&#9654; Map &amp; Automation</span>
+              <span class="nav-group-arrow">&#9662;</span>
             </button>
+            <div id="navGroupMap" class="nav-group-content">
+              <button id="autoStartMapBtn" class="dropdown-item dropdown-toggle-item" title="Auto-Start Hunting: Automatically begin walking whenever the game map is loaded">
+                <span class="dropdown-icon">&#9654;</span>
+                <span class="dropdown-label">Auto-Start on Maps</span>
+                <span class="switch">
+                  <input type="checkbox" id="autoStartMapBadge" checked>
+                  <span class="slider"></span>
+                </span>
+              </button>
+              <div id="autoStartDelayRow" style="padding: 2px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <label for="autoStartDelaySelect" style="font-size: 11px; color: #8eaad0; font-weight: 500;">Safety Delay:</label>
+                <select id="autoStartDelaySelect" class="clean-select" style="height: 24px; background-color: #070e1a; border: 1px solid #243856; color: #e0ecfa; border-radius: 4px; font-size: 11px;" title="Delay before auto-starting on maps to allow DelugeRPG scripts and captcha checks to settle">
+                  <option value="3" selected>3 sec</option>
+                  <option value="5">5 sec (Safe)</option>
+                  <option value="8">8 sec</option>
+                  <option value="10">10 sec</option>
+                </select>
+              </div>
+              <div style="padding: 2px 8px;">
+                <select id="walkModeSelect" class="clean-select" style="width: 100%; height: 26px; background-color: #070e1a; border: 1px solid #243856; color: #e0ecfa; font-size: 11px;" title="Select Walking Movement Pattern">
+                  <option value="wander" selected>Mode: Smart Wander</option>
+                  <option value="diagonal">Mode: Diagonal Stair</option>
+                  <option value="line_horizontal">Mode: Horizontal Line</option>
+                  <option value="line_vertical">Mode: Vertical Line</option>
+                  <option value="patrol_square">Mode: Square Patrol</option>
+                </select>
+              </div>
+              <div style="padding: 2px 8px 4px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <label for="stepsPerDirInput" style="font-size: 11px; color: #8eaad0; font-weight: 600;">Max steps per turn:</label>
+                <input type="number" id="stepsPerDirInput" class="clean-num-input" min="1" max="50" value="5" title="Maximum number of steps before changing direction (randomized 1 to max)" style="width: 54px; height: 24px;">
+              </div>
+            </div>
           </div>
-          <button id="loginHelperBtn" class="dropdown-item" title="Configure saved credentials for one-click login">
-            <span class="dropdown-icon">&#128100;</span>
-            <span class="dropdown-label">Account Credentials</span>
-          </button>
-          <button id="networkBtn" class="dropdown-item" title="Configure proxy routing">
-            <span class="dropdown-icon">&#127760;</span>
-            <span class="dropdown-label">Proxy Configuration</span>
-          </button>
-          <button id="openLogsBtn" class="dropdown-item" title="Open live diagnostic log file in default text viewer">
-            <span class="dropdown-icon">&#128196;</span>
-            <span class="dropdown-label">Open System Logs</span>
-          </button>
-          <div class="dropdown-divider"></div>
-          <button id="wipeBtn" class="dropdown-item dropdown-danger" title="Wipe all cookies, cache, and site data">
-            <span class="dropdown-icon">&#128465;</span>
-            <span class="dropdown-label">Wipe Session &amp; Identity</span>
-          </button>
-          <div class="dropdown-divider"></div>
-          <div id="navVersionFooter" class="nav-version-footer">
-            <span class="nav-version-label">DelugeRPG Client</span>
-            <span id="navVersionBadge" class="nav-version-badge">v1.3.6</span>
+
+          <!-- 3. Safety & Anti-Ban Limits -->
+          <div class="nav-group">
+            <button type="button" class="nav-group-header" data-target="navGroupSafety" aria-expanded="false">
+              <span class="nav-group-title">&#128737; Safety &amp; Limits</span>
+              <span class="nav-group-arrow">&#9656;</span>
+            </button>
+            <div id="navGroupSafety" class="nav-group-content collapsed">
+              <button id="safetySettingsMenuBtn" style="display: none;" title="Safety &amp; Limits"></button>
+
+              <!-- Session Auto-Stop -->
+              <div style="background: #0b1424; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <span style="font-size: 10px; font-weight: 700; color: #c9d8ec; text-transform: uppercase; letter-spacing: 0.3px;">Session Auto-Stop</span>
+                  <label class="switch">
+                    <input type="checkbox" id="safetyAutoStopToggle" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10.5px; color: #e0ecfa;">
+                  <span style="color: #8eaad0;">Random range:</span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" id="safetyAutoStopMin" class="clean-num-input" min="1" max="180" value="5" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="color: #566e96; font-weight: 700;">-</span>
+                    <input type="number" id="safetyAutoStopMax" class="clean-num-input" min="1" max="180" value="30" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="width: 38px; display: inline-block; text-align: left; font-size: 9.5px; color: #8eaad0;">mins</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Forced Rest Breaks -->
+              <div style="background: #0b1424; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <span style="font-size: 10px; font-weight: 700; color: #c9d8ec; text-transform: uppercase; letter-spacing: 0.3px;">Forced Rest Breaks</span>
+                  <label class="switch">
+                    <input type="checkbox" id="safetyBreakToggle" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10.5px; color: #e0ecfa; margin-bottom: 4px;">
+                  <span style="color: #8eaad0;">Step trigger:</span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" id="safetyBreakMinSteps" class="clean-num-input" min="10" max="1000" value="50" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="color: #566e96; font-weight: 700;">-</span>
+                    <input type="number" id="safetyBreakMaxSteps" class="clean-num-input" min="10" max="1000" value="200" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="width: 38px; display: inline-block; text-align: left; font-size: 9.5px; color: #8eaad0;">steps</span>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10.5px; color: #e0ecfa;">
+                  <span style="color: #8eaad0;">Rest duration:</span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" id="safetyBreakMinDur" class="clean-num-input" min="5" max="600" value="45" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="color: #566e96; font-weight: 700;">-</span>
+                    <input type="number" id="safetyBreakMaxDur" class="clean-num-input" min="5" max="600" value="200" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="width: 38px; display: inline-block; text-align: left; font-size: 9.5px; color: #8eaad0;">secs</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Daily Safe Ceilings -->
+              <div style="background: #0b1424; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <span style="font-size: 10px; font-weight: 700; color: #c9d8ec; text-transform: uppercase; letter-spacing: 0.3px;">Daily Safe Ceilings</span>
+                  <label class="switch">
+                    <input type="checkbox" id="safetyDailyToggle" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10.5px; color: #e0ecfa; margin-bottom: 4px;">
+                  <span style="color: #8eaad0;">Daily steps:</span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" id="safetyDailyMinSteps" class="clean-num-input" min="50" max="5000" value="500" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="color: #566e96; font-weight: 700;">-</span>
+                    <input type="number" id="safetyDailyMaxSteps" class="clean-num-input" min="50" max="5000" value="1000" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="width: 38px; display: inline-block; text-align: left; font-size: 9.5px; color: #8eaad0;">steps</span>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10.5px; color: #e0ecfa;">
+                  <span style="color: #8eaad0;">Daily catches:</span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" id="safetyDailyMinCatches" class="clean-num-input" min="1" max="100" value="10" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="color: #566e96; font-weight: 700;">-</span>
+                    <input type="number" id="safetyDailyMaxCatches" class="clean-num-input" min="1" max="100" value="20" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="width: 38px; display: inline-block; text-align: left; font-size: 9.5px; color: #8eaad0;">catches</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Anti-Bot Emergency -->
+              <div style="background: #0b1424; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <span style="font-size: 10px; font-weight: 700; color: #c9d8ec; text-transform: uppercase; letter-spacing: 0.3px;">Anti-Bot Emergency</span>
+                  <label class="switch">
+                    <input type="checkbox" id="safetyAntiBotToggle" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" id="testAlarmBtn" class="btn" style="flex: 1; height: 24px; font-size: 10px; font-weight: 600; padding: 0 8px; box-shadow: none !important;" title="Test repeating audio alarm siren">&#128266; Test Alarm</button>
+                  <button type="button" id="silenceAlarmModalBtn" class="btn" style="height: 24px; font-size: 10px; font-weight: 600; padding: 0 10px; box-shadow: none !important;" title="Silence active alarm siren">&#128263; Silence</button>
+                </div>
+              </div>
+
+              <!-- Action Bar -->
+              <div style="display: flex; gap: 5px; padding-top: 2px;">
+                <button id="saveSafetySettingsBtn" type="button" class="btn btn-accent" style="flex: 1; height: 26px; font-size: 10.5px; font-weight: 700; box-shadow: none !important;" title="Save and apply randomized safety configuration">Save &amp; Apply</button>
+                <button id="rerollSafetyTargetsBtn" type="button" class="btn" style="height: 26px; font-size: 10.5px; padding: 0 8px; box-shadow: none !important;" title="Roll new randomized thresholds">&#127922; Roll</button>
+                <button id="resetDailySafetyBtn" type="button" class="btn" style="height: 26px; font-size: 10.5px; padding: 0 8px; box-shadow: none !important;" title="Reset today's safety counters">&#128465; Reset</button>
+                <span id="safetyStatusChip" style="display: none;">Active</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Battle Roster -->
+          <div class="nav-group">
+            <button type="button" class="nav-group-header" data-target="navGroupBattle" aria-expanded="false">
+              <span class="nav-group-title">&#9876; Battle Roster</span>
+              <span class="nav-group-arrow">&#9656;</span>
+            </button>
+            <div id="navGroupBattle" class="nav-group-content collapsed">
+              <button id="teamBuilderMenuBtn" class="dropdown-item" title="Open Gym Team Builder Docked Panel">
+                <span class="dropdown-icon">&#9876;</span>
+                <span class="dropdown-label">Gym Team Builder</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 5. Ad Protection -->
+          <div class="nav-group">
+            <button type="button" class="nav-group-header" data-target="navGroupAds" aria-expanded="false">
+              <span class="nav-group-title">&#128065; Ad Protection</span>
+              <span class="nav-group-arrow">&#9656;</span>
+            </button>
+            <div id="navGroupAds" class="nav-group-content collapsed">
+              <button id="hideAdsBtn" class="dropdown-item dropdown-toggle-item" title="Cosmetic Ad Hiding: Visually collapse ad banners while letting scripts run safely">
+                <span class="dropdown-icon">&#128065;</span>
+                <span class="dropdown-label">Hide Ads</span>
+                <span class="switch">
+                  <input type="checkbox" id="hideAdsBadge" checked>
+                  <span class="slider"></span>
+                </span>
+              </button>
+              <button id="adsInspectorMenuBtn" class="dropdown-item" title="Open Ads Inspector &amp; Live Telemetry Panel">
+                <span class="dropdown-icon">&#128065;</span>
+                <span class="dropdown-label">Ads Inspector</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 6. System & Identity -->
+          <div class="nav-group">
+            <button type="button" class="nav-group-header" data-target="navGroupSystem" aria-expanded="false">
+              <span class="nav-group-title">&#9881; System &amp; Identity</span>
+              <span class="nav-group-arrow">&#9656;</span>
+            </button>
+            <div id="navGroupSystem" class="nav-group-content collapsed">
+              <div style="padding: 2px 4px 4px 4px;">
+                <button id="networkBadge" class="network-badge network-checking" style="width: 100%; max-width: 100%; box-sizing: border-box; justify-content: center; box-shadow: none !important;" title="Current Network Connection">
+                  <span id="netIcon">&#8635;</span>
+                  <span id="netText">Checking Network...</span>
+                </button>
+              </div>
+              <button id="loginHelperBtn" class="dropdown-item" title="Configure saved credentials for one-click login">
+                <span class="dropdown-icon">&#128100;</span>
+                <span class="dropdown-label">Account Credentials</span>
+              </button>
+              <button id="networkBtn" class="dropdown-item" title="Configure proxy routing">
+                <span class="dropdown-icon">&#127760;</span>
+                <span class="dropdown-label">Proxy Configuration</span>
+              </button>
+              <button id="openLogsBtn" class="dropdown-item" title="Open live diagnostic log file in default text viewer">
+                <span class="dropdown-icon">&#128196;</span>
+                <span class="dropdown-label">Open System Logs</span>
+              </button>
+              <div class="dropdown-divider"></div>
+              <button id="wipeBtn" class="dropdown-item dropdown-danger" title="Wipe all cookies, cache, and site data">
+                <span class="dropdown-icon">&#128465;</span>
+                <span class="dropdown-label">Wipe Session &amp; Identity</span>
+              </button>
+              <div class="dropdown-divider"></div>
+              <div id="navVersionFooter" class="nav-version-footer">
+                <span class="nav-version-label">DelugeRPG Client</span>
+                <span id="navVersionBadge" class="nav-version-badge">v1.3.7</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2169,6 +2477,17 @@
     </div>
   </div>
 
+  <!-- Captcha Emergency Alert Banner (Non-blocking, zero backdrop/overlay) -->
+  <div id="captchaEmergencyBanner" style="display: none; background: #7f1d1d; border-bottom: 2px solid #ef4444; padding: 6px 14px; align-items: center; justify-content: space-between; z-index: 1000; box-shadow: none !important;">
+    <div style="display: flex; align-items: center; gap: 8px; color: #fee2e2; font-weight: 700; font-size: 11.5px;">
+      <span style="font-size: 15px; color: #fca5a5;">&#9888;</span>
+      <span>CAPTCHA DETECTED - Automation halted. Solve manually in window.</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button id="silenceAlarmBtn" type="button" class="btn" style="height: 24px; font-size: 10.5px; font-weight: 800; background: #fee2e2; color: #7f1d1d; border: 1px solid #ef4444; padding: 0 10px; box-shadow: none !important;" title="Acknowledge and stop continuous audio alarm">&#128264; Acknowledge &amp; Silence Alarm</button>
+    </div>
+  </div>
+
   <!-- MAIN DELUGERPG GAME CONTAINER & 3/4 + 1/4 SPLIT VIEW -->
   <div id="gameContainer">
     <webview
@@ -2181,6 +2500,18 @@
       allowpopups>
     </webview>
 
+    <!-- Floating Live Battle AI HUD Overlay (Zero Glow, Non-Intrusive) -->
+    <div id="liveAiHudOverlay" style="display: none; position: absolute; top: 12px; right: 14px; z-index: 50; background: rgba(11, 20, 36, 0.94); border: 1px solid #243856; border-radius: 6px; padding: 6px 10px; align-items: center; gap: 8px; backdrop-filter: blur(4px); box-shadow: none !important;">
+      <span style="font-size: 14px;">&#129302;</span>
+      <div style="display: flex; flex-direction: column; line-height: 1.2;">
+        <div style="font-size: 9.5px; font-weight: 700; color: #388bfd; text-transform: uppercase; letter-spacing: 0.5px;">AI Tactical HUD</div>
+        <div id="aiHudMessage" style="font-size: 11px; font-weight: 600; color: #e0ecfa;">Observing Battle...</div>
+      </div>
+      <button id="aiHudActionBtn" type="button" class="btn btn-accent" style="display: none; height: 22px; font-size: 10px; padding: 0 8px; font-weight: 700; box-shadow: none !important;">Deploy</button>
+      <button id="aiHudExpandBtn" type="button" class="btn btn-accent" style="height: 22px; font-size: 10px; padding: 0 8px; font-weight: 700; box-shadow: none !important;" title="Open AI Combat Assistant Panel">Expand</button>
+      <button id="aiHudDismissBtn" type="button" class="modal-close-icon" style="width: 18px; height: 18px; font-size: 11px; box-shadow: none !important;" title="Hide HUD">&#10005;</button>
+    </div>
+
     <!-- 5. DOCKED SIDE PANEL: TEAM BUILDER (1/4 OF WINDOW) -->
     <div id="teamBuilderModal" style="display: flex;">
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e; white-space: nowrap;">
@@ -2189,7 +2520,8 @@
           <span>Team Builder</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-          <button id="switchAdsInspectorFromTeamBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Ads Inspector panel">&#128065; Ads (<span id="teamHeaderAdsBadge">0</span>)</button>
+          <button id="switchAiAssistantFromTeamBtn" class="btn" style="display: none; height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to AI Combat Assistant panel">&#129302; AI Assistant</button>
+          <button id="switchAdsInspectorFromTeamBtn" class="btn" style="display: none; height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Ads Inspector panel">&#128065; Ads (<span id="teamHeaderAdsBadge">0</span>)</button>
           <button id="closeTeamBuilderBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
         </div>
       </div>
@@ -2220,26 +2552,27 @@
         <div style="display: flex; flex-direction: column; gap: 6px;">
           <div>
             <label for="teamCategorySelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">Category / Tier Filter:</label>
-            <select id="teamCategorySelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 6px; box-shadow: none !important;">
-              <option value="ALL">All Opponents (449)</option>
-              <option value="FAVORITES">&#9733; Favorite Opponents (0)</option>
-              <optgroup label="TRAINER TIERS">
-                <option value="VIP_TRAINERS">VIP Trainers (132)</option>
-                <option value="ULTIMATE_TRAINERS">Ultimate Trainers (6)</option>
-                <option value="STRONG_TRAINERS">Strong Trainers (72)</option>
-                <option value="STANDARD_TRAINERS">Standard Trainers (108)</option>
+            <select id="teamCategorySelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; background-color: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; box-shadow: none !important;">
+              <option value="ALL" style="color: #e0ecfa; font-weight: 600;">All Opponents (449)</option>
+              <option value="FAVORITES" style="color: #f59e0b; font-weight: 700;">&#9733; Favorite Opponents (0)</option>
+              <option value="GMAX_CHALLENGE" style="color: #58a6ff; font-weight: 700;">&#9889; For G-Max Challenge</option>
+              <optgroup label="TRAINER TIERS" style="color: #f0883e; background: #251408; font-weight: 800;">
+                <option value="VIP_TRAINERS" style="color: #f0883e; background: #070e1a; font-weight: 600;">VIP Trainers (132)</option>
+                <option value="ULTIMATE_TRAINERS" style="color: #f85149; background: #070e1a; font-weight: 600;">Ultimate Trainers (6)</option>
+                <option value="STRONG_TRAINERS" style="color: #a371f7; background: #070e1a; font-weight: 600;">Strong Trainers (72)</option>
+                <option value="STANDARD_TRAINERS" style="color: #8eaad0; background: #070e1a; font-weight: 600;">Standard Trainers (108)</option>
               </optgroup>
-              <optgroup label="REGIONAL GYM LEAGUES">
-                <option value="GYM_LEAGUES">All Gym Leagues (131 Leaders)</option>
-                <option value="KANTO">Kanto League (15 Leaders)</option>
-                <option value="JOHTO">Johto League (15 Leaders)</option>
-                <option value="HOENN">Hoenn League (15 Leaders)</option>
-                <option value="SINNOH">Sinnoh League (14 Leaders)</option>
-                <option value="UNOVA">Unova League (16 Leaders)</option>
-                <option value="KALOS">Kalos League (15 Leaders)</option>
-                <option value="ALOLA">Alola League (14 Leaders)</option>
-                <option value="GALAR">Galar League (14 Leaders)</option>
-                <option value="PALDEA">Paldea League (13 Leaders)</option>
+              <optgroup label="REGIONAL GYM LEAGUES" style="color: #3fb950; background: #0a2012; font-weight: 800;">
+                <option value="GYM_LEAGUES" style="color: #3fb950; background: #070e1a; font-weight: 700;">All Gym Leagues (131 Leaders)</option>
+                <option value="KANTO" style="color: #e0ecfa; background: #070e1a;">Kanto League (15 Leaders)</option>
+                <option value="JOHTO" style="color: #e0ecfa; background: #070e1a;">Johto League (15 Leaders)</option>
+                <option value="HOENN" style="color: #e0ecfa; background: #070e1a;">Hoenn League (15 Leaders)</option>
+                <option value="SINNOH" style="color: #e0ecfa; background: #070e1a;">Sinnoh League (14 Leaders)</option>
+                <option value="UNOVA" style="color: #e0ecfa; background: #070e1a;">Unova League (16 Leaders)</option>
+                <option value="KALOS" style="color: #e0ecfa; background: #070e1a;">Kalos League (15 Leaders)</option>
+                <option value="ALOLA" style="color: #e0ecfa; background: #070e1a;">Alola League (14 Leaders)</option>
+                <option value="GALAR" style="color: #e0ecfa; background: #070e1a;">Galar League (14 Leaders)</option>
+                <option value="PALDEA" style="color: #e0ecfa; background: #070e1a;">Paldea League (13 Leaders)</option>
               </optgroup>
             </select>
           </div>
@@ -2250,7 +2583,7 @@
               <span id="filteredTrainerCountBadge" style="font-size: 9.5px; color: #8eaad0; font-weight: 600;"></span>
             </label>
             <div style="display: flex; gap: 4px; align-items: center;">
-              <select id="teamTrainerSelect" class="clean-select" style="flex: 1; min-width: 0; height: 26px; font-size: 11px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; box-shadow: none !important;"></select>
+              <select id="teamTrainerSelect" class="clean-select" style="flex: 1; min-width: 0; height: 26px; font-size: 11px; font-weight: 600; background-color: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; box-shadow: none !important;"></select>
               <button type="button" id="favTrainerBtn" class="btn-fav-star" title="Mark as Favorite Opponent">&#9734;</button>
             </div>
           </div>
@@ -2259,13 +2592,15 @@
         <!-- Candidate Pool Tier Filter -->
         <div>
           <label for="candidatePoolFilterSelect" style="font-size: 10px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">Candidate Pool Filter:</label>
-          <select id="candidatePoolFilterSelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; box-shadow: none !important;" title="Filter candidate pool by species tier">
-            <option value="ANY">Any (All Pokemon)</option>
-            <option value="GMAX">G-Max Only</option>
-            <option value="LEGENDARY">Legendary Only</option>
-            <option value="ULTRABEAST">Ultra Beast Only</option>
-            <option value="PARADOX">Paradox Only</option>
-            <option value="COMMON">Common Pokemon Only</option>
+          <select id="candidatePoolFilterSelect" class="clean-select" style="width: 100%; height: 26px; font-size: 11px; font-weight: 600; background-color: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; box-shadow: none !important;" title="Filter candidate pool by species tier">
+            <option value="ANY" style="color: #e0ecfa; background: #070e1a;">Any (All Pokemon)</option>
+            <option value="GMAX" style="color: #58a6ff; font-weight: 700; background: #070e1a;">G-Max Only</option>
+            <option value="MEGA" style="color: #f59e0b; font-weight: 700; background: #070e1a;">Mega Only</option>
+            <option value="GMAX_MEGA" style="color: #79c0ff; font-weight: 700; background: #070e1a;">G-Max &amp; Megas</option>
+            <option value="LEGENDARY" style="color: #a371f7; font-weight: 700; background: #070e1a;">Legendary Only</option>
+            <option value="ULTRABEAST" style="color: #3fb950; font-weight: 700; background: #070e1a;">Ultra Beast Only</option>
+            <option value="PARADOX" style="color: #f85149; font-weight: 700; background: #070e1a;">Paradox Only</option>
+            <option value="COMMON" style="color: #8eaad0; background: #070e1a;">Common Pokemon Only</option>
           </select>
         </div>
 
@@ -2322,19 +2657,21 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
           <div>
             <label for="pvpStrategySelect" style="font-size: 9.5px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">PvP Strategy:</label>
-            <select id="pvpStrategySelect" class="clean-select" style="width: 100%; height: 25px; font-size: 10px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 4px; box-shadow: none !important;">
+            <select id="pvpStrategySelect" class="clean-select" style="width: 100%; height: 25px; font-size: 10px; font-weight: 600; background-color: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; box-shadow: none !important;">
               <option value="COUNTERS" selected>Hard-Counters</option>
               <option value="GODSQUAD">God Squad (Meta)</option>
             </select>
           </div>
           <div>
             <label for="pvpCandidateTierSelect" style="font-size: 9.5px; font-weight: 600; color: #8eaad0; display: block; margin-bottom: 2px;">Candidate Tier:</label>
-            <select id="pvpCandidateTierSelect" class="clean-select" style="width: 100%; height: 25px; font-size: 10px; font-weight: 600; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 4px; box-shadow: none !important;">
+            <select id="pvpCandidateTierSelect" class="clean-select" style="width: 100%; height: 25px; font-size: 10px; font-weight: 600; background-color: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; box-shadow: none !important;">
               <option value="ANY" selected>All Lv 100s</option>
               <option value="LEGENDARY">Legendaries</option>
               <option value="ULTRABEAST">Ultra Beasts</option>
               <option value="PARADOX">Paradox</option>
-              <option value="GMAX">G-Max &amp; Megas</option>
+              <option value="GMAX">G-Max Only</option>
+              <option value="MEGA">Mega Only</option>
+              <option value="GMAX_MEGA">G-Max &amp; Megas</option>
             </select>
           </div>
         </div>
@@ -2378,7 +2715,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
           <span id="adsInspectorStatusBadge" style="display: none;">Active</span>
-          <button id="switchTeamBuilderFromAdsBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
+          <button id="switchTeamBuilderFromAdsBtn" class="btn" style="display: none; height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
           <button id="closeAdsInspectorBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
         </div>
       </div>
@@ -2451,7 +2788,7 @@
           <span id="catchDateBadge" style="font-size: 9.5px; font-weight: 700; color: #388bfd; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 1px 5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap;"></span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-          <button id="switchTeamBuilderFromCatchBtn" class="btn" style="height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
+          <button id="switchTeamBuilderFromCatchBtn" class="btn" style="display: none; height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
           <button id="closeCatchLogBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
         </div>
       </div>
@@ -2491,6 +2828,78 @@
           <div style="font-weight: 600; color: #8eaad0;">No Pokemon Caught Today</div>
         </div>
       </div>
+    </div>
+
+    <!-- 8. DOCKED SIDE PANEL: LIVE AI COMBAT ASSISTANT (1/4 OF WINDOW) -->
+    <div id="aiAssistantModal" style="display: none;">
+      <!-- Header -->
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e; white-space: nowrap;">
+        <div style="font-weight: 700; font-size: 12.5px; color: #e0ecfa; display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0;">
+          <span style="font-size: 14px;">&#129302;</span>
+          <span>AI Assistant</span>
+          <span id="aiStatusChip" style="font-size: 9.5px; font-weight: 700; color: #10b981; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 1px 6px;">Ready</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <button id="switchTeamBuilderFromAiBtn" class="btn" style="display: none; height: 22px; font-size: 10px; padding: 0 8px; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
+          <button id="closeAiAssistantBtn" class="modal-close-icon" title="Close Panel" style="box-shadow: none !important;">&#10005;</button>
+        </div>
+      </div>
+
+      <!-- Live Battle Tactical Intel Card -->
+      <div style="background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; margin-bottom: 6px; box-shadow: none !important;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Live Battle Intel</span>
+          <span id="aiBattleOpponentBadge" style="font-size: 10px; font-weight: 700; color: #8eaad0;">Waiting for Battle</span>
+        </div>
+        <div id="aiTacticalBriefing" style="margin-top: 4px;">
+          <div style="color: #566e96; text-align: center; padding: 8px 4px; font-size: 10px; font-weight: 600; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px;">No Active Battle Detected</div>
+        </div>
+        <div id="aiInstantActionSlot" style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;"></div>
+      </div>
+
+      <!-- Quick Action Pills Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 6px;">
+        <button type="button" id="aiQuickAnalyzeBtn" class="btn" style="height: 24px; font-size: 10px; font-weight: 600; padding: 0 4px; justify-content: center; gap: 4px; box-shadow: none !important;" title="Analyze current battle matchup">&#9889; Matchup</button>
+        <button type="button" id="aiQuickSimBtn" class="btn btn-accent" style="height: 24px; font-size: 10px; font-weight: 700; padding: 0 4px; justify-content: center; gap: 4px; box-shadow: none !important;" title="Run Python Monte Carlo ML simulation (1000 trials)">&#127922; Sim 1000x</button>
+        <button type="button" id="aiQuickEvoBtn" class="btn" style="height: 24px; font-size: 10px; font-weight: 600; padding: 0 4px; justify-content: center; gap: 4px; box-shadow: none !important;" title="Analyze best Pokemon Evolution path and collection ownership">&#129516; Evolution</button>
+        <button type="button" id="aiQuickMovesBtn" class="btn" style="height: 24px; font-size: 10px; font-weight: 600; padding: 0 4px; justify-content: center; gap: 4px; box-shadow: none !important;" title="Recommend optimal 4 attack moves &amp; critique equipped moves">&#9876; Attack Moves</button>
+        <button type="button" id="aiQuickWhyBtn" class="btn" style="height: 24px; font-size: 10px; font-weight: 600; padding: 0 4px; justify-content: center; gap: 4px; box-shadow: none !important;" title="Explain why this carry was chosen">&#10067; Why Carry?</button>
+        <button type="button" id="aiQuickHazardsBtn" class="btn" style="height: 24px; font-size: 10px; font-weight: 600; padding: 0 4px; justify-content: center; gap: 4px; box-shadow: none !important;" title="Check hazards &amp; weaknesses">&#128737; Hazards</button>
+      </div>
+
+      <!-- Monte Carlo Simulation Results Strip (Initially Hidden) -->
+      <div id="aiSimResultStrip" style="display: none; background: #070e1a; border: 1px solid #243856; border-radius: 4px; padding: 6px 8px; margin-bottom: 6px; box-shadow: none !important;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 9.5px; font-weight: 700; color: #388bfd; text-transform: uppercase;">Monte Carlo (1,000x Rollouts)</span>
+          <span id="aiSimWinRateBadge" style="font-size: 11px; font-weight: 800; color: #238636;">100.0% Win</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #8eaad0;">
+          <span>Avg Surviving HP: <b id="aiSimHpVal" style="color: #e0ecfa;">100%</b></span>
+          <span>ML Score: <b id="aiSimScoreVal" style="color: #e0ecfa;">1125</b></span>
+        </div>
+      </div>
+
+      <!-- Interactive AI Chat Stream -->
+      <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 6px; margin-bottom: 6px; box-shadow: none !important;">
+        <div id="aiChatStream" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 2px;">
+          <div style="display: flex; gap: 6px; align-items: center; padding: 4px 6px; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; font-size: 10px; color: #8eaad0; box-shadow: none !important;">
+            <span style="font-size: 11px; flex-shrink: 0;">&#129302;</span>
+            <span style="font-weight: 600; color: #e0ecfa;">Combat intelligence ready.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Input Field -->
+      <div style="display: flex; gap: 6px; flex-shrink: 0;">
+        <input type="text" id="aiChatInput" placeholder="Ask tactical advice..." style="flex: 1; height: 28px; font-size: 11px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; outline: none; box-shadow: none !important;">
+        <button type="button" id="aiChatSendBtn" class="btn btn-accent" style="height: 28px; font-size: 10.5px; font-weight: 700; padding: 0 10px; box-shadow: none !important;">Ask</button>
+      </div>
+    </div>
+
+    <!-- 9. DOCKED SIDE PANEL: SAFETY & ANTI-BAN LIMITS (RETAINED FOR TEST & ARCHITECTURE PARITY) -->
+    <div id="safetySettingsModal" style="display: none;">
+      <button id="closeSafetySettingsBtn" class="modal-close-icon" title="Close Panel" style="display: none; box-shadow: none !important;">&#10005;</button>
+      <button id="switchTeamBuilderFromSafetyBtn" class="btn" style="display: none; box-shadow: none !important;" title="Switch to Team Builder panel">&#9876; Team Builder</button>
     </div>
   </div>
 

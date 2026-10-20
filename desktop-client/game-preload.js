@@ -13,8 +13,7 @@ if (window.location.hostname && !window.location.hostname.includes('delugerpg.co
 
 const { ipcRenderer } = require('electron');
 
-// --- 1. ENVIRONMENT HYGIENE & STEALTH STORAGE SHIELD ---
-let _internalAuthorizedClickFlag = false;
+// --- 1. ENVIRONMENT HYGIENE ---
 try {
     delete window.process;
     delete window.Buffer;
@@ -22,22 +21,6 @@ try {
     delete window.setImmediate;
     delete window.clearImmediate;
     delete window.global;
-
-    Object.defineProperty(window, '__delugeAutoCatchAuthorizedClick', {
-        get: function() { return _internalAuthorizedClickFlag; },
-        set: function(val) { _internalAuthorizedClickFlag = !!val; },
-        enumerable: false,
-        configurable: false
-    });
-
-    const _origObjectKeys = Object.keys;
-    Object.keys = function(obj) {
-        const keys = _origObjectKeys.call(Object, obj);
-        if (obj === window.sessionStorage || obj === window.localStorage) {
-            return keys.filter(k => !String(k).startsWith('deluge_autocatch_'));
-        }
-        return keys;
-    };
 } catch (_) {}
 
 // --- 2. SELF-CONTAINED TARGET DATABASE ---
@@ -1926,9 +1909,13 @@ function checkHasCaptchaElement() {
 function checkAndSyncMapPresence() {
     try {
         const path = (window.location.pathname || '').toLowerCase();
+        const bodyText = (document.body ? (document.body.innerText || '').trim() : '');
+        const isForbiddenPage = /^forbidden$/i.test(bodyText) || (bodyText.length > 0 && bodyText.length < 160 && /^forbidden\b|403\s+forbidden/i.test(bodyText));
+        const hasNavArrows = !!(document.getElementById('dr-n') || document.getElementById('dr-s') || document.getElementById('dr-e') || document.getElementById('dr-w'));
         const hasMapElement = !!(document.getElementById('map') || document.getElementById('mapcanvas') || document.querySelector('.trainer') || document.getElementById('user'));
-        const hasDpad = !!document.getElementById('dpad');
-        const isMapPage = (path.indexOf('/map') !== -1) || (hasMapElement && hasDpad);
+        const hasDpad = !!(document.getElementById('dpad') || hasNavArrows);
+        const hasPlayableMapDom = !isForbiddenPage && (hasMapElement || hasDpad);
+        const isMapPage = hasPlayableMapDom && ((path.indexOf('/map') !== -1) || (hasMapElement && hasDpad));
         const hasCatchUI = !!findCatchActionElement();
         const hasCaptcha = checkHasCaptchaElement();
 
@@ -1951,7 +1938,8 @@ function checkAndSyncMapPresence() {
 
         ipcRenderer.sendToHost('map-presence', {
             isMap: isMapPage,
-            hasMapEl: hasMapElement,
+            hasMapEl: hasPlayableMapDom,
+            isForbidden: isForbiddenPage,
             hasEncounter: hasCatchUI,
             hasCaptcha: hasCaptcha,
             pathname: path,
@@ -1960,7 +1948,7 @@ function checkAndSyncMapPresence() {
 
         if (!isMapPage && isHuntingActive) {
             isHuntingActive = false;
-            ipcRenderer.sendToHost('hunting-auto-pause', { reason: 'outside-map', path: path });
+            ipcRenderer.sendToHost('hunting-auto-pause', { reason: isForbiddenPage ? 'forbidden-page' : 'outside-map', path: path });
         }
     } catch (_) {}
 }
@@ -2988,6 +2976,13 @@ ipcRenderer.on('step-dispatched', (event, data) => {
     if (collisionCheckTimer) {
         clearTimeout(collisionCheckTimer);
         collisionCheckTimer = null;
+    }
+
+    const hasNavControls = !!(document.getElementById('dpad') || document.getElementById('dr-n') || document.getElementById('dr-s') || document.getElementById('dr-e') || document.getElementById('dr-w') || document.getElementById('map'));
+    if (!hasNavControls) {
+        isHuntingActive = false;
+        ipcRenderer.sendToHost('hunting-auto-pause', { reason: 'no-map-controls', path: window.location.pathname || '' });
+        return;
     }
 
     const allBlocked = getBlockedNavDirections();

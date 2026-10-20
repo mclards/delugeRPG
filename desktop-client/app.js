@@ -1603,8 +1603,8 @@ let isAutoCatchCountdownActive = false;
 
 function isCurrentPageMap() {
   const curUrl = (delugeView && delugeView.getURL()) || '';
-  if (curUrl) {
-    return isMapUrl(curUrl);
+  if (curUrl && !isMapUrl(curUrl)) {
+    return false;
   }
   return !!guestReportsMap;
 }
@@ -2650,9 +2650,9 @@ function handleMapNavigation(url) {
       backendLog('SecurityChallenge', 'Navigated back to map from /unlock. Captcha completed.');
       updateStatus('Ready to Hunt (Captcha Solved)', '#10b981');
     }
-    // Auto-start hunting whenever map is opened if enabled or resuming after auto-catch, unless user manually paused!
+    // Auto-start hunting only when guest preload has confirmed playable map DOM (guestReportsMap === true)
     const shouldAutoStart = (config.settings && config.settings.autoStartOnMap !== false) || wasHuntingBeforeAutoCatch;
-    if (!isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
+    if (guestReportsMap && !isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
       if (!autoStartTimer) {
         wasHuntingBeforeAutoCatch = false;
         triggerDelayedAutoStart('Map opened');
@@ -3157,11 +3157,32 @@ delugeView.addEventListener('ipc-message', (event) => {
       handleCaptchaEmergencyHalt('Captcha challenge reported via map-presence');
       return;
     }
-    guestReportsMap = !!data.isMap;
+    if (data.isForbidden) {
+      guestReportsMap = false;
+      cancelPendingAutoStart('Forbidden page detected');
+      if (isRunning) {
+        autoPauseOutsideMap('forbidden-page');
+      }
+      updateStatus('Session Blocked (403) - Recovering...', '#ef4444');
+      if (!window.__delugeForbiddenRecoveryInProgress) {
+        window.__delugeForbiddenRecoveryInProgress = true;
+        ipcRenderer.invoke('recover-forbidden-session').catch(() => {}).finally(() => {
+          setTimeout(() => {
+            try {
+              if (delugeView) delugeView.loadURL('https://www.delugerpg.com/login');
+            } catch (_) {}
+            setTimeout(() => { window.__delugeForbiddenRecoveryInProgress = false; }, 5000);
+          }, 600);
+        });
+      }
+      return;
+    }
+    guestReportsMap = !!(data.isMap && data.hasMapEl !== false);
     const prevEncounter = isEncounterOnScreen;
     isEncounterOnScreen = !!data.hasEncounter;
 
     if (!guestReportsMap) {
+      cancelPendingAutoStart('Playable map DOM not present');
       if (isRunning) {
         autoPauseOutsideMap(data.pathname || 'outside-map');
       }

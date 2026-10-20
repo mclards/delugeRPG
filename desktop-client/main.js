@@ -8,11 +8,9 @@ const fs = require('fs');
 // Ensure unified application name so userData path is canonical across dev, portable, and installer updates
 app.setName('delugerpg-desktop-client');
 
-// 1. Anti-Detection & WebRTC Leak Protection Switches
+// 1. Anti-Detection Switches
 // Disable Chromium automation flags so navigator.webdriver is undefined natively
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
-app.commandLine.appendSwitch('enforce-webrtc-ip-permission-check');
-app.commandLine.appendSwitch('force-webrtc-ip-handling-policy', 'disable_non_proxied_udp');
 
 // 2. Standard Google Chrome Identity (Matching exact Chromium 142 engine without Electron signature)
 const CHROME_VERSION = (process.versions && process.versions.chrome) || '142.0.7444.52';
@@ -407,6 +405,24 @@ if (!gotTheLock) {
     }
   });
 
+  // IPC Handler: Recover from HTTP 403 Forbidden by purging poisoned Cloudflare cookies & cache
+  ipcMain.handle('recover-forbidden-session', async () => {
+    try {
+      const cookies = await ses.cookies.get({});
+      for (const c of cookies) {
+        if (c.name && (c.name.startsWith('__cf') || c.name.startsWith('_cf') || c.name === 'cf_clearance')) {
+          const proto = c.secure ? 'https://' : 'http://';
+          const dom = (c.domain || '').replace(/^\./, '');
+          await ses.cookies.remove(proto + dom + (c.path || '/'), c.name).catch(() => {});
+        }
+      }
+      await ses.clearCache();
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
   // IPC Handler: Dynamically update and apply proxy settings
   ipcMain.handle('apply-proxy', async (event, proxySettings) => {
     try {
@@ -441,7 +457,8 @@ if (!gotTheLock) {
   app.on('web-contents-created', (event, contents) => {
     contents.setWindowOpenHandler(() => ({ action: 'deny' }));
     try {
-      if (typeof contents.setWebRTCIPHandlingPolicy === 'function') {
+      const currentCfg = loadConfig();
+      if (currentCfg.network && currentCfg.network.useProxy && typeof contents.setWebRTCIPHandlingPolicy === 'function') {
         contents.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
       }
     } catch (_) {}

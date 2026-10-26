@@ -655,6 +655,9 @@ function resolvePokemonTypes(pokemonOrName, collection = []) {
     if (fam.base.toLowerCase() === base || fam.base.toLowerCase() === cleanBase) {
       if (fam.branches && fam.branches.length > 0 && fam.branches[0].types) return fam.branches[0].types;
     }
+    if (Array.isArray(fam.stages) && fam.stages.some(s => s.toLowerCase() === base || s.toLowerCase() === cleanBase)) {
+      if (fam.branches && fam.branches.length > 0 && fam.branches[0].types) return fam.branches[0].types;
+    }
   }
 
   // 3. Check collection
@@ -1072,6 +1075,90 @@ function formatMovesetCard(analysis) {
   </div>`;
 }
 
+function evaluateEvolutionMoveSelection(pokemonOrName, availableMoves = [], collection = []) {
+  const pName = typeof pokemonOrName === 'string' ? pokemonOrName : (pokemonOrName ? (pokemonOrName.name || pokemonOrName.fullName) : 'Pokemon');
+  const types = resolvePokemonTypes(pokemonOrName || pName, collection);
+
+  const moveList = [];
+  const seen = new Set();
+  availableMoves.forEach(m => {
+    const rawName = typeof m === 'string' ? m : (m ? m.name : '');
+    const clean = (rawName || '').trim();
+    if (!clean || seen.has(clean.toLowerCase())) return;
+    seen.add(clean.toLowerCase());
+
+    const normId = clean.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const skill = skillsMap ? skillsMap[normId] : null;
+    let power = skill ? (skill.power || 0) : 0;
+    let type = skill ? (skill.type || 'Normal') : 'Normal';
+
+    if (!skill) {
+      if (/thrash/i.test(clean)) { power = 120; type = 'Normal'; }
+      else if (/dark pulse/i.test(clean)) { power = 80; type = 'Dark'; }
+      else if (/rock slide/i.test(clean)) { power = 75; type = 'Rock'; }
+      else if (/bite/i.test(clean)) { power = 60; type = 'Dark'; }
+      else if (/payback/i.test(clean)) { power = 50; type = 'Dark'; }
+      else if (/solar beam/i.test(clean)) { power = 120; type = 'Grass'; }
+      else if (/petal blizzard/i.test(clean)) { power = 90; type = 'Grass'; }
+      else if (/giga drain/i.test(clean)) { power = 75; type = 'Grass'; }
+      else if (/razor leaf/i.test(clean)) { power = 55; type = 'Grass'; }
+      else if (/bullet seed/i.test(clean)) { power = 75; type = 'Grass'; }
+      else if (/tackle|scratch|pound/i.test(clean)) { power = 40; type = 'Normal'; }
+      else if (/sleep powder|stun spore|poison powder|protect|leer|growl/i.test(clean)) { power = 0; type = 'Grass'; }
+    }
+
+    const isStab = types.some(t => t.toLowerCase() === type.toLowerCase());
+
+    let effectiveScore = power;
+    if (power === 0) {
+      effectiveScore = -100;
+    } else if (isStab) {
+      effectiveScore = power * 1.5;
+    } else if (power <= 40) {
+      effectiveScore = power * 0.7;
+    }
+
+    moveList.push({
+      name: clean,
+      power: power,
+      type: type,
+      isStab: isStab,
+      effectiveScore: effectiveScore
+    });
+  });
+
+  moveList.sort((a, b) => b.effectiveScore - a.effectiveScore);
+
+  const top4 = moveList.slice(0, 4);
+  const dropped = moveList.slice(4).map(m => {
+    let reason = 'Lower base power';
+    if (m.power === 0) {
+      reason = 'Status move (Deals 0 damage in DelugeRPG)';
+    } else if (!m.isStab && m.power <= 50) {
+      reason = 'Weak non-STAB attack';
+    } else if (top4.length > 0) {
+      const diff = top4[top4.length - 1].power - m.power;
+      reason = `${m.power} Pwr (${diff > 0 ? diff + ' Pwr weaker than ' + top4[top4.length - 1].name : 'lower priority'})`;
+    }
+    return {
+      name: m.name,
+      power: m.power,
+      type: m.type,
+      reason: reason
+    };
+  });
+
+  const slotOrder = top4.map(m => m.name);
+
+  return {
+    targetPokemon: pName,
+    types: types,
+    recommendedMoves: top4,
+    dropMoves: dropped,
+    slotOrder: slotOrder
+  };
+}
+
 module.exports = {
   EVOLUTION_FAMILIES,
   TOP_STAB_MOVES,
@@ -1081,6 +1168,7 @@ module.exports = {
   checkEvolutionOwnership,
   analyzeEvolutionPath,
   recommendOptimalMoves,
+  evaluateEvolutionMoveSelection,
   formatEvolutionCard,
   formatMovesetCard,
   evaluateOwnershipAndMegaEquivalence: teamEngine.evaluateOwnershipAndMegaEquivalence

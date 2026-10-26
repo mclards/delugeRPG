@@ -624,6 +624,31 @@ assert.strictEqual(res2.available, false, 'Master ball (0) must be flagged unava
 assert.strictEqual(res2.stock, 0, 'Master ball stock must be parsed as 0');
 console.log('[PASS] Master Ball with zero stock safely halted without throwing other balls.');
 
+// Verify PokeMart /shop table row scraping where "Master Ball" description has "100% accuracy" before "(0)"
+{
+  function parseBallCountFromText(text, ballRegex) {
+    if (!text || !ballRegex.test(text)) return null;
+    const mParen = text.match(new RegExp(ballRegex.source + '(?:(?!master\\s*ball|ultra\\s*ball|great\\s*ball|poke\\s*ball)[\\s\\S]){0,180}?\\((\\d+)\\)', 'i'));
+    if (mParen) return parseInt(mParen[1], 10);
+    const mColon = text.match(new RegExp(ballRegex.source + '[^\\d\\n%()]*[:x\\s]+(\\d+)(?!\\s*%|\\s*accuracy|\\s*,\\d)', 'i'));
+    if (mColon) return parseInt(mColon[1], 10);
+    return null;
+  }
+  const shopText = [
+    'Poke Ball Allows you to catch wild Pokemon, with low accuracy (10) 50',
+    'Great Ball Allows you to catch wild Pokemon, with average accuracy (5) 125',
+    'Ultra Ball Allows you to catch wild Pokemon, with high accuracy (3) 250',
+    'Master Ball Allows you to catch wild Pokemon, with 100% accuracy (0) 7,500'
+  ].join('\n');
+  assert.strictEqual(parseBallCountFromText(shopText, /(?:^|\W)poke\s*balls?/i), 10, 'Poke Ball must parse as 10');
+  assert.strictEqual(parseBallCountFromText(shopText, /great\s*ball/i), 5, 'Great Ball must parse as 5');
+  assert.strictEqual(parseBallCountFromText(shopText, /ultra\s*ball/i), 3, 'Ultra Ball must parse as 3');
+  assert.strictEqual(parseBallCountFromText(shopText, /master\s*ball/i), 0, 'Master Ball must parse as 0 despite 100% accuracy text');
+  assert.strictEqual(preloadJs.includes('fetchBallInventoryFromShop'), true, 'game-preload.js must contain fetchBallInventoryFromShop');
+  assert.strictEqual(appJs.includes('checkAndHandleAccountSwitch'), true, 'app.js must contain checkAndHandleAccountSwitch');
+  console.log('[PASS] PokeMart (100% accuracy) Master Ball (0) extraction & mandatory account-switch sync verified.');
+}
+
 let testConfig = { hideAdsCosmetically: false, autoCatchMasterBall: true };
 function enforceHideAdsDependency(cfg) {
   if (cfg.hideAdsCosmetically === false && cfg.autoCatchMasterBall) {

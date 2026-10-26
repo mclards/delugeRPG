@@ -102,19 +102,24 @@ function isAdOrTrackerNoise(msg) {
          m.includes('typeerror: failed to fetch');
 }
 
-function appendSystemLog(line) {
+const _systemLogBuffer = [];
+let _systemLogFlushTimer = null;
+
+function _flushSystemLogs() {
+  if (_systemLogBuffer.length === 0) return;
+  const chunk = _systemLogBuffer.join('');
+  _systemLogBuffer.length = 0;
+  _systemLogFlushTimer = null;
   try {
-    const dir = path.dirname(LOG_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    if (fs.existsSync(LOG_FILE)) {
-      const stats = fs.statSync(LOG_FILE);
-      if (stats.size > 5 * 1024 * 1024) {
-        const raw = fs.readFileSync(LOG_FILE, 'utf8');
-        fs.writeFileSync(LOG_FILE, raw.slice(-500 * 1024), 'utf8');
-      }
-    }
-    fs.appendFileSync(LOG_FILE, line, 'utf8');
+    fs.appendFile(LOG_FILE, chunk, 'utf8', () => {});
   } catch (_) {}
+}
+
+function appendSystemLog(line) {
+  _systemLogBuffer.push(line);
+  if (!_systemLogFlushTimer) {
+    _systemLogFlushTimer = setTimeout(_flushSystemLogs, 250);
+  }
 }
 
 function backendLog(tag, msg) {
@@ -283,39 +288,102 @@ function setupSessionHardening(ses, config) {
     delete headers['X-Requested-With'];
     delete headers['X-DevTools-Emulate-Network-Conditions-Client-Id'];
 
+    // Strict parity for native DelugeRPG AJAX endpoints
+    if (details.url && details.url.includes('/ajax/')) {
+      headers['X-Requested-With'] = 'XMLHttpRequest';
+      if (details.url.includes('/ajax/team/edit/save')) {
+        headers['Referer'] = 'https://www.delugerpg.com/team/edit';
+      }
+    }
+
     callback({ requestHeaders: headers });
   });
 
-  // C. Network POST Interceptor: Captures raw payloads and endpoints
-  ses.webRequest.onBeforeRequest({ urls: ['*://*.delugerpg.com/*'] }, (details, callback) => {
-    if (details.method === 'POST') {
-      try {
-        let postBody = '';
-        if (details.uploadData && details.uploadData.length > 0) {
-          const parts = [];
-          for (const item of details.uploadData) {
-            if (item.bytes) {
-              parts.push(Buffer.from(item.bytes).toString('utf8'));
-            }
-          }
-          postBody = parts.join('');
-        }
-        backendLog('NETWORK_POST', `${details.url} -> ${postBody}`);
+  // C. Network POST & AJAX Interceptor: Tracks dispatched actions and round-trip server feedback
+  const inFlightAjaxRequests = new Map();
 
-        const dumpDir = path.join(path.dirname(CONFIG_PATH), 'dom_dumps');
-        if (!fs.existsSync(dumpDir)) fs.mkdirSync(dumpDir, { recursive: true });
-        const filePath = path.join(dumpDir, 'team_save_network_post.json');
-        fs.writeFileSync(filePath, JSON.stringify({
-          timestamp: new Date().toISOString(),
-          url: details.url,
-          method: details.method,
-          postBody: postBody
-        }, null, 2), 'utf8');
-      } catch (err) {
-        console.error('[NetworkIntercept] Error:', err);
+  ses.webRequest.onBeforeRequest({ urls: ['*://*.delugerpg.com/*'] }, (details, callback) => {
+    callback({});
+    const isCloudflareOrMapPoll = details.url && (details.url.includes('/cdn-cgi/') || details.url.includes('/ajax/map/positions/'));
+    const isAjaxOrPost = (details.method === 'POST' || (details.url && details.url.includes('/ajax/'))) && !isCloudflareOrMapPoll;
+    if (isAjaxOrPost) {
+      inFlightAjaxRequests.set(details.id, {
+        url: details.url,
+        method: details.method,
+        startTime: Date.now()
+      });
+    }
+
+    if (details.method === 'POST' && !isCloudflareOrMapPoll) {
+      setImmediate(() => {
+        try {
+          let postBody = '';
+          if (details.uploadData && details.uploadData.length > 0) {
+            const parts = [];
+            for (const item of details.uploadData) {
+              if (item.bytes) {
+                parts.push(Buffer.from(item.bytes).toString('utf8'));
+              }
+            }
+            postBody = parts.join('');
+          }
+          backendLog('NETWORK_POST', `${details.url} -> ${postBody}`);
+
+          if (details.url && details.url.includes('/ajax/team/edit/save')) {
+            const dumpDir = path.join(path.dirname(CONFIG_PATH), 'dom_dumps');
+            if (!fs.existsSync(dumpDir)) fs.mkdirSync(dumpDir, { recursive: true });
+            const filePath = path.join(dumpDir, 'team_save_network_post.json');
+            fs.writeFile(filePath, JSON.stringify({
+              timestamp: new Date().toISOString(),
+              url: details.url,
+              method: details.method,
+              postBody: postBody
+            }, null, 2), 'utf8', () => {});
+          }
+        } catch (err) {
+          console.error('[NetworkIntercept] Error:', err);
+        }
+      });
+    }
+  });
+
+  ses.webRequest.onCompleted({ urls: ['*://*.delugerpg.com/*'] }, (details) => {
+    const tracked = inFlightAjaxRequests.get(details.id);
+    if (tracked) {
+      inFlightAjaxRequests.delete(details.id);
+      const elapsed = Date.now() - tracked.startTime;
+      const shortUrl = tracked.url.replace(/^https?:\/\/[^\/]+/, '');
+      backendLog('NETWORK_FEEDBACK', `${tracked.method} ${shortUrl} -> Status: ${details.statusCode} (${elapsed}ms)`);
+      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+        mainWindow.webContents.send('action-feedback-event', {
+          method: tracked.method,
+          url: shortUrl,
+          status: details.statusCode,
+          elapsedMs: elapsed,
+          success: details.statusCode >= 200 && details.statusCode < 400
+        });
       }
     }
-    callback({});
+  });
+
+  ses.webRequest.onErrorOccurred({ urls: ['*://*.delugerpg.com/*'] }, (details) => {
+    const tracked = inFlightAjaxRequests.get(details.id);
+    if (tracked) {
+      inFlightAjaxRequests.delete(details.id);
+      const elapsed = Date.now() - tracked.startTime;
+      const shortUrl = tracked.url.replace(/^https?:\/\/[^\/]+/, '');
+      backendLog('NETWORK_FEEDBACK', `FAILED: ${tracked.method} ${shortUrl} -> Error: ${details.error} (${elapsed}ms)`);
+      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+        mainWindow.webContents.send('action-feedback-event', {
+          method: tracked.method,
+          url: shortUrl,
+          status: 0,
+          error: details.error,
+          elapsedMs: elapsed,
+          success: false
+        });
+      }
+    }
   });
 }
 
@@ -331,7 +399,8 @@ function createWindow() {
     webPreferences: {
       webviewTag: true,
       nodeIntegration: true,
-      contextIsolation: false
+      contextIsolation: false,
+      backgroundThrottling: false
     }
   });
 
@@ -379,9 +448,17 @@ if (!gotTheLock) {
     const ses = session.fromPartition('persist:delugerpg');
     setupSessionHardening(ses, config);
 
+  // Private in-memory session store for guest preload (prevents touching window.sessionStorage)
+  const preloadSessionMemoryStore = Object.create(null);
+
   // IPC Handler: Clear storage and cache for a clean identity slate
   ipcMain.handle('clear-session-data', async () => {
     try {
+      // 1. Wipe private in-memory preload store
+      for (const k in preloadSessionMemoryStore) {
+        delete preloadSessionMemoryStore[k];
+      }
+      // 2. Wipe Chromium persistent partition storages & cache
       await ses.clearStorageData({
         storages: ['cookies', 'localstorage', 'indexdb', 'websql', 'serviceworkers', 'cachestorage']
       });
@@ -403,6 +480,42 @@ if (!gotTheLock) {
     } catch (err) {
       return { success: false, error: err.message };
     }
+  });
+
+  ipcMain.on('preload-session-store', (event, payload) => {
+    try {
+      const act = payload && payload.action;
+      const key = payload && payload.key;
+      if (act === 'getAll') {
+        event.returnValue = Object.assign({}, preloadSessionMemoryStore);
+      } else if (act === 'get' && key) {
+        event.returnValue = Object.prototype.hasOwnProperty.call(preloadSessionMemoryStore, key)
+          ? preloadSessionMemoryStore[key]
+          : null;
+      } else if (act === 'set' && key) {
+        preloadSessionMemoryStore[key] = String(payload.value);
+        event.returnValue = true;
+      } else if (act === 'remove' && key) {
+        delete preloadSessionMemoryStore[key];
+        event.returnValue = true;
+      } else {
+        event.returnValue = null;
+      }
+    } catch (_) {
+      event.returnValue = null;
+    }
+  });
+
+  ipcMain.on('preload-session-store-async', (event, payload) => {
+    try {
+      const act = payload && payload.action;
+      const key = payload && payload.key;
+      if (act === 'set' && key) {
+        preloadSessionMemoryStore[key] = String(payload.value);
+      } else if (act === 'remove' && key) {
+        delete preloadSessionMemoryStore[key];
+      }
+    } catch (_) {}
   });
 
   // IPC Handler: Recover from HTTP 403 Forbidden by purging poisoned Cloudflare cookies & cache

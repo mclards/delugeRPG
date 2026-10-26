@@ -628,6 +628,43 @@
     }
 
     /* ========== SMART WALKING & OBSTACLE AVOIDANCE ENGINE ========== */
+    function isNavButtonBlocked(dir) {
+        const dirMap = {
+            'Up': ['#dr-n', '.dr-n', '[data-dir="n"]', '[data-direction="n"]', '[data-direction="up"]'],
+            'Down': ['#dr-s', '.dr-s', '[data-dir="s"]', '[data-direction="s"]', '[data-direction="down"]'],
+            'Left': ['#dr-w', '.dr-w', '[data-dir="w"]', '[data-direction="w"]', '[data-direction="left"]'],
+            'Right': ['#dr-e', '.dr-e', '[data-dir="e"]', '[data-direction="e"]', '[data-direction="right"]'],
+            'Up-Left': ['#dr-nw', '.dr-nw', '[data-dir="nw"]'],
+            'Up-Right': ['#dr-ne', '.dr-ne', '[data-dir="ne"]'],
+            'Down-Left': ['#dr-sw', '.dr-sw', '[data-dir="sw"]'],
+            'Down-Right': ['#dr-se', '.dr-se', '[data-dir="se"]']
+        };
+        const selectors = dirMap[dir] || [];
+        for (let i = 0; i < selectors.length; i++) {
+            const el = document.querySelector(selectors[i]);
+            if (el) {
+                if (el.disabled || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return true;
+                const cls = (el.className || '').toString().toLowerCase();
+                if (cls.indexOf('disable') !== -1 || cls.indexOf('m-dis') !== -1 ||
+                    cls.indexOf('inactive') !== -1 || cls.indexOf('blocked') !== -1 ||
+                    cls.indexOf('off') !== -1 || cls.indexOf('grey') !== -1 ||
+                    cls.indexOf('gray') !== -1 || cls.indexOf('dr-dis') !== -1) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function detectPingPongLoop(recentMoves) {
+        if (!Array.isArray(recentMoves) || recentMoves.length < 4) return null;
+        const len = recentMoves.length;
+        if (recentMoves[len - 4] === recentMoves[len - 2] && recentMoves[len - 3] === recentMoves[len - 1] && getOppositeKey(recentMoves[len - 4]) === recentMoves[len - 3]) {
+            return { dirA: recentMoves[len - 4], dirB: recentMoves[len - 3] };
+        }
+        return null;
+    }
+
     function getOppositeKey(k) {
         if (k === 37) return 39; // Left -> Right
         if (k === 39) return 37; // Right -> Left
@@ -696,7 +733,7 @@
         }
 
         if (walkMode === "line_horizontal") {
-            if (blockedWalkKeys[37] && !blockedWalkKeys[39]) return 39;
+            if (blockedWalkKeys[37] && !blockedWalkKeys[39]) { const remainder = stepCounter % stepsPerDirection; if (remainder !== 0) stepCounter += (stepsPerDirection - remainder); return 39; }
             if (blockedWalkKeys[39] && !blockedWalkKeys[37]) return 37;
             const isLeft = Math.floor(stepCounter / stepsPerDirection) % 2 === 0;
             stepCounter++;
@@ -963,6 +1000,13 @@
     function dispatchHumanClick(element) {
         if (!element) return;
         try {
+            try {
+                if (typeof element.scrollIntoView === 'function') {
+                    element.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' });
+                }
+            } catch (_) {
+                try { element.scrollIntoView(); } catch (_) {}
+            }
             const rect = element.getBoundingClientRect();
             const clientX = rect.left + (rect.width * (0.35 + Math.random() * 0.3));
             const clientY = rect.top + (rect.height * (0.35 + Math.random() * 0.3));
@@ -1426,6 +1470,8 @@
             const submitButtons = Array.from(document.querySelectorAll('input[type="submit"], input[type="button"], button'));
             for (let b = 0; b < submitButtons.length; b++) {
                 const btn = submitButtons[b];
+                if (!btn || (btn.offsetWidth === 0 && btn.offsetHeight === 0)) continue;
+                try { if (window.getComputedStyle(btn).display === 'none') continue; } catch (_) {}
                 const btnText = ((btn.value || '') + ' ' + (btn.textContent || '')).trim().toLowerCase();
                 if (btnText.indexOf('throw') !== -1 && btnText.indexOf('ball') !== -1) {
                     throwBtn = btn;

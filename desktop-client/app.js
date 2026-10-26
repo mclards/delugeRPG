@@ -254,22 +254,27 @@ function isAdOrTrackerNoise(msg) {
          m.includes('typeerror: failed to fetch');
 }
 
+const _backendLogBuffer = [];
+let _backendLogFlushTimer = null;
+
+function _flushBackendLogs() {
+  if (_backendLogBuffer.length === 0) return;
+  const chunk = _backendLogBuffer.join('');
+  _backendLogBuffer.length = 0;
+  _backendLogFlushTimer = null;
+  try {
+    fs.appendFile(LOG_FILE, chunk, 'utf8', () => {});
+  } catch (_) {}
+}
+
 function backendLog(tag, msg) {
   const ts = new Date().toISOString().substring(11, 23);
   const detail = (typeof msg === 'object') ? JSON.stringify(msg) : String(msg);
   const line = `[${ts}] [${tag}] ${detail}\n`;
-  try {
-    const dir = path.dirname(LOG_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    if (fs.existsSync(LOG_FILE)) {
-      const stats = fs.statSync(LOG_FILE);
-      if (stats.size > 5 * 1024 * 1024) {
-        const raw = fs.readFileSync(LOG_FILE, 'utf8');
-        fs.writeFileSync(LOG_FILE, raw.slice(-500 * 1024), 'utf8');
-      }
-    }
-    fs.appendFileSync(LOG_FILE, line, 'utf8');
-  } catch (_) {}
+  _backendLogBuffer.push(line);
+  if (!_backendLogFlushTimer) {
+    _backendLogFlushTimer = setTimeout(_flushBackendLogs, 250);
+  }
   try {
     if (process && process.stdout && typeof process.stdout.write === 'function') {
       process.stdout.write(line);
@@ -296,6 +301,9 @@ const stepsPerDirInput = document.getElementById('stepsPerDirInput');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 const statusChip = document.getElementById('statusChip');
+const actionFeedbackBadge = document.getElementById('actionFeedbackBadge');
+const actionFeedbackDot = document.getElementById('actionFeedbackDot');
+const actionFeedbackText = document.getElementById('actionFeedbackText');
 const stepCounterElem = document.getElementById('stepCounter');
 const zoomOutBtn = document.getElementById('zoomOutBtn');
 const zoomResetBtn = document.getElementById('zoomResetBtn');
@@ -521,6 +529,8 @@ let activePvpTargetType = 'SCOUT';
 let pvpStrategy = (config && config.settings && config.settings.pvpStrategy) || 'COUNTERS';
 let pvpCandidateTier = (config && config.settings && config.settings.pvpCandidateTier) || 'ANY';
 const battleOpponentBtn = document.getElementById('battleOpponentBtn');
+const teamBattleActionSlot = document.getElementById('teamBattleActionSlot');
+const teamBattleActionBtn = document.getElementById('teamBattleActionBtn');
 const adsInspectorModal = document.getElementById('adsInspectorModal');
 const adsInspectorMenuBtn = document.getElementById('adsInspectorMenuBtn');
 const closeAdsInspectorBtn = document.getElementById('closeAdsInspectorBtn');
@@ -590,6 +600,7 @@ const aiInstantActionSlot = document.getElementById('aiInstantActionSlot');
 const aiHudActionBtn = document.getElementById('aiHudActionBtn');
 let activeAiBattleData = null;
 let activeEvolveCardData = null;
+let lastAnnouncedEvolveSignature = null;
 let lastAnalyzedBattle = null;
 let lastKnownUserTeam = [];
 
@@ -671,7 +682,7 @@ let driftAccumulator = 0;
 
 // Direction State
 let currentDirectionKey = 'Left';
-let wanderStepsLeft = 1;
+let wanderStepsLeft = (config && config.settings && config.settings.stepsPerDirection) || 5;
 let searchWaitTicks = 0;
 let diagonalVertical = 'Up';
 let diagonalHorizontal = 'Right';
@@ -1089,7 +1100,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.3.7';
+    let appVer = '1.3.8';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -1587,6 +1598,30 @@ function updateStatus(text, color = '#388bfd') {
   statusDot.style.background = color;
 }
 
+let actionFeedbackTimeout = null;
+function updateActionFeedback(text, statusType = 'sent') {
+  if (!actionFeedbackBadge || !actionFeedbackText || !actionFeedbackDot) return;
+  if (isRestBreakActive) return;
+  actionFeedbackBadge.style.visibility = 'visible';
+  actionFeedbackText.textContent = text;
+  actionFeedbackBadge.title = 'Action Feedback: ' + text;
+  if (statusType === 'sent') {
+    actionFeedbackDot.style.background = '#38bdf8';
+  } else if (statusType === 'queued') {
+    actionFeedbackDot.style.background = '#f59e0b';
+  } else if (statusType === 'success') {
+    actionFeedbackDot.style.background = '#22c55e';
+  } else if (statusType === 'error') {
+    actionFeedbackDot.style.background = '#ef4444';
+  }
+  if (actionFeedbackTimeout) clearTimeout(actionFeedbackTimeout);
+  actionFeedbackTimeout = setTimeout(() => {
+    if (actionFeedbackBadge) {
+      actionFeedbackBadge.style.visibility = 'hidden';
+    }
+  }, 5000);
+}
+
 function isMapUrl(rawUrl) {
   if (!rawUrl) return false;
   try {
@@ -1730,6 +1765,16 @@ function toggleHunting() {
       }, 2000);
       return;
     }
+    if (config.settings && config.settings.autoCatchMasterBall === true) {
+      if (dailyCatchData && dailyCatchData.masterBallStock === 0) {
+        updateStatus('Paused (0 Master Balls - Restock or disable Auto-Catch)', '#ef4444');
+        playAlarmSound();
+        return;
+      }
+      if (!isBallInventorySynced && delugeView && typeof delugeView.send === 'function') {
+        try { delugeView.send('request-ball-inventory'); } catch (_) {}
+      }
+    }
     ensureTodaySafetyState();
     if (config.safety && config.safety.enableDailyCeilings !== false) {
       if (dailySafetyState.todaySteps >= dailySafetyState.dailyStepCeiling) {
@@ -1753,7 +1798,7 @@ function toggleHunting() {
     isGuestInputFocused = false;
     isStepPending = false;
     stepPendingTicks = 0;
-    wanderStepsLeft = 0;
+    wanderStepsLeft = (config.settings && config.settings.stepsPerDirection) || 5;
     isResumingFromMicroPause = false;
     isResumingFromIdlePause = false;
 
@@ -1938,8 +1983,8 @@ function chooseEvadeDirection(blockedDir) {
   // Component conflict exclusion: never evade into a direction sharing the blocked wall component!
   const excluded = SHARED_COMPONENTS_8[blockedDir] || [blockedDir];
 
-  // 1. Prioritize unblocked perpendicular cardinal directions (gliding parallel along obstacle surface)
-  const perpList = (PERPENDICULARS_8[blockedDir] || ['Up', 'Down', 'Left', 'Right']).filter(k => CARDINAL_DIRECTIONS.includes(k));
+  // 1. Prioritize unblocked perpendicular directions (gliding parallel along obstacle surface)
+  const perpList = PERPENDICULARS_8[blockedDir] || ['Up', 'Down', 'Left', 'Right'];
   const unblockedFreshPerp = perpList.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
   if (unblockedFreshPerp.length > 0) {
     return unblockedFreshPerp[Math.floor(Math.random() * unblockedFreshPerp.length)];
@@ -1951,20 +1996,27 @@ function chooseEvadeDirection(blockedDir) {
     return anyUnblockedPerp[Math.floor(Math.random() * anyUnblockedPerp.length)];
   }
 
-  // 2. Reversing (180-degree back-out) into opposite direction
+  // 2. Check retreating diagonal or cardinal angles (moving away from obstacle surface)
   const opp = OPPOSITES_8[blockedDir] || 'Down';
+  const retreatAngles = ADJACENT_45_8[opp] || [];
+  const unblockedRetreat = retreatAngles.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now) && (!deadEndCooldowns[k] || deadEndCooldowns[k] <= now));
+  if (unblockedRetreat.length > 0) {
+    return unblockedRetreat[Math.floor(Math.random() * unblockedRetreat.length)];
+  }
+
+  // 3. Reversing (180-degree back-out) into opposite direction
   if (!excluded.includes(opp) && !isDirectionPhysicallyBlocked(opp, now)) {
     deadEndCooldowns[blockedDir] = now + 10000;
     return opp;
   }
 
-  // 3. Any unblocked cardinal direction (excluding shared component)
-  const anyUnblocked = CARDINAL_DIRECTIONS.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now));
+  // 4. Any unblocked direction from all 8 directions (excluding shared component)
+  const anyUnblocked = ALL_DIRECTIONS_8.filter(k => !excluded.includes(k) && !isDirectionPhysicallyBlocked(k, now));
   if (anyUnblocked.length > 0) {
     return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
   }
 
-  // 4. Absolute fallback if enclosed on 3 sides: pick opposite
+  // 5. Absolute fallback if enclosed on all sides: pick opposite
   return opp;
 }
 
@@ -1972,33 +2024,44 @@ function chooseWanderDirection(currentDir) {
   const now = Date.now();
   currentDir = currentDir || 'Right';
 
-  // Gather unblocked candidates from cardinal directions for reliable grid traversal
-  const unblocked = CARDINAL_DIRECTIONS.filter(d => !isDirectionPhysicallyBlocked(d, now) && (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now));
+  // Gather unblocked candidates across all 8 directions (cardinal + diagonal)
+  const unblocked = ALL_DIRECTIONS_8.filter(d => !isDirectionPhysicallyBlocked(d, now) && (!deadEndCooldowns[d] || deadEndCooldowns[d] <= now));
 
   if (unblocked.length === 0) {
-    const anyUnblocked = CARDINAL_DIRECTIONS.filter(d => !isDirectionPhysicallyBlocked(d, now));
+    const anyUnblocked = ALL_DIRECTIONS_8.filter(d => !isDirectionPhysicallyBlocked(d, now));
     if (anyUnblocked.length > 0) {
       return anyUnblocked[Math.floor(Math.random() * anyUnblocked.length)];
     }
     return chooseEvadeDirection(currentDir);
   }
 
-  // Strictly turn perpendicular when completing required steps!
-  // This ensures the bot always turns after taking the required steps (e.g. 5 steps).
-  const perpList = (PERPENDICULARS_8[currentDir] || ['Up', 'Down']).filter(d => CARDINAL_DIRECTIONS.includes(d));
-  const unblockedPerps = perpList.filter(d => unblocked.includes(d));
+  // Weighted 8-way turn selection after completing required steps:
+  // Prioritizes 45-degree diagonal/cardinal veers and 90-degree perpendicular turns
+  const adjList = ADJACENT_45_8[currentDir] || [];
+  const perpList = PERPENDICULARS_8[currentDir] || [];
+  const opp = OPPOSITES_8[currentDir];
 
-  if (unblockedPerps.length > 0) {
-    return unblockedPerps[Math.floor(Math.random() * unblockedPerps.length)];
+  const turnPool = [];
+  unblocked.forEach(d => {
+    if (adjList.includes(d)) {
+      turnPool.push(d, d, d, d); // 45-degree diagonal/cardinal veer
+    } else if (perpList.includes(d)) {
+      turnPool.push(d, d, d); // 90-degree perpendicular turn
+    } else if (d !== currentDir && d !== opp) {
+      turnPool.push(d); // 135-degree wider turn
+    }
+  });
+
+  if (turnPool.length > 0) {
+    return turnPool[Math.floor(Math.random() * turnPool.length)];
   }
 
-  // Corridor fallback: if both perpendicular sides are walls, continue forward
+  // Corridor fallback: if all turn angles are blocked, continue forward
   if (unblocked.includes(currentDir)) {
     return currentDir;
   }
 
   // Dead-end fallback: reverse
-  const opp = OPPOSITES_8[currentDir];
   if (unblocked.includes(opp)) {
     return opp;
   }
@@ -2044,7 +2107,7 @@ function getNextKey() {
     }
   }
 
-  // MODE: DIAGONAL (True 8-Way Diagonal Sweeping utilizing #dr-nw, #dr-ne, #dr-sw, #dr-se)
+  // MODE: DIAGONAL (True 8-Way Diagonal Sweeping & Surface Reflection)
   if (mode === 'diagonal') {
     if (isDirectionPhysicallyBlocked(diagonalVertical, now)) {
       diagonalVertical = diagonalVertical === 'Up' ? 'Down' : 'Up';
@@ -2054,8 +2117,6 @@ function getNextKey() {
     }
 
     let candidate = `${diagonalVertical}-${diagonalHorizontal}`;
-
-    // If candidate diagonal button is blocked, reflect off surfaces
     if (isDirectionPhysicallyBlocked(candidate, now)) {
       const altV = (diagonalVertical === 'Up' ? 'Down' : 'Up') + '-' + diagonalHorizontal;
       if (!isDirectionPhysicallyBlocked(altV, now)) {
@@ -2073,7 +2134,7 @@ function getNextKey() {
             diagonalHorizontal = diagonalHorizontal === 'Right' ? 'Left' : 'Right';
             candidate = altBoth;
           } else {
-            candidate = chooseEvadeDirection(candidate);
+            return chooseEvadeDirection(candidate);
           }
         }
       }
@@ -2197,13 +2258,6 @@ function sendKeyStep(keyName) {
 
     // Atomic movement dispatch: exactly ONE action per step (prevents double-dispatch and encounter skipping)
     delugeView.send('click-nav-button', { direction: keyName });
-
-    // Subtle human mouse micro-motion to satisfy Deluge m_x telemetry
-    if (Math.random() < 0.35) {
-      const mx = Math.floor(Math.random() * 400) + 150;
-      const my = Math.floor(Math.random() * 250) + 120;
-      delugeView.sendInputEvent({ type: 'mouseMove', x: mx, y: my });
-    }
 
     // Notify guest webview preload of dispatched step
     delugeView.send('step-dispatched', { direction: keyName, time: Date.now() });
@@ -2374,14 +2428,8 @@ function handleMoveBlocked(dir) {
 
   wanderStepsLeft = 0;
   const now = Date.now();
-  blockedDirections[dir] = now + 3000;
+  blockedDirections[dir] = now + 2500;
   consecutiveBlockedCount++;
-
-  // Mark all shared component directions as blocked as well so bot NEVER hits same obstacle twice!
-  const shared = SHARED_COMPONENTS_8[dir] || [dir];
-  shared.forEach(d => {
-    blockedDirections[d] = now + 3000;
-  });
 
   // Invert diagonal axis immediately on collision
   if (dir === 'Up') diagonalVertical = 'Down';
@@ -2408,9 +2456,9 @@ function handleMoveBlocked(dir) {
 
   // Synchronize line/patrol phases so the bot doesn't keep trying to finish the turn
   const stepsPerDir = config.settings.stepsPerDirection || 1;
-  const remainder = stepCount % stepsPerDir;
+  const remainder = patternStepCount % stepsPerDir;
   if (remainder !== 0) {
-    stepCount += (stepsPerDir - remainder);
+    patternStepCount += (stepsPerDir - remainder);
   }
 
   console.log(`[Obstacle Blocked] Collision in direction: ${dir} (consecutive: ${consecutiveBlockedCount})`);
@@ -2433,10 +2481,10 @@ function handleMoveBlocked(dir) {
   backendLog('Evading', `Turning towards ${evadeDir}`);
 
   if (walkTimeout) clearTimeout(walkTimeout);
-  scheduleNextStep(Math.floor(Math.random() * 300) + 550);
+  scheduleNextStep(getHardenedHumanDelay());
 }
 
-function handleMoveSuccess(dir) {
+function handleMoveSuccess(dir, preserveNavStatus = false) {
   isStepPending = false;
   if (fallbackCollisionTimer) {
     clearTimeout(fallbackCollisionTimer);
@@ -2445,7 +2493,9 @@ function handleMoveSuccess(dir) {
   consecutiveBlockedCount = 0;
   if (dir) {
     delete blockedDirections[dir];
-    delete navBlockedStatus[dir];
+    if (!preserveNavStatus) {
+      delete navBlockedStatus[dir];
+    }
   }
   stepCount++;
   backendLog('MoveSuccess', `Step confirmed: ${dir} (total: ${stepCount})`);
@@ -2527,6 +2577,17 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
 
   if (!isCurrentPageMap()) return;
 
+  if (config.settings && config.settings.autoCatchMasterBall === true) {
+    if (dailyCatchData && dailyCatchData.masterBallStock === 0) {
+      outOfStockPaused = true;
+      updateStatus('Paused (0 Master Balls - Restock)', '#ef4444');
+      return;
+    }
+    if (!isBallInventorySynced && delugeView && typeof delugeView.send === 'function') {
+      try { delugeView.send('request-ball-inventory'); } catch (_) {}
+    }
+  }
+
   ensureTodaySafetyState();
   if (config.safety && config.safety.enableDailyCeilings !== false) {
     if (dailySafetyState.todaySteps >= dailySafetyState.dailyStepCeiling) {
@@ -2600,6 +2661,7 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
     isGuestInputFocused = false;
     isStepPending = false;
     stepPendingTicks = 0;
+    wanderStepsLeft = (config.settings && config.settings.stepsPerDirection) || 5;
 
     if (config.safety && config.safety.enableDeadManSwitch !== false) {
       if (!sessionAutoStopTimer || !sessionAutoStopTime) {
@@ -2649,6 +2711,7 @@ function handleMapNavigation(url) {
       isUnlockChallengeActive = false;
       backendLog('SecurityChallenge', 'Navigated back to map from /unlock. Captcha completed.');
       updateStatus('Ready to Hunt (Captcha Solved)', '#10b981');
+      silenceCaptchaAlarm();
     }
     // Auto-start hunting only when guest preload has confirmed playable map DOM (guestReportsMap === true)
     const shouldAutoStart = (config.settings && config.settings.autoStartOnMap !== false) || wasHuntingBeforeAutoCatch;
@@ -2678,6 +2741,22 @@ delugeView.addEventListener('did-finish-load', () => {
 
 delugeView.addEventListener('will-navigate', (event) => {
   const url = event.url || '';
+  const currentUrl = (delugeView && delugeView.getURL && delugeView.getURL()) || '';
+  const isCurrentlyInBattle = currentUrl.indexOf('/catch/') !== -1 || currentUrl.indexOf('/battle/') !== -1;
+
+  if (isAutoCatchCountdownActive || isCurrentlyInBattle) {
+    try {
+      const parsed = new URL(url, 'https://www.delugerpg.com');
+      const p = (parsed.pathname || '').toLowerCase();
+      const isAllowedMap = isMapUrl(url) || p.startsWith('/map');
+      const isCatchOrBattle = p.startsWith('/catch') || p.startsWith('/battle');
+      if (!isAllowedMap && !isCatchOrBattle) {
+        event.preventDefault();
+        backendLog('NAVIGATION_GUARD', `Shielded active battle: Blocked premature navigation to ${p || url}`);
+        return;
+      }
+    } catch (_) {}
+  }
   if (url && !isMapUrl(url)) {
     guestReportsMap = false;
     autoPauseOutsideMap(url);
@@ -2697,6 +2776,96 @@ delugeView.addEventListener('ipc-message', (event) => {
         });
       } catch (_) {}
     }
+    return;
+  }
+
+  if (event.channel === 'trusted-key-step') {
+    const payload = event.args[0] || {};
+    const dirToKeyCode = {
+      'Up': 'Up',
+      'Down': 'Down',
+      'Left': 'Left',
+      'Right': 'Right',
+      'Up-Left': 'q',
+      'Up-Right': 'e',
+      'Down-Left': 'z',
+      'Down-Right': 'c'
+    };
+    const keyCode = dirToKeyCode[payload.direction] || 'Up';
+    const holdDurationMs = 42 + Math.floor(Math.random() * 35);
+
+    try {
+      delugeView.sendInputEvent({ type: 'keyDown', keyCode });
+    } catch (_) {}
+
+    setTimeout(() => {
+      try {
+        delugeView.sendInputEvent({ type: 'keyUp', keyCode });
+      } catch (_) {}
+
+      if (payload.reqId) {
+        setTimeout(() => {
+          try {
+            delugeView.send('trusted-key-done', { reqId: payload.reqId });
+          } catch (_) {}
+        }, 12);
+      }
+    }, holdDurationMs);
+    return;
+  }
+
+  if (event.channel === 'trusted-click-request') {
+    const payload = event.args[0] || {};
+    const targetX = Math.round(typeof payload.x === 'number' ? payload.x : -1);
+    const targetY = Math.round(typeof payload.y === 'number' ? payload.y : -1);
+
+    if (targetX < 0 || targetY < 0 || targetY <= 50 || (targetX <= 80 && targetY <= 80)) {
+      backendLog('ACTION_AUDIT', `Blocked hardware click in invalid or header/logo zone (${targetX}, ${targetY})`);
+      if (payload.reqId) {
+        try {
+          delugeView.send('trusted-click-done', { reqId: payload.reqId });
+        } catch (_) {}
+      }
+      return;
+    }
+
+    const offsetX = Math.floor((Math.random() - 0.5) * 36) || 14;
+    const offsetY = Math.floor((Math.random() - 0.5) * 36) || 12;
+    const approachX = Math.max(1, targetX + offsetX);
+    const approachY = Math.max(1, targetY + offsetY);
+    const moveGapMs = 135 + Math.floor(Math.random() * 25);
+    const pressDelayMs = 24 + Math.floor(Math.random() * 20);
+    const holdDurationMs = 48 + Math.floor(Math.random() * 35);
+
+    try {
+      delugeView.sendInputEvent({ type: 'mouseMove', x: approachX, y: approachY });
+    } catch (_) {}
+
+    setTimeout(() => {
+      try {
+        delugeView.sendInputEvent({ type: 'mouseMove', x: targetX, y: targetY });
+      } catch (_) {}
+
+      setTimeout(() => {
+        try {
+          delugeView.sendInputEvent({ type: 'mouseDown', x: targetX, y: targetY, button: 'left', clickCount: 1 });
+        } catch (_) {}
+
+        setTimeout(() => {
+          try {
+            delugeView.sendInputEvent({ type: 'mouseUp', x: targetX, y: targetY, button: 'left', clickCount: 1 });
+          } catch (_) {}
+
+          if (payload.reqId) {
+            setTimeout(() => {
+              try {
+                delugeView.send('trusted-click-done', { reqId: payload.reqId });
+              } catch (_) {}
+            }, 18);
+          }
+        }, holdDurationMs);
+      }, pressDelayMs);
+    }, moveGapMs);
     return;
   }
 
@@ -2789,6 +2958,9 @@ delugeView.addEventListener('ipc-message', (event) => {
   if (event.channel === 'pokemon-scan-complete') {
     const data = event.args[0] || {};
     if (data.success && Array.isArray(data.pokemons)) {
+      if (data.username) {
+        checkAndHandleAccountSwitch(data.username);
+      }
       currentCollection = data.pokemons;
       try {
         fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
@@ -2859,10 +3031,14 @@ delugeView.addEventListener('ipc-message', (event) => {
     const data = event.args[0] || {};
     if (applyTeamBtn) {
       applyTeamBtn.disabled = false;
-      applyTeamBtn.innerHTML = '<span>&#10003;</span> <span>Team Saved!</span>';
-      setTimeout(() => {
-        if (applyTeamBtn) applyTeamBtn.innerHTML = 'Change Team';
-      }, 2500);
+      if (data.success) {
+        applyTeamBtn.innerHTML = '<span>&#10003;</span> <span>Team Saved!</span>';
+        setTimeout(() => {
+          if (applyTeamBtn) applyTeamBtn.innerHTML = 'Change Team';
+        }, 2500);
+      } else {
+        applyTeamBtn.innerHTML = 'Change Team';
+      }
     }
     if (battleOpponentBtn) {
       battleOpponentBtn.disabled = false;
@@ -2930,9 +3106,41 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'ai-battle-action-status') {
     const data = event.args[0] || {};
+    if (typeof aiActionTimeoutTimer !== 'undefined' && aiActionTimeoutTimer) {
+      clearTimeout(aiActionTimeoutTimer);
+      aiActionTimeoutTimer = null;
+    }
+    if (teamBattleActionBtn) {
+      teamBattleActionBtn.disabled = false;
+    }
+    if (teamActionStatus) {
+      if (data.success === false) {
+        teamActionStatus.textContent = data.message || 'Action Failed';
+        teamActionStatus.style.color = '#f87171';
+      } else {
+        teamActionStatus.textContent = data.action === 'select-lead-and-start' ? 'Battle Started!' : 'Move Cast!';
+        teamActionStatus.style.color = '#10b981';
+      }
+      setTimeout(() => {
+        if (teamActionStatus && (teamActionStatus.textContent === 'Battle Started!' || teamActionStatus.textContent === 'Move Cast!' || teamActionStatus.textContent === 'Action Failed')) {
+          teamActionStatus.textContent = '';
+        }
+      }, 3500);
+    }
     if (aiStatusChip) {
-      aiStatusChip.textContent = data.action === 'select-lead-and-start' ? 'Battle Started' : 'Move Cast';
-      aiStatusChip.style.color = '#10b981';
+      if (data.success === false) {
+        aiStatusChip.textContent = 'Action Failed';
+        aiStatusChip.style.color = '#f87171';
+        setTimeout(() => {
+          if (aiStatusChip && aiStatusChip.textContent === 'Action Failed') {
+            aiStatusChip.textContent = 'Ready';
+            aiStatusChip.style.color = '#8eaad0';
+          }
+        }, 3000);
+      } else {
+        aiStatusChip.textContent = data.action === 'select-lead-and-start' ? 'Battle Started' : 'Move Cast';
+        aiStatusChip.style.color = '#10b981';
+      }
     }
     if (data.message) {
       appendAiChatMessage('AI', data.message);
@@ -3097,16 +3305,55 @@ delugeView.addEventListener('ipc-message', (event) => {
     }
   }
 
+  if (event.channel === 'user-click-tracked') {
+    const data = event.args[0] || {};
+    const trustedTag = data.isTrusted ? 'USER' : 'BOT';
+    backendLog('USER_CLICK', `[${trustedTag}] Clicked: ${data.desc || 'element'} on ${data.path || '/'}`);
+    updateActionFeedback((data.desc || 'action').slice(0, 16) + ' (sent)', 'sent');
+    if (isStepPending && data.path && data.path.indexOf('/map') !== -1) {
+      backendLog('ACTION_AUDIT', 'Notice: User clicked while an automated step was pending on DelugeRPG server. DelugeRPG may ignore input until previous step completes.');
+    }
+  }
+
+  if (event.channel === 'user-action-queued') {
+    const data = event.args[0] || {};
+    backendLog('ACTION_QUEUED', `Manual move (${data.direction}) buffered while DelugeRPG server is busy`);
+    updateActionFeedback(data.direction + ' (waiting on server)', 'queued');
+  }
+
+  if (event.channel === 'user-action-dispatched') {
+    const data = event.args[0] || {};
+    backendLog('ACTION_DISPATCHED', `Queued move (${data.direction}) dispatched after ${data.waitedMs}ms queue wait`);
+    updateActionFeedback(data.direction + ' (dispatched)', 'sent');
+  }
+
+  if (event.channel === 'xhr-action-sent') {
+    const data = event.args[0] || {};
+    backendLog('XHR_SENT', `${data.method} ${data.url}`);
+    updateActionFeedback((data.url || '/ajax/').slice(0, 18) + '...', 'sent');
+  }
+
+  if (event.channel === 'xhr-action-feedback') {
+    const data = event.args[0] || {};
+    const statusText = data.success ? `${data.status} OK` : `FAILED (${data.status || data.error})`;
+    backendLog('XHR_FEEDBACK', `${data.method} ${data.url} -> ${statusText} in ${data.duration}ms`);
+    updateActionFeedback((data.url || '').slice(0, 14) + ' -> ' + (data.status || 'OK') + ' (' + data.duration + 'ms)', data.success ? 'success' : 'error');
+  }
+
   if (event.channel === 'manual-step') {
     const data = event.args[0] || {};
     const dir = data.direction || 'Manual';
-    backendLog('ManualNavigation', `Manual user movement detected (${dir}). Gracefully yielding step scheduling.`);
+    if (isStepPending && lastDispatchedDirection === dir) {
+      // Discard echo of automated native step
+      return;
+    }
+    backendLog('ManualNavigation', `Manual user movement detected (${dir}). Gracefully yielding step scheduling for 3.5s.`);
     isStepPending = false;
     stepPendingTicks = 0;
     currentDirectionKey = dir;
-    wanderStepsLeft = 0;
+    wanderStepsLeft = (config.settings.stepsPerDirection || 1) - 1;
     if (isRunning) {
-      scheduleNextStep(1200);
+      scheduleNextStep(3500);
     }
   }
 
@@ -3135,7 +3382,8 @@ delugeView.addEventListener('ipc-message', (event) => {
   if (event.channel === 'move-result') {
     backendLog('IPC_MOVE_RESULT', event.args[0]);
     const data = event.args[0] || {};
-    if (data.allBlocked) {
+    const hasFreshAllBlocked = !!(data.allBlocked && typeof data.allBlocked === 'object');
+    if (hasFreshAllBlocked) {
       for (const d in data.allBlocked) {
         navBlockedStatus[d] = !!data.allBlocked[d];
       }
@@ -3143,7 +3391,7 @@ delugeView.addEventListener('ipc-message', (event) => {
     if (data.blocked || data.navBlocked) {
       handleMoveBlocked(data.direction || lastDispatchedDirection);
     } else if (data.success) {
-      handleMoveSuccess(data.direction || lastDispatchedDirection);
+      handleMoveSuccess(data.direction || lastDispatchedDirection, hasFreshAllBlocked);
     }
   }
 
@@ -3180,6 +3428,9 @@ delugeView.addEventListener('ipc-message', (event) => {
     guestReportsMap = !!(data.isMap && data.hasMapEl !== false);
     const prevEncounter = isEncounterOnScreen;
     isEncounterOnScreen = !!data.hasEncounter;
+    if (data.username) {
+      checkAndHandleAccountSwitch(data.username);
+    }
 
     if (!guestReportsMap) {
       cancelPendingAutoStart('Playable map DOM not present');
@@ -3360,6 +3611,11 @@ delugeView.addEventListener('dom-ready', () => {
     delugeView.send('fill-login', config.dummyAccount);
   }
   const curUrl = (delugeView && delugeView.getURL()) || '';
+  if (!isBallInventorySynced && curUrl && !/\/login|\/unlock/i.test(curUrl)) {
+    try {
+      delugeView.send('request-ball-inventory');
+    } catch (_) {}
+  }
   const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
   if (isCurrentPageMap() && !isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
     if (!autoStartTimer) {
@@ -3450,14 +3706,6 @@ if (gameContainer) {
   });
 }
 
-if (delugeView) {
-  delugeView.addEventListener('pointerdown', () => {
-    if (!isGuestInputFocused) {
-      try { delugeView.focus(); } catch (_) {}
-    }
-  });
-}
-
 if (modalBackdrop) {
   modalBackdrop.addEventListener('click', closeAllModals);
 }
@@ -3541,6 +3789,8 @@ if (walkModeSelect) {
   walkModeSelect.addEventListener('change', () => {
     if (!config.settings) config.settings = {};
     config.settings.walkMode = walkModeSelect.value;
+    patternStepCount = 0;
+    wanderStepsLeft = 0;
     saveLocalConfig();
     updateStatus('Walk mode: ' + walkModeSelect.value, '#10b981');
   });
@@ -4035,7 +4285,8 @@ if (saveTargetsBtn) {
 }
 
 function closeNavDropdown() {
-  if (navDropdown) navDropdown.classList.add('hidden');
+  if (!navDropdown || navDropdown.classList.contains('hidden')) return;
+  navDropdown.classList.add('hidden');
   if (navMenuBtn) navMenuBtn.classList.remove('btn-accent');
   const backdrop = document.getElementById('dropdownBackdrop');
   if (backdrop) backdrop.style.display = 'none';
@@ -4207,6 +4458,12 @@ if (autoCatchBtn) {
       backendLog('Settings', 'Cannot enable Auto-Catch: Hide Ads is OFF.');
       return;
     }
+    if (!(config.settings.autoCatchMasterBall === true) && dailyCatchData && dailyCatchData.masterBallStock === 0) {
+      playAlarmSound();
+      updateStatus('Cannot enable Auto-Catch: 0 Master Balls in bag!', '#ef4444');
+      backendLog('Settings', 'Cannot enable Auto-Catch: Master Ball stock is 0.');
+      return;
+    }
     config.settings.autoCatchMasterBall = !(config.settings.autoCatchMasterBall === true);
     saveLocalConfig();
     updateAutoCatchUI();
@@ -4215,6 +4472,12 @@ if (autoCatchBtn) {
       try {
         if (delugeView && typeof delugeView.send === 'function') {
           delugeView.send('abort-autocatch');
+        }
+      } catch (_) {}
+    } else {
+      try {
+        if (delugeView && typeof delugeView.send === 'function') {
+          delugeView.send('request-ball-inventory');
         }
       } catch (_) {}
     }
@@ -4235,40 +4498,68 @@ if (openLogsBtn) {
   });
 }
 
+let isManualReloadInProgress = false;
+
 if (refreshBtn) {
   refreshBtn.addEventListener('click', async () => {
+    if (isManualReloadInProgress) return;
+    isManualReloadInProgress = true;
+
     isGuestInputFocused = false;
     cancelPendingAutoStart('Manual page reload');
+
+    // 1. Cleanly halt hunting and drop in-flight steps
     if (isRunning) {
       isRunning = false;
-      isStepPending = false;
-      stepPendingTicks = 0;
-      isResumingFromMicroPause = false;
-      isResumingFromIdlePause = false;
-      if (walkTimeout) {
-        clearTimeout(walkTimeout);
-        walkTimeout = null;
-      }
       updateToggleButton();
     }
+    isStepPending = false;
+    stepPendingTicks = 0;
+    isResumingFromMicroPause = false;
+    isResumingFromIdlePause = false;
+    if (walkTimeout) {
+      clearTimeout(walkTimeout);
+      walkTimeout = null;
+    }
+    if (fallbackCollisionTimer) {
+      clearTimeout(fallbackCollisionTimer);
+      fallbackCollisionTimer = null;
+    }
+
+    // 2. Abort guest actions and purge transient battle/navigation state
+    if (delugeView && typeof delugeView.send === 'function') {
+      try {
+        delugeView.send('abort-autocatch');
+        delugeView.send('hunting-state-changed', { isRunning: false });
+      } catch (_) {}
+    }
+    isEncounterOnScreen = false;
+    guestReportsMap = false;
+    activeAiBattleData = null;
+    liveBattleOpponent = null;
+    if (typeof updateTeamBuilderBattleAction === 'function') updateTeamBuilderBattleAction(null);
+    navBlockedStatus = {};
+    blockedDirections = {};
+    recentMoves = [];
+
     const reloadSvg = refreshBtn.querySelector('.reload-icon');
     if (reloadSvg) {
       reloadSvg.classList.add('spinning');
       setTimeout(() => { if (reloadSvg) reloadSvg.classList.remove('spinning'); }, 750);
     }
     updateStatus('Flushing battle cache & reloading...', '#38bdf8');
+
     try {
-      const flushWithTimeout = (p, ms = 400) => Promise.race([p, new Promise(res => setTimeout(res, ms))]);
-      if (delugeView && typeof delugeView.executeJavaScript === 'function') {
-        try {
-          await flushWithTimeout(delugeView.executeJavaScript('sessionStorage.clear(); localStorage.clear();'));
-        } catch (_) {}
-      }
+      const flushWithTimeout = (p, ms = 500) => Promise.race([p, new Promise(res => setTimeout(res, ms))]);
       await flushWithTimeout(ipcRenderer.invoke('soft-session-flush'));
     } catch (_) {}
 
+    // 3. Resilient reload dispatch (ignoring cache)
     if (delugeView) {
       try {
+        if (typeof delugeView.stop === 'function' && typeof delugeView.isLoading === 'function' && delugeView.isLoading()) {
+          try { delugeView.stop(); } catch (_) {}
+        }
         if (typeof delugeView.reloadIgnoringCache === 'function') {
           delugeView.reloadIgnoringCache();
         } else {
@@ -4278,9 +4569,11 @@ if (refreshBtn) {
         try { delugeView.reload(); } catch (_) {}
       }
     }
+
     setTimeout(() => {
+      isManualReloadInProgress = false;
       if (!isRunning) updateStatus('Ready', '#10b981');
-    }, 1500);
+    }, 1200);
   });
 }
 
@@ -4294,23 +4587,91 @@ if (wipeBtn) wipeBtn.addEventListener('click', openWipeModal);
 if (closeWipeBtn) closeWipeBtn.addEventListener('click', closeAllModals);
 if (cancelWipeBtn) cancelWipeBtn.addEventListener('click', closeAllModals);
 
+let isSessionWipeInProgress = false;
+
 if (confirmWipeBtn) {
   confirmWipeBtn.addEventListener('click', async () => {
+    if (isSessionWipeInProgress) return;
+    isSessionWipeInProgress = true;
+    confirmWipeBtn.disabled = true;
+
     closeAllModals();
+
+    // 1. Halt all bot activity and clear timers
     if (isRunning) {
       isRunning = false;
       updateToggleButton();
     }
+    isStepPending = false;
+    stepPendingTicks = 0;
+    isResumingFromMicroPause = false;
+    isResumingFromIdlePause = false;
+    if (walkTimeout) {
+      clearTimeout(walkTimeout);
+      walkTimeout = null;
+    }
+    if (fallbackCollisionTimer) {
+      clearTimeout(fallbackCollisionTimer);
+      fallbackCollisionTimer = null;
+    }
+    cancelPendingAutoStart('Session wiped');
+
+    // 2. Abort guest actions and reset in-memory state
+    if (delugeView && typeof delugeView.send === 'function') {
+      try {
+        delugeView.send('abort-autocatch');
+        delugeView.send('hunting-state-changed', { isRunning: false });
+      } catch (_) {}
+    }
+    isGuestInputFocused = false;
+    guestReportsMap = false;
+    isEncounterOnScreen = false;
+    activeAiBattleData = null;
+    liveBattleOpponent = null;
+    lastRecommendedTeam = [];
+    recentMoves = [];
+    navBlockedStatus = {};
+    blockedDirections = {};
 
     updateStatus('Wiping Session Data...', '#ef4444');
     const res = await ipcRenderer.invoke('clear-session-data');
 
     if (res && res.success) {
-      delugeView.src = 'https://www.delugerpg.com/login';
+      activeAccountUsername = '';
+      isBallInventorySynced = false;
+      dailyCatchData.username = '';
+      dailyCatchData.masterBallStock = null;
+      dailyCatchData.bagInventory = {
+        pokeBall: null,
+        greatBall: null,
+        ultraBall: null,
+        masterBall: null,
+        rawSummary: ''
+      };
+      saveDailyCatchLog();
+      updateCatchLogBadge();
+      renderCatchLogUI();
+
+      if (delugeView) {
+        try {
+          if (typeof delugeView.loadURL === 'function') {
+            delugeView.loadURL('https://www.delugerpg.com/login').catch(() => {
+              delugeView.src = 'https://www.delugerpg.com/login';
+            });
+          } else {
+            delugeView.src = 'https://www.delugerpg.com/login';
+          }
+        } catch (_) {
+          delugeView.src = 'https://www.delugerpg.com/login';
+        }
+      }
       updateStatus('Session Wiped: Clean Slate', '#10b981');
     } else {
       updateStatus('Wipe Failed: ' + ((res && res.error) || 'Unknown error'), '#ef4444');
     }
+
+    isSessionWipeInProgress = false;
+    confirmWipeBtn.disabled = false;
   });
 }
 
@@ -4479,7 +4840,20 @@ function getActiveCandidates() {
   if (teamRosterMode === 'TRAINING') {
     return filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
   }
-  return filtered;
+  // Maxed or Strongest Possible Team Mode:
+  // Prioritize Level 100 powerhouses so trainees are never picked.
+  const lvl100s = filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) === 100);
+  if (lvl100s.length >= 6) {
+    return lvl100s;
+  }
+  if (lvl100s.length > 0) {
+    const non100s = filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100)
+      .slice()
+      .sort((a, b) => (b.level || 0) - (a.level || 0));
+    return lvl100s.concat(non100s.slice(0, 6 - lvl100s.length));
+  }
+  const sorted = filtered.slice().sort((a, b) => (b.level || 0) - (a.level || 0));
+  return sorted.slice(0, Math.min(18, sorted.length));
 }
 
 function updateRosterModeUI() {
@@ -4490,13 +4864,14 @@ function updateRosterModeUI() {
     filtered = filtered.filter(p => !teamEngine.isAlreadyGmax(p));
   }
   const inTrainingCount = filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100).length;
+  const maxedCount = filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) === 100).length;
   const totalCount = filtered.length;
 
   const poolModeAllTab = document.getElementById('poolModeAllTab');
   const poolModeTrainingTab = document.getElementById('poolModeTrainingTab');
 
   if (poolModeAllBtn) {
-    poolModeAllBtn.textContent = `All (${totalCount})`;
+    poolModeAllBtn.textContent = maxedCount > 0 ? `Maxed (${maxedCount})` : `Strongest (${totalCount})`;
   }
   if (poolModeTrainingBtn) {
     poolModeTrainingBtn.textContent = `Training (${inTrainingCount})`;
@@ -4525,7 +4900,9 @@ function updateRosterModeUI() {
       trainingStatsBadge.textContent = `${inTrainingCount} ${label} in training (<100)`;
       trainingStatsBadge.style.color = '#388bfd';
     } else {
-      trainingStatsBadge.textContent = `${totalCount} ${label} in pool`;
+      trainingStatsBadge.textContent = maxedCount > 0
+        ? `${maxedCount} ${label} maxed (Lv 100)`
+        : `${totalCount} ${label} in pool`;
       trainingStatsBadge.style.color = '#8eaad0';
     }
   }
@@ -4953,7 +5330,7 @@ function handleLiveBattleOpponents(data) {
     isProfileStalk: !!data.isProfileStalk,
     isManualCheck: !!data.isManualCheck
   };
-  if (data.battleUrl) {
+  if (data.battleUrl && !lastSelectedBattleUrl) {
     lastSelectedBattleUrl = data.battleUrl;
   }
   const oppSig = `${data.trainerName}:${data.battleUrl || ''}:${data.roster.map(p => p.name).join(',')}`;
@@ -5451,10 +5828,10 @@ function populateGymTrainerSelect(categoryFilter = null) {
     filteredTrainerCountBadge.style.color = '#64748b';
   }
 
-  if (liveBattleOpponent) {
-    teamTrainerSelect.value = 'LIVE__BATTLE';
-  } else if (prevSelectedValue && teamTrainerSelect.querySelector(`option[value="${prevSelectedValue}"]`)) {
+  if (prevSelectedValue && teamTrainerSelect.querySelector(`option[value="${prevSelectedValue}"]`)) {
     teamTrainerSelect.value = prevSelectedValue;
+  } else if (liveBattleOpponent) {
+    teamTrainerSelect.value = 'LIVE__BATTLE';
   } else if (teamTrainerSelect.options.length > 0) {
     teamTrainerSelect.selectedIndex = 0;
   }
@@ -5521,6 +5898,9 @@ function openTeamBuilderPanel() {
     if (teamEmptyPrompt) teamEmptyPrompt.style.display = 'none';
     if (teamResultContainer) teamResultContainer.style.display = 'block';
     if (teamActionRow) teamActionRow.style.display = 'flex';
+  }
+  if (typeof updateTeamBuilderBattleAction === 'function') {
+    updateTeamBuilderBattleAction(activeAiBattleData);
   }
 }
 
@@ -5960,6 +6340,9 @@ function renderTeamLineup(leader, team) {
 
   if (teamActionRow) teamActionRow.style.display = 'flex';
   if (teamActionStatus) teamActionStatus.textContent = '';
+  if (typeof updateTeamBuilderBattleAction === 'function') {
+    updateTeamBuilderBattleAction(activeAiBattleData);
+  }
 }
 
 function executeTeamBuild(targetLeader) {
@@ -5996,7 +6379,7 @@ function executeTeamBuild(targetLeader) {
       const label = filterLabels[teamPoolFilter] || 'training candidates (< Lv 100)';
       if (teamResultContainer) teamResultContainer.style.display = 'block';
       if (teamResultList) {
-        teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:rgba(244, 238, 232, 0.5); font-size:10px;">Switch to <b>All Levels</b> or switch pool filter to <b>Any</b>.</span></div>`;
+        teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:rgba(244, 238, 232, 0.5); font-size:10px;">Switch to <b>Maxed Team</b> or switch pool filter to <b>Any</b>.</span></div>`;
       }
       if (teamActionRow) teamActionRow.style.display = 'none';
       return;
@@ -6091,10 +6474,10 @@ function executeTeamBuild(targetLeader) {
         });
       }
 
-      // Slots 3 to 6: Remaining trainees (Bench EXP receivers)
-      const otherTrainees = availableTrainees.filter(p => !primaryPartner || p.id !== primaryPartner.id);
-      for (let i = 0; i < otherTrainees.length && hybridTeam.length < 6; i++) {
-        const t = otherTrainees[i];
+      // Slots 3 to 6: Remaining trainees (ranked by matchup effectiveness against opponent)
+      const otherRankedTrainees = rankedPartners.slice(1).map(r => r.poke);
+      for (let i = 0; i < otherRankedTrainees.length && hybridTeam.length < 6; i++) {
+        const t = otherRankedTrainees[i];
         hybridTeam.push({
           slot: hybridTeam.length + 1,
           id: t.id,
@@ -6271,6 +6654,7 @@ function executePvPTeamBuild() {
 
 if (buildTeamBtn) {
   buildTeamBtn.addEventListener('click', () => {
+    if (isUnlockChallengeActive || isCaptchaAlarmActive) return;
     if (teamBattleMode === 'PVP') {
       executePvPTeamBuild();
       const pvpTarget = (activePvpTargetType === 'LIVE' && liveBattleOpponent)
@@ -6372,8 +6756,16 @@ if (buildTeamBtn) {
 
 if (applyTeamBtn) {
   applyTeamBtn.addEventListener('click', () => {
+    if (isUnlockChallengeActive || isCaptchaAlarmActive) return;
     if (!lastRecommendedTeam || lastRecommendedTeam.length === 0) return;
-    const ids = lastRecommendedTeam.map(p => p.id);
+    const ids = lastRecommendedTeam.map(p => p.id).filter(Boolean);
+    if (ids.length === 0) {
+      if (teamActionStatus) {
+        teamActionStatus.textContent = 'No Pokemon IDs found to save.';
+        teamActionStatus.style.color = '#f87171';
+      }
+      return;
+    }
     applyTeamBtn.disabled = true;
     if (battleOpponentBtn) battleOpponentBtn.disabled = true;
     applyTeamBtn.innerHTML = '<span>&#8635;</span> <span>Saving...</span>';
@@ -6420,8 +6812,8 @@ function resolveTargetBattleUrl() {
   if (teamCategorySelect && teamCategorySelect.value === 'GMAX_CHALLENGE') {
     return '/challenge/gmax';
   }
-  if (lastSelectedBattleUrl) return lastSelectedBattleUrl;
 
+  // The explicitly selected Target Battle Opponent in the dropdown ALWAYS takes highest priority
   const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
 
   if (selVal === 'LIVE__BATTLE') {
@@ -6463,11 +6855,14 @@ function resolveTargetBattleUrl() {
     }
   }
 
+  // Fallbacks if dropdown is unselected
+  if (lastSelectedBattleUrl) return lastSelectedBattleUrl;
   return '/battle/trainer';
 }
 
 if (battleOpponentBtn) {
   battleOpponentBtn.addEventListener('click', () => {
+    if (isUnlockChallengeActive || isCaptchaAlarmActive) return;
     const battleUrl = resolveTargetBattleUrl();
     const fullUrl = battleUrl.startsWith('http') ? battleUrl : `https://www.delugerpg.com${battleUrl}`;
 
@@ -6539,6 +6934,9 @@ if (teamTrainerSelect) {
 
 // --- TODAY'S AUTO-CATCH & MASTER BALL PERSISTENCE ---
 const DAILY_CATCH_STORAGE_KEY = 'deluge_daily_catch_log';
+let isBallInventorySynced = false;
+let activeAccountUsername = '';
+let pendingManualInventorySync = false;
 
 function getTodayDateKey() {
   const now = new Date();
@@ -6550,6 +6948,7 @@ function getTodayDateKey() {
 
 let dailyCatchData = {
   date: getTodayDateKey(),
+  username: '',
   caught: [],
   masterBallStock: null,
   masterBallUsedToday: 0,
@@ -6561,6 +6960,42 @@ let dailyCatchData = {
     rawSummary: ''
   }
 };
+
+function checkAndHandleAccountSwitch(detectedUsername) {
+  const cleanUser = (detectedUsername || '').trim();
+  if (!cleanUser) return false;
+  const prevUser = (activeAccountUsername || dailyCatchData.username || '').trim();
+  if (prevUser && prevUser.toLowerCase() !== cleanUser.toLowerCase()) {
+    backendLog('AccountSwitch', `Account switch detected (${prevUser} -> ${cleanUser}). Resetting cached ball stock and triggering mandatory inventory sync.`);
+    activeAccountUsername = cleanUser;
+    dailyCatchData.username = cleanUser;
+    dailyCatchData.masterBallStock = null;
+    dailyCatchData.bagInventory = {
+      pokeBall: null,
+      greatBall: null,
+      ultraBall: null,
+      masterBall: null,
+      rawSummary: ''
+    };
+    isBallInventorySynced = false;
+    outOfStockPaused = false;
+    saveDailyCatchLog();
+    updateCatchLogBadge();
+    renderCatchLogUI();
+    try {
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('request-ball-inventory');
+      }
+    } catch (_) {}
+    return true;
+  }
+  activeAccountUsername = cleanUser;
+  if (dailyCatchData.username !== cleanUser) {
+    dailyCatchData.username = cleanUser;
+    saveDailyCatchLog();
+  }
+  return false;
+}
 
 function ensureTodayCatchLog() {
   const todayKey = getTodayDateKey();
@@ -6589,6 +7024,10 @@ function loadDailyCatchLog() {
   }
 
   if (loaded && typeof loaded === 'object') {
+    dailyCatchData.username = typeof loaded.username === 'string' ? loaded.username : '';
+    if (dailyCatchData.username) {
+      activeAccountUsername = dailyCatchData.username;
+    }
     if (loaded.date === todayKey) {
       dailyCatchData.date = todayKey;
       dailyCatchData.caught = Array.isArray(loaded.caught) ? loaded.caught : [];
@@ -6639,6 +7078,7 @@ function updateCatchLogBadge() {
   }
   if (mbSummaryText) {
     mbSummaryText.textContent = `MB: ${dailyCatchData.masterBallStock !== null ? dailyCatchData.masterBallStock : '--'}`;
+    mbSummaryText.style.color = (dailyCatchData.masterBallStock === 0) ? '#ef4444' : '#d29922';
   }
   if (navCaughtCountBadge) {
     navCaughtCountBadge.textContent = `${count} Caught`;
@@ -6660,6 +7100,7 @@ function renderCatchLogUI() {
   }
   if (catchStatMbStock) {
     catchStatMbStock.textContent = dailyCatchData.masterBallStock !== null ? dailyCatchData.masterBallStock : '--';
+    catchStatMbStock.style.color = (dailyCatchData.masterBallStock === 0) ? '#ef4444' : '#d29922';
   }
   if (catchStatMbUsed) {
     catchStatMbUsed.textContent = dailyCatchData.masterBallUsedToday || 0;
@@ -6742,19 +7183,66 @@ function recordCaughtPokemon(pokemon, remainingStock) {
 
 function updateBallInventory(inv) {
   if (!inv || typeof inv !== 'object') return;
-  if (typeof inv.masterBall === 'number') {
-    dailyCatchData.masterBallStock = inv.masterBall;
+  if (inv.username) {
+    checkAndHandleAccountSwitch(inv.username);
   }
   if (!dailyCatchData.bagInventory) dailyCatchData.bagInventory = {};
+  const hasAnyBallNumber = typeof inv.masterBall === 'number' || typeof inv.ultraBall === 'number' || typeof inv.greatBall === 'number' || typeof inv.pokeBall === 'number';
+  if (typeof inv.masterBall === 'number') {
+    dailyCatchData.masterBallStock = inv.masterBall;
+    dailyCatchData.bagInventory.masterBall = inv.masterBall;
+    isBallInventorySynced = true;
+    if (inv.masterBall > 0 && outOfStockPaused) {
+      outOfStockPaused = false;
+    }
+  }
   if (typeof inv.pokeBall === 'number') dailyCatchData.bagInventory.pokeBall = inv.pokeBall;
   if (typeof inv.greatBall === 'number') dailyCatchData.bagInventory.greatBall = inv.greatBall;
   if (typeof inv.ultraBall === 'number') dailyCatchData.bagInventory.ultraBall = inv.ultraBall;
-  if (typeof inv.masterBall === 'number') dailyCatchData.bagInventory.masterBall = inv.masterBall;
-  if (inv.rawSummary) dailyCatchData.bagInventory.rawSummary = inv.rawSummary;
+
+  const summaryParts = [];
+  if (typeof dailyCatchData.bagInventory.pokeBall === 'number') summaryParts.push('Poke: ' + dailyCatchData.bagInventory.pokeBall);
+  if (typeof dailyCatchData.bagInventory.greatBall === 'number') summaryParts.push('Great: ' + dailyCatchData.bagInventory.greatBall);
+  if (typeof dailyCatchData.bagInventory.ultraBall === 'number') summaryParts.push('Ultra: ' + dailyCatchData.bagInventory.ultraBall);
+  if (typeof dailyCatchData.masterBallStock === 'number') summaryParts.push('Master: ' + dailyCatchData.masterBallStock);
+  if (summaryParts.length > 0) {
+    dailyCatchData.bagInventory.rawSummary = summaryParts.join(' | ');
+  } else if (inv.rawSummary) {
+    dailyCatchData.bagInventory.rawSummary = inv.rawSummary;
+  }
 
   saveDailyCatchLog();
   updateCatchLogBadge();
   renderCatchLogUI();
+
+  if (pendingManualInventorySync || inv.manualSync) {
+    pendingManualInventorySync = false;
+    const hasCachedBallNumber = typeof dailyCatchData.masterBallStock === 'number' ||
+      (dailyCatchData.bagInventory && (
+        typeof dailyCatchData.bagInventory.pokeBall === 'number' ||
+        typeof dailyCatchData.bagInventory.greatBall === 'number' ||
+        typeof dailyCatchData.bagInventory.ultraBall === 'number'
+      ));
+    if (hasAnyBallNumber || hasCachedBallNumber) {
+      const mbStr = (typeof dailyCatchData.masterBallStock === 'number') ? ` (MB: ${dailyCatchData.masterBallStock})` : '';
+      updateStatus(`Inventory synced${mbStr}`, '#238636');
+    } else {
+      updateStatus('Open PokeMart or Battle to view bag inventory', '#f59e0b');
+    }
+  }
+
+  // Mandatory safety gate: if Auto-Catch (Master Ball) is ON and synced stock is 0, immediately halt!
+  if (config.settings && config.settings.autoCatchMasterBall === true && dailyCatchData.masterBallStock === 0) {
+    outOfStockPaused = true;
+    if (isRunning) {
+      stopHuntingWithReason('Master Ball stock is 0 while Auto-Catch is enabled', 'Paused (0 Master Balls - Restock)', '#ef4444');
+      playAlarmSound();
+    } else if (autoStartRemainingSeconds > 0) {
+      cancelPendingAutoStart('Master Ball stock is 0 while Auto-Catch is enabled');
+      updateToggleButton();
+      updateStatus('Paused (0 Master Balls - Restock)', '#ef4444');
+    }
+  }
 }
 
 function openCatchLogPanel() {
@@ -6849,15 +7337,20 @@ if (clearCatchLogBtn) {
 }
 if (refreshCatchLogBtn) {
   refreshCatchLogBtn.addEventListener('click', () => {
+    pendingManualInventorySync = true;
     updateStatus('Syncing ball inventory...', '#388bfd');
     try {
       if (delugeView && typeof delugeView.send === 'function') {
-        delugeView.send('request-ball-inventory');
+        delugeView.send('request-ball-inventory', { manual: true });
       }
     } catch (_) {}
     setTimeout(() => {
-      updateStatus('Inventory synced', '#238636');
-    }, 500);
+      if (pendingManualInventorySync) {
+        pendingManualInventorySync = false;
+        const mbStr = (dailyCatchData && typeof dailyCatchData.masterBallStock === 'number') ? ` (MB: ${dailyCatchData.masterBallStock})` : '';
+        updateStatus(`Inventory synced${mbStr}`, '#238636');
+      }
+    }, 3500);
   });
 }
 
@@ -6946,6 +7439,9 @@ function updateLiveAiAssistantUI(battleData) {
     if (aiHudActionBtn && !activeEvolveCardData) aiHudActionBtn.style.display = 'none';
     activeAiBattleData = null;
     renderAiAssistantUI();
+    if (typeof updateTeamBuilderBattleAction === 'function') {
+      updateTeamBuilderBattleAction(null);
+    }
     return;
   }
   activeAiBattleData = battleData;
@@ -6976,11 +7472,161 @@ function updateLiveAiAssistantUI(battleData) {
   if (isAiPanelOpen) {
     renderAiAssistantUI();
   }
+
+  // Update Team Builder tactical battle button and floating HUD action button
+  if (typeof updateTeamBuilderBattleAction === 'function') {
+    updateTeamBuilderBattleAction(battleData);
+  }
+  if (aiHudActionBtn && !isAiPanelOpen) {
+    const mainBtnConfig = computeAiBattleActionConfig(battleData, currentCollection);
+    if (mainBtnConfig) {
+      aiHudActionBtn.style.display = 'inline-flex';
+      aiHudActionBtn.innerHTML = mainBtnConfig.hudText;
+      aiHudActionBtn.disabled = Boolean(mainBtnConfig.disabled);
+      aiHudActionBtn.onclick = mainBtnConfig.action;
+    } else {
+      aiHudActionBtn.style.display = 'none';
+    }
+  }
+}
+
+function handleEvolveMoveSelection(card) {
+  const pName = card.targetPokemon || card.fullName || 'Pokemon';
+  const availableMoves = Array.isArray(card.availableMoves) ? card.availableMoves : [];
+
+  const evalResult = (evolutionEngine && evolutionEngine.evaluateEvolutionMoveSelection)
+    ? evolutionEngine.evaluateEvolutionMoveSelection(pName, availableMoves.map(m => m.name), currentCollection)
+    : { recommendedMoves: [], dropMoves: [], slotOrder: [], types: [] };
+
+  card.recommendedMoves = evalResult.recommendedMoves;
+  card.dropMoves = evalResult.dropMoves;
+  card.slotOrder = evalResult.slotOrder;
+  if (evalResult.types && evalResult.types.length > 0) card.types = evalResult.types;
+
+  // 1. Update AI Assistant Header Badges
+  if (aiBattleOpponentBadge) {
+    aiBattleOpponentBadge.textContent = `Evolve Moves: ${escapeHtml(pName)}`;
+    aiBattleOpponentBadge.style.color = '#388bfd';
+  }
+  if (aiStatusChip) {
+    aiStatusChip.textContent = 'Move Advisor Active';
+    aiStatusChip.style.color = '#10b981';
+  }
+
+  // 2. Render Tactical Briefing Card
+  if (aiTacticalBriefing) {
+    let recListHtml = '';
+    evalResult.recommendedMoves.forEach((m, idx) => {
+      recListHtml += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-top: 1px solid #1a283e;">
+          <div style="font-size: 10px; font-weight: 600; color: #e0ecfa;">
+            <span style="color: #388bfd; font-weight: 700; margin-right: 4px;">[Slot ${idx + 1}]</span>
+            ${escapeHtml(m.name)}
+            <span style="font-size: 9px; color: #8eaad0; margin-left: 3px;">(${escapeHtml(m.type)}) [${m.power} Pwr]</span>
+          </div>
+          <div>
+            ${m.isStab ? '<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">STAB</span>' : ''}
+          </div>
+        </div>
+      `;
+    });
+
+    let dropListHtml = '';
+    if (evalResult.dropMoves && evalResult.dropMoves.length > 0) {
+      evalResult.dropMoves.forEach(m => {
+        dropListHtml += `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0; border-top: 1px dashed #1a283e; margin-top: 2px;">
+            <div style="font-size: 9.5px; color: #f87171;">
+              <span style="font-weight: 700; margin-right: 3px;">&#10006; Uncheck:</span>
+              ${escapeHtml(m.name)}
+              <span style="font-size: 8.5px; color: #8eaad0;">(${escapeHtml(m.type)} ${m.power} Pwr)</span>
+            </div>
+            <div style="font-size: 8.5px; color: #8eaad0;">${escapeHtml(m.reason || '')}</div>
+          </div>
+        `;
+      });
+    }
+
+    const typeStr = (card.types && card.types.length > 0) ? card.types.join('/') : 'Normal';
+
+    aiTacticalBriefing.innerHTML = `
+      <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(pName)}</span>
+          <span style="font-size: 9.5px; color: #8eaad0;">Lv ${card.level || 50} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span></span>
+        </div>
+        <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 3px;">RECOMMENDED 4 ATTACKS TO KEEP</div>
+        ${recListHtml}
+        ${dropListHtml ? `<div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-top: 5px; margin-bottom: 2px;">ATTACKS TO DROP / UNCHECK</div>${dropListHtml}` : ''}
+      </div>
+    `;
+  }
+
+  // 3. Render Instant Action Buttons
+  if (aiInstantActionSlot) {
+    aiInstantActionSlot.innerHTML = '';
+
+    const autoPickBtn = document.createElement('button');
+    autoPickBtn.type = 'button';
+    autoPickBtn.id = 'aiAutoSelectMovesBtn';
+    autoPickBtn.className = 'btn btn-accent';
+    autoPickBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
+    autoPickBtn.innerHTML = '&#9876; Auto-Select Recommended Moves';
+    autoPickBtn.addEventListener('click', () => {
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('apply-recommended-moves', {
+          recommendedMoves: evalResult.recommendedMoves.map(m => m.name),
+          dropMoves: evalResult.dropMoves.map(m => m.name),
+          slot1: evalResult.slotOrder[0]
+        });
+        updateStatus('Optimal moves applied to DelugeRPG form!', '#238636');
+      }
+    });
+    aiInstantActionSlot.appendChild(autoPickBtn);
+  }
+
+  // 4. Update Floating HUD
+  if (liveAiHudOverlay) {
+    const isAiPanelOpen = Boolean(aiAssistantModal && aiAssistantModal.style.display === 'flex');
+    if (!isAiPanelOpen) {
+      liveAiHudOverlay.style.display = 'flex';
+      if (aiHudMessage) {
+        aiHudMessage.textContent = `AI Moves: ${pName} -> Keep Top 4 STAB`;
+      }
+      if (aiHudActionBtn) {
+        aiHudActionBtn.style.display = 'inline-flex';
+        aiHudActionBtn.textContent = 'View Move Intel';
+        aiHudActionBtn.onclick = () => {
+          openAiAssistantPanel();
+        };
+      }
+    }
+  }
+
+  // 5. Post to AI Chat Stream only ONCE per unique evolve modal signature
+  const evolveSig = `${pName}:${(evalResult.recommendedMoves || []).map(m => m.name).join(',')}:${(evalResult.dropMoves || []).map(m => m.name).join(',')}`;
+  if (lastAnnouncedEvolveSignature !== evolveSig) {
+    lastAnnouncedEvolveSignature = evolveSig;
+    const topNames = evalResult.recommendedMoves.map(m => m.name).join(', ');
+    const dropNames = evalResult.dropMoves.map(m => m.name).join(', ');
+    const dropReason = evalResult.dropMoves.length > 0 ? ` (drop ${evalResult.dropMoves.map(m => `${m.name}: ${m.reason}`).join('; ')})` : '';
+    const msg = `Move Recommendation for ${pName}: Keep [${topNames}], and uncheck [${dropNames}]${dropReason}. Put ${evalResult.slotOrder[0] || 'primary attack'} in Slot 1.`;
+    appendAiChatMessage('AI', msg);
+  }
 }
 
 function handleEvolveCardDetected(card) {
-  if (!card || !card.fullName) return;
+  if (!card) return;
+  // If active battle is taking place, battle intel has 100% precedence
+  if (activeAiBattleData && (activeAiBattleData.isInActiveBattle || (Array.isArray(activeAiBattleData.roster) && activeAiBattleData.roster.length > 0))) {
+    return;
+  }
   activeEvolveCardData = card;
+
+  if (card.isMoveSelection) {
+    handleEvolveMoveSelection(card);
+    return;
+  }
 
   const rawName = card.fullName || '';
   const species = card.baseSpecies || (getBaseSpecies ? getBaseSpecies(rawName) : rawName);
@@ -7146,6 +7792,7 @@ function handleEvolveCardDetected(card) {
 
 function handleEvolveCardClosed() {
   activeEvolveCardData = null;
+  lastAnnouncedEvolveSignature = null;
   const isAiPanelOpen = Boolean(aiAssistantModal && aiAssistantModal.style.display === 'flex');
   if (isAiPanelOpen) {
     renderAiAssistantUI();
@@ -7153,6 +7800,192 @@ function handleEvolveCardClosed() {
     if (!activeAiBattleData && liveAiHudOverlay) {
       liveAiHudOverlay.style.display = 'none';
     }
+  }
+}
+
+function computeAiBattleActionConfig(battleData, collection) {
+  if (isUnlockChallengeActive || isCaptchaAlarmActive) {
+    return {
+      labelHtml: '&#9888; Captcha Active (Disabled)',
+      hudText: '&#9888; Captcha Active',
+      disabled: true,
+      btnClass: 'btn',
+      action: null
+    };
+  }
+  if (!battleData || !Array.isArray(battleData.roster) || battleData.roster.length === 0) {
+    return null;
+  }
+  const analysis = aiAssistant ? aiAssistant.analyzeBattle(battleData, collection) : null;
+  if (!analysis || analysis.status === 'IDLE') return null;
+
+  const isOpponentTeamAllFainted = Boolean(
+    Array.isArray(battleData.roster) &&
+    battleData.roster.length > 0 &&
+    battleData.roster.every(p => p.isFainted || (p.hp !== undefined && p.hp <= 0))
+  );
+
+  const hasActiveBattleControls = Boolean(
+    analysis.hasContinueBtn ||
+    analysis.hasAttackBtn ||
+    (analysis.availableMoves && analysis.availableMoves.length > 0) ||
+    analysis.hasBenchRadios
+  );
+
+  const isBattleComplete = Boolean(
+    battleData.isVictoryScreen ||
+    (isOpponentTeamAllFainted && !hasActiveBattleControls)
+  );
+
+  if (isBattleComplete) {
+    return {
+      labelHtml: '&#10003; Battle Complete',
+      hudText: '&#10003; Complete',
+      disabled: true,
+      btnClass: 'btn',
+      action: null
+    };
+  }
+
+  if (analysis.hasContinueBtn || analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0)) {
+    const isOppKO = Boolean(analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0));
+    const label = isOppKO ? 'Opponent KO - Continue' : 'Continue to Next Turn';
+    return {
+      labelHtml: `&#9889; ${label}`,
+      hudText: label,
+      disabled: false,
+      btnClass: 'btn btn-accent',
+      action: () => {
+        executeAiBattleAction('click-battle-button', {});
+      }
+    };
+  }
+
+  if (analysis.hasBenchRadios && !analysis.hasAttackBtn) {
+    const nextName = analysis.nextAliveCounter || (analysis.bestActiveLead ? analysis.bestActiveLead.name : 'Next Counter');
+    return {
+      labelHtml: `&#9889; Deploy ${escapeHtml(nextName)} &amp; Continue`,
+      hudText: `Deploy ${nextName}`,
+      disabled: false,
+      btnClass: 'btn btn-accent',
+      action: () => {
+        executeAiBattleAction('select-lead-and-start', { pokemonName: nextName, autoStart: true });
+      }
+    };
+  }
+
+  if (analysis.isInActiveBattle) {
+    const oppHp = (analysis.activeOpponentHp !== undefined) ? analysis.activeOpponentHp : 100;
+    const oppMaxHp = (analysis.activeOpponentMaxHp !== undefined) ? analysis.activeOpponentMaxHp : 100;
+    const isOpponentAlive = !analysis.isActiveOpponentFainted && oppHp > 0;
+    const isBattlerAlive = !analysis.isActiveBattlerFainted && ((analysis.activeBattlerHp !== undefined) ? analysis.activeBattlerHp > 0 : true);
+
+    if (isOpponentAlive && isBattlerAlive && (analysis.hasAttackBtn || (analysis.availableMoves && analysis.availableMoves.length > 0))) {
+      const moveObj = analysis.bestMoveObj;
+      const moveName = moveObj ? moveObj.name : (analysis.recommendedMove || 'Attack');
+      const mult = moveObj && moveObj.multiplier ? moveObj.multiplier : null;
+      const multText = (mult !== null && mult !== undefined) ? ` (${mult}x)` : '';
+      const isReattack = (oppHp < oppMaxHp && oppHp > 0);
+      const verb = isReattack ? 'Reattack' : 'Attack';
+
+      return {
+        labelHtml: `&#9889; ${verb} with ${escapeHtml(moveName)}${multText}`,
+        hudText: `${verb}: ${moveName}${multText}`,
+        disabled: false,
+        btnClass: 'btn btn-accent',
+        action: () => {
+          executeAiBattleAction('execute-battle-move', { moveName: moveName });
+        }
+      };
+    } else if (!isBattlerAlive) {
+      const nextName = analysis.nextAliveCounter || 'Next Counter';
+      return {
+        labelHtml: `&#9889; Deploy ${escapeHtml(nextName)} &amp; Continue`,
+        hudText: `Deploy ${nextName}`,
+        disabled: false,
+        btnClass: 'btn btn-accent',
+        action: () => {
+          executeAiBattleAction('select-lead-and-start', { pokemonName: nextName, autoStart: true });
+        }
+      };
+    } else {
+      const fallbackMove = analysis.recommendedMove || 'Attack';
+      return {
+        labelHtml: `&#9889; Attack with ${escapeHtml(fallbackMove)}`,
+        hudText: `Attack: ${fallbackMove}`,
+        disabled: false,
+        btnClass: 'btn btn-accent',
+        action: () => {
+          executeAiBattleAction('execute-battle-move', { moveName: fallbackMove });
+        }
+      };
+    }
+  }
+
+  if (analysis.isPreparationScreen) {
+    if (battleData.isChallengePreview) {
+      return {
+        labelHtml: '&#9876; Launch Challenge Battle',
+        hudText: 'Launch Battle',
+        disabled: false,
+        btnClass: 'btn btn-accent',
+        action: () => {
+          executeAiBattleAction('click-battle-button', {});
+        }
+      };
+    } else if (analysis.bestActiveLead) {
+      const hasFaintedOpponents = Boolean(Array.isArray(battleData.roster) && battleData.roster.some(p => p.isFainted || (p.hp !== undefined && p.hp <= 0)));
+      const deployActionLabel = hasFaintedOpponents ? 'Continue' : 'Start';
+      return {
+        labelHtml: `&#9889; Deploy ${escapeHtml(analysis.bestActiveLead.name)} &amp; ${deployActionLabel}`,
+        hudText: `Deploy &amp; ${deployActionLabel}`,
+        disabled: false,
+        btnClass: 'btn btn-accent',
+        action: () => {
+          executeAiBattleAction('select-lead-and-start', { pokemonName: analysis.bestActiveLead.name, autoStart: true });
+        }
+      };
+    }
+  }
+
+  return null;
+}
+
+function updateTeamBuilderBattleAction(battleData) {
+  if (!teamBattleActionSlot || !teamBattleActionBtn) return;
+  if (isUnlockChallengeActive || isCaptchaAlarmActive) {
+    teamBattleActionSlot.style.display = 'block';
+    teamBattleActionBtn.className = 'btn';
+    teamBattleActionBtn.disabled = true;
+    teamBattleActionBtn.innerHTML = '&#9888; Captcha Active (Disabled)';
+    teamBattleActionBtn.title = 'Disabled: Captcha challenge active. Acknowledge or solve captcha to resume.';
+    teamBattleActionBtn.onclick = null;
+    if (teamActionRow) teamActionRow.style.display = 'flex';
+    return;
+  }
+  const config = computeAiBattleActionConfig(battleData, currentCollection);
+  if (!config) {
+    teamBattleActionSlot.style.display = 'none';
+    teamBattleActionBtn.onclick = null;
+    return;
+  }
+  teamBattleActionSlot.style.display = 'block';
+  teamBattleActionBtn.className = config.btnClass || 'btn btn-accent';
+  teamBattleActionBtn.disabled = Boolean(config.disabled);
+  teamBattleActionBtn.innerHTML = config.labelHtml;
+  teamBattleActionBtn.title = 'Execute optimal battle move or action directly from Team Builder';
+  teamBattleActionBtn.onclick = () => {
+    if (typeof config.action === 'function') {
+      if (teamActionStatus) {
+        teamActionStatus.textContent = 'Applying...';
+        teamActionStatus.style.color = '#388bfd';
+      }
+      teamBattleActionBtn.disabled = true;
+      config.action();
+    }
+  };
+  if (teamActionRow) {
+    teamActionRow.style.display = 'flex';
   }
 }
 
@@ -7305,136 +8138,7 @@ function renderAiAssistantUI() {
       analysis.isChallengeLocked
     );
 
-    const isOpponentTeamAllFainted = Boolean(
-      Array.isArray(activeAiBattleData && activeAiBattleData.roster) &&
-      activeAiBattleData.roster.length > 0 &&
-      activeAiBattleData.roster.every(p => p.isFainted || (p.hp !== undefined && p.hp <= 0))
-    );
-
-    const hasActiveBattleControls = Boolean(
-      analysis.hasContinueBtn ||
-      analysis.hasAttackBtn ||
-      (analysis.availableMoves && analysis.availableMoves.length > 0) ||
-      analysis.hasBenchRadios
-    );
-
-    // Battle Complete mode requires victory screen OR (all fainted AND no more continue/attack controls on screen)
-    const isBattleComplete = Boolean(
-      activeAiBattleData && (
-        activeAiBattleData.isVictoryScreen ||
-        (isOpponentTeamAllFainted && !hasActiveBattleControls)
-      )
-    );
-
-    let mainBtnConfig = null;
-
-    if (isBattleComplete) {
-      mainBtnConfig = {
-        labelHtml: '&#10003; Battle Complete',
-        hudText: '&#10003; Complete',
-        disabled: true,
-        btnClass: 'btn',
-        action: null
-      };
-    } else if (analysis.hasContinueBtn || analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0)) {
-      // Priority 1 when in battle: Continue (once HP is 0 or Continue button present)
-      const isOppKO = Boolean(analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0));
-      const label = isOppKO ? 'Opponent KO - Continue' : 'Continue to Next Turn';
-      mainBtnConfig = {
-        labelHtml: `&#9889; ${label}`,
-        hudText: label,
-        disabled: false,
-        btnClass: 'btn btn-accent',
-        action: () => {
-          executeAiBattleAction('click-battle-button', {});
-        }
-      };
-    } else if (analysis.hasBenchRadios && !analysis.hasAttackBtn) {
-      // Priority 2: Select Pokemon (bench/switch selection screen)
-      const nextName = analysis.nextAliveCounter || (analysis.bestActiveLead ? analysis.bestActiveLead.name : 'Next Counter');
-      mainBtnConfig = {
-        labelHtml: `&#9889; Deploy ${escapeHtml(nextName)} &amp; Continue`,
-        hudText: `Deploy ${nextName}`,
-        disabled: false,
-        btnClass: 'btn btn-accent',
-        action: () => {
-          executeAiBattleAction('select-lead-and-start', { pokemonName: nextName, autoStart: true });
-        }
-      };
-    } else if (analysis.isInActiveBattle) {
-      const oppHp = (analysis.activeOpponentHp !== undefined) ? analysis.activeOpponentHp : 100;
-      const oppMaxHp = (analysis.activeOpponentMaxHp !== undefined) ? analysis.activeOpponentMaxHp : 100;
-      const isOpponentAlive = !analysis.isActiveOpponentFainted && oppHp > 0;
-      const isBattlerAlive = !analysis.isActiveBattlerFainted && ((analysis.activeBattlerHp !== undefined) ? analysis.activeBattlerHp > 0 : true);
-
-      if (isOpponentAlive && isBattlerAlive && (analysis.hasAttackBtn || (analysis.availableMoves && analysis.availableMoves.length > 0))) {
-        // STEP 2: Select Move & Attack (until HP is 0)
-        const moveObj = analysis.bestMoveObj;
-        const moveName = moveObj ? moveObj.name : (analysis.recommendedMove || 'Attack');
-        const mult = moveObj && moveObj.multiplier ? moveObj.multiplier : null;
-        const multText = (mult !== null && mult !== undefined) ? ` (${mult}x)` : '';
-        const isReattack = (oppHp < oppMaxHp && oppHp > 0);
-        const verb = isReattack ? 'Reattack' : 'Attack';
-
-        mainBtnConfig = {
-          labelHtml: `&#9889; ${verb} with ${escapeHtml(moveName)}${multText}`,
-          hudText: `${verb}: ${moveName}${multText}`,
-          disabled: false,
-          btnClass: 'btn btn-accent',
-          action: () => {
-            executeAiBattleAction('execute-battle-move', { moveName: moveName });
-          }
-        };
-      } else if (!isBattlerAlive) {
-        // Active battler fainted - switch/deploy next counter
-        const nextName = analysis.nextAliveCounter || 'Next Counter';
-        mainBtnConfig = {
-          labelHtml: `&#9889; Deploy ${escapeHtml(nextName)} &amp; Continue`,
-          hudText: `Deploy ${nextName}`,
-          disabled: false,
-          btnClass: 'btn btn-accent',
-          action: () => {
-            executeAiBattleAction('select-lead-and-start', { pokemonName: nextName, autoStart: true });
-          }
-        };
-      } else {
-        // Fallback: If in active battle with alive opponent, default to Attack
-        const fallbackMove = analysis.recommendedMove || 'Attack';
-        mainBtnConfig = {
-          labelHtml: `&#9889; Attack with ${escapeHtml(fallbackMove)}`,
-          hudText: `Attack: ${fallbackMove}`,
-          disabled: false,
-          btnClass: 'btn btn-accent',
-          action: () => {
-            executeAiBattleAction('execute-battle-move', { moveName: fallbackMove });
-          }
-        };
-      }
-    } else if (analysis.isPreparationScreen) {
-      if (activeAiBattleData && activeAiBattleData.isChallengePreview) {
-        mainBtnConfig = {
-          labelHtml: '&#9876; Launch Challenge Battle',
-          hudText: 'Launch Battle',
-          disabled: false,
-          btnClass: 'btn btn-accent',
-          action: () => {
-            executeAiBattleAction('click-battle-button', {});
-          }
-        };
-      } else if (analysis.bestActiveLead) {
-        const hasFaintedOpponents = Boolean(activeAiBattleData && Array.isArray(activeAiBattleData.roster) && activeAiBattleData.roster.some(p => p.isFainted || (p.hp !== undefined && p.hp <= 0)));
-        const deployActionLabel = hasFaintedOpponents ? 'Continue' : 'Start';
-        mainBtnConfig = {
-          labelHtml: `&#9889; Deploy ${escapeHtml(analysis.bestActiveLead.name)} &amp; ${deployActionLabel}`,
-          hudText: `Deploy &amp; ${deployActionLabel}`,
-          disabled: false,
-          btnClass: 'btn btn-accent',
-          action: () => {
-            executeAiBattleAction('select-lead-and-start', { pokemonName: analysis.bestActiveLead.name, autoStart: true });
-          }
-        };
-      }
-    }
+    const mainBtnConfig = computeAiBattleActionConfig(activeAiBattleData, currentCollection);
 
     if (mainBtnConfig) {
       const deployBtn = document.createElement('button');
@@ -7482,12 +8186,45 @@ function renderAiAssistantUI() {
   }
 }
 
+let aiActionTimeoutTimer = null;
 function executeAiBattleAction(action, payload) {
+  if (isUnlockChallengeActive || isCaptchaAlarmActive) {
+    backendLog('SecurityChallenge', `Blocked battle action "${action}": Captcha active and unacknowledged.`);
+    if (teamActionStatus) {
+      teamActionStatus.textContent = 'Action Blocked: Captcha Active';
+      teamActionStatus.style.color = '#ef4444';
+    }
+    if (aiStatusChip) {
+      aiStatusChip.textContent = 'Captcha Active';
+      aiStatusChip.style.color = '#ef4444';
+    }
+    return;
+  }
   if (!delugeView) return;
   if (aiStatusChip) {
     aiStatusChip.textContent = 'Applying...';
     aiStatusChip.style.color = '#388bfd';
   }
+  if (teamActionStatus) {
+    teamActionStatus.textContent = 'Applying...';
+    teamActionStatus.style.color = '#388bfd';
+  }
+  if (teamBattleActionBtn) {
+    teamBattleActionBtn.disabled = true;
+  }
+  if (aiActionTimeoutTimer) clearTimeout(aiActionTimeoutTimer);
+  aiActionTimeoutTimer = setTimeout(() => {
+    if (aiStatusChip && aiStatusChip.textContent === 'Applying...') {
+      aiStatusChip.textContent = 'Ready';
+      aiStatusChip.style.color = '#8eaad0';
+    }
+    if (teamActionStatus && teamActionStatus.textContent === 'Applying...') {
+      teamActionStatus.textContent = '';
+    }
+    if (teamBattleActionBtn) {
+      teamBattleActionBtn.disabled = false;
+    }
+  }, 4000);
   delugeView.send('apply-ai-battle-action', Object.assign({ action: action }, payload || {}));
 }
 
@@ -7942,6 +8679,19 @@ function silenceCaptchaAlarm() {
   isUnlockChallengeActive = false;
   updateStatus('Ready (Captcha Alarm Silenced)', '#10b981');
   backendLog('SecurityChallenge', 'Captcha alarm acknowledged and silenced by user.');
+
+  // Re-enable all desktop client action functions and buttons upon user acknowledgment
+  if (battleOpponentBtn) battleOpponentBtn.disabled = false;
+  if (applyTeamBtn) applyTeamBtn.disabled = false;
+  if (buildTeamBtn) buildTeamBtn.disabled = false;
+  if (pvpScoutBtn) pvpScoutBtn.disabled = false;
+  if (checkLiveBattleBtn) checkLiveBattleBtn.disabled = false;
+  if (teamActionStatus && teamActionStatus.textContent.includes('Captcha')) {
+    teamActionStatus.textContent = '';
+  }
+
+  updateTeamBuilderBattleAction(activeAiBattleData);
+  renderAiAssistantUI();
 }
 
 function handleCaptchaEmergencyHalt(reason = 'Captcha challenge detected') {
@@ -7980,6 +8730,26 @@ function handleCaptchaEmergencyHalt(reason = 'Captcha challenge detected') {
       });
     } catch (_) {}
   }
+
+  // Strictly disable all desktop client action functions and buttons until captcha is acknowledged
+  if (teamBattleActionBtn) {
+    teamBattleActionBtn.disabled = true;
+    teamBattleActionBtn.innerHTML = '&#9888; Captcha Active (Disabled)';
+    teamBattleActionBtn.title = 'Disabled: Captcha challenge active. Acknowledge or solve captcha to resume.';
+  }
+  if (battleOpponentBtn) battleOpponentBtn.disabled = true;
+  if (applyTeamBtn) applyTeamBtn.disabled = true;
+  if (buildTeamBtn) buildTeamBtn.disabled = true;
+  if (pvpScoutBtn) pvpScoutBtn.disabled = true;
+  if (checkLiveBattleBtn) checkLiveBattleBtn.disabled = true;
+  if (aiHudActionBtn) aiHudActionBtn.disabled = true;
+  if (teamActionStatus) {
+    teamActionStatus.textContent = 'Actions Disabled: Captcha Active';
+    teamActionStatus.style.color = '#ef4444';
+  }
+
+  updateTeamBuilderBattleAction(activeAiBattleData);
+  renderAiAssistantUI();
 
   if (!config.safety || config.safety.antiBotEmergencyHalt !== false) {
     startContinuousCaptchaAlarm();
@@ -8263,3 +9033,12 @@ loadDailyCatchLog();
 
 // Open Team Builder docked side panel by default
 openTeamBuilderPanel();
+
+// Action Feedback IPC from main process network layer
+ipcRenderer.on('action-feedback-event', (event, data) => {
+  if (data && !isRestBreakActive) {
+    if (data.url && (data.url.includes('/cdn-cgi/') || data.url.includes('/ajax/map/positions/'))) return;
+    const statusStr = data.success ? (data.status + ' OK') : (data.error || 'Failed');
+    updateActionFeedback((data.url || '').slice(0, 14) + ' -> ' + statusStr + ' (' + data.elapsedMs + 'ms)', data.success ? 'success' : 'error');
+  }
+});

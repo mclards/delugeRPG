@@ -1140,8 +1140,11 @@ runTest('DelugeRPG Site Header & Navbar Strict Immunity Guard Audit', () => {
   assert(preloadJs.includes('function healDelugeHeader()'), 'healDelugeHeader must exist');
   assert(preloadJs.includes("pid === 'del_header'"), 'smoothCollapseAd must guard del_header from collapse');
   assert(preloadJs.includes("pid === 'navwrap'"), 'smoothCollapseAd must guard navwrap from collapse');
+  assert(preloadJs.includes("el.closest('#del_header, #navwrap, nav, header')"), 'smoothCollapseAd must guard header elements from parent traversal');
   assert(preloadJs.includes("'#del_header {'"), 'COSMETIC_AD_CSS must contain explicit #del_header immunity rule');
+  assert(preloadJs.includes('padding-top: 10px !important'), 'COSMETIC_AD_CSS must contain header top gap padding');
   assert(preloadJs.includes("'#navwrap {'"), 'COSMETIC_AD_CSS must contain explicit #navwrap immunity rule');
+  assert(preloadJs.includes("'#del_header #navwrap *,'"), 'COSMETIC_AD_CSS must contain explicit nav elements visibility immunity rule');
   assert(preloadJs.includes("'#menuad {'"), 'COSMETIC_AD_CSS must cleanly collapse #menuad slot');
   assert(preloadJs.includes('preventScroll: true'), 'dispatchHumanClick must prevent viewport scroll on focus');
 });

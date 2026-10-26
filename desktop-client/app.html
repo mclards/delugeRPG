@@ -111,11 +111,19 @@
       justify-content: flex-start;
     }
     .nav-center {
-      flex: 1 1 auto;
-      min-width: 80px;
-      max-width: 340px;
+      flex: 0 0 180px;
+      width: 180px;
+      min-width: 180px;
+      max-width: 180px;
       justify-content: center;
       padding: 0 4px;
+      box-sizing: border-box;
+    }
+    .status-chip-container {
+      position: relative;
+      width: 180px;
+      height: 26px;
+      flex-shrink: 0;
     }
     .nav-right {
       gap: 5px;
@@ -503,15 +511,58 @@
     }
 
     /* Telemetry & Status Badges */
+    .action-feedback-chip {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 26px;
+      padding: 0 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      background: #070e1a;
+      border: 1px solid #1a283e;
+      color: #8eaad0;
+      box-shadow: none !important;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      width: 180px;
+      min-width: 180px;
+      max-width: 180px;
+      box-sizing: border-box;
+      visibility: hidden;
+      z-index: 2;
+    }
+    .feedback-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #388bfd;
+      flex-shrink: 0;
+      box-shadow: none !important;
+    }
+    .feedback-text {
+      color: #e0ecfa;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .status-chip {
+      position: absolute;
+      top: 0;
+      left: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       height: 26px;
-      width: 100%;
-      min-width: 80px;
-      max-width: 340px;
+      width: 180px;
+      min-width: 180px;
+      max-width: 180px;
       padding: 0 10px;
       border-radius: 4px;
       font-size: 11px;
@@ -520,8 +571,7 @@
       border: 1px solid #1a283e;
       box-shadow: none !important;
       box-sizing: border-box;
-      flex-shrink: 1;
-      overflow: hidden;
+      z-index: 1;
     }
     .status-dot {
       width: 7px;
@@ -551,8 +601,45 @@
       font-weight: 600;
       display: inline-flex;
       align-items: center;
+      gap: 4px;
       letter-spacing: 0.3px;
       box-shadow: none !important;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .action-cluster,
+    .btn-toggle-main,
+    .nav-menu-wrapper,
+    #dailyCaughtBtn,
+    .zoom-cluster {
+      flex-shrink: 0 !important;
+    }
+
+    /* Responsive Toolbar Breakpoints - Guarantee All Critical Action Buttons Remain Visible */
+    @media (max-width: 1360px) {
+      .telemetry-autostop {
+        display: none !important;
+      }
+    }
+    @media (max-width: 1240px) {
+      .telemetry-nextbreak {
+        display: none !important;
+      }
+    }
+    @media (max-width: 1100px) {
+      .telemetry-steps {
+        display: none !important;
+      }
+      .brand-cluster .app-sub {
+        display: none !important;
+      }
+    }
+    @media (max-width: 980px) {
+      .daily-caught-badge .caught-badge-sep,
+      .daily-caught-badge .caught-label-text {
+        display: none !important;
+      }
     }
 
     /* Zoom Controls Cluster */
@@ -1070,6 +1157,7 @@
       position: relative;
       background: #040a14;
       overflow: hidden;
+      contain: layout size;
     }
     #delugeView {
       flex: 3;
@@ -1080,6 +1168,7 @@
       user-select: auto !important;
       -webkit-user-select: auto !important;
       outline: none;
+      contain: strict;
     }
     #delugeView.full-width {
       flex: 1;
@@ -1799,9 +1888,15 @@
 
     <!-- Center Section: Static Live Status Display (Fixed Width - Never Jitters or Pushes) -->
     <div class="nav-section nav-center">
-      <div class="status-chip" id="statusChip" title="Bot Status">
-        <span class="status-dot" id="statusDot"></span>
-        <span class="status-text" id="statusText">Ready</span>
+      <div class="status-chip-container">
+        <div class="status-chip" id="statusChip" title="Bot Status">
+          <span class="status-dot" id="statusDot"></span>
+          <span class="status-text" id="statusText">Ready</span>
+        </div>
+        <div id="actionFeedbackBadge" class="action-feedback-chip" style="visibility: hidden;" title="Action Dispatch and Server Feedback Telemetry">
+          <span id="actionFeedbackDot" class="feedback-dot"></span>
+          <span id="actionFeedbackText" class="feedback-text">Ready</span>
+        </div>
       </div>
     </div>
 
@@ -1810,16 +1905,16 @@
       <!-- Legacy Step Counter (Hidden to avoid redundancy with live Steps Today ceiling badge) -->
       <div class="counter" id="stepCounter" style="display: none;" title="Total steps walked in current session">Steps: 0</div>
 
-      <!-- Main Page Live Safety Telemetry Badges -->
-      <div class="counter" title="Session Auto-Stop Limit" style="display: inline-flex; align-items: center; gap: 4px;">
+      <!-- Main Page Live Safety Telemetry Badges (Responsive hide on narrower windows) -->
+      <div class="counter telemetry-autostop" title="Session Auto-Stop Limit">
         <span style="color: #566e96; font-size: 9.5px; font-weight: 700;">AUTO-STOP:</span>
         <span id="safetyStatAutoStop" style="color: #8eaad0; font-weight: 700;">--</span>
       </div>
-      <div class="counter" title="Next Forced Rest Break" style="display: inline-flex; align-items: center; gap: 4px;">
+      <div class="counter telemetry-nextbreak" title="Next Forced Rest Break">
         <span style="color: #566e96; font-size: 9.5px; font-weight: 700;">NEXT BREAK:</span>
         <span id="safetyStatNextBreak" style="color: #388bfd; font-weight: 700;">--</span>
       </div>
-      <div class="counter" title="Steps Today / Safe Daily Ceiling" style="display: inline-flex; align-items: center; gap: 4px;">
+      <div class="counter telemetry-steps" title="Steps Today / Safe Daily Ceiling">
         <span style="color: #566e96; font-size: 9.5px; font-weight: 700;">STEPS:</span>
         <span id="safetyStatTodaySteps" style="color: #e0ecfa; font-weight: 700;">0 / --</span>
       </div>
@@ -1828,7 +1923,7 @@
       <button id="dailyCaughtBtn" class="daily-caught-badge" title="Today's Auto-Catch Log &amp; Master Ball Stock (Click to view details)">
         <span class="caught-badge-icon" style="display: inline-flex; align-items: center;"><span class="icon-pokeball-sm" style="width: 12px; height: 12px;"></span></span>
         <span id="caughtSummaryText" style="display: none;">Today: 0</span>
-        <span style="color: #566e96; font-size: 9.5px; font-weight: 700;">CATCHES:</span>
+        <span class="caught-label-text" style="color: #566e96; font-size: 9.5px; font-weight: 700;">CATCHES:</span>
         <span id="safetyStatTodayCatches" style="color: #e0ecfa; font-weight: 700;">0 / --</span>
         <span class="caught-badge-sep">&#183;</span>
         <span class="mb-badge-icon">&#11088;</span>
@@ -2135,7 +2230,7 @@
               <div class="dropdown-divider"></div>
               <div id="navVersionFooter" class="nav-version-footer">
                 <span class="nav-version-label">DelugeRPG Client</span>
-                <span id="navVersionBadge" class="nav-version-badge">v1.3.7</span>
+                <span id="navVersionBadge" class="nav-version-badge">v1.3.8</span>
               </div>
             </div>
           </div>
@@ -2492,7 +2587,6 @@
   <div id="gameContainer">
     <webview
       id="delugeView"
-      tabindex="0"
       src="https://www.delugerpg.com/map"
       partition="persist:delugerpg"
       preload="./game-preload.js"
@@ -2501,7 +2595,7 @@
     </webview>
 
     <!-- Floating Live Battle AI HUD Overlay (Zero Glow, Non-Intrusive) -->
-    <div id="liveAiHudOverlay" style="display: none; position: absolute; top: 12px; right: 14px; z-index: 50; background: rgba(11, 20, 36, 0.94); border: 1px solid #243856; border-radius: 6px; padding: 6px 10px; align-items: center; gap: 8px; backdrop-filter: blur(4px); box-shadow: none !important;">
+    <div id="liveAiHudOverlay" style="display: none; position: absolute; top: 12px; right: 14px; z-index: 50; background: #0b1424; border: 1px solid #243856; border-radius: 6px; padding: 6px 10px; align-items: center; gap: 8px; box-shadow: none !important;">
       <span style="font-size: 14px;">&#129302;</span>
       <div style="display: flex; flex-direction: column; line-height: 1.2;">
         <div style="font-size: 9.5px; font-weight: 700; color: #388bfd; text-transform: uppercase; letter-spacing: 0.5px;">AI Tactical HUD</div>
@@ -2604,15 +2698,15 @@
           </select>
         </div>
 
-        <!-- Team Builder Mode (All Levels vs Training < 100) -->
+        <!-- Team Builder Mode (Maxed Team vs Training) -->
         <div>
           <span id="trainingStatsBadge" style="display: none;"></span>
           <div class="tab-container tab-container-2">
             <input type="radio" name="teamPoolModeTab" id="poolModeAllTab" class="tab tab--1" checked />
-            <label class="tab_label" for="poolModeAllTab" id="poolModeAllBtn" title="Use all Pokemon in your collection (including Level 100)">All Levels</label>
+            <label class="tab_label" for="poolModeAllTab" id="poolModeAllBtn" title="Maxed or Strongest Possible Team (uses Level 100 powerhouses to guarantee maximum counter strength)">Maxed Team</label>
 
             <input type="radio" name="teamPoolModeTab" id="poolModeTrainingTab" class="tab tab--2" />
-            <label class="tab_label" for="poolModeTrainingTab" id="poolModeTrainingBtn" title="Use non-level 100 Pokemon only so you can train and max them out">Training</label>
+            <label class="tab_label" for="poolModeTrainingTab" id="poolModeTrainingBtn" title="Training Team (1 Carry Anchor + Trainees to level up and gain EXP)">Training</label>
 
             <div class="indicator"></div>
           </div>
@@ -2697,6 +2791,9 @@
       <!-- Action Bar -->
       <div id="teamActionRow" style="display: none; flex-direction: column; gap: 5px; border-top: 1px solid #1a283e; padding-top: 8px; margin-top: auto; flex-shrink: 0;">
         <span id="teamActionStatus" style="font-size: 10.5px; color: #8eaad0; font-weight: 600; text-align: center;"></span>
+        <div id="teamBattleActionSlot" style="display: none; width: 100%;">
+          <button id="teamBattleActionBtn" type="button" class="btn btn-accent" style="width: 100%; height: 28px; font-size: 11px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important; margin-bottom: 2px;" title="Execute optimal battle move or action directly from Team Builder">&#9889; Attack</button>
+        </div>
         <div style="display: flex; gap: 6px;">
           <button id="copyTeamBtn" type="button" class="btn" style="flex: 1; height: 27px; font-size: 10.5px; box-shadow: none !important;" title="Copy lineup summary to clipboard">Copy</button>
           <button id="applyTeamBtn" type="button" class="btn btn-green" style="flex: 1.2; height: 27px; font-size: 10.5px; font-weight: 700; box-shadow: none !important;" title="Equip this lineup in DelugeRPG">Change Team</button>

@@ -365,7 +365,7 @@ assert(appJs.includes("dirMap['Up'] =") || appJs.includes("'Up': ['#dr-n'"), 'ga
 assert(appJs.includes("'Up-Right': ['#dr-ne'"), 'game-preload.js must map diagonal nav buttons (#dr-ne, etc.)');
 assert(appJs.includes("ipcRenderer.on('click-nav-button'"), 'game-preload.js must listen for click-nav-button');
 assert(hostJs.includes('data.allBlocked'), 'app.js must sync allBlocked nav button states from preload');
-assert(hostJs.includes('const remainder = stepCount % stepsPerDir;'), 'app.js must synchronize stepCount phase to prevent wall ramming');
+assert(hostJs.includes('const remainder = patternStepCount % stepsPerDir;') || hostJs.includes('const remainder = stepCount % stepsPerDir;'), 'app.js must synchronize stepCount phase to prevent wall ramming');
 assert(hostJs.includes('detectPingPongLoop'), 'app.js must define detectPingPongLoop to break tight hallway traps');
 assert(hostJs.includes('deadEndCooldowns'), 'app.js must track deadEndCooldowns to avoid re-entering dead ends');
 assert(hostJs.includes('ALL_DIRECTIONS_8'), 'app.js must define 8-direction geometry');

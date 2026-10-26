@@ -522,7 +522,7 @@ class DelugeAiAssistant {
     const activeEvolve = context.activeEvolveCard || null;
 
     // 1. Evolution Path Inquiry
-    if (q.includes('evolv') || q.includes('branch') || (q.includes('path') && (q.includes('best') || q.includes('pokemon')))) {
+    if (q.includes('evolv') || q.includes('evolut') || q.includes('branch') || (q.includes('path') && (q.includes('best') || q.includes('pokemon')))) {
       let target = extractSpeciesFromQuery(q);
       if (!target && activeEvolve && activeEvolve.fullName) {
         target = activeEvolve.fullName;
@@ -536,8 +536,16 @@ class DelugeAiAssistant {
       return evolutionEngine.formatEvolutionCard(analysis);
     }
 
+    // 1B. Active Move Selection / Evolve Dialog Immediate Advice
+    if (activeEvolve && activeEvolve.isMoveSelection && (q.includes('pick') || q.includes('choose') || q.includes('move') || q.includes('attack') || q.includes('keep') || q.includes('drop') || q.includes('uncheck') || q.includes('slot') || q.includes('which') || q.includes('what'))) {
+      const topStr = Array.isArray(activeEvolve.recommendedMoves) ? activeEvolve.recommendedMoves.map(m => m.name).join(', ') : 'Top 4 Attacks';
+      const dropStr = Array.isArray(activeEvolve.dropMoves) && activeEvolve.dropMoves.length > 0 ? activeEvolve.dropMoves.map(m => `${m.name} (${m.reason || 'weaker'})`).join(', ') : 'None';
+      const slot1Str = activeEvolve.slotOrder && activeEvolve.slotOrder[0] ? activeEvolve.slotOrder[0] : (activeEvolve.recommendedMoves && activeEvolve.recommendedMoves[0] ? activeEvolve.recommendedMoves[0].name : 'Primary Attack');
+      return `For ${activeEvolve.targetPokemon || activeEvolve.fullName}: Keep ${topStr}. Uncheck / drop: ${dropStr}. Put ${slot1Str} in Slot 1!`;
+    }
+
     // 2. Attack Moves & Moveset Selection Inquiry (General Pokemon Moveset Overview)
-    const isMovesetOverviewInquiry = q.includes('moveset') || (q.includes('attack move') && !q.includes('use')) || (q.includes('moves') && q.includes('for')) || (q.includes('best move') && q.includes('for'));
+    const isMovesetOverviewInquiry = q.includes('moveset') || (q.includes('attack move') && !q.includes('use')) || (q.includes('moves') && (q.includes('for') || q.includes('best'))) || (q.includes('best move') && q.includes('for'));
     if (isMovesetOverviewInquiry && !(battle && battle.isInActiveBattle)) {
       let target = extractSpeciesFromQuery(q);
       let currentMoves = [];
@@ -605,7 +613,7 @@ class DelugeAiAssistant {
       q.includes('deploy') ||
       q.includes('send out') ||
       (q.includes('best') && (q.includes('pokemon') || q.includes('team') || q.includes('lead') || q.includes('counter')))
-    ) && !q.includes('why') && !q.includes('move') && !q.includes('evolve');
+    ) && !q.includes('why') && !q.includes('move') && !q.includes('evolve') && !q.includes('evolut');
 
     if (isPickQuery) {
       if (battle) {

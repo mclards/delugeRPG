@@ -723,7 +723,9 @@ console.log('[PASS] Hide Ads ON dependency strictly enforced.');
   const mockCollection = [
     { name: 'Mega Charizard X', level: 100 },
     { name: 'Dark Mega Steelix', level: 100 },
-    { name: 'Shiny Rayquaza', level: 100 }
+    { name: 'Shiny Rayquaza', level: 100 },
+    { name: 'Dark Eternatus', variant: 'Dark', level: 62 },
+    { name: 'Scraggy', variant: 'Normal', level: 20 }
   ];
 
   // Case 1: Wild base Charizard encountered when user owns Mega Charizard X
@@ -756,6 +758,55 @@ console.log('[PASS] Hide Ads ON dependency strictly enforced.');
   // Case 6: Category-prefixed and level-suffixed target names in evaluateOwnershipAndMegaEquivalence
   const prefixedCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('SHINY Legendary: RAYQUAZA (Lv 85)', mockCollection);
   assert.strictEqual(prefixedCheck.isDuplicate, true, 'Prefixed SHINY Legendary: RAYQUAZA (Lv 85) must be recognized as owned');
+
+  // Case 7: Wild Normal Eternatus when user owns Dark Eternatus (different variant is NOT duplicate)
+  const eternatusCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Eternatus Appeared!', mockCollection);
+  assert.strictEqual(eternatusCheck.isDuplicate, false, 'Normal Eternatus must NOT be flagged as duplicate when user only owns Dark Eternatus');
+  assert.strictEqual(eternatusCheck.hasExactOwned, false, 'hasExactOwned must be false for Normal Eternatus when only Dark is owned');
+
+  // Case 8: Wild Metallic Scraggy when user owns Normal Scraggy (different variant is NOT duplicate)
+  const scraggyCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Metallic Scraggy Appeared!', mockCollection);
+  assert.strictEqual(scraggyCheck.isDuplicate, false, 'Metallic Scraggy must NOT be flagged as duplicate when user only owns Normal Scraggy');
+  assert.strictEqual(scraggyCheck.hasExactOwned, false, 'hasExactOwned must be false for Metallic Scraggy when only Normal is owned');
+
+  // Case 9: Dark-type species and Dark variant distinction
+  const extendedMockCol = [
+    ...mockCollection,
+    { name: 'Dark Darkrai', variant: 'Dark', level: 100 },
+    { name: 'Calyrex (Shadow Rider)', variant: 'Normal', level: 90 },
+    { name: 'Moltres', variant: 'Normal', level: 70 },
+    { name: 'Mr. Mime', variant: 'Normal', level: 30 },
+    { name: 'Zygarde (50%)', variant: 'Normal', level: 50 }
+  ];
+
+  // Wild Normal Darkrai vs Dark Darkrai in collection
+  const darkraiCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Darkrai Appeared!\nLevel: 70', extendedMockCol);
+  assert.strictEqual(darkraiCheck.isDuplicate, false, 'Normal Darkrai must not be treated as duplicate of Dark Darkrai');
+
+  // Wild Dark Darkrai vs Dark Darkrai in collection
+  const darkDarkraiCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Dark Darkrai Appeared!\nLevel: 70', extendedMockCol);
+  assert.strictEqual(darkDarkraiCheck.isDuplicate, true, 'Dark Darkrai must be recognized as duplicate of owned Dark Darkrai');
+
+  // Calyrex forms
+  const iceRiderCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Calyrex (Ice Rider) Appeared!', extendedMockCol);
+  assert.strictEqual(iceRiderCheck.isDuplicate, false, 'Calyrex (Ice Rider) must not match Calyrex (Shadow Rider) as duplicate');
+
+  // Galarian Moltres vs Normal Moltres
+  const gMoltresCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Galarian Moltres Appeared!', extendedMockCol);
+  assert.strictEqual(gMoltresCheck.isDuplicate, false, 'Galarian Moltres must not match Normal Moltres as duplicate');
+
+  // Punctuation species with variants
+  const shinyMimeCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Shiny Mr. Mime Appeared!', extendedMockCol);
+  assert.strictEqual(shinyMimeCheck.isDuplicate, false, 'Shiny Mr. Mime must not match Normal Mr. Mime as duplicate');
+
+  const shinyZygardeCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Shiny Zygarde (50%) Appeared!', extendedMockCol);
+  assert.strictEqual(shinyZygardeCheck.isDuplicate, false, 'Shiny Zygarde (50%) must not match Normal Zygarde (50%) as duplicate');
+
+  // Case 10: Multi-line encounter text with elemental type badges
+  const scraggyMultiLine = 'Scraggy Appeared!\nLevel: 13 | HP: 36/36\nDARK FIGHTING\nTry to Catch It';
+  const scraggyMultiCheck = teamEngine.evaluateOwnershipAndMegaEquivalence(scraggyMultiLine, extendedMockCol);
+  assert.strictEqual(scraggyMultiCheck.isDuplicate, true, 'Normal Scraggy with DARK FIGHTING type badges must match owned Normal Scraggy');
+  assert.strictEqual(scraggyMultiCheck.type, 'EXACT_ALREADY_OWNED', 'Type must be EXACT_ALREADY_OWNED');
   console.log('[PASS] 100% Uniqueness & Mega Evolution equivalence checks verified across wild encounters and evolution paths.');
 }
 
@@ -785,6 +836,7 @@ const clientFiles = [
   'main.js',
   'app.js',
   'game-preload.js',
+  'team_engine.js',
   'targets.js',
   'config.json',
   'package.json',

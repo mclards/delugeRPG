@@ -1148,7 +1148,7 @@ function escapePreloadHtml(str) {
 function getPreloadBaseSpecies(name) {
     if (!name) return '';
     return String(name)
-        .replace(/^(Dark|Shiny|Shadow|Ghostly|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
+        .replace(/^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
         .replace(/^(Mega|Primal|G-Max|Gigantamax)\s+/i, '')
         .replace(/^(Alolan|Galarian|Hisuian|Paldean)\s+/i, '')
         .replace(/\s*\([^)]*\)/g, '')
@@ -1228,7 +1228,7 @@ try {
     ipcRenderer.sendToHost('request-user-collection');
 } catch (_) {}
 
-function evaluateOwnershipAndMegaEquivalence(nameOrText) {
+function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
     if (!nameOrText || ownedUserCollection.length === 0) {
         return {
             isDuplicate: false,
@@ -1247,18 +1247,38 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText) {
     candidate = candidate.replace(/\s*\(Lv\s*\d+[^)]*\)\s*/gi, ' ');
     candidate = candidate.replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '');
     candidate = candidate.replace(/^(?:ULTRABEAST|ULTRA BEASTS?|PARADOX POKEMON|PARADOX|LEGENDARY POKEMON|LEGENDARY|MEGA EVOLUTION|MEGA POKEMON)\s+/i, '');
-    const appearedMatch = candidate.match(/(?:(?:a\s+)?wild\s+|caught\s+)?([A-Za-z0-9\s\(\)\-':]+?)\s+appeared/i);
+    const appearedMatch = candidate.match(/(?:(?:a\s+)?wild\s+|caught\s+)?([A-Za-z0-9\s\(\)\-':.%]+?)\s+appeared/i);
     if (appearedMatch && appearedMatch[1]) {
         const lines = appearedMatch[1].split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
         candidate = lines.length > 0 ? lines[lines.length - 1] : appearedMatch[1];
+    } else {
+        const nonBannerLines = candidate.split(/[\r\n]+/).map(s => s.trim()).filter(l => l && !/^(?:hp:|level:|lvl:|\d+\/\d+|try to catch|select a pokeball)/i.test(l));
+        if (nonBannerLines.length > 0) {
+            candidate = nonBannerLines[0].replace(/\s*(?:level|lvl|hp)[\s:].*$/i, '').trim();
+        }
     }
     candidate = candidate.replace(/^(?:ULTRABEAST|ULTRA BEASTS?|PARADOX POKEMON|PARADOX|LEGENDARY POKEMON|LEGENDARY|MEGA EVOLUTION|MEGA POKEMON)\s+/i, '');
-    candidate = candidate.replace(/^A wild\s+/i, '');
+    candidate = candidate.replace(/^(?:a\s+)?wild\s+/i, '');
+    candidate = candidate.replace(/^caught\s+/i, '');
     candidate = candidate.replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '').trim();
 
-    const cleanCandidate = candidate.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const baseSpecies = getPreloadBaseSpecies(candidate);
-    if (!baseSpecies) {
+    const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
+    let candidateVariant = 'normal';
+    if (explicitVariant && typeof explicitVariant === 'string' && explicitVariant.trim()) {
+        candidateVariant = explicitVariant.trim().toLowerCase();
+        if (candidateVariant === 'ghost') candidateVariant = 'ghostly';
+    } else {
+        const vMatch = candidate.match(VARIANT_PREFIX_REGEX);
+        if (vMatch) {
+            candidateVariant = vMatch[1].toLowerCase();
+            if (candidateVariant === 'ghost') candidateVariant = 'ghostly';
+        }
+    }
+
+    const candSpecies = candidate.replace(VARIANT_PREFIX_REGEX, '').trim();
+    const cleanCandidate = candSpecies.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const baseSpecies = getPreloadBaseSpecies(candSpecies);
+    if (!baseSpecies && !cleanCandidate) {
         return {
             isDuplicate: false,
             isOwned: false,
@@ -1272,13 +1292,45 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText) {
         };
     }
 
-    const matchingSpecies = ownedCollectionByBaseSpecies.get(baseSpecies) || [];
-    const matchingMegas = matchingSpecies.filter(p => p.isMega);
-    const exactMatch = matchingSpecies.find(p => {
-        const pClean = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const pFullClean = ((p.variant !== 'Normal' ? p.variant + ' ' : '') + p.name).toLowerCase().replace(/[^a-z0-9]/g, '');
-        return pClean === cleanCandidate || pFullClean === cleanCandidate;
-    });
+    const matchingSpecies = [];
+    const matchingMegas = [];
+    let exactMatch = null;
+
+    for (let i = 0; i < ownedUserCollection.length; i++) {
+        const p = ownedUserCollection[i];
+        if (!p || !p.name) continue;
+
+        let pVariant = 'normal';
+        if (p.variant && typeof p.variant === 'string' && p.variant.trim().toLowerCase() !== 'normal') {
+            pVariant = p.variant.trim().toLowerCase();
+        } else {
+            const pVMatch = p.name.match(VARIANT_PREFIX_REGEX);
+            if (pVMatch) {
+                pVariant = pVMatch[1].toLowerCase();
+            }
+        }
+        if (pVariant === 'ghost') pVariant = 'ghostly';
+
+        const pSpecies = p.name.replace(VARIANT_PREFIX_REGEX, '').trim();
+        const pClean = pSpecies.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const pBase = getPreloadBaseSpecies(pSpecies);
+
+        const isVariantMatch = (pVariant === candidateVariant);
+        const isNameMatch = (pClean === cleanCandidate);
+
+        if (isVariantMatch && isNameMatch) {
+            if (!exactMatch || (p.level || 0) > (exactMatch.level || 0)) {
+                exactMatch = p;
+            }
+        }
+
+        if (pBase && baseSpecies && pBase === baseSpecies) {
+            matchingSpecies.push(p);
+            if (p.isMega || isPreloadActualMega(p.name)) {
+                matchingMegas.push(p);
+            }
+        }
+    }
 
     const capitalize = (s) => s ? (s.charAt(0).toUpperCase() + s.slice(1)) : '';
 
@@ -1323,20 +1375,19 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText) {
     if (matchingSpecies.length > 0) {
         matchingSpecies.sort((a, b) => (b.level || 0) - (a.level || 0));
         const topSp = matchingSpecies[0];
-        const fullSpName = (topSp.name.toLowerCase().startsWith((topSp.variant || 'Normal').toLowerCase()) || topSp.variant === 'Normal')
-            ? topSp.name
-            : `${topSp.variant} ${topSp.name}`;
 
+        // Species exists in collection under a DIFFERENT variant (e.g. user owns Dark Eternatus, encountered Normal Eternatus).
+        // In DelugeRPG, distinct variants are completely separate targets and must NOT be flagged as duplicate encounters.
         return {
-            isDuplicate: true,
+            isDuplicate: false,
             isOwned: true,
             hasMegaOwned: false,
             hasExactOwned: false,
             ownedPokemon: topSp,
             type: 'SPECIES_ALREADY_OWNED',
-            alertTitle: 'STOP: SPECIES ALREADY IN COLLECTION',
-            alertMessage: `You already own ${fullSpName} (Lv ${topSp.level || 100})!`,
-            reason: `Species ${capitalize(baseSpecies)} already exists in your collection. 100% uniqueness protection active.`
+            alertTitle: '',
+            alertMessage: '',
+            reason: ''
         };
     }
 
@@ -1856,7 +1907,7 @@ function extractWildLevel(container) {
     return null;
 }
 
-function checkEncounterIsDuplicate(container, shouldLog = false) {
+function checkEncounterIsDuplicate(container, shouldLog = false, explicitVariant = undefined, fallbackName = '') {
     try {
         if (!container) {
             container = getEncounterContainer();
@@ -1867,9 +1918,12 @@ function checkEncounterIsDuplicate(container, shouldLog = false) {
         const rawText = checkText.toLowerCase();
 
         // 1A. Hardened Collection Ownership & Mega Evolution Uniqueness Awareness
-        const ownStatus = evaluateOwnershipAndMegaEquivalence(checkText || rawText);
-        if (ownStatus && ownStatus.isDuplicate) {
-            if (shouldLog) console.log('[PokePreload] Duplicate check: OVERRIDE via collection awareness (' + ownStatus.alertTitle + ' -> ' + ownStatus.alertMessage + ')');
+        const checkCandidate = (checkText && checkText.trim().length > 3) ? checkText : (fallbackName || rawText);
+        const ownStatus = (typeof evaluateOwnershipAndMegaEquivalence === 'function')
+            ? evaluateOwnershipAndMegaEquivalence(checkCandidate, explicitVariant)
+            : null;
+        if (ownStatus && ownStatus.hasMegaOwned) {
+            if (shouldLog) console.log('[PokePreload] Duplicate check: OVERRIDE via Mega Evolution equivalence (' + ownStatus.alertTitle + ' -> ' + ownStatus.alertMessage + ')');
             return true;
         }
 
@@ -1886,7 +1940,7 @@ function checkEncounterIsDuplicate(container, shouldLog = false) {
             return false;
         }
 
-        // 1B. Explicit CAUGHT / DUPLICATE text
+        // 1C. Explicit CAUGHT / DUPLICATE text
         if (rawText.indexOf('you have this pokemon in your box') !== -1 ||
             rawText.indexOf('already in your box') !== -1 ||
             rawText.indexOf('already caught') !== -1 ||
@@ -1926,7 +1980,7 @@ function checkEncounterIsDuplicate(container, shouldLog = false) {
         for (let r = 0; r < candidateBoxes.length; r++) {
             const root = candidateBoxes[r];
             if (!root) continue;
-            const elementsWithTitle = root.querySelectorAll ? root.querySelectorAll('[title], [alt], [data-original-title], [aria-label]') : [];
+            const elementsWithTitle = root.querySelectorAll ? root.querySelectorAll('[title], [alt], [data-original-title], [data-bs-original-title], [data-title], [data-tooltip], [aria-label]') : [];
             for (let t = 0; t < elementsWithTitle.length; t++) {
                 const el = elementsWithTitle[t];
                 if (el.closest && el.closest('#map, #userpokeballs, .userpokeballs, #myteam, .user-avatar, .bag, #inventory')) {
@@ -1936,6 +1990,9 @@ function checkEncounterIsDuplicate(container, shouldLog = false) {
                     el.getAttribute('title') || '',
                     el.getAttribute('alt') || '',
                     el.getAttribute('data-original-title') || '',
+                    el.getAttribute('data-bs-original-title') || '',
+                    el.getAttribute('data-title') || '',
+                    el.getAttribute('data-tooltip') || '',
                     el.getAttribute('aria-label') || ''
                 ].join(' ').toLowerCase();
 
@@ -2059,7 +2116,11 @@ function checkEncounterIsDuplicate(container, shouldLog = false) {
         }
 
         if (!indicatorElement) {
-            // No PokeBall indicator found anywhere in encounter card -> NOT DUPLICATE (Safe)
+            // No PokeBall indicator found anywhere in encounter card - check collection exact match fallback
+            if (ownStatus && ownStatus.isDuplicate) {
+                if (shouldLog) console.log('[PokePreload] No indicator element found, but collection reports duplicate match (' + ownStatus.alertTitle + ' -> ' + ownStatus.alertMessage + ')');
+                return true;
+            }
             if (shouldLog) console.log('[PokePreload] No indicator element found in encounter card - defaulting to NOT duplicate.');
             return false;
         }
@@ -2077,11 +2138,14 @@ function checkEncounterIsDuplicate(container, shouldLog = false) {
             indicatorElement.alt || '',
             indicatorElement.getAttribute('alt') || '',
             indicatorElement.getAttribute('data-original-title') || '',
+            indicatorElement.getAttribute('data-bs-original-title') || '',
+            indicatorElement.getAttribute('data-title') || '',
+            indicatorElement.getAttribute('data-tooltip') || '',
             indicatorElement.getAttribute('aria-label') || '',
             parentEl ? (parentEl.title || parentEl.getAttribute('title') || '') : '',
-            parentEl ? (parentEl.getAttribute('data-original-title') || '') : '',
+            parentEl ? (parentEl.getAttribute('data-original-title') || parentEl.getAttribute('data-bs-original-title') || parentEl.getAttribute('data-title') || parentEl.getAttribute('data-tooltip') || '') : '',
             linkEl ? (linkEl.title || linkEl.getAttribute('title') || '') : '',
-            linkEl ? (linkEl.getAttribute('data-original-title') || '') : ''
+            linkEl ? (linkEl.getAttribute('data-original-title') || linkEl.getAttribute('data-bs-original-title') || linkEl.getAttribute('data-title') || linkEl.getAttribute('data-tooltip') || '') : ''
         ].join(' ').toLowerCase();
 
         // A. Explicit UNCAUGHT text in attributes (HIGHEST PRIORITY)
@@ -2230,7 +2294,11 @@ function checkEncounterIsDuplicate(container, shouldLog = false) {
         } catch (_) {}
 
         // H. CRITICAL FAIL-SAFE: If status cannot be definitively confirmed as a duplicate,
-        // NEVER assume duplicate! Default to false so targets are NEVER accidentally skipped!
+        // check if exact match is already owned in collection, otherwise default to false for safety!
+        if (ownStatus && ownStatus.isDuplicate) {
+            if (shouldLog) console.log('[PokePreload] Duplicate check: fallback to collection exact match (' + ownStatus.alertTitle + ' -> ' + ownStatus.alertMessage + ')');
+            return true;
+        }
         if (shouldLog) console.log('[PokePreload] Indicator status inconclusive (src=' + indSrc + ', text=' + allIndicatorTexts + ') - defaulting to NOT duplicate for safety.');
         return false;
     } catch (err) {
@@ -2557,12 +2625,44 @@ function scanForTargets() {
 
     // B. Detect Variant on current encounter (e.g. "Shiny", "Chrome", ..., or "Normal")
     let detectedVariant = 'normal';
-    for (let v = 0; v < VARIANTS.length; v++) {
-        const mod = VARIANTS[v];
-        const match = textLower.match(new RegExp('\\b' + mod + '[- ]+([a-z0-9\\-\':]+)', 'i'));
-        if (match) {
-            detectedVariant = mod.toLowerCase();
-            break;
+    const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
+
+    // Detect variant strictly from the encounter headline (before "Appeared!" or from #showpoke-name)
+    // Never match against the full page text to avoid false positives on elemental type badges (e.g. "[DARK] [FIGHTING]")
+    let encounterHeadline = '';
+    const headlineMatch = (encounterBoxText || pageText || '').match(/(?:(?:a\s+)?wild\s+|caught\s+)?([A-Za-z0-9\s\(\)\-':.%]+?)\s+appeared/i);
+    if (headlineMatch && headlineMatch[1]) {
+        const hLines = headlineMatch[1].split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+        encounterHeadline = hLines.length > 0 ? hLines[hLines.length - 1] : headlineMatch[1];
+    } else {
+        const nameEl = document.getElementById('showpoke-name') || document.querySelector('.showpoke-name');
+        if (nameEl) {
+            encounterHeadline = (nameEl.innerText || nameEl.textContent || '').trim();
+        } else if (encounterBoxText) {
+            encounterHeadline = encounterBoxText.trim().split(/[\r\n]+/)[0].replace(/\s*(?:level|lvl|hp)[\s:].*$/i, '').trim();
+        }
+    }
+    encounterHeadline = encounterHeadline.replace(/^(?:a\s+)?wild\s+/i, '').replace(/^caught\s+/i, '').trim();
+
+    const vPrefixMatch = encounterHeadline.match(VARIANT_PREFIX_REGEX);
+    if (vPrefixMatch) {
+        detectedVariant = vPrefixMatch[1].toLowerCase();
+        if (detectedVariant === 'ghost') detectedVariant = 'ghostly';
+    } else {
+        // Fallback: check encounter sprite image URL (e.g. /sprites/metallic/... or /pokemon/shiny/...)
+        const encBox = getEncounterContainer();
+        const spriteImg = (encBox && typeof encBox.querySelector === 'function')
+            ? encBox.querySelector('img[src*="/pokemon/"], img[src*="/sprites/"], img[src*="/regular/"], img[src*="/shiny/"], img[src*="/metallic/"], img[src*="/ghostly/"], img[src*="/dark/"], img[src*="/shadow/"], img[src*="/mirage/"], img[src*="/chrome/"], img[src*="/negative/"], img[src*="/retro/"]')
+            : null;
+        if (spriteImg && spriteImg.src) {
+            const srcLower = spriteImg.src.toLowerCase();
+            for (let v = 0; v < VARIANTS.length; v++) {
+                const mod = VARIANTS[v].toLowerCase();
+                if (srcLower.indexOf('/' + mod + '/') !== -1 || srcLower.indexOf('_' + mod + '.') !== -1) {
+                    detectedVariant = (mod === 'ghost' ? 'ghostly' : mod);
+                    break;
+                }
+            }
         }
     }
 
@@ -2609,25 +2709,25 @@ function scanForTargets() {
 
     const encContainer = getEncounterContainer();
     const ownStatus = (typeof evaluateOwnershipAndMegaEquivalence === 'function')
-        ? evaluateOwnershipAndMegaEquivalence(encounterBoxText || pageText || shortName)
+        ? evaluateOwnershipAndMegaEquivalence(encounterBoxText || pageText || shortName, detectedVariant)
         : null;
-    if (ownStatus && ownStatus.isDuplicate) {
-        if (typeof renderUniquenessAlertBanner === 'function') renderUniquenessAlertBanner(ownStatus);
-        if (isNewEncounter && typeof ipcRenderer !== 'undefined' && ipcRenderer && ipcRenderer.sendToHost) {
-            ipcRenderer.sendToHost('duplicate-owned-alert', ownStatus);
-        }
-    } else {
-        if (typeof removeUniquenessAlertBanner === 'function') removeUniquenessAlertBanner();
-    }
 
-    const isEncounterDuplicate = (ownStatus && ownStatus.isDuplicate) || checkEncounterIsDuplicate(encContainer, isNewEncounter);
+    const isEncounterDuplicate = checkEncounterIsDuplicate(encContainer, isNewEncounter, detectedVariant, shortName);
     const avoidDupesActive = (config.avoidDuplicates !== false);
 
     if (avoidDupesActive && isEncounterDuplicate) {
+        if (ownStatus && ownStatus.isDuplicate) {
+            if (typeof renderUniquenessAlertBanner === 'function') renderUniquenessAlertBanner(ownStatus);
+            if (isNewEncounter && typeof ipcRenderer !== 'undefined' && ipcRenderer && ipcRenderer.sendToHost) {
+                ipcRenderer.sendToHost('duplicate-owned-alert', ownStatus);
+            }
+        }
         if (isNewEncounter) {
             console.log('[TargetEngine] DUPLICATE ENCOUNTER: "' + shortName + '" (' + (ownStatus && ownStatus.isDuplicate ? ownStatus.alertMessage : 'already owned in Dex') + '). Skipping to preserve hunting flow.');
         }
         return;
+    } else {
+        if (typeof removeUniquenessAlertBanner === 'function') removeUniquenessAlertBanner();
     }
 
     // Helper: checks whether the encounter's variant is accepted for Wild / Custom species (Tier 1 & Tier 4)
@@ -2658,18 +2758,17 @@ function scanForTargets() {
     // Helper: extracts clean Pokemon species name from encounter text
     function extractEncounterSpeciesName() {
         const fullSource = (encounterBoxText ? encounterBoxText + ' ' : '') + textLower;
-        const m = fullSource.match(/(?:a wild\s+)?([a-z0-9\-\'\s\(\):]+?)\s+appeared/i);
+        const m = fullSource.match(/(?:a wild\s+)?([a-z0-9\-\'\s\(\):.%]+?)\s+appeared/i);
         if (m && m[1]) {
             const raw = m[1].trim();
             const lines = raw.split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
             let name = lines.length > 0 ? lines[lines.length - 1] : raw;
             name = name.replace(/^a\s+wild\s+/i, '').trim();
-            if (detectedVariant !== 'normal') {
-                name = name.replace(new RegExp('^' + detectedVariant + '\\s*', 'i'), '').trim();
-            }
+            name = name.replace(VARIANT_PREFIX_REGEX, '').trim();
             return name;
         }
-        return (shortName ? shortName.replace(/\s*appeared.*/i, '').trim() : '');
+        let fallback = (shortName ? shortName.replace(/\s*appeared.*/i, '') : '').replace(/^wild\s+/i, '').replace(VARIANT_PREFIX_REGEX, '').trim();
+        return fallback;
     }
 
     // D. Match against Tab 1 Target Tiers:
@@ -2968,7 +3067,7 @@ function triggerTargetFound(targetName, category) {
     const ownCheck = (typeof evaluateOwnershipAndMegaEquivalence === 'function')
         ? evaluateOwnershipAndMegaEquivalence(targetName)
         : null;
-    const isDupe = (ownCheck && ownCheck.isDuplicate) || checkEncounterIsDuplicate(encContainer, false);
+    const isDupe = checkEncounterIsDuplicate(encContainer, false, undefined, targetName);
     if (config.avoidDuplicates !== false && isDupe) {
         lastIgnoredEncounter = targetName;
         lastFoundTarget = '';
@@ -4332,10 +4431,11 @@ function runAutoCatchLifecycle() {
     if (window.location.pathname.includes('/catch/')) {
         const catchTargetName = extractWildPokemonFromCatchPage();
         const ownCatchCheck = catchTargetName ? evaluateOwnershipAndMegaEquivalence(catchTargetName) : null;
-        if (ownCatchCheck && ownCatchCheck.isDuplicate) {
-            clearAutoCatchSession('Uniqueness protection: ' + ownCatchCheck.alertMessage);
-            renderUniquenessAlertBanner(ownCatchCheck);
-            ipcRenderer.sendToHost('duplicate-owned-alert', ownCatchCheck);
+        const isDupeOnCatch = checkEncounterIsDuplicate(null, false, undefined, catchTargetName);
+        if (isDupeOnCatch) {
+            clearAutoCatchSession('Uniqueness protection: ' + (ownCatchCheck && ownCatchCheck.alertMessage ? ownCatchCheck.alertMessage : 'duplicate owned'));
+            if (ownCatchCheck) renderUniquenessAlertBanner(ownCatchCheck);
+            if (ownCatchCheck) ipcRenderer.sendToHost('duplicate-owned-alert', ownCatchCheck);
             return;
         }
     }

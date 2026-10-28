@@ -1100,7 +1100,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.3.9';
+    let appVer = '1.4.0';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;

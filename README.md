@@ -1,6 +1,6 @@
 # DelugeRPG Stealth Client & Hunter
 
-[![Release](https://img.shields.io/badge/release-v1.0.0--stable-blue.svg)](https://github.com/mclards/delugeRPG/releases/tag/v1.0.0-stable)
+[![Release](https://img.shields.io/badge/release-v1.4.0--stable-blue.svg)](https://github.com/mclards/delugeRPG/releases/tag/v1.4.0-stable)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-brightgreen.svg)](https://github.com/mclards/delugeRPG)
 [![Engine](https://img.shields.io/badge/engine-Chromium%20142%20%7C%20Electron%2039-orange.svg)](https://github.com/mclards/delugeRPG)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)

@@ -1092,7 +1092,7 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null, o
 function getBaseSpecies(name) {
   if (!name) return '';
   return name
-    .replace(/^(Dark|Shiny|Shadow|Ghostly|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
+    .replace(/^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
     .replace(/^(Mega|Primal|G-Max|Gigantamax)\s+/i, '')
     .replace(/^(Alolan|Galarian|Hisuian|Paldean)\s+/i, '')
     .replace(/\s*\([^)]*\)/g, '')
@@ -1229,7 +1229,7 @@ function isActualMegaEvolution(pokeOrName) {
   return lower.includes('mega ') || lower.includes('primal ') || lower.startsWith('mega-') || lower.endsWith(' mega') || lower.endsWith(' primal');
 }
 
-function evaluateOwnershipAndMegaEquivalence(nameOrText, collection) {
+function evaluateOwnershipAndMegaEquivalence(nameOrText, collection, explicitVariant) {
   if (!nameOrText || !Array.isArray(collection) || collection.length === 0) {
     return {
       isDuplicate: false,
@@ -1248,18 +1248,38 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection) {
   candidate = candidate.replace(/\s*\(Lv\s*\d+[^)]*\)\s*/gi, ' ');
   candidate = candidate.replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '');
   candidate = candidate.replace(/^(?:ULTRABEAST|ULTRA BEASTS?|PARADOX POKEMON|PARADOX|LEGENDARY POKEMON|LEGENDARY|MEGA EVOLUTION|MEGA POKEMON)\s+/i, '');
-  const appearedMatch = candidate.match(/(?:(?:a\s+)?wild\s+|caught\s+)?([A-Za-z0-9\s\(\)\-':]+?)\s+appeared/i);
+  const appearedMatch = candidate.match(/(?:(?:a\s+)?wild\s+|caught\s+)?([A-Za-z0-9\s\(\)\-':.%]+?)\s+appeared/i);
   if (appearedMatch && appearedMatch[1]) {
     const lines = appearedMatch[1].split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
     candidate = lines.length > 0 ? lines[lines.length - 1] : appearedMatch[1];
+  } else {
+    const nonBannerLines = candidate.split(/[\r\n]+/).map(s => s.trim()).filter(l => l && !/^(?:hp:|level:|lvl:|\d+\/\d+|try to catch|select a pokeball)/i.test(l));
+    if (nonBannerLines.length > 0) {
+      candidate = nonBannerLines[0].replace(/\s*(?:level|lvl|hp)[\s:].*$/i, '').trim();
+    }
   }
   candidate = candidate.replace(/^(?:ULTRABEAST|ULTRA BEASTS?|PARADOX POKEMON|PARADOX|LEGENDARY POKEMON|LEGENDARY|MEGA EVOLUTION|MEGA POKEMON)\s+/i, '');
-  candidate = candidate.replace(/^A wild\s+/i, '');
+  candidate = candidate.replace(/^(?:a\s+)?wild\s+/i, '');
+  candidate = candidate.replace(/^caught\s+/i, '');
   candidate = candidate.replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '').trim();
 
-  const cleanCandidate = candidate.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const baseSpecies = getBaseSpecies(candidate);
-  if (!baseSpecies) {
+  const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
+  let candidateVariant = 'normal';
+  if (explicitVariant && typeof explicitVariant === 'string' && explicitVariant.trim()) {
+    candidateVariant = explicitVariant.trim().toLowerCase();
+    if (candidateVariant === 'ghost') candidateVariant = 'ghostly';
+  } else {
+    const vMatch = candidate.match(VARIANT_PREFIX_REGEX);
+    if (vMatch) {
+      candidateVariant = vMatch[1].toLowerCase();
+      if (candidateVariant === 'ghost') candidateVariant = 'ghostly';
+    }
+  }
+
+  const candSpecies = candidate.replace(VARIANT_PREFIX_REGEX, '').trim();
+  const cleanCandidate = candSpecies.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const baseSpecies = getBaseSpecies(candSpecies);
+  if (!baseSpecies && !cleanCandidate) {
     return {
       isDuplicate: false,
       isOwned: false,
@@ -1280,17 +1300,32 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection) {
   for (let i = 0; i < collection.length; i++) {
     const p = collection[i];
     if (!p || !p.name) continue;
-    const pBase = getBaseSpecies(p.name);
-    const pClean = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const pFullClean = ((p.variant || 'Normal') + ' ' + p.name).toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    if (pClean === cleanCandidate || pFullClean === cleanCandidate) {
+    let pVariant = 'normal';
+    if (p.variant && typeof p.variant === 'string' && p.variant.trim().toLowerCase() !== 'normal') {
+      pVariant = p.variant.trim().toLowerCase();
+    } else {
+      const pVMatch = p.name.match(VARIANT_PREFIX_REGEX);
+      if (pVMatch) {
+        pVariant = pVMatch[1].toLowerCase();
+      }
+    }
+    if (pVariant === 'ghost') pVariant = 'ghostly';
+
+    const pSpecies = p.name.replace(VARIANT_PREFIX_REGEX, '').trim();
+    const pClean = pSpecies.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const pBase = getBaseSpecies(pSpecies);
+
+    const isVariantMatch = (pVariant === candidateVariant);
+    const isNameMatch = (pClean === cleanCandidate);
+
+    if (isVariantMatch && isNameMatch) {
       if (!exactMatch || (p.level || 0) > (exactMatch.level || 0)) {
         exactMatch = p;
       }
     }
 
-    if (pBase === baseSpecies) {
+    if (pBase && baseSpecies && pBase === baseSpecies) {
       matchingSpecies.push(p);
       if (isActualMegaEvolution(p.name)) {
         matchingMegas.push(p);
@@ -1341,20 +1376,19 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection) {
   if (matchingSpecies.length > 0) {
     matchingSpecies.sort((a, b) => (b.level || 0) - (a.level || 0));
     const topSp = matchingSpecies[0];
-    const fullSpName = (topSp.name.toLowerCase().startsWith((topSp.variant || 'Normal').toLowerCase()) || topSp.variant === 'Normal')
-      ? topSp.name
-      : `${topSp.variant} ${topSp.name}`;
 
+    // Species exists in collection under a DIFFERENT variant (e.g. user owns Dark Eternatus, encountered Normal Eternatus).
+    // In DelugeRPG, distinct variants are completely separate targets and must NOT be flagged as duplicate encounters.
     return {
-      isDuplicate: true,
+      isDuplicate: false,
       isOwned: true,
       hasMegaOwned: false,
       hasExactOwned: false,
       ownedPokemon: topSp,
       type: 'SPECIES_ALREADY_OWNED',
-      alertTitle: 'STOP: SPECIES ALREADY IN COLLECTION',
-      alertMessage: `You already own ${fullSpName} (Lv ${topSp.level || 100})!`,
-      reason: `Species ${capitalize(baseSpecies)} already exists in your collection. 100% uniqueness protection active.`
+      alertTitle: '',
+      alertMessage: '',
+      reason: ''
     };
   }
 

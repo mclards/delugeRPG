@@ -96,7 +96,7 @@
     "enableForcedBreaks": true,
     "breakMinSteps": 50,
     "breakMaxSteps": 200,
-    "breakMinDurationSec": 10,
+    "breakMinDurationSec": 5,
     "breakMaxDurationSec": 45,
     "enableDailyCeilings": true,
     "dailyStepMin": 5000,

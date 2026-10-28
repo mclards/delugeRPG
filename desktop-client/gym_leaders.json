@@ -10611,23 +10611,6 @@
             "Poison",
             "Ground"
           ]
-        },
-        {
-          "name": "Mega Blastoise",
-          "types": [
-            "Water"
-          ],
-          "level": 100,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mega%20blastoise.png"
-        },
-        {
-          "name": "Mega Scizor",
-          "types": [
-            "Bug",
-            "Steel"
-          ],
-          "level": 100,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mega%20scizor.png"
         }
       ]
     },
@@ -10952,7 +10935,56 @@
       ],
       "battleUrl": "/battle/trainer/5035",
       "inverseUrl": "/battle/trainer/5035/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/firefighter.png"
+      "avatar": "https://i.dstatic.com/images/trainers/firefighter.png",
+      "roster": [
+        {
+          "name": "Poliwrath",
+          "types": [
+            "Water",
+            "Fighting"
+          ],
+          "level": 51,
+          "hp": 204,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/poliwrath.png"
+        },
+        {
+          "name": "Blastoise",
+          "types": [
+            "Water"
+          ],
+          "level": 55,
+          "hp": 220,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/blastoise.png"
+        },
+        {
+          "name": "Seismitoad",
+          "types": [
+            "Water",
+            "Ground"
+          ],
+          "level": 54,
+          "hp": 216,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/seismitoad.png"
+        },
+        {
+          "name": "Carracosta",
+          "types": [
+            "Water",
+            "Rock"
+          ],
+          "level": 54,
+          "hp": 216,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/carracosta.png"
+        }
+      ]
     },
     {
       "name": "Gentleman Auguste",
@@ -11000,7 +11032,43 @@
       ],
       "battleUrl": "/battle/trainer/5050",
       "inverseUrl": "/battle/trainer/5050/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/janitor.png"
+      "avatar": "https://i.dstatic.com/images/trainers/janitor.png",
+      "roster": [
+        {
+          "name": "Garbodor",
+          "types": [
+            "Poison"
+          ],
+          "level": 53,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/garbodor.png"
+        },
+        {
+          "name": "Weezing",
+          "types": [
+            "Poison"
+          ],
+          "level": 53,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/weezing.png"
+        },
+        {
+          "name": "Alolan Muk",
+          "types": [
+            "Poison",
+            "Dark"
+          ],
+          "level": 56,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/alolan%20muk.png"
+        },
+        {
+          "name": "Ariados",
+          "types": [
+            "Bug",
+            "Poison"
+          ],
+          "level": 53,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/ariados.png"
+        }
+      ]
     },
     {
       "name": "Madame Melanie",
@@ -11809,7 +11877,44 @@
       ],
       "battleUrl": "/battle/trainer/5127",
       "inverseUrl": "/battle/trainer/5127/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/veteranf2.png"
+      "avatar": "https://i.dstatic.com/images/trainers/veteranf2.png",
+      "roster": [
+        {
+          "name": "Espeon",
+          "types": [
+            "Psychic"
+          ],
+          "level": 80,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/espeon.png"
+        },
+        {
+          "name": "Aurorus",
+          "types": [
+            "Rock",
+            "Ice"
+          ],
+          "level": 82,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/aurorus.png"
+        },
+        {
+          "name": "Weavile",
+          "types": [
+            "Dark",
+            "Ice"
+          ],
+          "level": 83,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/weavile.png"
+        },
+        {
+          "name": "Dragonite",
+          "types": [
+            "Dragon",
+            "Flying"
+          ],
+          "level": 88,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dragonite.png"
+        }
+      ]
     },
     {
       "name": "Veteran Shareef",
@@ -11877,7 +11982,44 @@
       ],
       "battleUrl": "/battle/trainer/5129",
       "inverseUrl": "/battle/trainer/5129/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/veteranm2.png"
+      "avatar": "https://i.dstatic.com/images/trainers/veteranm2.png",
+      "roster": [
+        {
+          "name": "Umbreon",
+          "types": [
+            "Dark"
+          ],
+          "level": 80,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/umbreon.png"
+        },
+        {
+          "name": "Tyrantrum",
+          "types": [
+            "Rock",
+            "Dragon"
+          ],
+          "level": 84,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/tyrantrum.png"
+        },
+        {
+          "name": "Aggron",
+          "types": [
+            "Steel",
+            "Rock"
+          ],
+          "level": 86,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/aggron.png"
+        },
+        {
+          "name": "Tyranitar",
+          "types": [
+            "Rock",
+            "Dark"
+          ],
+          "level": 86,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/tyranitar.png"
+        }
+      ]
     },
     {
       "name": "Veteran Wilma",
@@ -11985,7 +12127,61 @@
       ],
       "battleUrl": "/battle/trainer/5151",
       "inverseUrl": "/battle/trainer/5151/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/ghetsis.png"
+      "avatar": "https://i.dstatic.com/images/trainers/ghetsis.png",
+      "roster": [
+        {
+          "name": "Cofagrigus",
+          "types": [
+            "Ghost"
+          ],
+          "level": 92,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/cofagrigus.png"
+        },
+        {
+          "name": "Seismitoad",
+          "types": [
+            "Water",
+            "Ground"
+          ],
+          "level": 91,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/seismitoad.png"
+        },
+        {
+          "name": "Eelektross",
+          "types": [
+            "Electric"
+          ],
+          "level": 94,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/eelektross.png"
+        },
+        {
+          "name": "Hydreigon",
+          "types": [
+            "Dark",
+            "Dragon"
+          ],
+          "level": 95,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/hydreigon.png"
+        },
+        {
+          "name": "White Kyurem",
+          "types": [
+            "Dragon",
+            "Ice"
+          ],
+          "level": 96,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/white%20kyurem.png"
+        },
+        {
+          "name": "Black Kyurem",
+          "types": [
+            "Dragon",
+            "Ice"
+          ],
+          "level": 96,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/black%20kyurem.png"
+        }
+      ]
     },
     {
       "name": "Giovanni",
@@ -12041,41 +12237,6 @@
           ],
           "level": 93,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/rhyperior.png"
-        },
-        {
-          "name": "Garchomp",
-          "types": [
-            "Dragon",
-            "Ground"
-          ],
-          "level": 93,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/garchomp.png"
-        },
-        {
-          "name": "Gliscor",
-          "types": [
-            "Ground",
-            "Flying"
-          ],
-          "level": 95,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/gliscor.png"
-        },
-        {
-          "name": "Krookodile",
-          "types": [
-            "Ground",
-            "Dark"
-          ],
-          "level": 96,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/krookodile.png"
-        },
-        {
-          "name": "Hippowdon",
-          "types": [
-            "Ground"
-          ],
-          "level": 96,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/hippowdon.png"
         }
       ]
     },
@@ -12183,7 +12344,41 @@
       ],
       "battleUrl": "/battle/trainer/5081",
       "inverseUrl": "/battle/trainer/5081/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/preschoolerf1.png"
+      "avatar": "https://i.dstatic.com/images/trainers/preschoolerf1.png",
+      "roster": [
+        {
+          "name": "Pichu",
+          "types": [
+            "Electric"
+          ],
+          "level": 24,
+          "hp": 0,
+          "maxHp": 48,
+          "isFainted": true,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/pichu.png"
+        },
+        {
+          "name": "Igglybuff",
+          "types": [
+            "Normal",
+            "Fairy"
+          ],
+          "level": 26,
+          "hp": 12,
+          "maxHp": 52,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/igglybuff.png"
+        },
+        {
+          "name": "Bulbasaur",
+          "types": [
+            "Grass",
+            "Poison"
+          ],
+          "level": 19,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/bulbasaur.png"
+        }
+      ]
     },
     {
       "name": "Preschooler Benjamin",
@@ -12195,7 +12390,41 @@
       ],
       "battleUrl": "/battle/trainer/5084",
       "inverseUrl": "/battle/trainer/5084/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/preschoolerm2.png"
+      "avatar": "https://i.dstatic.com/images/trainers/preschoolerm2.png",
+      "roster": [
+        {
+          "name": "Azumarill",
+          "types": [
+            "Water",
+            "Fairy"
+          ],
+          "level": 28,
+          "hp": 0,
+          "maxHp": 56,
+          "isFainted": true,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/azumarill.png"
+        },
+        {
+          "name": "Magikarp",
+          "types": [
+            "Water"
+          ],
+          "level": 24,
+          "hp": 0,
+          "maxHp": 48,
+          "isFainted": true,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/magikarp.png"
+        },
+        {
+          "name": "Bulbasaur",
+          "types": [
+            "Grass",
+            "Poison"
+          ],
+          "level": 30,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/bulbasaur.png"
+        }
+      ]
     },
     {
       "name": "Preschooler Donald",
@@ -12255,7 +12484,40 @@
       ],
       "battleUrl": "/battle/trainer/5125",
       "inverseUrl": "/battle/trainer/5125/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/tuberm.png"
+      "avatar": "https://i.dstatic.com/images/trainers/tuberm.png",
+      "roster": [
+        {
+          "name": "Corphish",
+          "types": [
+            "Water"
+          ],
+          "level": 26,
+          "hp": 0,
+          "maxHp": 52,
+          "isFainted": true,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/corphish.png"
+        },
+        {
+          "name": "Wishiwashi (Solo)",
+          "types": [
+            "Water"
+          ],
+          "level": 28,
+          "hp": 0,
+          "maxHp": 56,
+          "isFainted": true,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/wishiwashi%20%28solo%29.png"
+        },
+        {
+          "name": "Bulbasaur",
+          "types": [
+            "Grass",
+            "Poison"
+          ],
+          "level": 33,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/bulbasaur.png"
+        }
+      ]
     },
     {
       "name": "Tuber Lola",
@@ -12316,7 +12578,75 @@
       ],
       "battleUrl": "/battle/trainer/5037",
       "inverseUrl": "/battle/trainer/5037/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/fisherman2.png"
+      "avatar": "https://i.dstatic.com/images/trainers/fisherman2.png",
+      "roster": [
+        {
+          "name": "Goldeen",
+          "types": [
+            "Water"
+          ],
+          "level": 25,
+          "hp": 100,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/goldeen.png"
+        },
+        {
+          "name": "Remoraid",
+          "types": [
+            "Water"
+          ],
+          "level": 23,
+          "hp": 92,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/remoraid.png"
+        },
+        {
+          "name": "Barboach",
+          "types": [
+            "Water",
+            "Ground"
+          ],
+          "level": 24,
+          "hp": 96,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/barboach.png"
+        },
+        {
+          "name": "Poliwag",
+          "types": [
+            "Water"
+          ],
+          "level": 25,
+          "hp": 100,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/poliwag.png"
+        },
+        {
+          "name": "Qwilfish",
+          "types": [
+            "Water",
+            "Poison"
+          ],
+          "level": 24,
+          "hp": 96,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/qwilfish.png"
+        },
+        {
+          "name": "Bulbasaur",
+          "types": [
+            "Grass",
+            "Poison"
+          ],
+          "level": 70,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/bulbasaur.png"
+        }
+      ]
     },
     {
       "name": "Maid Lara",
@@ -12655,7 +12985,76 @@
       ],
       "battleUrl": "/battle/trainer/5062",
       "inverseUrl": "/battle/trainer/5062/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/parsollady.png"
+      "avatar": "https://i.dstatic.com/images/trainers/parsollady.png",
+      "roster": [
+        {
+          "name": "Castform (Rainy Form)",
+          "types": [
+            "Water"
+          ],
+          "level": 100,
+          "hp": 0,
+          "maxHp": 132,
+          "isFainted": true,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/castform%20%28rainy%20form%29.png"
+        },
+        {
+          "name": "Sealeo",
+          "types": [
+            "Ice",
+            "Water"
+          ],
+          "level": 100,
+          "hp": 0,
+          "maxHp": 144,
+          "isFainted": true,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/sealeo.png"
+        },
+        {
+          "name": "Starmie",
+          "types": [
+            "Water",
+            "Psychic"
+          ],
+          "level": 100,
+          "hp": 0,
+          "maxHp": 140,
+          "isFainted": true,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/starmie.png"
+        },
+        {
+          "name": "Seaking",
+          "types": [
+            "Water"
+          ],
+          "level": 100,
+          "hp": 0,
+          "maxHp": 140,
+          "isFainted": true,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/seaking.png"
+        },
+        {
+          "name": "Araquanid",
+          "types": [
+            "Water",
+            "Bug"
+          ],
+          "level": 100,
+          "hp": 43,
+          "maxHp": 152,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/araquanid.png"
+        },
+        {
+          "name": "Bulbasaur",
+          "types": [
+            "Grass",
+            "Poison"
+          ],
+          "level": 80,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/bulbasaur.png"
+        }
+      ]
     },
     {
       "name": "Poke Fan Alice",
@@ -13353,7 +13752,41 @@
       ],
       "battleUrl": "/battle/trainer/5104",
       "inverseUrl": "/battle/trainer/5104/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/scientistm1.png"
+      "avatar": "https://i.dstatic.com/images/trainers/scientistm1.png",
+      "roster": [
+        {
+          "name": "Beheeyem",
+          "types": [
+            "Psychic"
+          ],
+          "level": 44,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/beheeyem.png"
+        },
+        {
+          "name": "Klinklang",
+          "types": [
+            "Steel"
+          ],
+          "level": 45,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/klinklang.png"
+        },
+        {
+          "name": "Hypno",
+          "types": [
+            "Psychic"
+          ],
+          "level": 45,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/hypno.png"
+        },
+        {
+          "name": "Electrode",
+          "types": [
+            "Electric"
+          ],
+          "level": 44,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/electrode.png"
+        }
+      ]
     },
     {
       "name": "Scientist Armando",

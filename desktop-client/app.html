@@ -234,7 +234,7 @@
     }
     .btn:active {
       filter: brightness(0.92) !important;
-      transform: translateY(1px);
+      transform: none;
       box-shadow: none !important;
     }
     .btn:focus {
@@ -310,6 +310,9 @@
       opacity: 0.4;
       cursor: not-allowed;
     }
+    .btn > *, .btn-icon > *, .dropdown-item > *:not(.switch), .nav-group-header > * {
+      pointer-events: none;
+    }
     .btn-icon .reload-icon {
       width: 13px;
       height: 13px;
@@ -361,7 +364,7 @@
     }
     .btn-toggle-main.btn-active:active {
       filter: brightness(0.92) !important;
-      transform: translateY(1px);
+      transform: none;
     }
     .btn-toggle-main.btn-paused {
       background: linear-gradient(to top, #a82324 0%, #da3633 80%, #f85149 100%) !important;
@@ -377,7 +380,7 @@
     }
     .btn-toggle-main.btn-paused:active {
       filter: brightness(0.92) !important;
-      transform: translateY(1px);
+      transform: none;
     }
 
     .btn-active {
@@ -420,7 +423,7 @@
     }
     .btn-accent:active {
       filter: brightness(0.92) !important;
-      transform: translateY(1px);
+      transform: none;
     }
 
     .btn-danger {
@@ -434,6 +437,23 @@
       border-color: #ff7b72 !important;
       filter: brightness(1.08) !important;
       box-shadow: none !important;
+    }
+
+    .btn-orange {
+      border: 1px solid #f59e0b !important;
+      background: linear-gradient(to top, #b45309 0%, #d97706 80%, #f59e0b 100%) !important;
+      color: #ffffff !important;
+      text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+      box-shadow: none !important;
+    }
+    .btn-orange:hover {
+      border-color: #fbbf24 !important;
+      filter: brightness(1.08) !important;
+      box-shadow: none !important;
+    }
+    .btn-orange:active {
+      filter: brightness(0.92) !important;
+      transform: none;
     }
 
     .btn-green {
@@ -805,7 +825,7 @@
       border-color: #243856;
     }
     .daily-caught-badge:active {
-      transform: translateY(1px);
+      transform: none;
     }
     .caught-badge-icon {
       font-size: 12px;
@@ -889,18 +909,41 @@
       gap: 6px;
       animation: dropdownFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .nav-dropdown::-webkit-scrollbar {
-      width: 6px;
+    .nav-dropdown::-webkit-scrollbar,
+    #teamResultContainer::-webkit-scrollbar,
+    #teamBuilderModal::-webkit-scrollbar,
+    #adsInspectorModal::-webkit-scrollbar,
+    #catchLogModal::-webkit-scrollbar,
+    #aiChatStream::-webkit-scrollbar {
+      width: 5px;
     }
-    .nav-dropdown::-webkit-scrollbar-track {
+    #teamActionStatus:empty {
+      display: none !important;
+    }
+    .nav-dropdown::-webkit-scrollbar-track,
+    #teamResultContainer::-webkit-scrollbar-track,
+    #teamBuilderModal::-webkit-scrollbar-track,
+    #adsInspectorModal::-webkit-scrollbar-track,
+    #catchLogModal::-webkit-scrollbar-track,
+    #aiChatStream::-webkit-scrollbar-track {
       background: #070e1a;
       border-radius: 3px;
     }
-    .nav-dropdown::-webkit-scrollbar-thumb {
+    .nav-dropdown::-webkit-scrollbar-thumb,
+    #teamResultContainer::-webkit-scrollbar-thumb,
+    #teamBuilderModal::-webkit-scrollbar-thumb,
+    #adsInspectorModal::-webkit-scrollbar-thumb,
+    #catchLogModal::-webkit-scrollbar-thumb,
+    #aiChatStream::-webkit-scrollbar-thumb {
       background: #243856;
       border-radius: 3px;
     }
-    .nav-dropdown::-webkit-scrollbar-thumb:hover {
+    .nav-dropdown::-webkit-scrollbar-thumb:hover,
+    #teamResultContainer::-webkit-scrollbar-thumb:hover,
+    #teamBuilderModal::-webkit-scrollbar-thumb:hover,
+    #adsInspectorModal::-webkit-scrollbar-thumb:hover,
+    #catchLogModal::-webkit-scrollbar-thumb:hover,
+    #aiChatStream::-webkit-scrollbar-thumb:hover {
       background: #385072;
     }
     .nav-group {
@@ -1255,7 +1298,7 @@
       border-radius: 6px;
       padding: 18px 22px;
       box-shadow: none !important;
-      z-index: 9999;
+      z-index: 10002;
       color: #e0ecfa;
       box-sizing: border-box;
       pointer-events: auto !important;
@@ -1976,6 +2019,10 @@
             <span style="font-size: 13px;">&#129302;</span>
             <span>AI Assistant</span>
           </button>
+          <button id="teamBuilderMenuBtn" type="button" class="btn btn-orange" title="Open Gym Team Builder Docked Panel" style="width: 100%; height: 30px; font-size: 11.5px; font-weight: 700; justify-content: center; gap: 6px; flex-shrink: 0; box-shadow: none !important;">
+            <span style="font-size: 13px;">&#9876;</span>
+            <span>Gym Team Builder</span>
+          </button>
 
           <!-- 1. Hunting & Targets -->
           <div class="nav-group">
@@ -2161,20 +2208,6 @@
             </div>
           </div>
 
-          <!-- 4. Battle Roster -->
-          <div class="nav-group">
-            <button type="button" class="nav-group-header" data-target="navGroupBattle" aria-expanded="false">
-              <span class="nav-group-title">&#9876; Battle Roster</span>
-              <span class="nav-group-arrow">&#9656;</span>
-            </button>
-            <div id="navGroupBattle" class="nav-group-content collapsed">
-              <button id="teamBuilderMenuBtn" class="dropdown-item" title="Open Gym Team Builder Docked Panel">
-                <span class="dropdown-icon">&#9876;</span>
-                <span class="dropdown-label">Gym Team Builder</span>
-              </button>
-            </div>
-          </div>
-
           <!-- 5. Ad Protection -->
           <div class="nav-group">
             <button type="button" class="nav-group-header" data-target="navGroupAds" aria-expanded="false">
@@ -2230,7 +2263,7 @@
               <div class="dropdown-divider"></div>
               <div id="navVersionFooter" class="nav-version-footer">
                 <span class="nav-version-label">DelugeRPG Client</span>
-                <span id="navVersionBadge" class="nav-version-badge">v1.3.8</span>
+                <span id="navVersionBadge" class="nav-version-badge">v1.3.9</span>
               </div>
             </div>
           </div>
@@ -2594,18 +2627,6 @@
       allowpopups>
     </webview>
 
-    <!-- Floating Live Battle AI HUD Overlay (Zero Glow, Non-Intrusive) -->
-    <div id="liveAiHudOverlay" style="display: none; position: absolute; top: 12px; right: 14px; z-index: 50; background: #0b1424; border: 1px solid #243856; border-radius: 6px; padding: 6px 10px; align-items: center; gap: 8px; box-shadow: none !important;">
-      <span style="font-size: 14px;">&#129302;</span>
-      <div style="display: flex; flex-direction: column; line-height: 1.2;">
-        <div style="font-size: 9.5px; font-weight: 700; color: #388bfd; text-transform: uppercase; letter-spacing: 0.5px;">AI Tactical HUD</div>
-        <div id="aiHudMessage" style="font-size: 11px; font-weight: 600; color: #e0ecfa;">Observing Battle...</div>
-      </div>
-      <button id="aiHudActionBtn" type="button" class="btn btn-accent" style="display: none; height: 22px; font-size: 10px; padding: 0 8px; font-weight: 700; box-shadow: none !important;">Deploy</button>
-      <button id="aiHudExpandBtn" type="button" class="btn btn-accent" style="height: 22px; font-size: 10px; padding: 0 8px; font-weight: 700; box-shadow: none !important;" title="Open AI Combat Assistant Panel">Expand</button>
-      <button id="aiHudDismissBtn" type="button" class="modal-close-icon" style="width: 18px; height: 18px; font-size: 11px; box-shadow: none !important;" title="Hide HUD">&#10005;</button>
-    </div>
-
     <!-- 5. DOCKED SIDE PANEL: TEAM BUILDER (1/4 OF WINDOW) -->
     <div id="teamBuilderModal" style="display: flex;">
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1a283e; white-space: nowrap;">
@@ -2792,7 +2813,7 @@
       <div id="teamActionRow" style="display: none; flex-direction: column; gap: 5px; border-top: 1px solid #1a283e; padding-top: 8px; margin-top: auto; flex-shrink: 0;">
         <span id="teamActionStatus" style="font-size: 10.5px; color: #8eaad0; font-weight: 600; text-align: center;"></span>
         <div id="teamBattleActionSlot" style="display: none; width: 100%;">
-          <button id="teamBattleActionBtn" type="button" class="btn btn-accent" style="width: 100%; height: 28px; font-size: 11px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important; margin-bottom: 2px;" title="Execute optimal battle move or action directly from Team Builder">&#9889; Attack</button>
+          <button id="teamBattleActionBtn" type="button" class="btn btn-accent" style="width: 100%; max-width: 100%; height: 28px; padding: 0 10px; font-size: 11px; font-weight: 700; justify-content: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: none !important; margin-bottom: 2px;" title="Execute optimal battle move or action directly from Team Builder">&#9889; Attack</button>
         </div>
         <div style="display: flex; gap: 6px;">
           <button id="copyTeamBtn" type="button" class="btn" style="flex: 1; height: 27px; font-size: 10.5px; box-shadow: none !important;" title="Copy lineup summary to clipboard">Copy</button>

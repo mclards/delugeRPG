@@ -752,6 +752,10 @@ console.log('[PASS] Hide Ads ON dependency strictly enforced.');
   assert.strictEqual(evoOwn.isOwned, true, 'Evolution check must mark Charizard as owned due to Mega Charizard X');
   assert.strictEqual(evoOwn.hasMegaOwned, true, 'Evolution check must mark hasMegaOwned: true');
   assert(evoOwn.summaryLabel.includes('MEGA'), 'Evolution summaryLabel must explicitly highlight MEGA ownership');
+
+  // Case 6: Category-prefixed and level-suffixed target names in evaluateOwnershipAndMegaEquivalence
+  const prefixedCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('SHINY Legendary: RAYQUAZA (Lv 85)', mockCollection);
+  assert.strictEqual(prefixedCheck.isDuplicate, true, 'Prefixed SHINY Legendary: RAYQUAZA (Lv 85) must be recognized as owned');
   console.log('[PASS] 100% Uniqueness & Mega Evolution equivalence checks verified across wild encounters and evolution paths.');
 }
 
@@ -764,6 +768,15 @@ console.log('[PASS] Hide Ads ON dependency strictly enforced.');
   assert.strictEqual(preloadJs.includes("path.indexOf('/map') !== -1 || path.indexOf('/catch') !== -1"), false, 'scanForTargets must never run on /catch pages');
   assert.strictEqual(appJs.includes('isAutoCatchCountdownActive'), true, 'app.js must track isAutoCatchCountdownActive to abort on manual pause');
   console.log('[PASS] Non-target manual pause protection and /catch page isolation verified.');
+}
+
+// 3D. Target-Respect Across Page Jumps, Resume from Paused, and Step Completion Verification
+{
+  assert.strictEqual(preloadJs.includes('deluge_cached_target_config'), true, 'game-preload.js must persist and hydrate target config in localStorage across page jumps');
+  assert.strictEqual(preloadJs.includes('ensureMapObserversAttached'), true, 'game-preload.js must dynamically attach MutationObserver to #map, #dexy, and #showpoke');
+  assert.strictEqual(preloadJs.includes('!isLoading && (activeStep.sawSearching || (curDexy && curDexy !== activeStep.initialText))'), true, 'observer must wait for Searching... to finish before resolving step');
+  assert.strictEqual(preloadJs.includes('hasEncounter: !!(hasCatchUI && lastFoundTarget)'), true, 'hasEncounter must only block auto-start when a halted target is on screen');
+  console.log('[PASS] Target filters respected across page jumps, resume from Paused, and AJAX step transitions.');
 }
 
 // 4. Verify 100% 7-bit Clean ASCII across all files

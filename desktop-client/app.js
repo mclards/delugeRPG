@@ -1100,7 +1100,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.3.8';
+    let appVer = '1.3.9';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -1510,6 +1510,19 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
   });
 
   if (saveImmediately) {
+    if (avoidDuplicatesCheck) {
+      config.settings.avoidDuplicates = avoidDuplicatesCheck.checked;
+    }
+    if (customTargetInput) {
+      config.settings.customTargetList = customTargetInput.value.trim();
+    }
+    if (blacklistInput) {
+      config.settings.blacklistList = blacklistInput.value.trim();
+    }
+    config.settings.enableLevelFilter = isLevel;
+    config.settings.levelFilterMode = levelMode;
+    config.settings.levelFilterValue = levelVal;
+    config.settings.levelFilterScope = levelScope;
     config.settings.targetPreset = presetKey;
     config.settings.findLegendaries = isLeg;
     config.settings.legendaryClassic = isLeg && isClassic;
@@ -2713,6 +2726,14 @@ function handleMapNavigation(url) {
       updateStatus('Ready to Hunt (Captcha Solved)', '#10b981');
       silenceCaptchaAlarm();
     }
+    // Ensure guest preload immediately has current target filters, owned collection, and hunting state on map navigation
+    try {
+      syncUserCollectionToGuest();
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('update-config', config.settings);
+      }
+      syncHuntingState();
+    } catch (_) {}
     // Auto-start hunting only when guest preload has confirmed playable map DOM (guestReportsMap === true)
     const shouldAutoStart = (config.settings && config.settings.autoStartOnMap !== false) || wasHuntingBeforeAutoCatch;
     if (guestReportsMap && !isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
@@ -3275,6 +3296,7 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'preload-ready' || event.channel === 'request-config') {
     isGuestInputFocused = false;
+    syncUserCollectionToGuest();
     delugeView.send('update-config', config.settings);
     syncHuntingState();
     if (isRunning && isCurrentPageMap()) {
@@ -3359,9 +3381,6 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'map-status') {
     mapIsSearching = !!(event.args[0] && event.args[0].isSearching);
-    if (mapIsSearching) {
-      handleMoveSuccess(lastDispatchedDirection);
-    }
   }
 
   if (event.channel === 'encounter-status') {
@@ -3711,6 +3730,11 @@ if (modalBackdrop) {
 }
 
 window.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && wipeModal && wipeModal.style.display === 'block' && confirmWipeBtn && !confirmWipeBtn.disabled) {
+    e.preventDefault();
+    confirmWipeBtn.click();
+    return;
+  }
   if (e.key === 'Escape') {
     if (modalBackdrop && modalBackdrop.classList.contains('active')) {
       closeAllModals();
@@ -4325,12 +4349,15 @@ if (navMenuBtn && navDropdown) {
   const dropdownBackdrop = document.getElementById('dropdownBackdrop');
   if (dropdownBackdrop) {
     dropdownBackdrop.addEventListener('click', closeNavDropdown);
-    dropdownBackdrop.addEventListener('mousedown', closeNavDropdown);
   }
+
+  // Prevent clicks inside navDropdown from bubbling to document or backdrop
+  navDropdown.addEventListener('click', (e) => e.stopPropagation());
+  navDropdown.addEventListener('mousedown', (e) => e.stopPropagation());
 
   // Close dropdown when clicking outside
   document.addEventListener('click', (e) => {
-    if (!navDropdown.contains(e.target) && e.target !== navMenuBtn) {
+    if (!navDropdown.contains(e.target) && e.target !== navMenuBtn && (!navMenuBtn || !navMenuBtn.contains(e.target))) {
       closeNavDropdown();
     }
   });
@@ -4499,10 +4526,14 @@ if (openLogsBtn) {
 }
 
 let isManualReloadInProgress = false;
+let manualReloadUnlockTimer = null;
 
 if (refreshBtn) {
-  refreshBtn.addEventListener('click', async () => {
-    if (isManualReloadInProgress) return;
+  refreshBtn.addEventListener('click', () => {
+    if (manualReloadUnlockTimer) {
+      clearTimeout(manualReloadUnlockTimer);
+      manualReloadUnlockTimer = null;
+    }
     isManualReloadInProgress = true;
 
     isGuestInputFocused = false;
@@ -4544,36 +4575,50 @@ if (refreshBtn) {
 
     const reloadSvg = refreshBtn.querySelector('.reload-icon');
     if (reloadSvg) {
+      reloadSvg.classList.remove('spinning');
+      void reloadSvg.offsetWidth;
       reloadSvg.classList.add('spinning');
       setTimeout(() => { if (reloadSvg) reloadSvg.classList.remove('spinning'); }, 750);
     }
     updateStatus('Flushing battle cache & reloading...', '#38bdf8');
 
+    // 3. Fire non-blocking soft cache flush in parallel
     try {
-      const flushWithTimeout = (p, ms = 500) => Promise.race([p, new Promise(res => setTimeout(res, ms))]);
-      await flushWithTimeout(ipcRenderer.invoke('soft-session-flush'));
+      ipcRenderer.invoke('soft-session-flush').catch(() => {});
     } catch (_) {}
 
-    // 3. Resilient reload dispatch (ignoring cache)
+    // 4. Immediate synchronous reload dispatch (ignoring cache) with URL fallback
     if (delugeView) {
+      const currentTargetUrl = (typeof delugeView.getURL === 'function' && delugeView.getURL())
+        || delugeView.src
+        || 'https://www.delugerpg.com/map';
       try {
-        if (typeof delugeView.stop === 'function' && typeof delugeView.isLoading === 'function' && delugeView.isLoading()) {
+        if (typeof delugeView.stop === 'function') {
           try { delugeView.stop(); } catch (_) {}
         }
         if (typeof delugeView.reloadIgnoringCache === 'function') {
           delugeView.reloadIgnoringCache();
-        } else {
+        } else if (typeof delugeView.reload === 'function') {
           delugeView.reload();
+        } else {
+          delugeView.src = currentTargetUrl;
         }
       } catch (_) {
-        try { delugeView.reload(); } catch (_) {}
+        try {
+          if (typeof delugeView.loadURL === 'function') {
+            delugeView.loadURL(currentTargetUrl).catch(() => { delugeView.src = currentTargetUrl; });
+          } else {
+            delugeView.src = currentTargetUrl;
+          }
+        } catch (__) {}
       }
     }
 
-    setTimeout(() => {
+    manualReloadUnlockTimer = setTimeout(() => {
       isManualReloadInProgress = false;
+      manualReloadUnlockTimer = null;
       if (!isRunning) updateStatus('Ready', '#10b981');
-    }, 1200);
+    }, 650);
   });
 }
 
@@ -4581,9 +4626,20 @@ if (refreshBtn) {
 function openWipeModal() {
   closeNavDropdown();
   if (wipeModal) showModal(wipeModal);
+  if (confirmWipeBtn) {
+    confirmWipeBtn.disabled = false;
+    setTimeout(() => {
+      try { confirmWipeBtn.focus(); } catch (_) {}
+    }, 20);
+  }
 }
 
-if (wipeBtn) wipeBtn.addEventListener('click', openWipeModal);
+if (wipeBtn) {
+  wipeBtn.addEventListener('click', (e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    openWipeModal();
+  });
+}
 if (closeWipeBtn) closeWipeBtn.addEventListener('click', closeAllModals);
 if (cancelWipeBtn) cancelWipeBtn.addEventListener('click', closeAllModals);
 
@@ -4616,27 +4672,72 @@ if (confirmWipeBtn) {
     }
     cancelPendingAutoStart('Session wiped');
 
-    // 2. Abort guest actions and reset in-memory state
-    if (delugeView && typeof delugeView.send === 'function') {
-      try {
-        delugeView.send('abort-autocatch');
-        delugeView.send('hunting-state-changed', { isRunning: false });
-      } catch (_) {}
+    // 2. Abort guest actions, stop active webview connections, and reset in-memory state
+    if (delugeView) {
+      if (typeof delugeView.send === 'function') {
+        try {
+          delugeView.send('abort-autocatch');
+          delugeView.send('hunting-state-changed', { isRunning: false });
+        } catch (_) {}
+      }
+      if (typeof delugeView.stop === 'function') {
+        try { delugeView.stop(); } catch (_) {}
+      }
     }
     isGuestInputFocused = false;
     guestReportsMap = false;
     isEncounterOnScreen = false;
     activeAiBattleData = null;
     liveBattleOpponent = null;
+    if (typeof updateTeamBuilderBattleAction === 'function') updateTeamBuilderBattleAction(null);
     lastRecommendedTeam = [];
     recentMoves = [];
     navBlockedStatus = {};
     blockedDirections = {};
 
-    updateStatus('Wiping Session Data...', '#ef4444');
-    const res = await ipcRenderer.invoke('clear-session-data');
+    updateStatus('Wiping Session Data & Logging Out...', '#ef4444');
+    backendLog('SESSION_WIPE', 'Initiating server logout (/ajax/logout) and full persistent session/cookie wipe');
+    if (delugeView && typeof delugeView.executeJavaScript === 'function') {
+      try {
+        await Promise.race([
+          delugeView.executeJavaScript(`
+            (async () => {
+              try {
+                await fetch('/ajax/logout', { method: 'GET', credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+              } catch (_) {}
+              try {
+                document.cookie.split(';').forEach(c => {
+                  const eqPos = c.indexOf('=');
+                  const name = eqPos > -1 ? c.substr(0, eqPos).trim() : c.trim();
+                  if (name) {
+                    document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+                    document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.delugerpg.com';
+                  }
+                });
+              } catch (_) {}
+              try { window.localStorage.clear(); } catch (_) {}
+              try { window.sessionStorage.clear(); } catch (_) {}
+              return true;
+            })()
+          `),
+          new Promise(resolve => setTimeout(resolve, 900))
+        ]);
+      } catch (_) {}
+    }
+
+    let res = { success: true };
+    try {
+      const wipePromise = ipcRenderer.invoke('clear-session-data');
+      res = await Promise.race([
+        wipePromise,
+        new Promise(resolve => setTimeout(() => resolve({ success: true, timedOut: true }), 2500))
+      ]);
+    } catch (err) {
+      res = { success: false, error: err && err.message ? err.message : 'IPC error' };
+    }
 
     if (res && res.success) {
+      backendLog('SESSION_WIPE', 'Session & cookies wiped cleanly. Redirecting to /login');
       activeAccountUsername = '';
       isBallInventorySynced = false;
       dailyCatchData.username = '';
@@ -4654,6 +4755,12 @@ if (confirmWipeBtn) {
 
       if (delugeView) {
         try {
+          if (typeof delugeView.stop === 'function') {
+            try { delugeView.stop(); } catch (_) {}
+          }
+          if (typeof delugeView.clearHistory === 'function') {
+            try { delugeView.clearHistory(); } catch (_) {}
+          }
           if (typeof delugeView.loadURL === 'function') {
             delugeView.loadURL('https://www.delugerpg.com/login').catch(() => {
               delugeView.src = 'https://www.delugerpg.com/login';
@@ -4772,11 +4879,15 @@ if (zoomInBtn) zoomInBtn.addEventListener('click', zoomIn);
 if (zoomOutBtn) zoomOutBtn.addEventListener('click', zoomOut);
 if (zoomResetBtn) zoomResetBtn.addEventListener('click', zoomReset);
 
-// 2. Zoom IPC Command from Main Process
+// 2. Zoom & Reload IPC Commands from Main Process
 ipcRenderer.on('zoom-command', (event, cmd) => {
   if (cmd === 'in') zoomIn();
   else if (cmd === 'out') zoomOut();
   else if (cmd === 'reset') zoomReset();
+});
+
+ipcRenderer.on('reload-command', () => {
+  if (refreshBtn) refreshBtn.click();
 });
 
 // 3. Host Window Keyboard Shortcuts (F5 / Ctrl + R / Ctrl + + / Ctrl + - / Ctrl + 0)
@@ -5368,14 +5479,34 @@ function handleLiveBattleOpponents(data) {
       }
     }
 
-    if (targetTrainer) {
+    if (targetTrainer && !data.isVictoryScreen) {
       if (!Array.isArray(targetTrainer.roster)) targetTrainer.roster = [];
       let updated = false;
-      for (const newPoke of data.roster) {
-        const existing = targetTrainer.roster.find(p => p.name.toLowerCase() === newPoke.name.toLowerCase());
-        if (!existing) {
-          targetTrainer.roster.push(newPoke);
+      if (data.isPreparationScreen && Array.isArray(data.roster) && data.roster.length > 0 && data.roster.length <= 6) {
+        const cleanCurrent = targetTrainer.roster.map(p => `${p.name}_${p.level}`).join(',');
+        const cleanIncoming = data.roster.map(p => `${p.name}_${p.level}`).join(',');
+        if (cleanCurrent !== cleanIncoming) {
+          targetTrainer.roster = data.roster.map(p => ({
+            name: p.name,
+            types: p.types || ['Normal'],
+            level: p.level || targetTrainer.avgLevel || 50,
+            sprite: p.sprite || ''
+          }));
           updated = true;
+        }
+      } else {
+        for (const newPoke of data.roster) {
+          if (targetTrainer.roster.length >= 6) break;
+          const existing = targetTrainer.roster.find(p => p.name.toLowerCase() === newPoke.name.toLowerCase());
+          if (!existing) {
+            targetTrainer.roster.push({
+              name: newPoke.name,
+              types: newPoke.types || ['Normal'],
+              level: newPoke.level || targetTrainer.avgLevel || 50,
+              sprite: newPoke.sprite || ''
+            });
+            updated = true;
+          }
         }
       }
       if (updated) {
@@ -6262,7 +6393,7 @@ function renderTeamLineup(leader, team) {
 
   team.forEach(p => {
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:#0e1b30; border:1px solid #1a283e; border-radius:4px; font-size:11px; gap:8px;';
+    row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:4px 8px; background:#0e1b30; border:1px solid #1a283e; border-radius:4px; font-size:11px; gap:7px;';
 
     const left = document.createElement('div');
     left.style.cssText = 'display:flex; align-items:center; gap:8px; min-width:0; flex:1;';
@@ -7412,16 +7543,6 @@ function closeAiAssistantPanel() {
     }
   }
   if (aiAssistantTopBtn) aiAssistantTopBtn.classList.remove('btn-accent');
-  if (liveAiHudOverlay && (activeAiBattleData || activeEvolveCardData)) {
-    const isOtherPanelOpen = Boolean(
-      (teamBuilderModal && teamBuilderModal.style.display === 'flex') ||
-      (adsInspectorModal && adsInspectorModal.style.display === 'flex') ||
-      (catchLogModal && catchLogModal.style.display === 'flex') ||
-      (safetySettingsModal && safetySettingsModal.style.display === 'flex')
-    );
-    liveAiHudOverlay.style.right = isOtherPanelOpen ? 'calc(25% + 14px)' : '14px';
-    liveAiHudOverlay.style.display = 'flex';
-  }
 }
 
 function toggleAiAssistantPanel() {
@@ -7435,8 +7556,6 @@ function toggleAiAssistantPanel() {
 
 function updateLiveAiAssistantUI(battleData) {
   if (!battleData || !Array.isArray(battleData.roster) || battleData.roster.length === 0) {
-    if (liveAiHudOverlay && !activeEvolveCardData) liveAiHudOverlay.style.display = 'none';
-    if (aiHudActionBtn && !activeEvolveCardData) aiHudActionBtn.style.display = 'none';
     activeAiBattleData = null;
     renderAiAssistantUI();
     if (typeof updateTeamBuilderBattleAction === 'function') {
@@ -7449,44 +7568,13 @@ function updateLiveAiAssistantUI(battleData) {
     aiAssistant.setLiveBattle(battleData);
   }
 
-  // Update floating HUD overlay only when side panel is closed
   const isAiPanelOpen = Boolean(aiAssistantModal && aiAssistantModal.style.display === 'flex');
-  const isOtherPanelOpen = Boolean(
-    (teamBuilderModal && teamBuilderModal.style.display === 'flex') ||
-    (adsInspectorModal && adsInspectorModal.style.display === 'flex') ||
-    (catchLogModal && catchLogModal.style.display === 'flex')
-  );
-  if (liveAiHudOverlay) {
-    if (isAiPanelOpen) {
-      liveAiHudOverlay.style.display = 'none';
-    } else {
-      liveAiHudOverlay.style.display = 'flex';
-      liveAiHudOverlay.style.right = isOtherPanelOpen ? 'calc(25% + 14px)' : '14px';
-      if (aiHudMessage) {
-        aiHudMessage.textContent = aiAssistant ? aiAssistant.getFloatingHudText(battleData, currentCollection) : 'Battle active';
-      }
-    }
-  }
-
-  // If panel is visible, re-render
   if (isAiPanelOpen) {
     renderAiAssistantUI();
   }
 
-  // Update Team Builder tactical battle button and floating HUD action button
   if (typeof updateTeamBuilderBattleAction === 'function') {
     updateTeamBuilderBattleAction(battleData);
-  }
-  if (aiHudActionBtn && !isAiPanelOpen) {
-    const mainBtnConfig = computeAiBattleActionConfig(battleData, currentCollection);
-    if (mainBtnConfig) {
-      aiHudActionBtn.style.display = 'inline-flex';
-      aiHudActionBtn.innerHTML = mainBtnConfig.hudText;
-      aiHudActionBtn.disabled = Boolean(mainBtnConfig.disabled);
-      aiHudActionBtn.onclick = mainBtnConfig.action;
-    } else {
-      aiHudActionBtn.style.display = 'none';
-    }
   }
 }
 
@@ -7585,25 +7673,7 @@ function handleEvolveMoveSelection(card) {
     aiInstantActionSlot.appendChild(autoPickBtn);
   }
 
-  // 4. Update Floating HUD
-  if (liveAiHudOverlay) {
-    const isAiPanelOpen = Boolean(aiAssistantModal && aiAssistantModal.style.display === 'flex');
-    if (!isAiPanelOpen) {
-      liveAiHudOverlay.style.display = 'flex';
-      if (aiHudMessage) {
-        aiHudMessage.textContent = `AI Moves: ${pName} -> Keep Top 4 STAB`;
-      }
-      if (aiHudActionBtn) {
-        aiHudActionBtn.style.display = 'inline-flex';
-        aiHudActionBtn.textContent = 'View Move Intel';
-        aiHudActionBtn.onclick = () => {
-          openAiAssistantPanel();
-        };
-      }
-    }
-  }
-
-  // 5. Post to AI Chat Stream only ONCE per unique evolve modal signature
+  // 4. Post to AI Chat Stream only ONCE per unique evolve modal signature
   const evolveSig = `${pName}:${(evalResult.recommendedMoves || []).map(m => m.name).join(',')}:${(evalResult.dropMoves || []).map(m => m.name).join(',')}`;
   if (lastAnnouncedEvolveSignature !== evolveSig) {
     lastAnnouncedEvolveSignature = evolveSig;
@@ -7763,31 +7833,6 @@ function handleEvolveCardDetected(card) {
     });
     aiInstantActionSlot.appendChild(movesBtn);
   }
-
-  // 4. Update Floating HUD
-  if (liveAiHudOverlay) {
-    const isAiPanelOpen = Boolean(aiAssistantModal && aiAssistantModal.style.display === 'flex');
-    const isOtherPanelOpen = Boolean(
-      (teamBuilderModal && teamBuilderModal.style.display === 'flex') ||
-      (adsInspectorModal && adsInspectorModal.style.display === 'flex') ||
-      (catchLogModal && catchLogModal.style.display === 'flex')
-    );
-    if (!isAiPanelOpen) {
-      liveAiHudOverlay.style.display = 'flex';
-      liveAiHudOverlay.style.right = isOtherPanelOpen ? 'calc(25% + 14px)' : '14px';
-      if (aiHudMessage) {
-        const optSummary = card.options && card.options.length > 0 ? (card.options[0].fullName || card.options[0].name) : 'Evolutions';
-        aiHudMessage.textContent = `AI Evolve: ${card.fullName} -> ${optSummary}`;
-      }
-      if (aiHudActionBtn) {
-        aiHudActionBtn.style.display = 'inline-flex';
-        aiHudActionBtn.textContent = 'View Evolve Intel';
-        aiHudActionBtn.onclick = () => {
-          openAiAssistantPanel();
-        };
-      }
-    }
-  }
 }
 
 function handleEvolveCardClosed() {
@@ -7796,11 +7841,15 @@ function handleEvolveCardClosed() {
   const isAiPanelOpen = Boolean(aiAssistantModal && aiAssistantModal.style.display === 'flex');
   if (isAiPanelOpen) {
     renderAiAssistantUI();
-  } else {
-    if (!activeAiBattleData && liveAiHudOverlay) {
-      liveAiHudOverlay.style.display = 'none';
-    }
   }
+}
+
+function formatCompactBattleName(rawName) {
+  if (!rawName) return '';
+  const trimmed = String(rawName).trim();
+  if (trimmed.length <= 20) return trimmed;
+  const noParens = trimmed.replace(/\s*\([^)]+\)/g, '').trim();
+  return noParens || trimmed;
 }
 
 function computeAiBattleActionConfig(battleData, collection) {
@@ -7827,6 +7876,7 @@ function computeAiBattleActionConfig(battleData, collection) {
 
   const hasActiveBattleControls = Boolean(
     analysis.hasContinueBtn ||
+    analysis.hasSkipSelectionBtn ||
     analysis.hasAttackBtn ||
     (analysis.availableMoves && analysis.availableMoves.length > 0) ||
     analysis.hasBenchRadios
@@ -7847,25 +7897,36 @@ function computeAiBattleActionConfig(battleData, collection) {
     };
   }
 
-  if (analysis.hasContinueBtn || analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0)) {
+  if (analysis.hasContinueBtn || analysis.hasSkipSelectionBtn || analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0)) {
     const isOppKO = Boolean(analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0));
-    const label = isOppKO ? 'Opponent KO - Continue' : 'Continue to Next Turn';
+    const isBattlerAlive = !analysis.isActiveBattlerFainted && ((analysis.activeBattlerHp !== undefined) ? analysis.activeBattlerHp > 0 : true);
+    const isTrainingOnlyMode = Boolean(
+      teamBattleMode === 'NPC' &&
+      (teamRosterMode === 'TRAINING' || analysis.isTrainingTeam) &&
+      !analysis.isChallengeLocked &&
+      !battleData.isChallengePreview
+    );
+    const useSkipSelection = Boolean(isTrainingOnlyMode && isBattlerAlive && (analysis.hasSkipSelectionBtn || isOppKO));
+    const label = useSkipSelection
+      ? 'Skip Selection & Continue'
+      : (isOppKO ? 'Opponent KO - Continue' : 'Continue to Next Turn');
     return {
-      labelHtml: `&#9889; ${label}`,
-      hudText: label,
+      labelHtml: `&#9889; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(label)}</span>`,
+      hudText: useSkipSelection ? 'Skip & Continue' : label,
       disabled: false,
       btnClass: 'btn btn-accent',
       action: () => {
-        executeAiBattleAction('click-battle-button', {});
+        executeAiBattleAction('click-battle-button', { preferSkipSelection: useSkipSelection });
       }
     };
   }
 
   if (analysis.hasBenchRadios && !analysis.hasAttackBtn) {
     const nextName = analysis.nextAliveCounter || (analysis.bestActiveLead ? analysis.bestActiveLead.name : 'Next Counter');
+    const shortNext = formatCompactBattleName(nextName);
     return {
-      labelHtml: `&#9889; Deploy ${escapeHtml(nextName)} &amp; Continue`,
-      hudText: `Deploy ${nextName}`,
+      labelHtml: `&#9889; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Deploy ${escapeHtml(shortNext)} &amp; Continue</span>`,
+      hudText: `Deploy ${shortNext}`,
       disabled: false,
       btnClass: 'btn btn-accent',
       action: () => {
@@ -7882,14 +7943,15 @@ function computeAiBattleActionConfig(battleData, collection) {
 
     if (isOpponentAlive && isBattlerAlive && (analysis.hasAttackBtn || (analysis.availableMoves && analysis.availableMoves.length > 0))) {
       const moveObj = analysis.bestMoveObj;
-      const moveName = moveObj ? moveObj.name : (analysis.recommendedMove || 'Attack');
+      const rawMoveName = moveObj ? moveObj.name : (analysis.recommendedMove || 'Attack');
+      const moveName = String(rawMoveName).split(' (')[0].split(' [')[0].trim() || 'Attack';
       const mult = moveObj && moveObj.multiplier ? moveObj.multiplier : null;
       const multText = (mult !== null && mult !== undefined) ? ` (${mult}x)` : '';
       const isReattack = (oppHp < oppMaxHp && oppHp > 0);
       const verb = isReattack ? 'Reattack' : 'Attack';
 
       return {
-        labelHtml: `&#9889; ${verb} with ${escapeHtml(moveName)}${multText}`,
+        labelHtml: `&#9889; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${verb} with ${escapeHtml(moveName)}${multText}</span>`,
         hudText: `${verb}: ${moveName}${multText}`,
         disabled: false,
         btnClass: 'btn btn-accent',
@@ -7899,9 +7961,10 @@ function computeAiBattleActionConfig(battleData, collection) {
       };
     } else if (!isBattlerAlive) {
       const nextName = analysis.nextAliveCounter || 'Next Counter';
+      const shortNext = formatCompactBattleName(nextName);
       return {
-        labelHtml: `&#9889; Deploy ${escapeHtml(nextName)} &amp; Continue`,
-        hudText: `Deploy ${nextName}`,
+        labelHtml: `&#9889; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Deploy ${escapeHtml(shortNext)} &amp; Continue</span>`,
+        hudText: `Deploy ${shortNext}`,
         disabled: false,
         btnClass: 'btn btn-accent',
         action: () => {
@@ -7909,9 +7972,10 @@ function computeAiBattleActionConfig(battleData, collection) {
         }
       };
     } else {
-      const fallbackMove = analysis.recommendedMove || 'Attack';
+      const rawFallback = analysis.recommendedMove || 'Attack';
+      const fallbackMove = String(rawFallback).split(' (')[0].split(' [')[0].trim() || 'Attack';
       return {
-        labelHtml: `&#9889; Attack with ${escapeHtml(fallbackMove)}`,
+        labelHtml: `&#9889; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Attack with ${escapeHtml(fallbackMove)}</span>`,
         hudText: `Attack: ${fallbackMove}`,
         disabled: false,
         btnClass: 'btn btn-accent',
@@ -7936,13 +8000,15 @@ function computeAiBattleActionConfig(battleData, collection) {
     } else if (analysis.bestActiveLead) {
       const hasFaintedOpponents = Boolean(Array.isArray(battleData.roster) && battleData.roster.some(p => p.isFainted || (p.hp !== undefined && p.hp <= 0)));
       const deployActionLabel = hasFaintedOpponents ? 'Continue' : 'Start';
+      const fullLeadName = analysis.bestActiveLead.name;
+      const shortLeadName = formatCompactBattleName(fullLeadName);
       return {
-        labelHtml: `&#9889; Deploy ${escapeHtml(analysis.bestActiveLead.name)} &amp; ${deployActionLabel}`,
+        labelHtml: `&#9889; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Deploy ${escapeHtml(shortLeadName)} &amp; ${deployActionLabel}</span>`,
         hudText: `Deploy &amp; ${deployActionLabel}`,
         disabled: false,
         btnClass: 'btn btn-accent',
         action: () => {
-          executeAiBattleAction('select-lead-and-start', { pokemonName: analysis.bestActiveLead.name, autoStart: true });
+          executeAiBattleAction('select-lead-and-start', { pokemonName: fullLeadName, autoStart: true });
         }
       };
     }

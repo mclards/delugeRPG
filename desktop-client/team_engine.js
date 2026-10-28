@@ -362,26 +362,55 @@ function rankCarries(pool, trainer) {
     let offense = 0;
     let superEffectiveCount = 0;
     let quadHitsCount = 0;
+    let ohkoTargetCount = 0;
+    let minEffectivePower = Infinity;
+    let totalEffectivePower = 0;
     let walledCount = 0;
+    let resistedAttackCount = 0;
     let dualTypeResistedTrapCount = 0;
     let dualTypeBossSniperBonus = 0;
     let dualTypeDoubleResistBonus = 0;
     let dualTypeWeakPenalty = 0;
     let hasOhkoTrap = false;
+    let hasMultiTurnTrap = false;
 
+    const pokeLevel = typeof p.level === 'number' ? p.level : 50;
     oppList.forEach(opp => {
       const oppTypes = normalizeDefenderTypes(opp.types || ['Normal']);
-      const scoreObj = scoreVsSingleOpponent(p, oppTypes, avgLvl, opp.moves, opp);
+      const oppLvl = opp.level || avgLvl;
+      const oppVar = getVariantMultipliers(opp.variant);
+      const oppHpMult = oppVar.hp || 1.0;
+      const lvlRatio = oppLvl > 0 ? Math.min(1.5, Math.max(0.25, pokeLevel / oppLvl)) : 1.0;
+      const scoreObj = scoreVsSingleOpponent(p, oppTypes, oppLvl, opp.moves, opp);
       offense += scoreObj.totalScore;
-      const bestMult = scoreObj.bestMove ? scoreObj.bestMove.multiplier : 0;
-      if (scoreObj.bestMove && scoreObj.bestMove.isOhko) {
+      const bestMove = scoreObj.bestMove;
+      const bestMult = bestMove ? bestMove.multiplier : 0;
+      const isReliableMove = Boolean(bestMove && !bestMove.isOhko && !bestMove.isRecharge && !bestMove.isCharge);
+      const rawEffPwr = bestMove
+        ? (isReliableMove ? bestMove.effectivePower : (bestMove.isOhko ? 0 : bestMove.effectivePower * 0.5))
+        : 0;
+      const effPwr = (rawEffPwr * lvlRatio) / oppHpMult;
+
+      if (bestMove && bestMove.isOhko) {
         hasOhkoTrap = true;
+      }
+      if (bestMove && (bestMove.isRecharge || bestMove.isCharge)) {
+        hasMultiTurnTrap = true;
       }
 
       if (bestMult >= 4.0) quadHitsCount++;
       else if (bestMult >= 2.0) superEffectiveCount++;
+      else if (bestMult < 1.0 && bestMult > 0.0) resistedAttackCount++;
 
-      if (!scoreObj.bestMove || bestMult === 0.0 || scoreObj.bestMove.power === 0) {
+      if (effPwr >= 180) {
+        ohkoTargetCount++;
+      }
+      if (effPwr < minEffectivePower) {
+        minEffectivePower = effPwr;
+      }
+      totalEffectivePower += effPwr;
+
+      if (!bestMove || bestMult === 0.0 || bestMove.power === 0) {
         walledCount++;
       }
 
@@ -414,9 +443,13 @@ function rankCarries(pool, trainer) {
       }
     });
     offense = offense / oppList.length;
+    if (minEffectivePower === Infinity) minEffectivePower = 0;
+    const avgEffectivePower = totalEffectivePower / oppList.length;
+    const totalSeHits = superEffectiveCount + quadHitsCount;
+    const isFullTeamOhko = (ohkoTargetCount === oppList.length);
+    const isFullTeamSE = (totalSeHits === oppList.length);
 
     const v = getVariantMultipliers(p.variant);
-    const pokeLevel = typeof p.level === 'number' ? p.level : 50;
     const levelScore = (pokeLevel / 100) * 150;
 
     // Severe level deficit penalty: An under-leveled Pokemon cannot reliably carry
@@ -430,7 +463,7 @@ function rankCarries(pool, trainer) {
     const leadOpp = oppList[0] || { types: ['Normal'] };
     const leadScoreObj = scoreVsSingleOpponent(p, leadOpp.types || ['Normal'], avgLvl, leadOpp.moves, leadOpp);
     const leadEff = (leadScoreObj.bestMove && leadScoreObj.bestMove.multiplier) || 1.0;
-    const leadOHKO = (pokeLevel >= avgLvl) && (leadEff >= 2.0) && (leadScoreObj.bestMove.effectivePower >= 90);
+    const leadOHKO = (pokeLevel >= avgLvl) && ((leadEff >= 2.0 && leadScoreObj.bestMove.effectivePower >= 90) || (leadScoreObj.bestMove && leadScoreObj.bestMove.effectivePower >= 180));
 
     let leadDefenseScore = 0;
     if (exposure.leadExposure === 0.0) leadDefenseScore = +100;
@@ -440,48 +473,65 @@ function rankCarries(pool, trainer) {
     else if (exposure.leadExposure >= 4.0) leadDefenseScore = -600;
     else if (exposure.leadExposure >= 2.0) leadDefenseScore = -300;
 
-    if (leadOHKO) leadDefenseScore += 100;
+    if (leadOHKO) leadDefenseScore += 120;
 
-    // Roster-wide defense bonuses & penalties
-    // Boost immunity and resistance scores so true defensive walls are prioritized
-    // against opposing counter-attacks over frail glass cannons
-    const immunityScore = exposure.immuneCount * 150;
-    const resistScore = exposure.resisted * 60;
+    // Roster-wide defense & 1-hit-KO sweep bonuses
+    // Prioritize carries that can 1-hit-KO the ENTIRE opponent team (>= 180 effective power on every opponent)
+    // so opponents never get a chance to retaliate, while keeping strict defensive safety.
+    const immunityScore = exposure.immuneCount * 100;
+    const resistScore = exposure.resisted * 45;
     const weakPenalty = exposure.weakCount * 150;
     const quadPenalty = exposure.quadWeakCount * 600;
     const walledPenalty = walledCount * 600;
+    const resistedAttackPenalty = resistedAttackCount * 320;
+    const multiTurnPenalty = hasMultiTurnTrap ? 300 : 0;
 
-    // Cumulative neutral attrition penalty:
-    // On teams with >= 5 opponents, taking full neutral (1.0x) damage from 4+ opponents
-    // causes heavy cumulative wear-down across consecutive rounds.
-    const neutralCount = oppList.length - (exposure.immuneCount + exposure.resisted + exposure.weakCount + exposure.quadWeakCount);
-    const neutralAttritionPenalty = (oppList.length >= 5 && (exposure.resisted + exposure.immuneCount) < 2)
-      ? (neutralCount * 45)
+    // Full-Team 1-Hit-KO & Weakest-Link Power Scoring:
+    // A carry is only as fast as its weakest attack against any member of the opponent's roster.
+    const fullTeamOhkoBonus = isFullTeamOhko ? 800 : 0;
+    const fullTeamSeBonus = isFullTeamSE ? 450 : 0;
+    const ohkoRatioBonus = (ohkoTargetCount / oppList.length) * 500;
+    const minPowerBonus = Math.min(450, minEffectivePower * 1.4);
+    const avgPowerBonus = Math.min(350, avgEffectivePower * 0.8);
+    const weakMoveFloorPenalty = (minEffectivePower < 135) ? ((135 - minEffectivePower) * 4.5) : 0;
+
+    // Cumulative neutral attrition penalty (only applies if the carry CANNOT one-shot the opponents!)
+    const nonOhkoOpponents = oppList.length - ohkoTargetCount;
+    const neutralAttritionPenalty = (nonOhkoOpponents >= 2 && oppList.length >= 4 && (exposure.resisted + exposure.immuneCount) < 2)
+      ? (nonOhkoOpponents * 55)
       : 0;
 
     // Class abilities for bulk and sweep reliability
     const statusBonus = v.statusImmune ? 60 : 0;
     const hpBonus = (v.hp > 1) ? Math.round((v.hp - 1) * 150) : 0;
-    const flinchBonus = v.flinch ? 30 : 0;
-    const critBonus = v.crit > 1 ? 40 : 0;
-    const offenseBonus = v.offense > 1 ? 40 : 0;
-    const coverageBonus = (superEffectiveCount / oppList.length) * 120 + (quadHitsCount * 80);
+    const flinchBonus = v.flinch ? 35 : 0;
+    const critBonus = v.crit > 1 ? 45 : 0;
+    const offenseBonus = v.offense > 1 ? 65 : 0;
+    const coverageBonus = (totalSeHits / oppList.length) * 260 + (quadHitsCount * 95);
 
     const carryScore = offense
       + levelScore
       + leadDefenseScore
       + immunityScore
       + resistScore
+      + fullTeamOhkoBonus
+      + fullTeamSeBonus
+      + ohkoRatioBonus
+      + minPowerBonus
+      + avgPowerBonus
       + dualTypeBossSniperBonus
       + dualTypeDoubleResistBonus
       - (dualTypeResistedTrapCount * 400)
+      - resistedAttackPenalty
+      - multiTurnPenalty
+      - weakMoveFloorPenalty
       - dualTypeWeakPenalty
       - weakPenalty
       - quadPenalty
       - walledPenalty
       - neutralAttritionPenalty
       - levelDeficitPenalty
-      - (exposure.effective * 250)
+      - (exposure.effective * 180)
       + statusBonus
       + hpBonus
       + flinchBonus
@@ -495,6 +545,11 @@ function rankCarries(pool, trainer) {
       offense,
       carryScore,
       leadOHKO,
+      ohkoTargetCount,
+      minEffectivePower,
+      avgEffectivePower,
+      isFullTeamOhko,
+      isFullTeamSE,
       walledCount,
       dualTypeResistedTrapCount,
       quadHitsCount,
@@ -502,26 +557,37 @@ function rankCarries(pool, trainer) {
     };
   });
 
+  const sortCarries = (a, b) => {
+    const aFullOhko = a.isFullTeamOhko ? 1 : 0;
+    const bFullOhko = b.isFullTeamOhko ? 1 : 0;
+    if (bFullOhko !== aFullOhko) return bFullOhko - aFullOhko;
+    const aFullSE = a.isFullTeamSE ? 1 : 0;
+    const bFullSE = b.isFullTeamSE ? 1 : 0;
+    if (bFullSE !== aFullSE) return bFullSE - aFullSE;
+    if (b.ohkoTargetCount !== a.ohkoTargetCount) return b.ohkoTargetCount - a.ohkoTargetCount;
+    return b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0);
+  };
+
   // Tier 1: Lead-safe (<= 1.0x), zero elemental weaknesses (< 2.0x), not walled, no dual-type resisted traps, no OHKO reliance, level >= avgLvl
   const tier1 = mapped.filter(x => x.exposure.leadExposure <= 1.0 && x.exposure.worst < 2.0 && x.walledCount === 0 && x.dualTypeResistedTrapCount === 0 && !x.hasOhkoTrap && x.poke.level >= avgLvl);
   if (tier1.length > 0) {
-    return tier1.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
+    return tier1.sort(sortCarries);
   }
 
   // Tier 2: Lead-safe (<= 1.0x), no quad weaknesses (< 4.0x), not walled, no OHKO reliance, level >= avgLvl
   const tier2 = mapped.filter(x => x.exposure.leadExposure <= 1.0 && x.exposure.worst < 4.0 && x.walledCount === 0 && !x.hasOhkoTrap && x.poke.level >= avgLvl);
   if (tier2.length > 0) {
-    return tier2.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
+    return tier2.sort(sortCarries);
   }
 
   // Tier 3: Non-quad carries (< 4.0x) with lead OHKO or level advantage
   const tier3 = mapped.filter(x => x.exposure.worst < 4.0 && (x.leadOHKO || x.exposure.leadExposure <= 1.0));
   if (tier3.length > 0) {
-    return tier3.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
+    return tier3.sort(sortCarries);
   }
 
   // Tier 4: Fallback
-  return mapped.sort((a, b) => b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0));
+  return mapped.sort(sortCarries);
 }
 
 // Dynamic Move Guidance for Carry:
@@ -541,12 +607,14 @@ function getCarryMoveGuidance(poke, trainer) {
 
   let bossMove = null;
   let maxBossMult = 0;
+  let maxBossEffPwr = 0;
   for (let i = 1; i < oppList.length; i++) {
     const opp = oppList[i];
     const s = scoreVsSingleOpponent(poke, opp.types || ['Normal'], opp.level || 50, opp.moves, opp);
     if (s.bestMove && s.bestMove.name !== leadMove) {
-      if (s.bestMove.multiplier >= 2.0 && s.bestMove.multiplier > maxBossMult) {
+      if (s.bestMove.multiplier >= 2.0 && (s.bestMove.multiplier > maxBossMult || (s.bestMove.multiplier === maxBossMult && s.bestMove.effectivePower > maxBossEffPwr))) {
         maxBossMult = s.bestMove.multiplier;
+        maxBossEffPwr = s.bestMove.effectivePower;
         bossMove = s.bestMove.name;
       }
     }
@@ -647,28 +715,43 @@ function rankTraineePartners(traineeList, trainer) {
   const oppList = (trainer && trainer.roster && trainer.roster.length > 0)
     ? trainer.roster
     : [{ types: (trainer && trainer.types) || ['Normal'] }];
+  const avgLvl = (trainer && trainer.avgLevel) || 50;
 
   return (traineeList || []).map(t => {
+    const tLvl = t.level || 1;
     let quadHits = 0;
     let seHits = 0;
+    let ohkoCount = 0;
     let totalEffPower = 0;
     let walledCount = 0;
+    let leadBonus = 0;
 
-    oppList.forEach(opp => {
-      const s = scoreVsSingleOpponent(t, opp.types || ['Normal'], opp.level || 50, opp.moves, opp);
+    oppList.forEach((opp, idx) => {
+      const oppLvl = opp.level || avgLvl;
+      const oppVar = getVariantMultipliers(opp.variant);
+      const lvlRatio = oppLvl > 0 ? (tLvl / oppLvl) : 1.0;
+      const s = scoreVsSingleOpponent(t, opp.types || ['Normal'], oppLvl, opp.moves, opp);
       if (s.bestMove) {
+        const scaledPwr = (s.bestMove.effectivePower * Math.min(1.5, Math.max(0.2, lvlRatio))) / (oppVar.hp || 1.0);
         if (s.bestMove.multiplier >= 4.0) quadHits++;
         else if (s.bestMove.multiplier >= 2.0) seHits++;
         else if (s.bestMove.multiplier === 0.0) walledCount++;
-        totalEffPower += s.bestMove.effectivePower;
+        if (scaledPwr >= 160 && !s.bestMove.isOhko) ohkoCount++;
+        totalEffPower += scaledPwr;
+        if (idx === 0) {
+          if (s.bestMove.multiplier >= 2.0) leadBonus += 220;
+          if (scaledPwr >= 160) leadBonus += 180;
+        }
       }
     });
 
     const exp = getRosterExposure(t, trainer);
-    const lvlScore = (t.level || 1) * 3;
-    const score = (quadHits * 400) + (seHits * 150) + (totalEffPower / oppList.length) + lvlScore - (exp.worst >= 4.0 ? 300 : (exp.worst >= 2.0 ? 100 : 0)) - (walledCount * 400);
+    if (exp.leadExposure <= 0.5) leadBonus += 120;
+    else if (exp.leadExposure >= 2.0) leadBonus -= 200;
+    const lvlScore = tLvl * 4;
+    const score = (ohkoCount * 350) + (quadHits * 400) + (seHits * 150) + leadBonus + (totalEffPower / oppList.length) + lvlScore - (exp.worst >= 4.0 ? 300 : (exp.worst >= 2.0 ? 100 : 0)) - (walledCount * 400);
 
-    return { poke: t, score, quadHits, seHits, totalEffPower, exp };
+    return { poke: t, score, quadHits, seHits, ohkoCount, totalEffPower, exp };
   }).sort((a, b) => b.score - a.score);
 }
 
@@ -1162,12 +1245,17 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection) {
   }
 
   let candidate = String(nameOrText).trim();
-  const appearedMatch = candidate.match(/(?:wild|caught)\s+([A-Za-z0-9\s\(\)\-']+?)\s+appeared/i);
-  if (appearedMatch) {
-    candidate = appearedMatch[1];
+  candidate = candidate.replace(/\s*\(Lv\s*\d+[^)]*\)\s*/gi, ' ');
+  candidate = candidate.replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '');
+  candidate = candidate.replace(/^(?:ULTRABEAST|ULTRA BEASTS?|PARADOX POKEMON|PARADOX|LEGENDARY POKEMON|LEGENDARY|MEGA EVOLUTION|MEGA POKEMON)\s+/i, '');
+  const appearedMatch = candidate.match(/(?:(?:a\s+)?wild\s+|caught\s+)?([A-Za-z0-9\s\(\)\-':]+?)\s+appeared/i);
+  if (appearedMatch && appearedMatch[1]) {
+    const lines = appearedMatch[1].split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+    candidate = lines.length > 0 ? lines[lines.length - 1] : appearedMatch[1];
   }
-  candidate = candidate.replace(/^(ULTRABEAST|PARADOX POKEMON|LEGENDARY POKEMON|MEGA EVOLUTION)\s+/i, '');
+  candidate = candidate.replace(/^(?:ULTRABEAST|ULTRA BEASTS?|PARADOX POKEMON|PARADOX|LEGENDARY POKEMON|LEGENDARY|MEGA EVOLUTION|MEGA POKEMON)\s+/i, '');
   candidate = candidate.replace(/^A wild\s+/i, '');
+  candidate = candidate.replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '').trim();
 
   const cleanCandidate = candidate.toLowerCase().replace(/[^a-z0-9]/g, '');
   const baseSpecies = getBaseSpecies(candidate);
@@ -1770,15 +1858,22 @@ function canSoloTrainer(poke, trainer) {
   // Must defeat every member without being walled (no 0x immunities),
   // and have super-effective damage on majority of team (>= 60%, or 100% for <= 2 pkmn teams)
   let seCount = 0;
+  let ohkoCount = 0;
+  const vMultipliers = getVariantMultipliers(poke.variant);
   for (let i = 0; i < oppList.length; i++) {
     const opp = oppList[i];
     const oppTypes = normalizeDefenderTypes(opp.types || ['Normal']);
     let bestEff = 0;
     let maxPower = 0;
+    let maxReliableEffPower = 0;
 
     for (let j = 0; j < pokeMoves.length; j++) {
       const m = pokeMoves[j];
+      if (m.isSuicide || m.isOhko) continue;
       const eff = outgoingEffectiveness(poke, m.type, oppTypes, opp);
+      const isStab = pokeTypes.includes(normalizeType(m.type));
+      const effPwr = m.power * eff * (isStab ? 1.5 : 1.0) * vMultipliers.offense * ((m.isRecharge || m.isCharge) ? 0.5 : 1.0);
+      if (effPwr > maxReliableEffPower) maxReliableEffPower = effPwr;
       if (eff > bestEff || (eff === bestEff && m.power > maxPower)) {
         bestEff = eff;
         maxPower = m.power;
@@ -1786,17 +1881,19 @@ function canSoloTrainer(poke, trainer) {
     }
 
     if (bestEff === 0.0) return false; // Opponent is completely immune to soloer attacks
+    if (bestEff < 1.0 && maxReliableEffPower < 135) return false; // Resisted weak attack cannot reliably solo
+    if (maxReliableEffPower >= 180) ohkoCount++;
     if (bestEff >= 2.0) {
       seCount++;
     } else {
-      // For neutral damage, soloer must have high base power and level advantage
-      if (maxPower < 70 && pokeLvl < trainerAvgLvl + 10) return false;
+      // For neutral damage, soloer must have solid base power or level dominance
+      if (maxPower < 75 && maxReliableEffPower < 135 && pokeLvl < trainerAvgLvl + 10) return false;
     }
   }
 
   const isHighLvlSafe = (pokeLvl >= 95 || pokeLvl >= trainerAvgLvl + 15) && worstIncoming <= 1.0;
   const hasMassiveLevelDominance = (pokeLvl >= trainerAvgLvl + 25) && worstIncoming <= 1.0;
-  const minRequiredSE = hasMassiveLevelDominance
+  const minRequiredSE = (ohkoCount === oppList.length || hasMassiveLevelDominance)
     ? 0
     : (isHighLvlSafe ? 1 : (oppList.length <= 2 ? oppList.length : Math.ceil(oppList.length * 0.6)));
   if (seCount < minRequiredSE) return false;

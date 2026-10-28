@@ -112,7 +112,6 @@ assert(!appJs.includes('isAutoCombatEnabled'), 'app.js must NOT contain isAutoCo
 const requiredHtml = [
   'id="aiAssistantTopBtn"',
   'id="aiAssistantMenuBtn"',
-  'id="liveAiHudOverlay"',
   'id="aiAssistantModal"',
   'id="aiQuickAnalyzeBtn"',
   'id="aiQuickSimBtn"',
@@ -123,8 +122,7 @@ const requiredHtml = [
   'id="aiChatStream"',
   'id="aiChatInput"',
   'id="aiChatSendBtn"',
-  'id="aiInstantActionSlot"',
-  'id="aiHudActionBtn"'
+  'id="aiInstantActionSlot"'
 ];
 
 requiredHtml.forEach(tag => {
@@ -447,6 +445,49 @@ const victoryBattle = {
 };
 const isComplete = Boolean(victoryBattle.isVictoryScreen || victoryBattle.roster.every(p => p.isFainted || p.hp <= 0));
 assert.strictEqual(isComplete, true, 'Victory screen must indicate battle complete');
+
+// Scenario 7: Training Team 2-Pokemon EXP Maximization (Primary Trainee Leads First -> Carry Finishes When Trainee Dies)
+const trainingBattleStart = {
+  trainerName: 'Veteran Tamaki',
+  isPreparationScreen: true,
+  roster: [
+    { name: 'Umbreon', types: ['Dark'], level: 80, hp: 320, maxHp: 320, isFainted: false },
+    { name: 'Tyrantrum', types: ['Rock', 'Dragon'], level: 84, hp: 336, maxHp: 336, isFainted: false },
+    { name: 'Aggron', types: ['Steel', 'Rock'], level: 86, hp: 344, maxHp: 344, isFainted: false },
+    { name: 'Tyranitar', types: ['Rock', 'Dark'], level: 86, hp: 344, maxHp: 344, isFainted: false }
+  ],
+  userTeam: [
+    { name: 'Palkia (Origin)', types: ['Water', 'Dragon'], level: 100, hp: 400, maxHp: 400, isFainted: false, index: 0 },
+    { name: 'Dialga', types: ['Steel', 'Dragon'], level: 76, hp: 304, maxHp: 304, isFainted: false, index: 1 },
+    { name: 'Chien-pao', types: ['Dark', 'Ice'], level: 61, hp: 244, maxHp: 244, isFainted: false, index: 2 },
+    { name: 'Calyrex', types: ['Psychic', 'Grass'], level: 65, hp: 260, maxHp: 260, isFainted: false, index: 3 },
+    { name: 'Ho-oh', types: ['Fire', 'Flying'], level: 74, hp: 296, maxHp: 296, isFainted: false, index: 4 },
+    { name: 'Negative Maschiff', types: ['Dark'], level: 15, hp: 60, maxHp: 60, isFainted: false, index: 5 }
+  ]
+};
+const trainStartAnalysis = aiAssistant.analyzeBattle(trainingBattleStart, coll);
+assert.strictEqual(trainStartAnalysis.bestActiveLead.name, 'Dialga', 'Primary Trainee (Dialga) MUST lead first at start of battle');
+
+const trainingBattleTraineeFainted = {
+  trainerName: 'Veteran Tamaki',
+  isPreparationScreen: true,
+  roster: [
+    { name: 'Umbreon', types: ['Dark'], level: 80, hp: 93, maxHp: 320, isFainted: false },
+    { name: 'Tyrantrum', types: ['Rock', 'Dragon'], level: 84, hp: 0, maxHp: 336, isFainted: true },
+    { name: 'Aggron', types: ['Steel', 'Rock'], level: 86, hp: 344, maxHp: 344, isFainted: false },
+    { name: 'Tyranitar', types: ['Rock', 'Dark'], level: 86, hp: 0, maxHp: 344, isFainted: true }
+  ],
+  userTeam: [
+    { name: 'Palkia (Origin)', types: ['Water', 'Dragon'], level: 100, hp: 400, maxHp: 400, isFainted: false, index: 0 },
+    { name: 'Dialga', types: ['Steel', 'Dragon'], level: 76, hp: 0, maxHp: 304, isFainted: true, index: 1 },
+    { name: 'Chien-pao', types: ['Dark', 'Ice'], level: 61, hp: 244, maxHp: 244, isFainted: false, index: 2 },
+    { name: 'Calyrex', types: ['Psychic', 'Grass'], level: 65, hp: 260, maxHp: 260, isFainted: false, index: 3 },
+    { name: 'Ho-oh', types: ['Fire', 'Flying'], level: 74, hp: 296, maxHp: 296, isFainted: false, index: 4 },
+    { name: 'Negative Maschiff', types: ['Dark'], level: 15, hp: 60, maxHp: 60, isFainted: false, index: 5 }
+  ]
+};
+const trainFaintedAnalysis = aiAssistant.analyzeBattle(trainingBattleTraineeFainted, coll);
+assert.strictEqual(trainFaintedAnalysis.bestActiveLead.name, 'Palkia (Origin)', 'When Primary Trainee (Dialga) faints, Carry (Palkia (Origin)) MUST finish the battle instead of switching to Chien-pao');
 
 console.log('  State 1 (Prep):     Deploy [Lead] & Start');
 console.log('  State 2 (Attack):   Attack with Wood Hammer (4.0x)');

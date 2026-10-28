@@ -458,11 +458,33 @@ if (!gotTheLock) {
       for (const k in preloadSessionMemoryStore) {
         delete preloadSessionMemoryStore[k];
       }
-      // 2. Wipe Chromium persistent partition storages & cache
-      await ses.clearStorageData({
+      const withTimeout = (promise, ms) => Promise.race([
+        promise,
+        new Promise(resolve => setTimeout(resolve, ms))
+      ]);
+      // 2. Explicitly remove every cookie from the persistent cookie jar and flush to disk
+      try {
+        const allCookies = await withTimeout(ses.cookies.get({}), 800);
+        if (Array.isArray(allCookies) && allCookies.length > 0) {
+          await withTimeout(Promise.all(allCookies.map(c => {
+            const rawDomain = (c.domain || 'delugerpg.com').replace(/^\./, '');
+            const scheme = c.secure ? 'https://' : 'http://';
+            const cookieUrl = scheme + rawDomain + (c.path || '/');
+            return ses.cookies.remove(cookieUrl, c.name).catch(() => {});
+          })), 1000);
+        }
+        if (typeof ses.cookies.flushStore === 'function') {
+          await withTimeout(ses.cookies.flushStore(), 600);
+        }
+      } catch (_) {}
+      // 3. Wipe Chromium persistent partition storages, auth cache, & HTTP cache
+      await withTimeout(ses.clearStorageData({
         storages: ['cookies', 'localstorage', 'indexdb', 'websql', 'serviceworkers', 'cachestorage']
-      });
-      await ses.clearCache();
+      }), 1500);
+      if (typeof ses.clearAuthCache === 'function') {
+        try { await withTimeout(ses.clearAuthCache(), 500); } catch (_) {}
+      }
+      await withTimeout(ses.clearCache(), 1000);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -472,10 +494,14 @@ if (!gotTheLock) {
   // IPC Handler: Soft Battle Cache Flush (Purges client storage & HTTP cache without touching auth cookies)
   ipcMain.handle('soft-session-flush', async () => {
     try {
-      await ses.clearCache();
-      await ses.clearStorageData({
+      const withTimeout = (promise, ms) => Promise.race([
+        promise,
+        new Promise(resolve => setTimeout(resolve, ms))
+      ]);
+      await withTimeout(ses.clearCache(), 600);
+      await withTimeout(ses.clearStorageData({
         storages: ['localstorage', 'indexdb', 'websql', 'serviceworkers', 'cachestorage']
-      });
+      }), 800);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -588,6 +614,16 @@ if (!gotTheLock) {
     });
 
     contents.on('before-input-event', (inputEvent, input) => {
+      if (input.type === 'keyDown') {
+        const keyLower = (input.key || '').toLowerCase();
+        if (input.key === 'F5' || ((input.control || input.meta) && keyLower === 'r')) {
+          inputEvent.preventDefault();
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('reload-command');
+          }
+          return;
+        }
+      }
       if (input.type === 'keyDown' && (input.control || input.meta)) {
         if (input.key === '=' || input.key === '+' || input.code === 'NumpadAdd' || input.code === 'Equal') {
           inputEvent.preventDefault();

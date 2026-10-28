@@ -96,29 +96,103 @@ class DelugeAiAssistant {
     }
 
     // 1. Resolve candidates from user's team or collection
-    const resolveCand = (u) => {
+    const knownVariants = ['Shiny', 'Dark', 'Metallic', 'Ghostly', 'Mirage', 'Shadow', 'Chrome', 'Negative', 'Retro'];
+    const detectVariantFromName = (rawName) => {
+      if (!rawName) return 'Normal';
+      for (let kv = 0; kv < knownVariants.length; kv++) {
+        if (new RegExp('^' + knownVariants[kv] + '\\b', 'i').test(rawName.trim())) {
+          return knownVariants[kv];
+        }
+      }
+      return 'Normal';
+    };
+
+    const resolveCand = (u, idx) => {
       const uClean = (u.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const uLvl = u.level || null;
       const matched = Array.isArray(collection)
-        ? collection.find(c => {
+        ? (collection.find(c => {
+            const cClean = (c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const fullName = ((c.variant || '') + ' ' + (c.name || '')).toLowerCase().replace(/[^a-z0-9]/g, '');
+            return (cClean === uClean || fullName === uClean || (c.id && c.id === u.id)) && (!uLvl || c.level === uLvl);
+          }) || collection.find(c => {
             const cClean = (c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
             const fullName = ((c.variant || '') + ' ' + (c.name || '')).toLowerCase().replace(/[^a-z0-9]/g, '');
             return cClean === uClean || fullName === uClean || (c.id && c.id === u.id);
-          })
+          }))
         : null;
+      const slotIdx = u.index !== undefined ? u.index : (typeof idx === 'number' ? idx : 0);
       return {
-        id: matched ? matched.id : ('cand_' + (u.index !== undefined ? u.index : 0)),
+        id: matched ? matched.id : ('cand_' + slotIdx),
+        slotIndex: slotIdx,
         name: u.name,
-        variant: matched ? matched.variant : (u.variant || 'Normal'),
+        variant: matched ? matched.variant : (u.variant || detectVariantFromName(u.name)),
         types: (matched && Array.isArray(matched.types) && matched.types.length > 0) ? matched.types : (u.types || ['Normal']),
         level: u.level || (matched ? matched.level : 100),
         hp: u.hp !== undefined ? u.hp : (matched ? matched.hp : 400),
         maxHp: u.maxHp !== undefined ? u.maxHp : (matched ? matched.maxHp : 400),
         isFainted: Boolean(u.isFainted || (u.hp !== undefined && u.hp <= 0)),
+        checked: Boolean(u.checked),
         moves: (matched && Array.isArray(matched.moves) && matched.moves.length > 0) ? matched.moves : (u.moves || [])
       };
     };
 
-    const teamCandidates = Array.isArray(battleData.userTeam) ? battleData.userTeam.map(resolveCand) : [];
+    const teamCandidates = Array.isArray(battleData.userTeam) ? battleData.userTeam.map((u, idx) => resolveCand(u, idx)) : [];
+    if (battleData.userActivePokemon && battleData.userActivePokemon.name) {
+      const actClean = battleData.userActivePokemon.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const matchedCand = teamCandidates.find(c => {
+        const cClean = (c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const fClean = formatPokemonFullName(c.variant, c.name).toLowerCase().replace(/[^a-z0-9]/g, '');
+        return cClean === actClean || fClean === actClean;
+      });
+      if (matchedCand) {
+        if (battleData.userActivePokemon.hp !== undefined) matchedCand.hp = battleData.userActivePokemon.hp;
+        if (battleData.userActivePokemon.maxHp !== undefined) matchedCand.maxHp = battleData.userActivePokemon.maxHp;
+        matchedCand.isFainted = Boolean(battleData.userActivePokemon.isFainted || (matchedCand.hp !== undefined && matchedCand.hp <= 0));
+      }
+    }
+
+    // Training Team Detection & Strict 2-Pokemon EXP Maximization Protocol:
+    // Goal 1: Only the Primary Trainee and the Carry participate in battle to maximize shared EXP.
+    // Goal 2: Primary Trainee (first non-Lv100 trainee on team) ALWAYS attacks first against all opponents while alive.
+    // Goal 3: Once the Primary Trainee faints (dies), the Level 100 Carry immediately finishes the entire rest of the battle.
+    const traineesInTeam = teamCandidates.filter(c => (c.level || 100) < 100);
+    const carriesInTeam = teamCandidates.filter(c => (c.level || 0) >= 100);
+    const isTrainingTeam = Boolean(
+      teamCandidates.length >= 2 &&
+      traineesInTeam.length > 0 &&
+      carriesInTeam.length > 0
+    );
+
+    let primaryTrainee = null;
+    let trainingCarry = null;
+    let designatedTrainingBattler = null;
+
+    if (isTrainingTeam) {
+      primaryTrainee = traineesInTeam[0] || null;
+      if (carriesInTeam.length === 1) {
+        trainingCarry = carriesInTeam[0];
+      } else if (carriesInTeam.length > 1) {
+        const aliveCarries = carriesInTeam.filter(c => !c.isFainted && (c.hp === undefined || c.hp > 0));
+        const poolToRank = aliveCarries.length > 0 ? aliveCarries : carriesInTeam;
+        const rankedTeamCarries = teamEngine.rankCarries(poolToRank, {
+          name: trainerName,
+          types: oppTypes,
+          avgLevel: activeOpp.level || 50,
+          roster: oppRoster
+        });
+        trainingCarry = (rankedTeamCarries && rankedTeamCarries.length > 0) ? rankedTeamCarries[0].poke : poolToRank[0];
+      }
+
+      const isPrimaryAlive = Boolean(primaryTrainee && !primaryTrainee.isFainted && (primaryTrainee.hp === undefined || primaryTrainee.hp > 0));
+      const isCarryAlive = Boolean(trainingCarry && !trainingCarry.isFainted && (trainingCarry.hp === undefined || trainingCarry.hp > 0));
+
+      if (isPrimaryAlive) {
+        designatedTrainingBattler = primaryTrainee;
+      } else if (isCarryAlive) {
+        designatedTrainingBattler = trainingCarry;
+      }
+    }
 
     // 2. Compute full roster counter roadmap across all opponents in oppRoster
     const counterRoadmap = [];
@@ -126,6 +200,8 @@ class DelugeAiAssistant {
       for (let i = 0; i < oppRoster.length; i++) {
         const opp = oppRoster[i];
         const oppNormTypes = (opp.types && opp.types.length > 0) ? opp.types : ['Normal'];
+        const oppVar = opp.variant || detectVariantFromName(opp.name);
+        const oppEnriched = Object.assign({}, opp, { variant: oppVar, types: oppNormTypes });
         const isFainted = Boolean(opp.isFainted || (opp.hp !== undefined && opp.hp <= 0));
         const isActive = (opp.name === activeOpp.name && !isFainted);
 
@@ -136,9 +212,26 @@ class DelugeAiAssistant {
 
         for (const cand of pool) {
           const candAlive = !cand.isFainted && (cand.hp === undefined || cand.hp > 0);
-          const scoreResult = teamEngine.scoreVsSingleOpponent(cand, oppNormTypes, opp.level || 50, opp.moves, opp);
-          let score = scoreResult.totalScore;
+          const oppLvl = opp.level || 50;
+          const scoreResult = teamEngine.scoreVsSingleOpponent(cand, oppNormTypes, oppLvl, opp.moves, oppEnriched);
+          const candLvl = cand.level || 100;
+          const lvlRatio = oppLvl > 0 ? (candLvl / oppLvl) : 1.0;
+          const oppHpMult = (teamEngine.getVariantMultipliers(oppVar).hp) || 1.0;
+          const scaledEffPwr = scoreResult.bestMove ? ((scoreResult.bestMove.effectivePower * lvlRatio) / oppHpMult) : 0;
+
+          let score = scoreResult.totalScore + (scaledEffPwr >= 180 ? 80 : 0) + ((candLvl - oppLvl) * 2.5);
           if (!candAlive) score -= 10000;
+
+          if (isTrainingTeam && designatedTrainingBattler && candAlive) {
+            if (cand.id === designatedTrainingBattler.id && cand.slotIndex === designatedTrainingBattler.slotIndex) {
+              score += 5000;
+            } else if (trainingCarry && cand.id === trainingCarry.id && cand.slotIndex === trainingCarry.slotIndex) {
+              score += 1000;
+            } else {
+              // Bench trainees (Slots 3-6) must NEVER be deployed while Primary Trainee or Carry is alive
+              score -= 5000;
+            }
+          }
 
           if (score > highestCounterScore) {
             highestCounterScore = score;
@@ -177,33 +270,62 @@ class DelugeAiAssistant {
 
     // 3. IN ACTIVE BATTLE: Evaluate on-screen available moves of active on-screen battler
     if (battleData.isInActiveBattle) {
-      let activeBattler = battleData.userActivePokemon || null;
-      if (!activeBattler && Array.isArray(battleData.userTeam) && battleData.userTeam.length > 0) {
-        activeBattler = battleData.userTeam.find(u => !u.isFainted && (u.hp === undefined || u.hp > 0)) || battleData.userTeam[0];
+      let rawBattler = battleData.userActivePokemon || null;
+      if (!rawBattler && Array.isArray(battleData.userTeam) && battleData.userTeam.length > 0) {
+        rawBattler = battleData.userTeam.find(u => !u.isFainted && (u.hp === undefined || u.hp > 0)) || battleData.userTeam[0];
       }
-      if (!activeBattler) {
-        activeBattler = { name: 'Active Pokemon', types: ['Normal'], level: 100 };
+      if (!rawBattler) {
+        rawBattler = { name: 'Active Pokemon', types: ['Normal'], level: 100 };
       }
+      const activeBattler = resolveCand(rawBattler, 0);
+      const activeOppEnriched = Object.assign({}, activeOpp, {
+        variant: activeOpp.variant || detectVariantFromName(activeOpp.name),
+        types: oppTypes
+      });
 
       const availableMoves = Array.isArray(battleData.availableMoves) ? battleData.availableMoves : [];
       let bestMove = null;
       let bestMoveScore = -Infinity;
 
       if (availableMoves.length > 0) {
+        const atkLevel = activeBattler.level || 100;
+        const defLevel = activeOppEnriched.level || 100;
+        const lvlRatio = defLevel > 0 ? (atkLevel / defLevel) : 1.0;
+        const atkVarMult = teamEngine.getVariantMultipliers(activeBattler.variant);
+        const defVarMult = teamEngine.getVariantMultipliers(activeOppEnriched.variant);
+        const oppMaxHpVal = (activeOppEnriched.maxHp && activeOppEnriched.maxHp > 0)
+          ? activeOppEnriched.maxHp
+          : Math.round(defLevel * 4 * (defVarMult.hp || 1.0));
+        const oppCurrHpVal = (activeOppEnriched.hp !== undefined && activeOppEnriched.hp > 0)
+          ? activeOppEnriched.hp
+          : oppMaxHpVal;
+
         for (const mv of availableMoves) {
           const mObj = typeof mv === 'object' ? mv : { name: mv };
           const resolved = teamEngine.resolveMove(mObj);
-          const eff = teamEngine.outgoingEffectiveness(activeBattler, resolved.type, oppTypes, activeOpp);
+          const isStatusMove = Boolean(resolved.isStatus || resolved.power <= 0);
+          const eff = teamEngine.outgoingEffectiveness(activeBattler, resolved.type, oppTypes, activeOppEnriched);
           const battlerTypes = (activeBattler.types || []).map(teamEngine.normalizeType);
           const isStab = battlerTypes.includes(teamEngine.normalizeType(resolved.type));
-          const accFactor = resolved.isOhko ? 0.30 : 1.0;
-          const effectivePower = (resolved.power || 40) * eff * (isStab ? 1.5 : 1.0);
-          let score = effectivePower * accFactor;
-          if (eff >= 4.0) score += 500;
-          else if (eff >= 2.0) score += 200;
-          else if (eff < 1.0) score -= 300;
-          if (eff === 0.0) score -= 2000;
-          if (isStab) score += 75;
+          const accFactor = resolved.isOhko ? 0.30 : (resolved.accuracy ? resolved.accuracy / 100 : 1.0);
+          const effectivePower = isStatusMove ? 0 : (resolved.power * eff * (isStab ? 1.5 : 1.0) * (atkVarMult.offense || 1.0));
+          const scaledDamagePwr = (effectivePower * lvlRatio) / (defVarMult.hp || 1.0);
+          const estDamageHp = Math.round((scaledDamagePwr / 180) * oppMaxHpVal);
+          const canKoCurrentHp = !isStatusMove && !resolved.isOhko && eff > 0 && (estDamageHp >= oppCurrHpVal);
+
+          let score = (scaledDamagePwr * accFactor);
+          if (isStatusMove) {
+            score -= 1500;
+          } else {
+            if (eff >= 4.0) score += 500;
+            else if (eff >= 2.0) score += 200;
+            else if (eff < 1.0) score -= 300;
+            if (eff === 0.0) score -= 2000;
+            if (isStab) score += 75;
+            if (canKoCurrentHp && !resolved.isRecharge && !resolved.isCharge && !resolved.isLocking) {
+              score += 250;
+            }
+          }
           if (resolved.isOhko) score -= 450;
           if (resolved.isLocking) score -= 160;
           if (resolved.isRecharge) score -= 260;
@@ -218,6 +340,8 @@ class DelugeAiAssistant {
               power: resolved.power,
               multiplier: eff,
               isStab: isStab,
+              estDamageHp: estDamageHp,
+              canKoCurrentHp: canKoCurrentHp,
               rawLabel: mObj.rawLabel || resolved.name,
               score: score
             };
@@ -280,7 +404,9 @@ class DelugeAiAssistant {
         recommendedMove: moveRecommendation,
         bestMoveObj: bestMove,
         hasContinueBtn: Boolean(battleData.hasContinueBtn),
+        hasSkipSelectionBtn: Boolean(battleData.hasSkipSelectionBtn),
         hasAttackBtn: Boolean(battleData.hasAttackBtn || availableMoves.length > 0),
+        isTrainingTeam: Boolean(isTrainingTeam),
         isPreparationScreen: false,
         isInActiveBattle: true,
         availableMoves: availableMoves,
@@ -385,7 +511,9 @@ class DelugeAiAssistant {
       recommendedMove: activeLeadBestMove || carryBestMove || 'Best STAB',
       bestMoveObj: null,
       hasContinueBtn: Boolean(battleData.hasContinueBtn),
+      hasSkipSelectionBtn: Boolean(battleData.hasSkipSelectionBtn),
       hasAttackBtn: false,
+      isTrainingTeam: Boolean(isTrainingTeam),
       isPreparationScreen: Boolean(battleData.isPreparationScreen),
       isInActiveBattle: false,
       isChallengeLocked: isChallengeLocked,

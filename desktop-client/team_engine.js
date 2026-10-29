@@ -374,9 +374,11 @@ function rankCarries(pool, trainer) {
     let hasOhkoTrap = false;
     let hasMultiTurnTrap = false;
     let recoilHitCount = 0;
+    let preemptedQuadCount = 0;
+    let preemptedWeakCount = 0;
 
     const pokeLevel = typeof p.level === 'number' ? p.level : 50;
-    oppList.forEach(opp => {
+    oppList.forEach((opp, oppIdx) => {
       const oppTypes = normalizeDefenderTypes(opp.types || ['Normal']);
       const oppLvl = opp.level || avgLvl;
       const oppVar = getVariantMultipliers(opp.variant);
@@ -400,6 +402,30 @@ function rankCarries(pool, trainer) {
       }
       if (bestMove && bestMove.isRecoil) {
         recoilHitCount++;
+      }
+
+      // Check for pre-empted benched threats (1-shot before retaliation)
+      const moveTypesFromMoves = Array.isArray(opp.moves)
+        ? opp.moves.map(m => {
+            const rm = resolveMove(m);
+            return (!rm.isStatus && rm.power > 0) ? rm.type : null;
+          }).filter(Boolean)
+        : [];
+      const oppAttackTypes = Array.from(new Set([].concat(
+        normalizeDefenderTypes(opp.types || ['Normal']),
+        opp.knownMoveTypes || [],
+        moveTypesFromMoves
+      )));
+      let oppMaxInc = 0;
+      for (const ot of oppAttackTypes) {
+        const inc = incomingEffectiveness(p, ot, opp);
+        if (inc > oppMaxInc) oppMaxInc = inc;
+      }
+
+      const isFastOhko = (oppIdx > 0 && effPwr >= 180 && pokeLevel >= 95 && pokeLevel >= (oppLvl + 25) && bestMove && !bestMove.isRecoil && !bestMove.isOhko && (bestMove.accuracy >= 90));
+      if (isFastOhko) {
+        if (oppMaxInc >= 4.0) preemptedQuadCount++;
+        else if (oppMaxInc >= 2.0) preemptedWeakCount++;
       }
 
       if (bestMult >= 4.0) quadHitsCount++;
@@ -442,7 +468,9 @@ function rankCarries(pool, trainer) {
           dualTypeDoubleResistBonus += 35; // Resists one STAB, neutral to other
         }
         if (inc1 >= 2.0 || inc2 >= 2.0) {
-          dualTypeWeakPenalty += 150;
+          if (!isFastOhko) {
+            dualTypeWeakPenalty += 150;
+          }
         }
       }
     });
@@ -479,16 +507,39 @@ function rankCarries(pool, trainer) {
 
     if (leadOHKO) leadDefenseScore += 120;
 
+    const isMixedTrainer = Boolean(trainer && (
+      (trainer.types && trainer.types.some(t => /mixed/i.test(t))) ||
+      (!trainer.types || trainer.types.length === 0)
+    ));
+
+    const isPureSpeedSweeper = Boolean(
+      pokeLevel >= 95 &&
+      pokeLevel >= (avgLvl + 25) &&
+      isFullTeamOhko &&
+      exposure.leadExposure <= 1.0 &&
+      walledCount === 0 &&
+      dualTypeResistedTrapCount === 0 &&
+      !hasOhkoTrap &&
+      recoilHitCount === 0 &&
+      !isMixedTrainer &&
+      (exposure.quadWeakCount <= preemptedQuadCount)
+    );
+
     // Roster-wide defense & 1-hit-KO sweep bonuses
     // Prioritize carries that can 1-hit-KO the ENTIRE opponent team (>= 180 effective power on every opponent)
     // so opponents never get a chance to retaliate, while keeping strict defensive safety.
     const immunityScore = exposure.immuneCount * 100;
     const resistScore = exposure.resisted * 45;
-    const weakPenalty = exposure.weakCount * 150;
-    const quadPenalty = exposure.quadWeakCount * 600;
+    const weakPenalty = isPureSpeedSweeper
+      ? (preemptedWeakCount * 35)
+      : (exposure.weakCount * 150);
+    const quadPenalty = isPureSpeedSweeper
+      ? (preemptedQuadCount * 80)
+      : (exposure.quadWeakCount * 600);
     const walledPenalty = walledCount * 600;
     const resistedAttackPenalty = resistedAttackCount * 320;
     const multiTurnPenalty = hasMultiTurnTrap ? 300 : 0;
+    const speedSweeperBonus = isPureSpeedSweeper ? 350 : 0;
 
     // Full-Team 1-Hit-KO & Weakest-Link Power Scoring:
     // A carry is only as fast as its weakest attack against any member of the opponent's roster.
@@ -525,6 +576,7 @@ function rankCarries(pool, trainer) {
       + avgPowerBonus
       + dualTypeBossSniperBonus
       + dualTypeDoubleResistBonus
+      + speedSweeperBonus
       - (dualTypeResistedTrapCount * 400)
       - resistedAttackPenalty
       - multiTurnPenalty
@@ -536,7 +588,7 @@ function rankCarries(pool, trainer) {
       - walledPenalty
       - neutralAttritionPenalty
       - levelDeficitPenalty
-      - (exposure.effective * 180)
+      - (exposure.effective * (isPureSpeedSweeper ? 60 : 180))
       + statusBonus
       + hpBonus
       + flinchBonus
@@ -555,6 +607,7 @@ function rankCarries(pool, trainer) {
       avgEffectivePower,
       isFullTeamOhko,
       isFullTeamSE,
+      isPureSpeedSweeper,
       walledCount,
       dualTypeResistedTrapCount,
       quadHitsCount,
@@ -573,8 +626,8 @@ function rankCarries(pool, trainer) {
     return b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0);
   };
 
-  // Tier 1: Lead-safe (<= 1.0x), zero elemental weaknesses (< 2.0x), not walled, no dual-type resisted traps, no OHKO reliance, level >= avgLvl
-  const tier1 = mapped.filter(x => x.exposure.leadExposure <= 1.0 && x.exposure.worst < 2.0 && x.walledCount === 0 && x.dualTypeResistedTrapCount === 0 && !x.hasOhkoTrap && x.poke.level >= avgLvl);
+  // Tier 1: Lead-safe (<= 1.0x), zero elemental weaknesses (< 2.0x) OR Certified Pure Speed Sweeper (pre-empts all benched threats with guaranteed 1-Hit KO sweep)
+  const tier1 = mapped.filter(x => x.exposure.leadExposure <= 1.0 && (x.exposure.worst < 2.0 || x.isPureSpeedSweeper) && x.walledCount === 0 && x.dualTypeResistedTrapCount === 0 && !x.hasOhkoTrap && x.poke.level >= avgLvl);
   if (tier1.length > 0) {
     return tier1.sort(sortCarries);
   }
@@ -1896,10 +1949,13 @@ function canSoloTrainer(poke, trainer) {
   const pokeLvl = typeof poke.level === 'number' ? poke.level : 1;
 
   let worstIncoming = 0;
+  let leadIncoming = 0;
   let allOpponentsZeroDamage = true;
   let isMutualSelfTrap = false;
+  const oppMaxDamages = [];
 
-  for (const opp of oppList) {
+  for (let oppIdx = 0; oppIdx < oppList.length; oppIdx++) {
+    const opp = oppList[oppIdx];
     const moveTypesFromMoves = Array.isArray(opp.moves)
       ? opp.moves.map(m => {
           const rm = resolveMove(m);
@@ -1920,6 +1976,8 @@ function canSoloTrainer(poke, trainer) {
         isMutualSelfTrap = true;
       }
     }
+    if (oppIdx === 0) leadIncoming = oppMaxDamage;
+    oppMaxDamages.push(oppMaxDamage);
     if (oppMaxDamage > 0) allOpponentsZeroDamage = false;
   }
 
@@ -1934,8 +1992,6 @@ function canSoloTrainer(poke, trainer) {
     }
   }
 
-  // Fatal weakness: soloer cannot have super-effective elemental weaknesses (>= 2.0x)
-  if (worstIncoming >= 2.0) return false;
   // Mutual self-type trap (Dragon vs Dragon, Ghost vs Ghost): cannot solo unless user has decisive level advantage
   if (isMutualSelfTrap && pokeLvl < (trainerAvgLvl + 25)) return false;
 
@@ -1961,10 +2017,13 @@ function canSoloTrainer(poke, trainer) {
   // and have super-effective damage on majority of team (>= 60%, or 100% for <= 2 pkmn teams)
   let seCount = 0;
   let ohkoCount = 0;
+  let lethalThreatsPreempted = true;
   const vMultipliers = getVariantMultipliers(poke.variant);
   for (let i = 0; i < oppList.length; i++) {
     const opp = oppList[i];
     const oppTypes = normalizeDefenderTypes(opp.types || ['Normal']);
+    const oppLvl = opp.level || trainerAvgLvl;
+    const lvlRatio = oppLvl > 0 ? Math.min(1.5, Math.max(0.25, pokeLvl / oppLvl)) : 1.0;
     let bestEff = 0;
     let maxPower = 0;
     let maxReliableEffPower = 0;
@@ -1975,7 +2034,7 @@ function canSoloTrainer(poke, trainer) {
       const eff = outgoingEffectiveness(poke, m.type, oppTypes, opp);
       const isStab = pokeTypes.includes(normalizeType(m.type));
       const recoilFactor = m.isRecoil ? 0.75 : 1.0;
-      const effPwr = m.power * eff * (isStab ? 1.5 : 1.0) * vMultipliers.offense * ((m.isRecharge || m.isCharge) ? 0.5 : 1.0) * recoilFactor;
+      const effPwr = m.power * eff * (isStab ? 1.5 : 1.0) * vMultipliers.offense * ((m.isRecharge || m.isCharge) ? 0.5 : 1.0) * recoilFactor * lvlRatio;
       if (effPwr > maxReliableEffPower) maxReliableEffPower = effPwr;
       if (eff > bestEff || (eff === bestEff && m.power > maxPower)) {
         bestEff = eff;
@@ -1986,6 +2045,9 @@ function canSoloTrainer(poke, trainer) {
     if (bestEff === 0.0) return false; // Opponent is completely immune to soloer attacks
     if (bestEff < 1.0 && maxReliableEffPower < 135) return false; // Resisted weak attack cannot reliably solo
     if (maxReliableEffPower >= 180) ohkoCount++;
+    if (oppMaxDamages[i] >= 2.0 && (i === 0 || maxReliableEffPower < 180)) {
+      lethalThreatsPreempted = false;
+    }
     if (bestEff >= 2.0) {
       seCount++;
     } else {
@@ -1993,6 +2055,25 @@ function canSoloTrainer(poke, trainer) {
       if (maxPower < 75 && maxReliableEffPower < 135 && pokeLvl < trainerAvgLvl + 10) return false;
     }
   }
+
+  // Fatal weakness guard:
+  // A soloer cannot have 4x quad weaknesses (>= 4.0x), and cannot take super-effective incoming damage (>= 2.0x) UNLESS it is a Pure Speed Sweeper:
+  // Pure Speed Sweeper criteria:
+  // - High-level dominance (pokeLvl >= 95 and >= trainerAvgLvl + 25)
+  // - Turn 1 Lead is completely safe (leadIncoming <= 1.0)
+  // - 100% full-team OHKO coverage (ohkoCount === oppList.length)
+  // - Every benched opponent with >= 2.0x incoming attack is guaranteed 1-hit KO'd before retaliation!
+  if (worstIncoming >= 4.0) return false;
+
+  const isPureSpeedSweeper = Boolean(
+    pokeLvl >= 95 &&
+    pokeLvl >= (trainerAvgLvl + 25) &&
+    leadIncoming <= 1.0 &&
+    ohkoCount === oppList.length &&
+    lethalThreatsPreempted &&
+    !isMixedTrainer
+  );
+  if (worstIncoming >= 2.0 && !isPureSpeedSweeper) return false;
 
   const isHighLvlSafe = (pokeLvl >= 95 || pokeLvl >= trainerAvgLvl + 15) && worstIncoming <= 1.0;
   const hasMassiveLevelDominance = (pokeLvl >= trainerAvgLvl + 25) && worstIncoming <= 1.0;

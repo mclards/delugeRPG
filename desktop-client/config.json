@@ -82,11 +82,13 @@
     "teamBattleMode": "NPC",
     "pvpStrategy": "GODSQUAD",
     "teamCategoryFilter": "FAVORITES",
-    "lastSelectedTrainer": "STRONG_TRAINERS__56",
+    "lastSelectedTrainer": "VIP_TRAINERS__2",
     "favoriteTrainers": [
       "Veteran Tamaki",
       "Veteran Shareef",
-      "Ace Trainer Bryce"
+      "Ace Trainer Bryce",
+      "Will",
+      "Acerola"
     ]
   },
   "safety": {

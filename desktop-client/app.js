@@ -6661,7 +6661,7 @@ function executeTeamBuild(targetLeader) {
 
       const topRank = rankedCarries[0];
       const isAtRisk = topRank
-        ? (topRank.exposure.worst >= 2.0 || topRank.walledCount > 0 || (carry.level || 0) < (targetLeader.avgLevel || 50))
+        ? (!topRank.isPureSpeedSweeper && (topRank.exposure.worst >= 2.0 || topRank.walledCount > 0 || (carry.level || 0) < (targetLeader.avgLevel || 50)))
         : false;
 
       hybridTeam.push({

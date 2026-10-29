@@ -1100,7 +1100,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.4.0';
+    let appVer = '1.4.1';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -5780,6 +5780,8 @@ function toggleTrainerFavorite(trainerName) {
           const rosterBadge = (Array.isArray(ldr.roster) && ldr.roster.length > 0) ? ` [${ldr.roster.length}/6]` : '';
           const prefix = isNowFav ? '\u2605 ' : '';
           opt.textContent = `${prefix}${ldr.name} (${typeStr}${lvlStr ? ' - ' + lvlStr : ''})${rosterBadge}`;
+          opt.style.color = isNowFav ? '#f59e0b' : '#e0ecfa';
+          opt.style.fontWeight = isNowFav ? '700' : '500';
         }
       });
     }
@@ -5862,9 +5864,9 @@ function populateGymTrainerSelect(categoryFilter = null) {
 
   if (categoryFilter === 'FAVORITES') {
     const favGroup = document.createElement('optgroup');
-    favGroup.label = `FAVORITE OPPONENTS (${favList.length})`;
+    favGroup.label = 'FAVORITE OPPONENTS';
     favGroup.style.cssText = 'color: #f59e0b; background: #261c06; font-weight: 800; font-style: normal; letter-spacing: 0.5px;';
-    const seenNames = new Set();
+    const seenKeys = new Set();
     const allTierKeys = [
       'VIP_TRAINERS', 'ULTIMATE_TRAINERS', 'STRONG_TRAINERS', 'STANDARD_TRAINERS',
       'KANTO', 'JOHTO', 'HOENN', 'SINNOH', 'UNOVA', 'KALOS', 'ALOLA', 'GALAR', 'PALDEA'
@@ -5874,20 +5876,35 @@ function populateGymTrainerSelect(categoryFilter = null) {
       const trainers = gymLeadersData[groupKey];
       if (!Array.isArray(trainers)) return;
       trainers.forEach((leader, idx) => {
-        if (favList.includes(leader.name) && !seenNames.has(leader.name)) {
-          seenNames.add(leader.name);
-          const opt = document.createElement('option');
-          opt.value = `${groupKey}__${idx}`;
+        if (favList.includes(leader.name)) {
           const typeStr = (leader.types || []).join('/');
-          const lvlStr = leader.avgLevel ? `Lv ${leader.avgLevel}` : '';
-          const rosterBadge = (Array.isArray(leader.roster) && leader.roster.length > 0) ? ` [${leader.roster.length}/6]` : '';
-          opt.textContent = `\u2605 ${leader.name} (${typeStr}${lvlStr ? ' - ' + lvlStr : ''})${rosterBadge}`;
-          opt.style.cssText = 'color: #f59e0b; background: #070e1a; font-weight: 600;';
-          favGroup.appendChild(opt);
-          matchCount++;
+          const distinctKey = `${leader.name}__${leader.avgLevel || 0}__${typeStr}`;
+          if (!seenKeys.has(distinctKey)) {
+            seenKeys.add(distinctKey);
+            const opt = document.createElement('option');
+            opt.value = `${groupKey}__${idx}`;
+            const lvlStr = leader.avgLevel ? `Lv ${leader.avgLevel}` : '';
+            const rosterBadge = (Array.isArray(leader.roster) && leader.roster.length > 0) ? ` [${leader.roster.length}/6]` : '';
+            let tierTag = '';
+            if (leader.tier) {
+              tierTag = ` [${leader.tier}]`;
+            } else if (groupKey.endsWith('_TRAINERS')) {
+              tierTag = ` [${groupKey.replace('_TRAINERS', '')}]`;
+            } else if (leader.badge) {
+              tierTag = ` [${leader.region || groupKey} GYM]`;
+            } else if (leader.region) {
+              tierTag = ` [${leader.region}]`;
+            }
+            opt.textContent = `\u2605 ${leader.name} (${typeStr}${lvlStr ? ' - ' + lvlStr : ''})${rosterBadge}${tierTag}`;
+            opt.style.cssText = 'color: #f59e0b; background: #070e1a; font-weight: 600;';
+            favGroup.appendChild(opt);
+            matchCount++;
+          }
         }
       });
     });
+
+    favGroup.label = `FAVORITE OPPONENTS (${matchCount})`;
 
     if (matchCount === 0) {
       const emptyOpt = document.createElement('option');

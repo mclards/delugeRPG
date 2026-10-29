@@ -3627,12 +3627,48 @@
           "types": [
             "Dark",
             "Ghost"
+          ],
+          "moves": [
+            {
+              "name": "Foul Play",
+              "type": "Dark"
+            },
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark"
+            }
+          ],
+          "knownMoveTypes": [
+            "Dark",
+            "Ghost"
           ]
         },
         {
           "name": "Banette",
           "types": [
             "Ghost"
+          ],
+          "moves": [
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Dark"
           ]
         },
         {
@@ -3914,12 +3950,48 @@
           "types": [
             "Dark",
             "Ghost"
+          ],
+          "moves": [
+            {
+              "name": "Foul Play",
+              "type": "Dark"
+            },
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark"
+            }
+          ],
+          "knownMoveTypes": [
+            "Dark",
+            "Ghost"
           ]
         },
         {
           "name": "Banette",
           "types": [
             "Ghost"
+          ],
+          "moves": [
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Dark"
           ]
         },
         {
@@ -3927,6 +3999,25 @@
           "types": [
             "Ghost",
             "Grass"
+          ],
+          "moves": [
+            {
+              "name": "Anchor Shot",
+              "type": "Steel"
+            },
+            {
+              "name": "Power Whip",
+              "type": "Grass"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            }
+          ],
+          "knownMoveTypes": [
+            "Steel",
+            "Grass",
+            "Ghost"
           ]
         },
         {
@@ -3960,6 +4051,29 @@
           "types": [
             "Ghost",
             "Ground"
+          ],
+          "moves": [
+            {
+              "name": "Earth Power",
+              "type": "Ground"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            },
+            {
+              "name": "Sand Tomb",
+              "type": "Ground"
+            },
+            {
+              "name": "Mega Drain",
+              "type": "Grass"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ground",
+            "Ghost",
+            "Grass"
           ]
         }
       ]
@@ -5216,12 +5330,48 @@
           "types": [
             "Dark",
             "Ghost"
+          ],
+          "moves": [
+            {
+              "name": "Foul Play",
+              "type": "Dark"
+            },
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark"
+            }
+          ],
+          "knownMoveTypes": [
+            "Dark",
+            "Ghost"
           ]
         },
         {
           "name": "Banette",
           "types": [
             "Ghost"
+          ],
+          "moves": [
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Dark"
           ]
         },
         {
@@ -5229,6 +5379,25 @@
           "types": [
             "Ghost",
             "Grass"
+          ],
+          "moves": [
+            {
+              "name": "Anchor Shot",
+              "type": "Steel"
+            },
+            {
+              "name": "Power Whip",
+              "type": "Grass"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            }
+          ],
+          "knownMoveTypes": [
+            "Steel",
+            "Grass",
+            "Ghost"
           ]
         },
         {
@@ -5262,6 +5431,29 @@
           "types": [
             "Ghost",
             "Ground"
+          ],
+          "moves": [
+            {
+              "name": "Earth Power",
+              "type": "Ground"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            },
+            {
+              "name": "Sand Tomb",
+              "type": "Ground"
+            },
+            {
+              "name": "Mega Drain",
+              "type": "Grass"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ground",
+            "Ghost",
+            "Grass"
           ]
         }
       ]
@@ -5283,12 +5475,48 @@
           "types": [
             "Dark",
             "Ghost"
+          ],
+          "moves": [
+            {
+              "name": "Foul Play",
+              "type": "Dark"
+            },
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark"
+            }
+          ],
+          "knownMoveTypes": [
+            "Dark",
+            "Ghost"
           ]
         },
         {
           "name": "Banette",
           "types": [
             "Ghost"
+          ],
+          "moves": [
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Dark"
           ]
         },
         {
@@ -5296,6 +5524,25 @@
           "types": [
             "Ghost",
             "Grass"
+          ],
+          "moves": [
+            {
+              "name": "Anchor Shot",
+              "type": "Steel"
+            },
+            {
+              "name": "Power Whip",
+              "type": "Grass"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            }
+          ],
+          "knownMoveTypes": [
+            "Steel",
+            "Grass",
+            "Ghost"
           ]
         },
         {
@@ -5329,6 +5576,29 @@
           "types": [
             "Ghost",
             "Ground"
+          ],
+          "moves": [
+            {
+              "name": "Earth Power",
+              "type": "Ground"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            },
+            {
+              "name": "Sand Tomb",
+              "type": "Ground"
+            },
+            {
+              "name": "Mega Drain",
+              "type": "Grass"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ground",
+            "Ghost",
+            "Grass"
           ]
         }
       ]

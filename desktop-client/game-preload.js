@@ -5327,6 +5327,7 @@ let lastBroadcastBattleSig = null;
 let lastKnownUserTeam = [];
 let lastKnownOpponentRoster = [];
 const knownVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
+const observedOpponentMoveKeys = new Set();
 
 function detectBattleOpponents(isManualCheck) {
     try {
@@ -5805,6 +5806,36 @@ function detectBattleOpponents(isManualCheck) {
                 return;
             }
             lastBroadcastBattleSig = activeBattleSig;
+
+            // Real-Time Opponent Attack Move Sensory Harvester
+            try {
+                const logContainers = document.querySelectorAll('#bresult, #cresult, #battlelog, #log, .battlemessage, .battle-log, #battle p, #content p, .battle p, p');
+                for (let li = 0; li < logContainers.length; li++) {
+                    const lText = (logContainers[li].textContent || '').trim();
+                    if (!lText || lText.indexOf('used') === -1) continue;
+                    const re = /(?:^|[.!?\n])\s*(?:[A-Za-z0-9_-]+['']s\s+)?([A-Za-z0-9\s'.-]+?)\s+used\s+([A-Za-z0-9\s'-]+?)\./gi;
+                    let mMatch;
+                    while ((mMatch = re.exec(lText)) !== null) {
+                        const actorName = mMatch[1].replace(/^[A-Za-z0-9_-]+['']s\s+/i, '').trim();
+                        const moveUsed = mMatch[2].trim();
+                        if (!actorName || !moveUsed) continue;
+                        if (userActivePokemon && (actorName.toLowerCase() === userActivePokemon.name.toLowerCase() || userActivePokemon.name.toLowerCase().includes(actorName.toLowerCase()))) {
+                            continue;
+                        }
+                        const matchOpp = (roster || []).find(r => r.name.toLowerCase() === actorName.toLowerCase() || actorName.toLowerCase().includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(actorName.toLowerCase()));
+                        const resolvedPokeName = matchOpp ? matchOpp.name : actorName;
+                        const sigKey = `${trainerName}:${resolvedPokeName}:${moveUsed}`.toLowerCase();
+                        if (!observedOpponentMoveKeys.has(sigKey)) {
+                            observedOpponentMoveKeys.add(sigKey);
+                            ipcRenderer.sendToHost('opponent-move-observed', {
+                                trainerName: trainerName,
+                                pokemonName: resolvedPokeName,
+                                moveName: moveUsed
+                            });
+                        }
+                    }
+                }
+            } catch (_) {}
 
             ipcRenderer.sendToHost('battle-opponents-detected', {
                 trainerName: trainerName,

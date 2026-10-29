@@ -3125,6 +3125,13 @@ delugeView.addEventListener('ipc-message', (event) => {
     }
   }
 
+  if (event.channel === 'opponent-move-observed') {
+    const data = event.args[0] || {};
+    if (data.pokemonName && data.moveName) {
+      recordLearnedOpponentMove(data.trainerName, data.pokemonName, data.moveName);
+    }
+  }
+
   if (event.channel === 'ai-battle-action-status') {
     const data = event.args[0] || {};
     if (typeof aiActionTimeoutTimer !== 'undefined' && aiActionTimeoutTimer) {
@@ -5564,6 +5571,81 @@ function handleLiveBattleOpponents(data) {
       }
       resetTeamPrompt();
     }
+  }
+}
+
+function recordLearnedOpponentMove(trainerName, pokemonName, moveName) {
+  if (!pokemonName || !moveName) return;
+
+  let moveType = null;
+  try {
+    const skillsDb = require('./skills_database.json');
+    const moveKey = moveName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const found = skillsDb.moves && (skillsDb.moves[moveKey] || Object.values(skillsDb.moves).find(m => m.name && m.name.toLowerCase() === moveName.toLowerCase()));
+    if (found && found.type) {
+      moveType = found.type;
+    }
+  } catch (_) {}
+
+  if (!moveType && typeof teamEngine !== 'undefined' && typeof teamEngine.resolveMove === 'function') {
+    const resolved = teamEngine.resolveMove(moveName);
+    if (resolved && resolved.type && resolved.type !== 'Normal') {
+      moveType = resolved.type;
+    }
+  }
+
+  if (!moveType) moveType = 'Normal';
+
+  let didUpdate = false;
+  if (gymLeadersData && typeof gymLeadersData === 'object') {
+    Object.values(gymLeadersData).forEach(list => {
+      if (!Array.isArray(list)) return;
+      list.forEach(t => {
+        const matchesTrainer = !trainerName || (t.name && t.name.toLowerCase() === trainerName.toLowerCase());
+        if (matchesTrainer && Array.isArray(t.roster)) {
+          t.roster.forEach(p => {
+            if (p.name && p.name.toLowerCase() === pokemonName.toLowerCase()) {
+              p.moves = p.moves || [];
+              if (!p.moves.some(m => m.name && m.name.toLowerCase() === moveName.toLowerCase())) {
+                p.moves.push({ name: moveName, type: moveType });
+                didUpdate = true;
+              }
+              p.knownMoveTypes = p.knownMoveTypes || [];
+              if (!p.knownMoveTypes.includes(moveType)) {
+                p.knownMoveTypes.push(moveType);
+                didUpdate = true;
+              }
+            }
+          });
+        }
+      });
+    });
+  }
+
+  if (liveBattleOpponent && Array.isArray(liveBattleOpponent.roster)) {
+    liveBattleOpponent.roster.forEach(p => {
+      if (p.name && p.name.toLowerCase() === pokemonName.toLowerCase()) {
+        p.moves = p.moves || [];
+        if (!p.moves.some(m => m.name && m.name.toLowerCase() === moveName.toLowerCase())) {
+          p.moves.push({ name: moveName, type: moveType });
+        }
+        p.knownMoveTypes = p.knownMoveTypes || [];
+        if (!p.knownMoveTypes.includes(moveType)) {
+          p.knownMoveTypes.push(moveType);
+        }
+      }
+    });
+  }
+
+  if (didUpdate) {
+    try {
+      const gymPath = getWritableDataPath('gym_leaders.json');
+      fs.writeFileSync(gymPath, JSON.stringify(gymLeadersData, null, 2), 'utf8');
+      const devPath = path.join(__dirname, 'gym_leaders.json');
+      if (devPath !== gymPath && fs.existsSync(devPath)) {
+        fs.writeFileSync(devPath, JSON.stringify(gymLeadersData, null, 2), 'utf8');
+      }
+    } catch (_) {}
   }
 }
 

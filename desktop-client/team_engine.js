@@ -373,6 +373,7 @@ function rankCarries(pool, trainer) {
     let dualTypeWeakPenalty = 0;
     let hasOhkoTrap = false;
     let hasMultiTurnTrap = false;
+    let recoilHitCount = 0;
 
     const pokeLevel = typeof p.level === 'number' ? p.level : 50;
     oppList.forEach(opp => {
@@ -385,9 +386,9 @@ function rankCarries(pool, trainer) {
       offense += scoreObj.totalScore;
       const bestMove = scoreObj.bestMove;
       const bestMult = bestMove ? bestMove.multiplier : 0;
-      const isReliableMove = Boolean(bestMove && !bestMove.isOhko && !bestMove.isRecharge && !bestMove.isCharge);
+      const isReliableMove = Boolean(bestMove && !bestMove.isOhko && !bestMove.isRecharge && !bestMove.isCharge && !bestMove.isFixedDamage);
       const rawEffPwr = bestMove
-        ? (isReliableMove ? bestMove.effectivePower : (bestMove.isOhko ? 0 : bestMove.effectivePower * 0.5))
+        ? (isReliableMove ? (bestMove.isRecoil ? bestMove.effectivePower * 0.75 : bestMove.effectivePower) : (bestMove.isOhko || bestMove.isFixedDamage ? 0 : bestMove.effectivePower * 0.5))
         : 0;
       const effPwr = (rawEffPwr * lvlRatio) / oppHpMult;
 
@@ -396,6 +397,9 @@ function rankCarries(pool, trainer) {
       }
       if (bestMove && (bestMove.isRecharge || bestMove.isCharge)) {
         hasMultiTurnTrap = true;
+      }
+      if (bestMove && bestMove.isRecoil) {
+        recoilHitCount++;
       }
 
       if (bestMult >= 4.0) quadHitsCount++;
@@ -524,6 +528,7 @@ function rankCarries(pool, trainer) {
       - (dualTypeResistedTrapCount * 400)
       - resistedAttackPenalty
       - multiTurnPenalty
+      - (recoilHitCount * 120)
       - weakMoveFloorPenalty
       - dualTypeWeakPenalty
       - weakPenalty
@@ -777,6 +782,57 @@ const MULTI_HIT_MOVES = {
   tailburst: { hits: 3, power: 75 }
 };
 
+const RECOIL_MOVES = new Set([
+  'flareblitz', 'bravebird', 'woodhammer', 'doubleedge', 'headsmash',
+  'volttackle', 'wavecrash', 'wildcharge', 'takedown', 'submission',
+  'headcharge', 'chloroblast'
+]);
+
+const FIXED_DAMAGE_MOVES = new Set([
+  'dragonrage', 'sonicboom', 'seismictoss', 'nightshade', 'psywave'
+]);
+
+const MOVE_ACCURACY = {
+  inferno: 50,
+  zapcannon: 50,
+  dynamicpunch: 50,
+  darkvoid: 50,
+  sing: 55,
+  grasswhistle: 55,
+  supersonic: 55,
+  hypnosis: 60,
+  blizzard: 70,
+  thunder: 70,
+  hurricane: 70,
+  focusblast: 70,
+  megakick: 75,
+  irontail: 75,
+  poisonpowder: 75,
+  sleeppowder: 75,
+  stunspore: 75,
+  hydropump: 80,
+  stoneedge: 80,
+  crosschop: 80,
+  gunkshot: 80,
+  megahorn: 85,
+  fireblast: 85,
+  willowisp: 85,
+  muddywater: 85,
+  powerwhip: 85,
+  takedown: 85,
+  headsmash: 80,
+  dracometeor: 90,
+  leafstorm: 90,
+  overheat: 90,
+  rockslide: 90,
+  playrough: 90,
+  iciclecrash: 90,
+  dragontail: 90,
+  heatwave: 90,
+  aquatail: 90,
+  leechseed: 90
+};
+
 function resolveMove(m) {
   const rawName = (typeof m === 'object' && m && m.name) ? m.name : (typeof m === 'string' ? m : '');
   const declaredType = (typeof m === 'object' && m && m.type) ? m.type : null;
@@ -810,18 +866,26 @@ function resolveMove(m) {
   const isCharge = ['skyattack', 'solarbeam', 'solarblade', 'skullbash', 'razorwind', 'geomancy', 'fly', 'dig', 'dive', 'bounce', 'shadowforce'].includes(cleanKey);
   const isOhko = !!(skillData && skillData.special && skillData.special.mechanic === 'ohko') || ['fissure', 'guillotine', 'horndrill', 'sheercold'].includes(cleanKey);
   const isSuicide = ['explosion', 'selfdestruct', 'mistyexplosion', 'finalgambit'].includes(cleanKey);
+  const isRecoil = RECOIL_MOVES.has(cleanKey);
+  const isFixedDamage = FIXED_DAMAGE_MOVES.has(cleanKey) || !!(skillData && skillData.special && skillData.special.mechanic === 'fixed_damage');
+  const accuracy = (skillData && typeof skillData.accuracy === 'number')
+    ? skillData.accuracy
+    : (MOVE_ACCURACY[cleanKey] !== undefined ? MOVE_ACCURACY[cleanKey] : (isOhko ? 30 : 100));
 
   return {
     name,
     type: normalizeType(type),
     power,
     category,
+    accuracy,
     isStatus,
     isLocking,
     isRecharge,
     isCharge,
     isOhko,
-    isSuicide
+    isSuicide,
+    isRecoil,
+    isFixedDamage
   };
 }
 
@@ -940,6 +1004,8 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null, o
       if (m.isRecharge) moveScore -= 260; // Recharge turns leave carry vulnerable to defeat
       if (m.isCharge) moveScore -= 130; // 2-turn charge moves waste turns
       if (m.isSuicide) moveScore -= 2500; // Never suicide
+      if (m.isFixedDamage) moveScore -= 500; // Fixed-damage moves (40 HP) cannot 1-hit KO high-level opponents
+      if (m.accuracy && m.accuracy < 75) moveScore -= (75 - m.accuracy) * 5; // Inaccurate moves leave carry defenseless
 
       if (moveScore > bestMoveScore) {
         bestMoveScore = moveScore;
@@ -954,6 +1020,8 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null, o
           isLocking: !!m.isLocking,
           isRecharge: !!m.isRecharge,
           isCharge: !!m.isCharge,
+          isRecoil: !!m.isRecoil,
+          isFixedDamage: !!m.isFixedDamage,
           accuracy: m.accuracy || (m.isOhko ? 30 : 100),
           totalPowerMult: totalMult,
           effectivePower: effectivePower
@@ -1903,10 +1971,11 @@ function canSoloTrainer(poke, trainer) {
 
     for (let j = 0; j < pokeMoves.length; j++) {
       const m = pokeMoves[j];
-      if (m.isSuicide || m.isOhko) continue;
+      if (m.isSuicide || m.isOhko || m.isFixedDamage) continue;
       const eff = outgoingEffectiveness(poke, m.type, oppTypes, opp);
       const isStab = pokeTypes.includes(normalizeType(m.type));
-      const effPwr = m.power * eff * (isStab ? 1.5 : 1.0) * vMultipliers.offense * ((m.isRecharge || m.isCharge) ? 0.5 : 1.0);
+      const recoilFactor = m.isRecoil ? 0.75 : 1.0;
+      const effPwr = m.power * eff * (isStab ? 1.5 : 1.0) * vMultipliers.offense * ((m.isRecharge || m.isCharge) ? 0.5 : 1.0) * recoilFactor;
       if (effPwr > maxReliableEffPower) maxReliableEffPower = effPwr;
       if (eff > bestEff || (eff === bestEff && m.power > maxPower)) {
         bestEff = eff;

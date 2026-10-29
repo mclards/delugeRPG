@@ -3934,6 +3934,25 @@
           "types": [
             "Ice",
             "Ghost"
+          ],
+          "knownMoveTypes": [
+            "Fighting",
+            "Ice",
+            "Ghost"
+          ],
+          "moves": [
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting"
+            },
+            {
+              "name": "Blizzard",
+              "type": "Ice"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            }
           ]
         },
         {
@@ -5217,6 +5236,25 @@
           "types": [
             "Ice",
             "Ghost"
+          ],
+          "knownMoveTypes": [
+            "Fighting",
+            "Ice",
+            "Ghost"
+          ],
+          "moves": [
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting"
+            },
+            {
+              "name": "Blizzard",
+              "type": "Ice"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            }
           ]
         },
         {
@@ -5265,6 +5303,25 @@
           "types": [
             "Ice",
             "Ghost"
+          ],
+          "knownMoveTypes": [
+            "Fighting",
+            "Ice",
+            "Ghost"
+          ],
+          "moves": [
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting"
+            },
+            {
+              "name": "Blizzard",
+              "type": "Ice"
+            },
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost"
+            }
           ]
         },
         {

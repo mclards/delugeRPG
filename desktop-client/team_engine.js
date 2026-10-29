@@ -373,6 +373,7 @@ function rankCarries(pool, trainer) {
     let offense = 0;
     let superEffectiveCount = 0;
     let quadHitsCount = 0;
+    let stabSeHitsCount = 0;
     let ohkoTargetCount = 0;
     let minEffectivePower = Infinity;
     let totalEffectivePower = 0;
@@ -442,6 +443,11 @@ function rankCarries(pool, trainer) {
       if (bestMult >= 4.0) quadHitsCount++;
       else if (bestMult >= 2.0) superEffectiveCount++;
       else if (bestMult < 1.0 && bestMult > 0.0) resistedAttackCount++;
+
+      const pokeDefenderTypes = normalizeDefenderTypes(p.types || ['Normal']);
+      if (bestMove && pokeDefenderTypes.includes(bestMove.type) && bestMult >= 2.0) {
+        stabSeHitsCount++;
+      }
 
       if (effPwr >= 180) {
         ohkoTargetCount++;
@@ -556,9 +562,13 @@ function rankCarries(pool, trainer) {
     // Multi-opponent weakness attrition penalty:
     // In DelugeRPG battles with 50/50 turn order, taking super-effective damage from multiple opponents
     // causes the carry to faint over time from cumulative attrition.
-    const attritionPenalty = (exposure.opponentsWithWeakness >= 2)
+    // Pure speed sweepers with clean STAB defense (worstStab <= 1.0) pre-empt benched off-type coverage threats without attrition.
+    const attritionPenalty = (!isPureSpeedSweeper && exposure.opponentsWithWeakness >= 2)
       ? (exposure.opponentsWithWeakness * 250)
       : 0;
+
+    const stabSeRatio = oppList.length > 0 ? (stabSeHitsCount / oppList.length) : 0;
+    const stabSeBonus = Math.round(stabSeRatio * 600);
 
     // Full-Team 1-Hit-KO & Weakest-Link Power Scoring:
     // A carry is only as fast as its weakest attack against any member of the opponent's roster.
@@ -596,6 +606,7 @@ function rankCarries(pool, trainer) {
       + dualTypeBossSniperBonus
       + dualTypeDoubleResistBonus
       + speedSweeperBonus
+      + stabSeBonus
       - (dualTypeResistedTrapCount * 400)
       - resistedAttackPenalty
       - multiTurnPenalty

@@ -532,7 +532,7 @@ function rankCarries(pool, trainer) {
     const isPureSpeedSweeper = Boolean(
       pokeLevel >= 95 &&
       (pokeLevel >= (avgLvl + 25) || pokeLevel >= 100) &&
-      isFullTeamOhko &&
+      (isFullTeamOhko || (ohkoTargetCount >= oppList.length - 1 && exposure.leadExposure <= 0.5)) &&
       exposure.leadExposure <= 1.0 &&
       (exposure.worstStab || 0) <= 1.0 &&
       walledCount === 0 &&
@@ -568,12 +568,12 @@ function rankCarries(pool, trainer) {
       : 0;
 
     const stabSeRatio = oppList.length > 0 ? (stabSeHitsCount / oppList.length) : 0;
-    const stabSeBonus = Math.round(stabSeRatio * 600);
+    const stabSeBonus = Math.round(stabSeRatio * 750);
 
     // Full-Team 1-Hit-KO & Weakest-Link Power Scoring:
     // A carry is only as fast as its weakest attack against any member of the opponent's roster.
     const fullTeamOhkoBonus = isFullTeamOhko ? 800 : 0;
-    const fullTeamSeBonus = isFullTeamSE ? 450 : 0;
+    const fullTeamSeBonus = (isFullTeamSE && stabSeHitsCount >= Math.ceil(oppList.length * 0.6)) ? 350 : 0;
     const ohkoRatioBonus = (ohkoTargetCount / oppList.length) * 500;
     const minPowerBonus = Math.min(450, minEffectivePower * 1.4);
     const avgPowerBonus = Math.min(350, avgEffectivePower * 0.8);
@@ -650,9 +650,9 @@ function rankCarries(pool, trainer) {
     const aFullOhko = a.isFullTeamOhko ? 1 : 0;
     const bFullOhko = b.isFullTeamOhko ? 1 : 0;
     if (bFullOhko !== aFullOhko) return bFullOhko - aFullOhko;
-    const aFullSE = a.isFullTeamSE ? 1 : 0;
-    const bFullSE = b.isFullTeamSE ? 1 : 0;
-    if (bFullSE !== aFullSE) return bFullSE - aFullSE;
+    const aPure = a.isPureSpeedSweeper ? 1 : 0;
+    const bPure = b.isPureSpeedSweeper ? 1 : 0;
+    if (bPure !== aPure) return bPure - aPure;
     if (b.ohkoTargetCount !== a.ohkoTargetCount) return b.ohkoTargetCount - a.ohkoTargetCount;
     return b.carryScore - a.carryScore || (b.poke.level || 0) - (a.poke.level || 0);
   };
@@ -2098,7 +2098,7 @@ function canSoloTrainer(poke, trainer) {
     pokeLvl >= 95 &&
     (pokeLvl >= (trainerAvgLvl + 25) || pokeLvl >= 100) &&
     leadIncoming <= 1.0 &&
-    ohkoCount === oppList.length &&
+    (ohkoCount === oppList.length || (ohkoCount >= oppList.length - 1 && leadIncoming <= 0.5)) &&
     lethalThreatsPreempted &&
     worstStabIncoming <= 1.0 &&
     !isMixedTrainer

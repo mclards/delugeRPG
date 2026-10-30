@@ -1808,6 +1808,7 @@ function toggleHunting() {
     userManuallyPaused = false;
     outOfStockPaused = false;
     isEncounterOnScreen = false;
+    isAutoCatchCountdownActive = false;
     isGuestInputFocused = false;
     isStepPending = false;
     stepPendingTicks = 0;
@@ -2801,7 +2802,7 @@ delugeView.addEventListener('will-navigate', (event) => {
   const currentUrl = (delugeView && delugeView.getURL && delugeView.getURL()) || '';
   const isCurrentlyInBattle = currentUrl.indexOf('/catch/') !== -1 || currentUrl.indexOf('/battle/') !== -1;
 
-  if (isAutoCatchCountdownActive || isCurrentlyInBattle) {
+  if (!isManualReloadInProgress && (isAutoCatchCountdownActive || isCurrentlyInBattle)) {
     try {
       const parsed = new URL(url, 'https://www.delugerpg.com');
       const p = (parsed.pathname || '').toLowerCase();
@@ -4608,6 +4609,7 @@ if (refreshBtn) {
       } catch (_) {}
     }
     isEncounterOnScreen = false;
+    isAutoCatchCountdownActive = false;
     guestReportsMap = false;
     activeAiBattleData = null;
     liveBattleOpponent = null;
@@ -4736,6 +4738,7 @@ if (confirmWipeBtn) {
     isGuestInputFocused = false;
     guestReportsMap = false;
     isEncounterOnScreen = false;
+    isAutoCatchCountdownActive = false;
     activeAiBattleData = null;
     liveBattleOpponent = null;
     if (typeof updateTeamBuilderBattleAction === 'function') updateTeamBuilderBattleAction(null);

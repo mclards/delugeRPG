@@ -1400,21 +1400,17 @@ function evaluateEvolutionMoveSelection(pokemonOrName, availableMoves = [], coll
 const STAGE_TRANSITIONS = {
   charmander: [{ name: 'Charmeleon', minLevel: 16, types: ['Fire'], bst: 405, keyMoves: ['Flamethrower', 'Fire Fang', 'Slash', 'Dragon Breath'] }],
   charmeleon: [
-    { name: 'Charizard', minLevel: 36, types: ['Fire', 'Flying'], bst: 534, mega: true, keyMoves: ['Flamethrower', 'Air Slash', 'Solar Beam', 'Focus Blast'] },
-    { name: 'Mega Charizard X', minLevel: 100, types: ['Fire', 'Dragon'], bst: 634, mega: true, keyMoves: ['Flare Blitz', 'Dragon Claw', 'Earthquake', 'Roost'] },
-    { name: 'Mega Charizard Y', minLevel: 100, types: ['Fire', 'Flying'], bst: 634, mega: true, keyMoves: ['Fire Blast', 'Solar Beam', 'Air Slash', 'Focus Blast'] }
+    { name: 'Charizard', minLevel: 36, types: ['Fire', 'Flying'], bst: 534, keyMoves: ['Flamethrower', 'Air Slash', 'Solar Beam', 'Focus Blast'] }
   ],
   charizard: [
     { name: 'Mega Charizard X', minLevel: 100, types: ['Fire', 'Dragon'], bst: 634, mega: true, keyMoves: ['Flare Blitz', 'Dragon Claw', 'Earthquake', 'Roost'] },
     { name: 'Mega Charizard Y', minLevel: 100, types: ['Fire', 'Flying'], bst: 634, mega: true, keyMoves: ['Fire Blast', 'Solar Beam', 'Air Slash', 'Focus Blast'] }
   ],
   abra: [
-    { name: 'Kadabra', minLevel: 16, types: ['Psychic'], bst: 400, keyMoves: ['Psychic', 'Psyshock', 'Shadow Ball', 'Dazzling Gleam'] },
-    { name: 'Alakazam', minLevel: 16, types: ['Psychic'], bst: 500, mega: true, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Energy Ball'] }
+    { name: 'Kadabra', minLevel: 16, types: ['Psychic'], bst: 400, keyMoves: ['Psychic', 'Psyshock', 'Shadow Ball', 'Dazzling Gleam'] }
   ],
   kadabra: [
-    { name: 'Alakazam', minLevel: 16, types: ['Psychic'], bst: 500, mega: true, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Energy Ball'] },
-    { name: 'Mega Alakazam', minLevel: 100, types: ['Psychic'], bst: 600, mega: true, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Dazzling Gleam'] }
+    { name: 'Alakazam', minLevel: 16, types: ['Psychic'], bst: 500, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Energy Ball'] }
   ],
   alakazam: [
     { name: 'Mega Alakazam', minLevel: 100, types: ['Psychic'], bst: 600, mega: true, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Dazzling Gleam'] }
@@ -1437,39 +1433,37 @@ const STAGE_TRANSITIONS = {
   pidove: [{ name: 'Tranquill', minLevel: 21, types: ['Normal', 'Flying'], bst: 358, keyMoves: ['Air Cutter', 'Quick Attack', 'Roost', 'Facade'] }],
   tranquill: [{ name: 'Unfezant', minLevel: 32, types: ['Normal', 'Flying'], bst: 488, keyMoves: ['Brave Bird', 'Return', 'U-turn', 'Night Slash'] }],
   electrike: [
-    { name: 'Manectric', minLevel: 26, types: ['Electric'], bst: 475, mega: true, keyMoves: ['Thunderbolt', 'Flamethrower', 'Volt Switch', 'Overheat'] },
-    { name: 'Mega Manectric', minLevel: 100, types: ['Electric'], bst: 575, mega: true, keyMoves: ['Thunderbolt', 'Flamethrower', 'Volt Switch', 'Hidden Power'] }
+    { name: 'Manectric', minLevel: 26, types: ['Electric'], bst: 475, keyMoves: ['Thunderbolt', 'Flamethrower', 'Volt Switch', 'Overheat'] }
   ],
   manectric: [{ name: 'Mega Manectric', minLevel: 100, types: ['Electric'], bst: 575, mega: true, keyMoves: ['Thunderbolt', 'Flamethrower', 'Volt Switch', 'Hidden Power'] }],
   pinsir: [{ name: 'Mega Pinsir', minLevel: 100, types: ['Bug', 'Flying'], bst: 600, mega: true, keyMoves: ['X-Scissor', 'Quick Attack', 'Close Combat', 'Stone Edge'] }],
   houndour: [
-    { name: 'Houndoom', minLevel: 24, types: ['Dark', 'Fire'], bst: 500, mega: true, keyMoves: ['Flamethrower', 'Dark Pulse', 'Fire Blast', 'Sludge Bomb'] },
-    { name: 'Mega Houndoom', minLevel: 100, types: ['Dark', 'Fire'], bst: 600, mega: true, keyMoves: ['Flamethrower', 'Dark Pulse', 'Fire Blast', 'Solar Beam'] }
+    { name: 'Houndoom', minLevel: 24, types: ['Dark', 'Fire'], bst: 500, keyMoves: ['Flamethrower', 'Dark Pulse', 'Fire Blast', 'Sludge Bomb'] }
   ],
   houndoom: [{ name: 'Mega Houndoom', minLevel: 100, types: ['Dark', 'Fire'], bst: 600, mega: true, keyMoves: ['Flamethrower', 'Dark Pulse', 'Fire Blast', 'Solar Beam'] }],
   kangaskhan: [{ name: 'Mega Kangaskhan', minLevel: 100, types: ['Normal'], bst: 590, mega: true, keyMoves: ['Body Slam', 'Earthquake', 'Sucker Punch', 'Drain Punch'] }],
   aerodactyl: [{ name: 'Mega Aerodactyl', minLevel: 100, types: ['Rock', 'Flying'], bst: 615, mega: true, keyMoves: ['Stone Edge', 'Dual Wingbeat', 'Earthquake', 'Crunch'] }],
   audino: [{ name: 'Mega Audino', minLevel: 100, types: ['Normal', 'Fairy'], bst: 545, mega: true, keyMoves: ['Moonblast', 'Hyper Voice', 'Dazzling Gleam', 'Flamethrower'] }],
   meditite: [
-    { name: 'Medicham', minLevel: 37, types: ['Fighting', 'Psychic'], bst: 410, mega: true, keyMoves: ['High Jump Kick', 'Zen Headbutt', 'Ice Punch', 'Bullet Punch'] },
-    { name: 'Mega Medicham', minLevel: 100, types: ['Fighting', 'Psychic'], bst: 510, mega: true, keyMoves: ['High Jump Kick', 'Zen Headbutt', 'Ice Punch', 'Close Combat'] }
+    { name: 'Medicham', minLevel: 37, types: ['Fighting', 'Psychic'], bst: 410, keyMoves: ['High Jump Kick', 'Zen Headbutt', 'Ice Punch', 'Bullet Punch'] }
   ],
   medicham: [{ name: 'Mega Medicham', minLevel: 100, types: ['Fighting', 'Psychic'], bst: 510, mega: true, keyMoves: ['High Jump Kick', 'Zen Headbutt', 'Ice Punch', 'Close Combat'] }],
   onix: [
-    { name: 'Steelix', minLevel: 1, types: ['Steel', 'Ground'], bst: 510, mega: true, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] },
-    { name: 'Mega Steelix', minLevel: 100, types: ['Steel', 'Ground'], bst: 610, mega: true, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] }
+    { name: 'Steelix', minLevel: 30, types: ['Steel', 'Ground'], bst: 510, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] }
   ],
   steelix: [{ name: 'Mega Steelix', minLevel: 100, types: ['Steel', 'Ground'], bst: 610, mega: true, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] }],
+  scyther: [
+    { name: 'Scizor', minLevel: 30, types: ['Bug', 'Steel'], bst: 500, keyMoves: ['Bullet Punch', 'X-Scissor', 'Superpower', 'Swords Dance'] },
+    { name: 'Kleavor', minLevel: 30, types: ['Bug', 'Rock'], bst: 500, keyMoves: ['Stone Axe', 'X-Scissor', 'Close Combat', 'Night Slash'] }
+  ],
   slowpoke: [
-    { name: 'Slowbro', minLevel: 37, types: ['Water', 'Psychic'], bst: 490, mega: true, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Flamethrower'] },
-    { name: 'Slowking', minLevel: 1, types: ['Water', 'Psychic'], bst: 490, keyMoves: ['Surf', 'Psychic', 'Ice Beam', 'Fire Blast'] },
-    { name: 'Mega Slowbro', minLevel: 100, types: ['Water', 'Psychic'], bst: 590, mega: true, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Calm Mind'] }
+    { name: 'Slowbro', minLevel: 37, types: ['Water', 'Psychic'], bst: 490, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Flamethrower'] },
+    { name: 'Slowking', minLevel: 37, types: ['Water', 'Psychic'], bst: 490, keyMoves: ['Surf', 'Psychic', 'Ice Beam', 'Fire Blast'] }
   ],
   slowbro: [{ name: 'Mega Slowbro', minLevel: 100, types: ['Water', 'Psychic'], bst: 590, mega: true, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Calm Mind'] }],
   snorunt: [
-    { name: 'Glalie', minLevel: 42, types: ['Ice'], bst: 480, mega: true, keyMoves: ['Ice Beam', 'Blizzard', 'Earthquake', 'Shadow Ball'] },
-    { name: 'Froslass', minLevel: 1, types: ['Ice', 'Ghost'], bst: 480, keyMoves: ['Ice Beam', 'Shadow Ball', 'Thunderbolt', 'Psychic'] },
-    { name: 'Mega Glalie', minLevel: 100, types: ['Ice'], bst: 580, mega: true, keyMoves: ['Double-Edge', 'Ice Beam', 'Earthquake', 'Explosion'] }
+    { name: 'Glalie', minLevel: 42, types: ['Ice'], bst: 480, keyMoves: ['Ice Beam', 'Blizzard', 'Earthquake', 'Shadow Ball'] },
+    { name: 'Froslass', minLevel: 42, types: ['Ice', 'Ghost'], bst: 480, keyMoves: ['Ice Beam', 'Shadow Ball', 'Thunderbolt', 'Psychic'] }
   ],
   glalie: [{ name: 'Mega Glalie', minLevel: 100, types: ['Ice'], bst: 580, mega: true, keyMoves: ['Double-Edge', 'Ice Beam', 'Earthquake', 'Explosion'] }],
   poipole: [{ name: 'Naganadel', minLevel: 1, types: ['Poison', 'Dragon'], bst: 540, keyMoves: ['Sludge Wave', 'Draco Meteor', 'Fire Blast', 'Thunderbolt'] }],
@@ -1493,12 +1487,20 @@ function getEvolveReadyPokemon(userCollection) {
   if (!Array.isArray(userCollection) || userCollection.length === 0) return [];
   const readyList = [];
 
+  const hasAnyCanEvolveFlags = userCollection.some(p => typeof p.canEvolve === 'boolean');
+
   for (const poke of userCollection) {
     if (!poke || !poke.name) continue;
     const rawName = String(poke.name).trim();
 
     // Already a Mega or Gigantamax or Eternamax Pokemon cannot evolve further
     if (/\bMega\s+/i.test(rawName) || /\bG-Max\b/i.test(rawName) || /\bEternamax\b/i.test(rawName)) {
+      continue;
+    }
+
+    // Strict Ground Truth: If live game canEvolve flags are present in collection,
+    // only include Pokemon that are actually verified ready to evolve on DelugeRPG!
+    if (hasAnyCanEvolveFlags && poke.canEvolve !== true) {
       continue;
     }
 
@@ -1511,8 +1513,11 @@ function getEvolveReadyPokemon(userCollection) {
       for (const tr of transitions) {
         if (tr.name.toLowerCase() === baseSpecies) continue;
         const minLvl = tr.minLevel || (tr.mega ? 100 : 1);
+        if (tr.mega && (poke.level || 1) < 100 && !poke.canEvolve) {
+          continue;
+        }
         const levelMet = (poke.level || 1) >= minLvl || Boolean(poke.canEvolve);
-        if (levelMet || tr.minLevel === 1) {
+        if (levelMet || Boolean(poke.canEvolve)) {
           branches.push(tr);
         }
       }
@@ -1523,8 +1528,11 @@ function getEvolveReadyPokemon(userCollection) {
         for (const br of fam.branches) {
           if (br.name.toLowerCase() === baseSpecies) continue;
           const minLvl = br.minLevel || (br.mega ? 100 : 1);
+          if (br.mega && (poke.level || 1) < 100 && !poke.canEvolve) {
+            continue;
+          }
           const levelMet = (poke.level || 1) >= minLvl || Boolean(poke.canEvolve);
-          if (levelMet || br.minLevel === 1) {
+          if (levelMet || Boolean(poke.canEvolve)) {
             branches.push(br);
           }
         }

@@ -7365,14 +7365,62 @@ ipcRenderer.on('trigger-evolve-pokemon', (event, data) => {
             }
         }
 
-        if (window.location.pathname.indexOf('/yourpokemon') === -1) {
-            window.location.href = '/yourpokemon';
+        if (window.location.pathname.indexOf('/pokemon') === -1) {
+            window.location.href = '/pokemon';
         }
     } catch (_) {}
 });
 
+let lastSyncedPokemonPageSig = null;
+function autoSyncCurrentPokemonPage() {
+    try {
+        const path = (window.location.pathname || '').toLowerCase();
+        if (path.indexOf('/pokemon') === -1 || path.indexOf('/evolve') !== -1) return;
+
+        const rows = document.querySelectorAll('.row[data-pkid], div[data-pkid]');
+        if (!rows || rows.length === 0) return;
+
+        const pokesOnPage = [];
+        let sig = '';
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const id = row.getAttribute('data-pkid');
+            if (!id) continue;
+
+            const nameEl = row.querySelector('.name, .nnfield, [data-name]');
+            const name = (nameEl ? (nameEl.getAttribute('data-name') || nameEl.textContent) : '').trim();
+            const levelMatch = (row.textContent || '').match(/Level:\s*(\d+)/i);
+            const level = levelMatch ? parseInt(levelMatch[1], 10) : 1;
+
+            const evoLink = row.querySelector('a.evolve, a[href*="/pokemon/evolve/"]');
+            const canEvolve = Boolean(evoLink);
+            const evolveUrl = evoLink ? evoLink.getAttribute('href') : null;
+            const inTeam = (row.textContent || '').includes('In Team') || Boolean(row.querySelector('a[href*="/team/replace"]'));
+
+            pokesOnPage.push({
+                id,
+                name,
+                level,
+                canEvolve,
+                evolveUrl,
+                inTeam
+            });
+            sig += `${id}:${canEvolve ? 1 : 0}:${level};`;
+        }
+
+        if (pokesOnPage.length > 0 && sig !== lastSyncedPokemonPageSig) {
+            lastSyncedPokemonPageSig = sig;
+            ipcRenderer.sendToHost('pokemon-page-synced', {
+                pokemons: pokesOnPage,
+                pathname: window.location.pathname
+            });
+        }
+    } catch (_) {}
+}
+
 setInterval(() => {
     syncEvolveCardState(false);
+    autoSyncCurrentPokemonPage();
 }, 500);
 
 window.addEventListener('click', () => {

@@ -3029,6 +3029,32 @@ delugeView.addEventListener('ipc-message', (event) => {
     }
   }
 
+  if (event.channel === 'pokemon-page-synced') {
+    const data = event.args[0] || {};
+    if (Array.isArray(data.pokemons) && data.pokemons.length > 0 && Array.isArray(currentCollection)) {
+      let changed = false;
+      data.pokemons.forEach(livePoke => {
+        const existing = currentCollection.find(p => p.id === livePoke.id || (p.name === livePoke.name && p.level === livePoke.level));
+        if (existing) {
+          if (existing.canEvolve !== livePoke.canEvolve || existing.evolveUrl !== livePoke.evolveUrl || existing.inTeam !== livePoke.inTeam) {
+            existing.canEvolve = livePoke.canEvolve;
+            existing.evolveUrl = livePoke.evolveUrl;
+            existing.inTeam = livePoke.inTeam;
+            changed = true;
+          }
+        }
+      });
+      if (changed) {
+        try {
+          fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
+        } catch (_) {}
+        if (aiAssistantModal && aiAssistantModal.style.display === 'flex' && typeof renderEvolutionDecisionMakerUI === 'function') {
+          renderEvolutionDecisionMakerUI();
+        }
+      }
+    }
+  }
+
   if (event.channel === 'pokemon-scan-complete') {
     const data = event.args[0] || {};
     if (data.success && Array.isArray(data.pokemons)) {
@@ -8042,9 +8068,19 @@ function setEvoFilter(filterType) {
 }
 
 function refreshEvolveBoxList() {
-  loadTeamBuilderData();
-  renderEvolutionDecisionMakerUI();
-  updateStatus('Evolve-ready Pokemon box refreshed', '#10b981');
+  if (delugeView) {
+    if (scanStatusDot) scanStatusDot.style.background = '#388bfd';
+    if (scanStatusBadge) {
+      scanStatusBadge.style.color = '#388bfd';
+      scanStatusBadge.textContent = 'Scanning live box...';
+    }
+    updateStatus('Scanning live DelugeRPG box for evolve-ready Pokemon...', '#388bfd');
+    delugeView.send('start-scan-pokemon');
+  } else {
+    loadTeamBuilderData();
+    renderEvolutionDecisionMakerUI();
+    updateStatus('Evolve-ready Pokemon box refreshed', '#10b981');
+  }
 }
 
 function selectEvolvePokemon(poke, branch) {

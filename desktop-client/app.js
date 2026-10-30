@@ -1100,7 +1100,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.4.4';
+    let appVer = '1.4.5';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -2758,6 +2758,42 @@ delugeView.addEventListener('did-navigate-in-page', (event) => {
 delugeView.addEventListener('did-finish-load', () => {
   const url = (delugeView && delugeView.getURL()) || '';
   handleMapNavigation(url);
+  if (isManualReloadInProgress) {
+    isManualReloadInProgress = false;
+    if (manualReloadUnlockTimer) {
+      clearTimeout(manualReloadUnlockTimer);
+      manualReloadUnlockTimer = null;
+    }
+    const reloadSvg = refreshBtn ? refreshBtn.querySelector('.reload-icon') : null;
+    if (reloadSvg) reloadSvg.classList.remove('spinning');
+    if (!isRunning) updateStatus('Ready', '#10b981');
+  }
+});
+
+delugeView.addEventListener('did-stop-loading', () => {
+  if (isManualReloadInProgress) {
+    isManualReloadInProgress = false;
+    if (manualReloadUnlockTimer) {
+      clearTimeout(manualReloadUnlockTimer);
+      manualReloadUnlockTimer = null;
+    }
+    const reloadSvg = refreshBtn ? refreshBtn.querySelector('.reload-icon') : null;
+    if (reloadSvg) reloadSvg.classList.remove('spinning');
+    if (!isRunning) updateStatus('Ready', '#10b981');
+  }
+});
+
+delugeView.addEventListener('did-fail-load', (e) => {
+  if (isManualReloadInProgress) {
+    isManualReloadInProgress = false;
+    if (manualReloadUnlockTimer) {
+      clearTimeout(manualReloadUnlockTimer);
+      manualReloadUnlockTimer = null;
+    }
+    const reloadSvg = refreshBtn ? refreshBtn.querySelector('.reload-icon') : null;
+    if (reloadSvg) reloadSvg.classList.remove('spinning');
+    if (!isRunning) updateStatus('Reload failed (code ' + (e ? e.errorCode : 'unknown') + ')', '#ef4444');
+  }
 });
 
 delugeView.addEventListener('will-navigate', (event) => {
@@ -4585,47 +4621,53 @@ if (refreshBtn) {
       reloadSvg.classList.remove('spinning');
       void reloadSvg.offsetWidth;
       reloadSvg.classList.add('spinning');
-      setTimeout(() => { if (reloadSvg) reloadSvg.classList.remove('spinning'); }, 750);
     }
-    updateStatus('Flushing battle cache & reloading...', '#38bdf8');
+    updateStatus('Reloading page...', '#38bdf8');
 
-    // 3. Fire non-blocking soft cache flush in parallel
+    // 3. Fire non-blocking soft cache flush in parallel (clears transient HTTP cache)
     try {
       ipcRenderer.invoke('soft-session-flush').catch(() => {});
     } catch (_) {}
 
-    // 4. Immediate synchronous reload dispatch (ignoring cache) with URL fallback
+    // 4. Immediate native reload dispatch with URL fallback (no stop() call to prevent aborted navigation)
     if (delugeView) {
       const currentTargetUrl = (typeof delugeView.getURL === 'function' && delugeView.getURL())
         || delugeView.src
         || 'https://www.delugerpg.com/map';
+      backendLog('RELOAD', `Manual reload triggered for URL: ${currentTargetUrl}`);
       try {
-        if (typeof delugeView.stop === 'function') {
-          try { delugeView.stop(); } catch (_) {}
-        }
-        if (typeof delugeView.reloadIgnoringCache === 'function') {
-          delugeView.reloadIgnoringCache();
-        } else if (typeof delugeView.reload === 'function') {
+        if (typeof delugeView.reload === 'function') {
           delugeView.reload();
+        } else if (typeof delugeView.reloadIgnoringCache === 'function') {
+          delugeView.reloadIgnoringCache();
+        } else if (typeof delugeView.loadURL === 'function') {
+          delugeView.loadURL(currentTargetUrl).catch(() => { delugeView.src = currentTargetUrl; });
         } else {
           delugeView.src = currentTargetUrl;
         }
-      } catch (_) {
+      } catch (err) {
+        backendLog('RELOAD_WARN', `Native reload failed: ${err.message}`);
         try {
-          if (typeof delugeView.loadURL === 'function') {
+          if (typeof delugeView.reloadIgnoringCache === 'function') {
+            delugeView.reloadIgnoringCache();
+          } else if (typeof delugeView.loadURL === 'function') {
             delugeView.loadURL(currentTargetUrl).catch(() => { delugeView.src = currentTargetUrl; });
           } else {
             delugeView.src = currentTargetUrl;
           }
-        } catch (__) {}
+        } catch (_) {}
       }
     }
 
+    // Safety timeout in case webview navigation finishes without event
     manualReloadUnlockTimer = setTimeout(() => {
-      isManualReloadInProgress = false;
-      manualReloadUnlockTimer = null;
-      if (!isRunning) updateStatus('Ready', '#10b981');
-    }, 650);
+      if (isManualReloadInProgress) {
+        isManualReloadInProgress = false;
+        manualReloadUnlockTimer = null;
+        if (reloadSvg) reloadSvg.classList.remove('spinning');
+        if (!isRunning) updateStatus('Ready', '#10b981');
+      }
+    }, 3000);
   });
 }
 

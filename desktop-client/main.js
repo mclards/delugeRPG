@@ -500,7 +500,7 @@ if (!gotTheLock) {
       ]);
       await withTimeout(ses.clearCache(), 600);
       await withTimeout(ses.clearStorageData({
-        storages: ['localstorage', 'indexdb', 'websql', 'serviceworkers', 'cachestorage']
+        storages: ['cachestorage', 'websql', 'serviceworkers']
       }), 800);
       return { success: true };
     } catch (err) {

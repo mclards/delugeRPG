@@ -187,7 +187,7 @@ runTest('refreshBtn: Reload Button & Stale Guest Input Focus Reset Guard', () =>
   assert(appHtml.includes('id="refreshBtn"'), 'app.html must define refreshBtn');
   assert(appJs.includes("refreshBtn.addEventListener('click'"), 'refreshBtn must have click listener');
   assert(!appJs.includes('stopBot()'), 'app.js must never call undefined stopBot() inside refreshBtn');
-  assert(appJs.includes('delugeView.reloadIgnoringCache()'), 'refreshBtn must invoke reloadIgnoringCache()');
+  assert(appJs.includes('delugeView.reload()') || appJs.includes('delugeView.reloadIgnoringCache()'), 'refreshBtn must invoke reload');
 });
 
 // -----------------------------------------------------------------------------

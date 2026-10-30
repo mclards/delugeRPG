@@ -104,8 +104,8 @@
     "enableDailyCeilings": true,
     "dailyStepMin": 5000,
     "dailyStepMax": 10000,
-    "dailyCatchMin": 10,
-    "dailyCatchMax": 20,
+    "dailyCatchMin": 25,
+    "dailyCatchMax": 40,
     "antiBotEmergencyHalt": true
   }
 }

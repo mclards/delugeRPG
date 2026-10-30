@@ -8117,28 +8117,11 @@ function selectEvolvePokemon(poke, branch) {
   if (aiInstantActionSlot) {
     aiInstantActionSlot.innerHTML = '';
 
-    const evolveTargetUrl = poke.evolveUrl || (poke.id ? `/pokemon/evolve/${poke.id}` : null);
-    if (evolveTargetUrl) {
-      const navBtn = document.createElement('button');
-      navBtn.type = 'button';
-      navBtn.className = isDuplicate ? 'btn' : 'btn btn-accent';
-      navBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
-      navBtn.innerHTML = `&#129516; Go to Evolve Page (${escapeHtml(poke.name)})`;
-      navBtn.addEventListener('click', () => {
-        if (delugeView) {
-          const fullUrl = evolveTargetUrl.startsWith('http') ? evolveTargetUrl : `https://www.delugerpg.com${evolveTargetUrl}`;
-          delugeView.loadURL(fullUrl);
-          updateStatus(`Navigating to evolve page for ${poke.name}...`, '#388bfd');
-        }
-      });
-      aiInstantActionSlot.appendChild(navBtn);
-    }
-
     if (activeEvolveCardData && activeEvolveCardData.isMoveSelection) {
       const applyBtn = document.createElement('button');
       applyBtn.type = 'button';
       applyBtn.className = 'btn btn-accent';
-      applyBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important; margin-top: 3px;';
+      applyBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
       applyBtn.innerHTML = '&#9876; Auto-Select Best 4 Moves in Game';
       applyBtn.addEventListener('click', () => {
         const moveAnalysis = targetBranch.moveAnalysis;
@@ -8152,6 +8135,19 @@ function selectEvolvePokemon(poke, branch) {
         }
       });
       aiInstantActionSlot.appendChild(applyBtn);
+    } else {
+      const triggerBtn = document.createElement('button');
+      triggerBtn.type = 'button';
+      triggerBtn.className = isDuplicate ? 'btn' : 'btn btn-accent';
+      triggerBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
+      triggerBtn.innerHTML = `&#129516; Open Evolve Modal (${escapeHtml(poke.name)})`;
+      triggerBtn.addEventListener('click', () => {
+        if (delugeView) {
+          delugeView.send('trigger-evolve-pokemon', { pokemonId: poke.id, name: poke.name });
+          updateStatus(`Opening evolve modal for ${poke.name}...`, '#388bfd');
+        }
+      });
+      aiInstantActionSlot.appendChild(triggerBtn);
     }
   }
 
@@ -8283,11 +8279,10 @@ function renderEvolutionDecisionMakerUI() {
     card.addEventListener('click', (e) => {
       if (e.target && e.target.classList.contains('btn-action-evolve')) {
         e.stopPropagation();
-        const evolveUrl = item.evolveUrl || (item.id ? `/pokemon/evolve/${item.id}` : null);
-        if (evolveUrl && delugeView) {
-          const fullUrl = evolveUrl.startsWith('http') ? evolveUrl : `https://www.delugerpg.com${evolveUrl}`;
-          delugeView.loadURL(fullUrl);
-          updateStatus(`Opening evolve page for ${item.name}...`, '#388bfd');
+        selectEvolvePokemon(item, item.bestBranch);
+        if (delugeView) {
+          delugeView.send('trigger-evolve-pokemon', { pokemonId: item.id, name: item.name });
+          updateStatus(`Opening evolve modal for ${item.name}...`, '#388bfd');
         }
         return;
       }

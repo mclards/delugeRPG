@@ -33,7 +33,7 @@
     "enableLevelFilter": false,
     "levelFilterMode": "min",
     "levelFilterValue": 15,
-    "zoomFactor": 0.7,
+    "zoomFactor": 0.8,
     "levelFilterScope": "targets",
     "legendaryClassic": true,
     "legendaryUltraBeasts": true,
@@ -81,14 +81,15 @@
     "enableVariantFilter": false,
     "teamBattleMode": "NPC",
     "pvpStrategy": "GODSQUAD",
-    "teamCategoryFilter": "FAVORITES",
-    "lastSelectedTrainer": "VIP_TRAINERS__2",
+    "teamCategoryFilter": "VIP_TRAINERS",
+    "lastSelectedTrainer": "VIP_TRAINERS__113",
     "favoriteTrainers": [
       "Veteran Tamaki",
       "Veteran Shareef",
       "Ace Trainer Bryce",
       "Will",
-      "Acerola"
+      "Acerola",
+      "Sidney"
     ]
   },
   "safety": {

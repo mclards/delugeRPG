@@ -73,10 +73,10 @@ A hardened, standalone desktop gaming client and companion userscript for **Delu
 
 ### Option A: Standalone Executable (Recommended)
 
-Pre-built Windows binaries are available on the [Releases Page](https://github.com/mclards/delugeRPG/releases/tag/v1.0.0-stable):
+Pre-built Windows binaries are available on the [Releases Page](https://github.com/mclards/delugeRPG/releases):
 
-1. **Setup Installer:** Download `DelugeRPG.Stealth.Client.Setup.1.0.0.exe` and run the installer.
-2. **Portable Edition:** Download `DelugeRPG.Stealth.Client.1.0.0.exe` for a standalone single executable that requires no installation.
+1. **Setup Installer:** Download `DelugeRPG.Stealth.Client.Setup.1.4.5.exe` and run the installer.
+2. **Portable Edition:** Download `DelugeRPG.Stealth.Client.1.4.5.exe` for a standalone single executable that requires no installation.
 
 ### Option B: Run from Source (Development)
 
@@ -181,21 +181,29 @@ Settings are persisted in `desktop-client/config.json`:
 
 ```text
 delugeRPG/
+|-- databases/               # Reference databases & compilers
+|   |-- skills_database.json # Complete move/attack database (941 skills)
+|   |-- trainers_database.json # Trainer rosters database (318 trainers)
+|   |-- type_chart_database.json # Gen 9 type effectiveness matrix
+|   \-- README.md            # Database documentation & compiler guides
 |-- desktop-client/          # Standalone Electron Stealth Client
 |   |-- assets/              # Icons and client artwork
-|   |-- app.html             # Host client UI layout, toolbar, and dark modals
+|   |-- app.html             # Host client UI layout, docked toolbars & panels
 |   |-- app.js               # Host controller, roaming cadence, and zoom dispatch
 |   |-- game-preload.js      # Guest webview injection: target scanner and input guards
 |   |-- main.js              # Electron main process, anti-detection flags, session hardening
+|   |-- team_engine.js       # Matchup counter calculator & automated roster optimizer
+|   |-- ai_agent_bridge.js   # Live AI battle assistant & tactical recommendation bridge
+|   |-- evolution_engine.js  # Evolution branch analysis & moveset recommendations
 |   |-- targets.js           # Target lists: Legendaries, Megas, Paradox, and Forms
 |   |-- config.json          # Persistent configuration file
 |   |-- package.json         # Electron and build scripts
-|   |-- test_client.js       # Client core test suite
-|   \-- test_duplicate_and_catch.js # Duplication avoidance & hardening suite
+|   |-- test_deep_verification.js # Full deep verification suite (115 tests, 9 pipelines)
+|   \-- test_client.js       # Client core test suite
 |-- docs/                    # Security audits, release notes & reference assets
 |   |-- AUDIT_REPORT.md      # Comprehensive anti-cheat audit report
 |   |-- AUDIT_VERIFICATION.md# Verification report
-|   |-- RELEASE_NOTES.md     # Release history and changelog
+|   |-- RELEASE_NOTES.md     # Consolidated release history & changelog
 |   |-- reference-targets/   # Target reference images
 |   \-- screenshots/         # Captured encounter screenshots
 |-- tests/                   # 27 automated unit and integration test suites

@@ -1,71 +1,137 @@
+# DelugeRPG Stealth Client - Release History & Changelog
+
+---
+
+## DelugeRPG Stealth Client v1.4.5 (Stable Release)
+
+### Key Highlights & Improvements:
+- **Webview Reload Refresh Hardening:** Bypasses `will-navigate` interception guards on manual reload clicks, allowing immediate webview refresh.
+- **Auto-Catch State Reset:** Automatically resets active `autoCatchInProgress` lock flags on reload to clear any paused or pending states.
+- **Abortive Stop Removal:** Eliminated abortive `stop()` call prior to `reloadIgnoringCache()`, ensuring uninterrupted page loads.
+- **Client Bump & Synchronization:** Synchronized package definitions, client telemetry, and test suites to v1.4.5.
+
+---
+
+## DelugeRPG Stealth Client v1.4.4 (Stable Release)
+
+### Key Highlights & Improvements:
+- **True STAB Coverage Prioritization:** Prioritizes verified STAB super-effective moves over non-STAB inverse moves (e.g., Chien-pao ranks #1 over Negative Deoxys).
+- **Speed Sweeper Carry Hardening:** Refined "Carry at Risk" badge evaluation for pure speed sweepers exhibiting 100% OHKO dominance.
+- **Defense Profile Accuracy:** Differentiates STAB quad weaknesses from secondary off-type coverage to prevent false candidate disqualifications.
+
+---
+
+## DelugeRPG Stealth Client v1.4.3 (Stable Release)
+
+### Key Highlights & Improvements:
+- **Non-STAB Coverage Disqualification Removal:** Removed overly restrictive candidate disqualifications for offensive speed sweepers lacking defensive resistances.
+- **Speed Sweeper Ranking:** Enhanced team engine scoring algorithms to boost fast offensive carriers capable of pre-empting benched threats.
+- **Multi-Opponent Attrition Balancing:** Fine-tuned fatigue penalties so top-tier sweepers are evaluated across entire 6-Pokemon trainer rosters.
+
+---
+
+## DelugeRPG Stealth Client v1.4.2 (Stable Release)
+
+### Key Highlights & Improvements:
+- **Real-Time Opponent Attack Move Harvester:** Dynamically captures and records newly observed opponent attacks directly during live battles.
+- **Persistent Move Memory:** Automatically persists discovered opponent attack profiles to `gym_leaders.json` across client restarts.
+- **Coverage Trap Elimination:** Fixed historical move data blindspots (e.g., registering Wake-up Slap on Acerola's Froslass to eliminate 4x Fighting vulnerability traps).
+- **Hardened Carry Anchor Selection:** Strongly penalizes recoil moves, fixed-damage moves, and low accuracy moves in automated recommendation scoring.
+
+---
+
+## DelugeRPG Stealth Client v1.4.1 (Stable Release)
+
+### Key Highlights & Improvements:
+- **Multi-Version Favorite Opponent Preservation:** Retains custom favorited trainers across multiple difficulty tiers and distinct regional versions.
+- **Explicit Tier Badges:** Clean visual badges differentiating Standard, Strong, Ultimate, and VIP trainer tiers.
+- **Real-Time Dropdown Synchronization:** Instant synchronization between active navigation controls, category filters, and selected trainer metadata.
+
+---
+
+## DelugeRPG Stealth Client v1.4.0 (Stable Release)
+
+### Key Highlights & Improvements:
+- **Authoritative Pokeball Duplicate Detection:** Comprehensive cross-referencing against user collection and Pokedex state to prevent duplicate captures.
+- **Strict Variant Uniqueness:** Special variants (Shiny, Metallic, Chrome, Shadow, Mirage, Retro, Negative, Ghostly, Dark) are evaluated as separate unique targets.
+- **Type Badge Isolation:** Clean CSS layout ensuring type indicator badges remain distinct without visual overlap.
+
+---
+
+## DelugeRPG Stealth Client v1.3.1 (Stable Release)
+
+### Key Highlights & Improvements:
+- **Manual Keyboard Navigation Yielding:** Hardened `isGuestInputField` to prevent non-text controls from trapping physical keyboard focus. Text inputs safely forward focus while game navigation retains keyboard control.
+- **Cadence Yielding (`manual-step` IPC):** Physical keyboard inputs (Arrow keys, WASD) and screen D-pad clicks smoothly notify the host controller, automatically yielding automated hunting cadence without move conflicts.
+- **Robust Writable Data Storage (`app.asar` Safety):** Introduced `getWritableDataPath` and `readDataFile` in `app.js` to ensure reliable file access when packaged in read-only Electron `app.asar` bundles.
+- **Special Variant Hunting Hardening:** Refined target evaluation so wild special variants are never skipped during broad hunting sweeps.
+- **Hardened `/team` Network Endpoint Filtering:** Strict isolation of valid DelugeRPG `/team/save` and `/team/edit` requests while ignoring third-party telemetry and ad beacons.
+- **Battle Opponent Discovery Deduplication:** Optimized live battle opponent recognition to avoid duplicate IPC emissions and redundant log entries.
+
+---
+
+## DelugeRPG Stealth Client v1.3.0 (Stable Release)
+
+### Key Highlights & Improvements:
+- **Entire-Day Auto-Catch Telemetry & Persistent Catch Log:** All caught Pokemon are persistently recorded across the calendar day in `daily_catch_log.json`, surviving client restarts.
+- **Calendar Date Rollover:** Automatic midnight date detection cleanly rolls over daily catch records while preserving live Poke Ball stock counts.
+- **Detailed Catch Feed:** Scrollable feed rendering official Pokemon sprites, detected variants, encounter levels, used Poke Ball types, and catch timestamps.
+- **Live Inventory Strip:** Real-time display of all bag Poke Balls (Pokeball, Greatball, Ultraball, Masterball).
+- **Docked Ads Inspector Panel:** Real-time telemetry inspector displaying live ad collapse metrics without interfering with gameplay.
+
+---
+
+## DelugeRPG Stealth Client v1.2.0 (Stable Release)
+
+### Key Highlights & Improvements:
+- **Gym Team Builder & Roster Recommendation Engine:** Complete roster coverage for 318 trainers across all 9 regions (Kanto through Paldea) including Gym Leaders, Elite 4, Champions, Strong Trainers, Ultimate Trainers, and VIPs.
+- **Smart Counter Recommendation Engine:** Mathematical combat calculations based on official Gen 9 type charts, dual-type resistances, STAB coverage, and user collection movesets.
+- **Dynamic Collection Scraper:** Automated multi-page extraction of user Pokemon, forms, levels, and custom move sets.
+- **Human-Like Mouse Telemetry & Anti-Bot Hardening:** Geometry-aware sub-pixel targeting, authentic browser event cascades (`pointerover`, `pointerenter`, `pointermove`, `mousedown`, `click`, `mouseup`), realistic mechanical button hold times (65ms - 125ms), and interpolated mouse trajectories.
+- **Docked 1/4 Side Panel:** Fully docked side drawer layout (25% width), leaving 75% unblocked for the live game `<webview>` without modal backdrops.
+
+---
+
+## DelugeRPG Stealth Client v1.1.7 (Stable Release)
+
+### Key Highlights & Improvements:
+- **Zero-Stock Master Ball Safeguard:** Safely halts catch sequences if Master Ball stock is 0 and redirects back to previous map URL without throwing unintended balls.
+- **Live Inventory Stock Extraction & Logging:** Dynamic stock parser extracting Master Ball counts directly from DelugeRPG's battle DOM.
+- **Toolbar Status Chip Streamlining:** Widened status chip to prevent text clipping and condensed notification strings across all states.
+- **Advanced Google Vignette Suppression:** Prevents full-page interstitial triggers on page transitions and autonomously dismisses overlay dialogs.
+- **PokeFinder Userscript Alignment (v4.6):** Synchronized `pokefinder.user.js` with matching zero-stock redirection, map navigation, and ad suppression.
+
+---
+
+## DelugeRPG Stealth Client v1.1.6 (Stable Release)
+
+### Key Highlights & Improvements:
+- **Cosmetic Ad Hiding:** Visually collapses display ad banners while letting scripts and trackers run completely unblocked.
+- **Real-Time Map Presence & Auto-Start Recovery:** Continuous map synchronization via `map-presence` heartbeats to re-activate auto-start once battles conclude.
+- **Graceful Auto-Resume After Manual Captures:** Returning to the map clears pause states and smoothly resumes hunting.
+- **In-App Version Indicator:** Dedicated version chip at the bottom of the navigation dropdown menu.
+
+---
+
 ## DelugeRPG Stealth Client v1.1.0 (Stable Release)
 
-Major release delivering full account safety hardening, Pokedex duplication avoidance, map auto-start roaming, an organized navigation layout, robust settings and log persistence for installed executables, and repository restructuring.
-
-### Key Highlights & Changes:
-
-#### 1. Zero-Residue Removal of Auto-Catch
-- **Ad & IVT Risk Elimination:** Completely removed automated Pokeball throwing logic and related UI toggles with zero residue. This eliminates bot-detection risks from Google AdSense interstitial ad overlays and invalid traffic flags between map and battle sequences.
-- **Manual Catch Preservation:** Retains 100% of the movement pacing, obstacle evasion, sound chimes, desktop notifications, and automatic hunting halts so the player catches targets manually and securely.
-
-#### 2. Pokedex Duplication Avoidance Engine
-- **Skip Owned Encounters:** Encounters already registered in your Pokedex (indicated by the in-game red Pokeball marker or captured badge) are automatically ignored.
-- **Live Status Toggle:** Dedicated `Avoid Duplicates [ON / OFF]` toggle badge located in the new Targeting & Detection menu.
-
-#### 3. Auto-Start Hunting on Map Load
-- **Seamless Roaming:** Automatically starts walking whenever the DelugeRPG map (`/map`) loads or refreshes.
-- **Auto-Pause Guard:** Automatically halts hunting when navigating outside map pages.
-- **Configurable Toggle:** Dedicated `Auto-Start on Maps [ON / OFF]` toggle in the menu.
-
-#### 4. Streamlined Navigation Menu & UI Re-Layout
-- **Clean Top Bar:** Removed toolbar clutter, leaving essential telemetry, zoom controls, chime alert, network shield, and start/pause toggle.
-- **Collapsible Menu Organization:** Reorganized into clear sections:
-  - *Targeting & Detection:* Target Pokemon Filters, Avoid Duplicates, Auto-Start on Maps.
-  - *Walking Movement Mode:* Patterns (Smart Wander, Diagonal Stair, Patrol, etc.) and max steps per turn.
-  - *Tools & Settings:* Account Credentials auto-fill, Proxy Configuration, Open System Logs, Reload Map, Wipe Session.
-
-#### 5. Installer EXE Settings & Log Persistence Hardening
-- **UserData Path Resolution:** Packaged installer builds automatically persist configs and logs to `%APPDATA%\delugerpg-desktop-client\`.
-- **Recursive Schema Merging:** `deepMerge` engine preserves user preferences across client upgrades while seeding newly added settings.
-- **Atomic Config Writing:** Writes to `.tmp` file before atomic rename, preventing file corruption.
-- **Diagnostic Logging & Viewer:** Both main and renderer processes log to a single rotating log file (capped at 5 MB). Click `Open System Logs` in the menu to view diagnostic logs instantly.
-
-#### 6. Cleaned Workspace Architecture
-- Reorganized 27 regression test suites into `tests/` and reference assets into `docs/`.
-
-### Installation & Downloads
-- **Setup Installer (Recommended):** Download `DelugeRPG.Stealth.Client.Setup.1.1.0.exe`
-- **Portable Edition:** Download `DelugeRPG.Stealth.Client.1.1.0.exe`
+### Key Highlights & Improvements:
+- **Zero-Residue Removal of Auto-Catch:** Completely removed automated Pokeball throwing logic and related UI toggles with zero residue.
+- **Manual Catch Preservation:** Retains 100% of movement pacing, obstacle evasion, sound chimes, desktop notifications, and automatic hunting halts for secure manual catching.
+- **Pokedex Duplication Avoidance Engine:** Automatically skips encounters already registered in Pokedex (red Pokeball marker).
+- **Auto-Start Hunting on Map Load:** Automatically starts walking whenever the DelugeRPG map (`/map`) loads or refreshes.
+- **Streamlined Navigation Menu & UI Re-Layout:** Reorganized into clear sections: Targeting & Detection, Walking Movement Mode, and Tools & Settings.
+- **Installer Settings & Log Persistence Hardening:** Packaged installer builds automatically persist configs and logs to `%APPDATA%\delugerpg-desktop-client\`.
 
 ---
 
 ## DelugeRPG Stealth Client v1.0.0 (Stable Release)
 
-Standalone, hardened desktop gaming client for DelugeRPG featuring intelligent encounter detection, zero-loss input routing, configurable target filtering, and stealth roaming.
-
-### Key Highlights & Features:
-
-#### 1. Hardened Desktop Architecture
+### Key Highlights & Improvements:
 - **Genuine Chrome Engine:** Chromium 142 User-Agent and client-hints spoofing with automation features cleanly suppressed.
 - **Network Privacy:** SOCKS5 and HTTP proxy support with WebRTC leak prevention.
 - **Session Isolation:** Persistent partition (`persist:delugerpg`) with one-click clean-slate data wiping.
-
-#### 2. Smooth Input & Form Interactivity
-- **Guest Input Routing:** Full keyboard typing support inside PokeMart quantity boxes, chat, and form fields with zero focus drops or focus stealing.
-- **In-DOM Modal Flow:** Replaced all native Windows dialogs (`alert()`, `confirm()`) with sleek in-DOM dark theme modals to preserve OS keyboard routing.
-
-#### 3. Intelligent Target Hunting & Filtering
-- **6 Target Presets:** All Targets, Legendaries Only, Megas Only, Variants Only, Legendaries + Megas, and Custom.
-- **Species & Sprite Variant Filters:** Filter by 10 distinct sprite variants (Normal, Shiny, Metallic, Ghostly, Dark, Shadow, Mirage, Chrome, Negative, Retro). Normal variants can be toggled on or off with strict enforcement.
-- **Common Pokemon Exclusion:** Common wild Pokemon (Swablu, Rattata, etc.) are strictly skipped when legendary/mega hunting, even if they have special variants.
-- **Level Filters:** Filter encounters by minimum, maximum, or exact level with target-only or global scoping.
-
-#### 4. Stealth Roaming & Safety
-- **Anti-Stuck & Cadence Roaming:** Intelligent obstacle evasion with customizable roaming patterns (Wander, Horizontal Line, Vertical Line, Square Patrol).
-- **Security Challenge Guard:** Immediate halting and chime/desktop alert upon reaching `/unlock` or captcha security challenges for manual completion.
-- **Smart Pokeball Selection:** Context-aware Pokeball auto-selection with safety fallbacks.
-
-### Installation & Downloads
-- **Setup Installer (Recommended):** Download `DelugeRPG.Stealth.Client.Setup.1.0.0.exe`
-- **Portable Edition:** Download `DelugeRPG.Stealth.Client.1.0.0.exe`
-
+- **Guest Input Routing:** Full keyboard typing support inside PokeMart quantity boxes, chat, and form fields with zero focus drops.
+- **In-DOM Modal Flow:** Replaced native Windows dialogs (`alert()`, `confirm()`) with sleek in-DOM dark theme modals.
+- **Intelligent Target Hunting & Filtering:** 6 Target Presets, 10 distinct sprite variants, common Pokemon exclusion, and level filters.
+- **Stealth Roaming & Safety:** Anti-stuck obstacle evasion, cadence roaming patterns, and security challenge detection guards.

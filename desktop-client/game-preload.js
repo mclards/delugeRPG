@@ -4933,6 +4933,10 @@ function parsePokemonRowsFromHtml(html) {
         const spriteMatch = block.match(/<img[^>]+src="([^"]+)"/i);
         const sprite = spriteMatch ? spriteMatch[1] : '';
 
+        const evolveMatch = block.match(/href="(\/pokemon\/evolve\/[^"]+)"/i);
+        const canEvolve = Boolean(evolveMatch || block.includes('class="evolve"') || />Evolve<\/a>/i.test(block));
+        const evolveUrl = evolveMatch ? evolveMatch[1] : (canEvolve ? ('/pokemon/evolve/' + id) : null);
+
         pokemons.push({
             id,
             name,
@@ -4942,7 +4946,9 @@ function parsePokemonRowsFromHtml(html) {
             types,
             moves,
             inTeam,
-            sprite
+            sprite,
+            canEvolve,
+            evolveUrl
         });
     }
     return pokemons;
@@ -7080,6 +7086,20 @@ function detectEvolveCard() {
             let pLevel = (lastClickedPokemonInfo && lastClickedPokemonInfo.level) || 50;
             let pTypes = (lastClickedPokemonInfo && lastClickedPokemonInfo.types && lastClickedPokemonInfo.types.length > 0) ? lastClickedPokemonInfo.types : [];
 
+            let existingBanner = modalContainer.querySelector('#deluge-evolve-uniqueness-banner');
+            if (!existingBanner) {
+                existingBanner = document.createElement('div');
+                existingBanner.id = 'deluge-evolve-uniqueness-banner';
+                existingBanner.style.cssText = 'background: #0d281e; border: 1px solid #238636; border-radius: 4px; padding: 6px 10px; margin: 6px 0; font-size: 11px; font-weight: 700; color: #3fb950; text-align: center; box-shadow: none !important;';
+                existingBanner.innerHTML = '&#10003; AI Moves Decision: Optimal 4 attacks and slot order ready in side panel.';
+                const promptEl = modalContainer.querySelector('p, div, h2, h3, h4');
+                if (promptEl && promptEl.parentElement) {
+                    promptEl.parentElement.insertBefore(existingBanner, promptEl.nextSibling);
+                } else {
+                    modalContainer.insertBefore(existingBanner, modalContainer.firstChild);
+                }
+            }
+
             return {
                 isOpen: true,
                 isMoveSelection: true,
@@ -7196,9 +7216,53 @@ function detectEvolveCard() {
             }
         }
 
-        const existingEvolveBanner = modalContainer.querySelector('#deluge-evolve-uniqueness-banner');
-        if (existingEvolveBanner && existingEvolveBanner.parentElement) {
-            existingEvolveBanner.parentElement.removeChild(existingEvolveBanner);
+        const allDuplicates = options.length > 0 && options.every(opt => opt.isOwned || opt.hasMegaOwned);
+        const hasUnique = options.some(opt => !opt.isOwned && !opt.hasMegaOwned);
+
+        let existingBanner = modalContainer.querySelector('#deluge-evolve-uniqueness-banner');
+        if (!existingBanner) {
+            existingBanner = document.createElement('div');
+            existingBanner.id = 'deluge-evolve-uniqueness-banner';
+            const promptEl = modalContainer.querySelector('p, div, h2, h3, h4');
+            if (promptEl && promptEl.parentElement) {
+                promptEl.parentElement.insertBefore(existingBanner, promptEl.nextSibling);
+            } else {
+                modalContainer.insertBefore(existingBanner, modalContainer.firstChild);
+            }
+        }
+
+        const submitBtn = modalContainer.querySelector('input[type="submit"], button[type="submit"], input[value*="Evolve" i], button.btn-primary');
+
+        if (allDuplicates) {
+            existingBanner.style.cssText = 'background: #2a1215; border: 1px solid #f85149; border-radius: 4px; padding: 6px 10px; margin: 6px 0; font-size: 11px; font-weight: 700; color: #ff7b72; text-align: center; box-shadow: none !important;';
+            existingBanner.innerHTML = '&#9888; 100% Uniqueness Guard: You already own this evolution! Evolving is blocked to prevent duplicates.';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.5';
+                submitBtn.style.cursor = 'not-allowed';
+            }
+        } else if (hasUnique) {
+            existingBanner.style.cssText = 'background: #0d281e; border: 1px solid #238636; border-radius: 4px; padding: 6px 10px; margin: 6px 0; font-size: 11px; font-weight: 700; color: #3fb950; text-align: center; box-shadow: none !important;';
+            existingBanner.innerHTML = '&#10003; 100% Unique Evolution: Verified unowned in your collection. Safe to evolve!';
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+            }
+        }
+
+        if (radios && radios.length > 0) {
+            for (let rIdx = 0; rIdx < radios.length; rIdx++) {
+                const rEl = radios[rIdx];
+                const matchingOpt = options.find(o => o.radioValue === rEl.value);
+                if (matchingOpt && (matchingOpt.isOwned || matchingOpt.hasMegaOwned)) {
+                    rEl.disabled = true;
+                    if (rEl.parentElement) {
+                        rEl.parentElement.style.opacity = '0.5';
+                        rEl.parentElement.title = 'Duplicate evolution - already owned in collection';
+                    }
+                }
+            }
         }
 
         return {
@@ -7209,7 +7273,9 @@ function detectEvolveCard() {
             level: level,
             types: types,
             moves: moves,
-            options: options
+            options: options,
+            allDuplicates: allDuplicates,
+            hasUnique: hasUnique
         };
     } catch (err) {
         return null;

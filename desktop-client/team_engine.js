@@ -1027,6 +1027,10 @@ function extractPokemonFromHtml(html) {
     const spriteMatch = block.match(/<img[^>]+src="([^"]+)"/i);
     const sprite = spriteMatch ? spriteMatch[1] : '';
 
+    const evolveMatch = block.match(/href="(\/pokemon\/evolve\/[^"]+)"/i);
+    const canEvolve = Boolean(evolveMatch || block.includes('class="evolve"') || />Evolve<\/a>/i.test(block));
+    const evolveUrl = evolveMatch ? evolveMatch[1] : (canEvolve ? ('/pokemon/evolve/' + id) : null);
+
     pokemons.push({
       id,
       name,
@@ -1036,7 +1040,9 @@ function extractPokemonFromHtml(html) {
       types,
       moves,
       inTeam,
-      sprite
+      sprite,
+      canEvolve,
+      evolveUrl
     });
   }
   return pokemons;

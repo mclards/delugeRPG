@@ -459,6 +459,130 @@ const EVOLUTION_FAMILIES = {
     branches: [
       { name: 'Hatterene', types: ['Psychic', 'Fairy'], bst: 510, gmax: true, mega: false, role: 'G-Max Magic Bounce Sweeper', keyMoves: ['Dazzling Gleam', 'Psychic', 'Mystical Fire', 'Shadow Ball'] }
     ]
+  },
+  pinsir: {
+    base: 'Pinsir',
+    stages: ['Pinsir'],
+    branches: [
+      { name: 'Mega Pinsir', types: ['Bug', 'Flying'], bst: 600, mega: true, minLevel: 100, role: 'Aerilate Mega Striker', keyMoves: ['X-Scissor', 'Quick Attack', 'Close Combat', 'Stone Edge'] }
+    ]
+  },
+  houndour: {
+    base: 'Houndour',
+    stages: ['Houndour', 'Houndoom'],
+    branches: [
+      { name: 'Houndoom', types: ['Dark', 'Fire'], bst: 500, minLevel: 24, role: 'Dark/Fire Special Sweeper', keyMoves: ['Flamethrower', 'Dark Pulse', 'Fire Blast', 'Sludge Bomb'] },
+      { name: 'Mega Houndoom', types: ['Dark', 'Fire'], bst: 600, mega: true, minLevel: 100, role: 'Solar Power Special Sweeper', keyMoves: ['Flamethrower', 'Dark Pulse', 'Fire Blast', 'Solar Beam'] }
+    ]
+  },
+  kangaskhan: {
+    base: 'Kangaskhan',
+    stages: ['Kangaskhan'],
+    branches: [
+      { name: 'Mega Kangaskhan', types: ['Normal'], bst: 590, mega: true, minLevel: 100, role: 'Parental Bond Multi-Hit Sweeper', keyMoves: ['Body Slam', 'Earthquake', 'Sucker Punch', 'Drain Punch'] }
+    ]
+  },
+  aerodactyl: {
+    base: 'Aerodactyl',
+    stages: ['Aerodactyl'],
+    branches: [
+      { name: 'Mega Aerodactyl', types: ['Rock', 'Flying'], bst: 615, mega: true, minLevel: 100, role: 'Tough Claws Rock/Flying Sweeper', keyMoves: ['Stone Edge', 'Dual Wingbeat', 'Earthquake', 'Crunch'] }
+    ]
+  },
+  audino: {
+    base: 'Audino',
+    stages: ['Audino'],
+    branches: [
+      { name: 'Mega Audino', types: ['Normal', 'Fairy'], bst: 545, mega: true, minLevel: 100, role: 'Healer Bulky Wall', keyMoves: ['Moonblast', 'Hyper Voice', 'Dazzling Gleam', 'Flamethrower'] }
+    ]
+  },
+  meditite: {
+    base: 'Meditite',
+    stages: ['Meditite', 'Medicham'],
+    branches: [
+      { name: 'Medicham', types: ['Fighting', 'Psychic'], bst: 410, mega: true, minLevel: 37, role: 'Pure Power Physical Sweeper', keyMoves: ['High Jump Kick', 'Zen Headbutt', 'Ice Punch', 'Bullet Punch'] },
+      { name: 'Mega Medicham', types: ['Fighting', 'Psychic'], bst: 510, mega: true, minLevel: 100, role: 'Pure Power Mega Sweeper', keyMoves: ['High Jump Kick', 'Zen Headbutt', 'Ice Punch', 'Close Combat'] }
+    ]
+  },
+  electrike: {
+    base: 'Electrike',
+    stages: ['Electrike', 'Manectric'],
+    branches: [
+      { name: 'Manectric', types: ['Electric'], bst: 475, mega: true, minLevel: 26, role: 'Lightning Rod Electric Sweeper', keyMoves: ['Thunderbolt', 'Flamethrower', 'Volt Switch', 'Overheat'] },
+      { name: 'Mega Manectric', types: ['Electric'], bst: 575, mega: true, minLevel: 100, role: 'Intimidate High-Speed Electric Sweeper', keyMoves: ['Thunderbolt', 'Flamethrower', 'Volt Switch', 'Hidden Power'] }
+    ]
+  },
+  doduo: {
+    base: 'Doduo',
+    stages: ['Doduo'],
+    branches: [
+      { name: 'Dodrio', types: ['Normal', 'Flying'], bst: 470, minLevel: 31, role: 'Early Bird Flying Sweeper', keyMoves: ['Brave Bird', 'Tri Attack', 'Jump Kick', 'Drill Peck'] }
+    ]
+  },
+  taillow: {
+    base: 'Taillow',
+    stages: ['Taillow'],
+    branches: [
+      { name: 'Swellow', types: ['Normal', 'Flying'], bst: 455, minLevel: 22, role: 'Guts Facade Sweeper', keyMoves: ['Brave Bird', 'Facade', 'U-turn', 'Quick Attack'] }
+    ]
+  },
+  hoppip: {
+    base: 'Hoppip',
+    stages: ['Hoppip', 'Skiploom'],
+    branches: [
+      { name: 'Skiploom', types: ['Grass', 'Flying'], bst: 340, minLevel: 18, role: 'Chlorophyll Grass Scout', keyMoves: ['Mega Drain', 'Acrobatics', 'Bullet Seed', 'Fairy Wind'] },
+      { name: 'Jumpluff', types: ['Grass', 'Flying'], bst: 460, minLevel: 27, role: 'High Speed Infiltrator', keyMoves: ['Giga Drain', 'Acrobatics', 'Energy Ball', 'Dazzling Gleam'] }
+    ]
+  },
+  pidove: {
+    base: 'Pidove',
+    stages: ['Pidove', 'Tranquill'],
+    branches: [
+      { name: 'Tranquill', types: ['Normal', 'Flying'], bst: 358, minLevel: 21, role: 'Super Luck Flying Striker', keyMoves: ['Air Cutter', 'Quick Attack', 'Roost', 'Facade'] },
+      { name: 'Unfezant', types: ['Normal', 'Flying'], bst: 488, minLevel: 32, role: 'Super Luck High Attack Sweeper', keyMoves: ['Brave Bird', 'Return', 'U-turn', 'Night Slash'] }
+    ]
+  },
+  poipole: {
+    base: 'Poipole',
+    stages: ['Poipole'],
+    branches: [
+      { name: 'Naganadel', types: ['Poison', 'Dragon'], bst: 540, minLevel: 1, role: 'Beast Boost Dragon/Poison Sweeper', keyMoves: ['Sludge Wave', 'Draco Meteor', 'Fire Blast', 'Thunderbolt'] }
+    ]
+  },
+  meltan: {
+    base: 'Meltan',
+    stages: ['Meltan'],
+    branches: [
+      { name: 'Melmetal', types: ['Steel'], bst: 600, minLevel: 1, role: 'Iron Fist Double Iron Bash Sweeper', keyMoves: ['Double Iron Bash', 'Earthquake', 'Thunder Punch', 'Superpower'] }
+    ]
+  },
+  typenull: {
+    base: 'Type: Null',
+    stages: ['Type: Null'],
+    branches: [
+      { name: 'Silvally', types: ['Normal'], bst: 570, minLevel: 1, role: 'RKS System Multi-Type Sweeper', keyMoves: ['Multi-Attack', 'Parting Shot', 'Iron Head', 'Flamethrower'] }
+    ]
+  },
+  farfetchd: {
+    base: "Farfetch'd",
+    stages: ["Farfetch'd"],
+    branches: [
+      { name: "Sirfetch'd", types: ['Fighting'], bst: 507, minLevel: 1, role: 'Scrappy Meteor Assault Sweeper', keyMoves: ['Meteor Assault', 'Close Combat', 'Brave Bird', 'First Impression'] }
+    ]
+  },
+  rayquaza: {
+    base: 'Rayquaza',
+    stages: ['Rayquaza'],
+    branches: [
+      { name: 'Mega Rayquaza', types: ['Dragon', 'Flying'], bst: 780, mega: true, minLevel: 100, role: 'Delta Stream God-Tier Sweeper', keyMoves: ['Dragon Ascent', 'Extreme Speed', 'Earthquake', 'V-create'] }
+    ]
+  },
+  venusaur: {
+    base: 'Venusaur',
+    stages: ['Venusaur'],
+    branches: [
+      { name: 'Mega Venusaur', types: ['Grass', 'Poison'], bst: 625, mega: true, minLevel: 100, role: 'Thick Fat Bulky Tank', keyMoves: ['Giga Drain', 'Sludge Bomb', 'Earthquake', 'Synthesis'] }
+    ]
   }
 };
 
@@ -632,7 +756,91 @@ const SPECIES_DEFAULT_TYPES = {
   'gouging fire': ['Fire', 'Dragon'],
   'raging bolt': ['Electric', 'Dragon'],
   'iron boulder': ['Rock', 'Psychic'],
-  'iron crown': ['Steel', 'Psychic']
+  'iron crown': ['Steel', 'Psychic'],
+  pinsir: ['Bug'],
+  'mega pinsir': ['Bug', 'Flying'],
+  houndour: ['Dark', 'Fire'],
+  houndoom: ['Dark', 'Fire'],
+  'mega houndoom': ['Dark', 'Fire'],
+  abra: ['Psychic'],
+  kadabra: ['Psychic'],
+  alakazam: ['Psychic'],
+  'mega alakazam': ['Psychic'],
+  bagon: ['Dragon'],
+  shelgon: ['Dragon'],
+  salamence: ['Dragon', 'Flying'],
+  'mega salamence': ['Dragon', 'Flying'],
+  beldum: ['Steel', 'Psychic'],
+  metang: ['Steel', 'Psychic'],
+  metagross: ['Steel', 'Psychic'],
+  'mega metagross': ['Steel', 'Psychic'],
+  mudkip: ['Water'],
+  marshtomp: ['Water', 'Ground'],
+  swampert: ['Water', 'Ground'],
+  'mega swampert': ['Water', 'Ground'],
+  froakie: ['Water'],
+  frogadier: ['Water'],
+  greninja: ['Water', 'Dark'],
+  kangaskhan: ['Normal'],
+  'mega kangaskhan': ['Normal'],
+  aerodactyl: ['Rock', 'Flying'],
+  'mega aerodactyl': ['Rock', 'Flying'],
+  audino: ['Normal'],
+  'mega audino': ['Normal', 'Fairy'],
+  meditite: ['Fighting', 'Psychic'],
+  medicham: ['Fighting', 'Psychic'],
+  'mega medicham': ['Fighting', 'Psychic'],
+  slowpoke: ['Water', 'Psychic'],
+  slowbro: ['Water', 'Psychic'],
+  'mega slowbro': ['Water', 'Psychic'],
+  slowking: ['Water', 'Psychic'],
+  snorunt: ['Ice'],
+  glalie: ['Ice'],
+  'mega glalie': ['Ice'],
+  froslass: ['Ice', 'Ghost'],
+  doduo: ['Normal', 'Flying'],
+  dodrio: ['Normal', 'Flying'],
+  taillow: ['Normal', 'Flying'],
+  swellow: ['Normal', 'Flying'],
+  hoppip: ['Grass', 'Flying'],
+  skiploom: ['Grass', 'Flying'],
+  jumpluff: ['Grass', 'Flying'],
+  pidove: ['Normal', 'Flying'],
+  tranquill: ['Normal', 'Flying'],
+  unfezant: ['Normal', 'Flying'],
+  electrike: ['Electric'],
+  manectric: ['Electric'],
+  'mega manectric': ['Electric'],
+  cosmog: ['Psychic'],
+  cosmoem: ['Psychic'],
+  solgaleo: ['Psychic', 'Steel'],
+  lunala: ['Psychic', 'Ghost'],
+  poipole: ['Poison'],
+  naganadel: ['Poison', 'Dragon'],
+  meltan: ['Steel'],
+  melmetal: ['Steel'],
+  'type: null': ['Normal'],
+  silvally: ['Normal'],
+  "farfetch'd": ['Normal', 'Flying'],
+  "sirfetch'd": ['Fighting'],
+  onix: ['Rock', 'Ground'],
+  steelix: ['Steel', 'Ground'],
+  'mega steelix': ['Steel', 'Ground'],
+  scyther: ['Bug', 'Flying'],
+  scizor: ['Bug', 'Steel'],
+  'mega scizor': ['Bug', 'Steel'],
+  kleavor: ['Bug', 'Rock'],
+  charmander: ['Fire'],
+  charmeleon: ['Fire'],
+  charizard: ['Fire', 'Flying'],
+  'mega charizard x': ['Fire', 'Dragon'],
+  'mega charizard y': ['Fire', 'Flying'],
+  venusaur: ['Grass', 'Poison'],
+  'mega venusaur': ['Grass', 'Poison'],
+  blastoise: ['Water'],
+  'mega blastoise': ['Water'],
+  rayquaza: ['Dragon', 'Flying'],
+  'mega rayquaza': ['Dragon', 'Flying']
 };
 
 function resolvePokemonTypes(pokemonOrName, collection = []) {
@@ -733,7 +941,8 @@ function checkEvolutionOwnership(evolutionName, userCollection) {
   }
 
   const eq = teamEngine.evaluateOwnershipAndMegaEquivalence(evolutionName, userCollection);
-  if (!eq.isOwned) {
+  const isTargetMega = teamEngine.isActualMegaEvolution(evolutionName);
+  if (!eq.isOwned || (isTargetMega && !eq.hasMegaOwned)) {
     return {
       isOwned: false,
       count: 0,
@@ -1159,16 +1368,215 @@ function evaluateEvolutionMoveSelection(pokemonOrName, availableMoves = [], coll
   };
 }
 
+// -----------------------------------------------------------------------------
+// 5. STAGE TRANSITIONS & BOX EVOLUTION READINESS EVALUATOR
+// -----------------------------------------------------------------------------
+const STAGE_TRANSITIONS = {
+  charmander: [{ name: 'Charmeleon', minLevel: 16, types: ['Fire'], bst: 405, keyMoves: ['Flamethrower', 'Fire Fang', 'Slash', 'Dragon Breath'] }],
+  charmeleon: [
+    { name: 'Charizard', minLevel: 36, types: ['Fire', 'Flying'], bst: 534, mega: true, keyMoves: ['Flamethrower', 'Air Slash', 'Solar Beam', 'Focus Blast'] },
+    { name: 'Mega Charizard X', minLevel: 100, types: ['Fire', 'Dragon'], bst: 634, mega: true, keyMoves: ['Flare Blitz', 'Dragon Claw', 'Earthquake', 'Roost'] },
+    { name: 'Mega Charizard Y', minLevel: 100, types: ['Fire', 'Flying'], bst: 634, mega: true, keyMoves: ['Fire Blast', 'Solar Beam', 'Air Slash', 'Focus Blast'] }
+  ],
+  charizard: [
+    { name: 'Mega Charizard X', minLevel: 100, types: ['Fire', 'Dragon'], bst: 634, mega: true, keyMoves: ['Flare Blitz', 'Dragon Claw', 'Earthquake', 'Roost'] },
+    { name: 'Mega Charizard Y', minLevel: 100, types: ['Fire', 'Flying'], bst: 634, mega: true, keyMoves: ['Fire Blast', 'Solar Beam', 'Air Slash', 'Focus Blast'] }
+  ],
+  abra: [
+    { name: 'Kadabra', minLevel: 16, types: ['Psychic'], bst: 400, keyMoves: ['Psychic', 'Psyshock', 'Shadow Ball', 'Dazzling Gleam'] },
+    { name: 'Alakazam', minLevel: 16, types: ['Psychic'], bst: 500, mega: true, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Energy Ball'] }
+  ],
+  kadabra: [
+    { name: 'Alakazam', minLevel: 16, types: ['Psychic'], bst: 500, mega: true, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Energy Ball'] },
+    { name: 'Mega Alakazam', minLevel: 100, types: ['Psychic'], bst: 600, mega: true, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Dazzling Gleam'] }
+  ],
+  alakazam: [
+    { name: 'Mega Alakazam', minLevel: 100, types: ['Psychic'], bst: 600, mega: true, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Dazzling Gleam'] }
+  ],
+  bagon: [{ name: 'Shelgon', minLevel: 30, types: ['Dragon'], bst: 420, keyMoves: ['Dragon Claw', 'Double-Edge', 'Crunch', 'Rock Slide'] }],
+  shelgon: [{ name: 'Salamence', minLevel: 50, types: ['Dragon', 'Flying'], bst: 600, mega: true, keyMoves: ['Dragon Claw', 'Fly', 'Earthquake', 'Fire Blast'] }],
+  salamence: [{ name: 'Mega Salamence', minLevel: 100, types: ['Dragon', 'Flying'], bst: 700, mega: true, keyMoves: ['Double-Edge', 'Dragon Claw', 'Earthquake', 'Roost'] }],
+  beldum: [{ name: 'Metang', minLevel: 20, types: ['Steel', 'Psychic'], bst: 420, keyMoves: ['Meteor Mash', 'Zen Headbutt', 'Bullet Punch', 'Iron Head'] }],
+  metang: [{ name: 'Metagross', minLevel: 45, types: ['Steel', 'Psychic'], bst: 600, mega: true, keyMoves: ['Meteor Mash', 'Zen Headbutt', 'Earthquake', 'Bullet Punch'] }],
+  metagross: [{ name: 'Mega Metagross', minLevel: 100, types: ['Steel', 'Psychic'], bst: 700, mega: true, keyMoves: ['Meteor Mash', 'Zen Headbutt', 'Earthquake', 'Ice Punch'] }],
+  mudkip: [{ name: 'Marshtomp', minLevel: 16, types: ['Water', 'Ground'], bst: 405, keyMoves: ['Waterfall', 'Mud Bomb', 'Ice Punch', 'Rock Slide'] }],
+  marshtomp: [{ name: 'Swampert', minLevel: 36, types: ['Water', 'Ground'], bst: 535, mega: true, keyMoves: ['Earthquake', 'Waterfall', 'Ice Punch', 'Stone Edge'] }],
+  swampert: [{ name: 'Mega Swampert', minLevel: 100, types: ['Water', 'Ground'], bst: 635, mega: true, keyMoves: ['Waterfall', 'Earthquake', 'Ice Punch', 'Superpower'] }],
+  froakie: [{ name: 'Frogadier', minLevel: 16, types: ['Water'], bst: 405, keyMoves: ['Water Pulse', 'Aerial Ace', 'Quick Attack', 'Lick'] }],
+  frogadier: [{ name: 'Greninja', minLevel: 36, types: ['Water', 'Dark'], bst: 530, keyMoves: ['Hydro Pump', 'Dark Pulse', 'Ice Beam', 'Gunk Shot'] }],
+  doduo: [{ name: 'Dodrio', minLevel: 31, types: ['Normal', 'Flying'], bst: 470, keyMoves: ['Brave Bird', 'Tri Attack', 'Jump Kick', 'Drill Peck'] }],
+  taillow: [{ name: 'Swellow', minLevel: 22, types: ['Normal', 'Flying'], bst: 455, keyMoves: ['Brave Bird', 'Facade', 'U-turn', 'Quick Attack'] }],
+  hoppip: [{ name: 'Skiploom', minLevel: 18, types: ['Grass', 'Flying'], bst: 340, keyMoves: ['Mega Drain', 'Acrobatics', 'Bullet Seed', 'Fairy Wind'] }],
+  skiploom: [{ name: 'Jumpluff', minLevel: 27, types: ['Grass', 'Flying'], bst: 460, keyMoves: ['Giga Drain', 'Acrobatics', 'Energy Ball', 'Dazzling Gleam'] }],
+  pidove: [{ name: 'Tranquill', minLevel: 21, types: ['Normal', 'Flying'], bst: 358, keyMoves: ['Air Cutter', 'Quick Attack', 'Roost', 'Facade'] }],
+  tranquill: [{ name: 'Unfezant', minLevel: 32, types: ['Normal', 'Flying'], bst: 488, keyMoves: ['Brave Bird', 'Return', 'U-turn', 'Night Slash'] }],
+  electrike: [
+    { name: 'Manectric', minLevel: 26, types: ['Electric'], bst: 475, mega: true, keyMoves: ['Thunderbolt', 'Flamethrower', 'Volt Switch', 'Overheat'] },
+    { name: 'Mega Manectric', minLevel: 100, types: ['Electric'], bst: 575, mega: true, keyMoves: ['Thunderbolt', 'Flamethrower', 'Volt Switch', 'Hidden Power'] }
+  ],
+  manectric: [{ name: 'Mega Manectric', minLevel: 100, types: ['Electric'], bst: 575, mega: true, keyMoves: ['Thunderbolt', 'Flamethrower', 'Volt Switch', 'Hidden Power'] }],
+  pinsir: [{ name: 'Mega Pinsir', minLevel: 100, types: ['Bug', 'Flying'], bst: 600, mega: true, keyMoves: ['X-Scissor', 'Quick Attack', 'Close Combat', 'Stone Edge'] }],
+  houndour: [
+    { name: 'Houndoom', minLevel: 24, types: ['Dark', 'Fire'], bst: 500, mega: true, keyMoves: ['Flamethrower', 'Dark Pulse', 'Fire Blast', 'Sludge Bomb'] },
+    { name: 'Mega Houndoom', minLevel: 100, types: ['Dark', 'Fire'], bst: 600, mega: true, keyMoves: ['Flamethrower', 'Dark Pulse', 'Fire Blast', 'Solar Beam'] }
+  ],
+  houndoom: [{ name: 'Mega Houndoom', minLevel: 100, types: ['Dark', 'Fire'], bst: 600, mega: true, keyMoves: ['Flamethrower', 'Dark Pulse', 'Fire Blast', 'Solar Beam'] }],
+  kangaskhan: [{ name: 'Mega Kangaskhan', minLevel: 100, types: ['Normal'], bst: 590, mega: true, keyMoves: ['Body Slam', 'Earthquake', 'Sucker Punch', 'Drain Punch'] }],
+  aerodactyl: [{ name: 'Mega Aerodactyl', minLevel: 100, types: ['Rock', 'Flying'], bst: 615, mega: true, keyMoves: ['Stone Edge', 'Dual Wingbeat', 'Earthquake', 'Crunch'] }],
+  audino: [{ name: 'Mega Audino', minLevel: 100, types: ['Normal', 'Fairy'], bst: 545, mega: true, keyMoves: ['Moonblast', 'Hyper Voice', 'Dazzling Gleam', 'Flamethrower'] }],
+  meditite: [
+    { name: 'Medicham', minLevel: 37, types: ['Fighting', 'Psychic'], bst: 410, mega: true, keyMoves: ['High Jump Kick', 'Zen Headbutt', 'Ice Punch', 'Bullet Punch'] },
+    { name: 'Mega Medicham', minLevel: 100, types: ['Fighting', 'Psychic'], bst: 510, mega: true, keyMoves: ['High Jump Kick', 'Zen Headbutt', 'Ice Punch', 'Close Combat'] }
+  ],
+  medicham: [{ name: 'Mega Medicham', minLevel: 100, types: ['Fighting', 'Psychic'], bst: 510, mega: true, keyMoves: ['High Jump Kick', 'Zen Headbutt', 'Ice Punch', 'Close Combat'] }],
+  onix: [
+    { name: 'Steelix', minLevel: 1, types: ['Steel', 'Ground'], bst: 510, mega: true, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] },
+    { name: 'Mega Steelix', minLevel: 100, types: ['Steel', 'Ground'], bst: 610, mega: true, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] }
+  ],
+  steelix: [{ name: 'Mega Steelix', minLevel: 100, types: ['Steel', 'Ground'], bst: 610, mega: true, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] }],
+  slowpoke: [
+    { name: 'Slowbro', minLevel: 37, types: ['Water', 'Psychic'], bst: 490, mega: true, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Flamethrower'] },
+    { name: 'Slowking', minLevel: 1, types: ['Water', 'Psychic'], bst: 490, keyMoves: ['Surf', 'Psychic', 'Ice Beam', 'Fire Blast'] },
+    { name: 'Mega Slowbro', minLevel: 100, types: ['Water', 'Psychic'], bst: 590, mega: true, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Calm Mind'] }
+  ],
+  slowbro: [{ name: 'Mega Slowbro', minLevel: 100, types: ['Water', 'Psychic'], bst: 590, mega: true, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Calm Mind'] }],
+  snorunt: [
+    { name: 'Glalie', minLevel: 42, types: ['Ice'], bst: 480, mega: true, keyMoves: ['Ice Beam', 'Blizzard', 'Earthquake', 'Shadow Ball'] },
+    { name: 'Froslass', minLevel: 1, types: ['Ice', 'Ghost'], bst: 480, keyMoves: ['Ice Beam', 'Shadow Ball', 'Thunderbolt', 'Psychic'] },
+    { name: 'Mega Glalie', minLevel: 100, types: ['Ice'], bst: 580, mega: true, keyMoves: ['Double-Edge', 'Ice Beam', 'Earthquake', 'Explosion'] }
+  ],
+  glalie: [{ name: 'Mega Glalie', minLevel: 100, types: ['Ice'], bst: 580, mega: true, keyMoves: ['Double-Edge', 'Ice Beam', 'Earthquake', 'Explosion'] }],
+  poipole: [{ name: 'Naganadel', minLevel: 1, types: ['Poison', 'Dragon'], bst: 540, keyMoves: ['Sludge Wave', 'Draco Meteor', 'Fire Blast', 'Thunderbolt'] }],
+  meltan: [{ name: 'Melmetal', minLevel: 1, types: ['Steel'], bst: 600, keyMoves: ['Double Iron Bash', 'Earthquake', 'Thunder Punch', 'Superpower'] }],
+  'type: null': [{ name: 'Silvally', minLevel: 1, types: ['Normal'], bst: 570, keyMoves: ['Multi-Attack', 'Parting Shot', 'Iron Head', 'Flamethrower'] }],
+  "farfetch'd": [{ name: "Sirfetch'd", minLevel: 1, types: ['Fighting'], bst: 507, keyMoves: ['Meteor Assault', 'Close Combat', 'Brave Bird', 'First Impression'] }],
+  kubfu: [
+    { name: 'Urshifu (Single Strike)', minLevel: 1, types: ['Fighting', 'Dark'], bst: 550, gmax: true, keyMoves: ['Wicked Blow', 'Close Combat', 'Poison Jab', 'Iron Head'] },
+    { name: 'Urshifu (Rapid Strike)', minLevel: 1, types: ['Fighting', 'Water'], bst: 550, gmax: true, keyMoves: ['Surging Strikes', 'Close Combat', 'Aqua Jet', 'Ice Punch'] }
+  ],
+  cosmog: [{ name: 'Cosmoem', minLevel: 43, types: ['Psychic'], bst: 400, keyMoves: ['Teleport', 'Cosmic Power'] }],
+  cosmoem: [
+    { name: 'Solgaleo', minLevel: 53, types: ['Psychic', 'Steel'], bst: 680, keyMoves: ['Sunsteel Strike', 'Zen Headbutt', 'Earthquake', 'Flare Blitz'] },
+    { name: 'Lunala', minLevel: 53, types: ['Psychic', 'Ghost'], bst: 680, keyMoves: ['Moongeist Beam', 'Psychic', 'Ice Beam', 'Focus Blast'] }
+  ],
+  rayquaza: [{ name: 'Mega Rayquaza', minLevel: 100, types: ['Dragon', 'Flying'], bst: 780, mega: true, keyMoves: ['Dragon Ascent', 'Extreme Speed', 'Earthquake', 'V-create'] }],
+  venusaur: [{ name: 'Mega Venusaur', minLevel: 100, types: ['Grass', 'Poison'], bst: 625, mega: true, keyMoves: ['Giga Drain', 'Sludge Bomb', 'Earthquake', 'Synthesis'] }]
+};
+
+function getEvolveReadyPokemon(userCollection) {
+  if (!Array.isArray(userCollection) || userCollection.length === 0) return [];
+  const readyList = [];
+
+  for (const poke of userCollection) {
+    if (!poke || !poke.name) continue;
+    const rawName = String(poke.name).trim();
+
+    // Already a Mega or Gigantamax or Eternamax Pokemon cannot evolve further
+    if (/\bMega\s+/i.test(rawName) || /\bG-Max\b/i.test(rawName) || /\bEternamax\b/i.test(rawName)) {
+      continue;
+    }
+
+    const baseSpecies = teamEngine.getBaseSpecies(rawName).toLowerCase();
+    const transitions = STAGE_TRANSITIONS[baseSpecies];
+    const fam = findFamily(rawName);
+
+    const branches = [];
+    if (transitions && transitions.length > 0) {
+      for (const tr of transitions) {
+        if (tr.name.toLowerCase() === baseSpecies) continue;
+        const minLvl = tr.minLevel || (tr.mega ? 100 : 1);
+        const levelMet = (poke.level || 1) >= minLvl || Boolean(poke.canEvolve);
+        if (levelMet || tr.minLevel === 1) {
+          branches.push(tr);
+        }
+      }
+    } else if (fam) {
+      const isBase = fam.base.toLowerCase() === baseSpecies;
+      const isStage = Array.isArray(fam.stages) && fam.stages.some(s => s.toLowerCase() === baseSpecies);
+      if (isBase || isStage) {
+        for (const br of fam.branches) {
+          if (br.name.toLowerCase() === baseSpecies) continue;
+          const minLvl = br.minLevel || (br.mega ? 100 : 1);
+          const levelMet = (poke.level || 1) >= minLvl || Boolean(poke.canEvolve);
+          if (levelMet || br.minLevel === 1) {
+            branches.push(br);
+          }
+        }
+      }
+    }
+
+    if (branches.length > 0) {
+      const evaluatedBranches = branches.map(br => {
+        const ownership = checkEvolutionOwnership(br.name, userCollection);
+        const isDuplicate = ownership.isOwned || ownership.hasMegaOwned;
+
+        // Combine current equipped moves and branch key moves for best 4 attacks evaluation
+        const currentMoves = Array.isArray(poke.moves) ? poke.moves.map(m => m.name || m) : [];
+        const candMoves = Array.from(new Set([...currentMoves, ...(br.keyMoves || [])]));
+        const moveAnalysis = evaluateEvolutionMoveSelection(br.name, candMoves, userCollection);
+
+        return {
+          name: br.name,
+          types: br.types || ['Normal'],
+          bst: br.bst || 500,
+          mega: Boolean(br.mega),
+          minLevel: br.minLevel || 1,
+          isDuplicate,
+          status: isDuplicate ? 'DUPLICATE_BLOCKED' : 'NEW_UNIQUE',
+          ownership,
+          moveAnalysis
+        };
+      });
+
+      // Best branch priority: prioritize new unique branches, then higher BST
+      evaluatedBranches.sort((a, b) => {
+        if (!a.isDuplicate && b.isDuplicate) return -1;
+        if (a.isDuplicate && !b.isDuplicate) return 1;
+        return (b.bst || 500) - (a.bst || 500);
+      });
+
+      const hasUnique = evaluatedBranches.some(b => !b.isDuplicate);
+      const bestBranch = evaluatedBranches[0];
+
+      readyList.push({
+        id: poke.id || '',
+        name: rawName,
+        variant: poke.variant || 'Normal',
+        level: poke.level || 1,
+        types: poke.types || resolvePokemonTypes(poke, userCollection),
+        sprite: poke.sprite || '',
+        inTeam: Boolean(poke.inTeam),
+        canEvolve: Boolean(poke.canEvolve),
+        hasUnique,
+        status: hasUnique ? 'ALLOWED' : 'BLOCKED',
+        bestBranch,
+        branches: evaluatedBranches
+      });
+    }
+  }
+
+  // Sort list: Uniques first, then higher level
+  readyList.sort((a, b) => {
+    if (a.hasUnique && !b.hasUnique) return -1;
+    if (!a.hasUnique && b.hasUnique) return 1;
+    return (b.level || 1) - (a.level || 1);
+  });
+
+  return readyList;
+}
+
 module.exports = {
   EVOLUTION_FAMILIES,
   TOP_STAB_MOVES,
   SPECIES_DEFAULT_TYPES,
+  STAGE_TRANSITIONS,
   resolvePokemonTypes,
   findFamily,
   checkEvolutionOwnership,
   analyzeEvolutionPath,
   recommendOptimalMoves,
   evaluateEvolutionMoveSelection,
+  getEvolveReadyPokemon,
   formatEvolutionCard,
   formatMovesetCard,
   evaluateOwnershipAndMegaEquivalence: teamEngine.evaluateOwnershipAndMegaEquivalence

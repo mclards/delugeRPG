@@ -604,6 +604,22 @@ let lastAnnouncedEvolveSignature = null;
 let lastAnalyzedBattle = null;
 let lastKnownUserTeam = [];
 
+// Evolution & Attack Moves Decision Maker Elements
+const evoSearchInput = document.getElementById('evoSearchInput');
+const refreshEvoBoxBtn = document.getElementById('refreshEvoBoxBtn');
+const evoFilterUniqueBtn = document.getElementById('evoFilterUniqueBtn');
+const evoFilterAllBtn = document.getElementById('evoFilterAllBtn');
+const evoFilterBlockedBtn = document.getElementById('evoFilterBlockedBtn');
+const evoCountUnique = document.getElementById('evoCountUnique');
+const evoCountAll = document.getElementById('evoCountAll');
+const evoCountBlocked = document.getElementById('evoCountBlocked');
+const evoReadyCountBadge = document.getElementById('evoReadyCountBadge');
+const evoReadyList = document.getElementById('evoReadyList');
+let currentEvoFilter = 'UNIQUE';
+let currentEvoSearch = '';
+let selectedEvoPoke = null;
+let cachedEvolveReadyList = [];
+
 // Safety & Anti-Ban Limits Elements
 const safetySettingsModal = document.getElementById('safetySettingsModal');
 const safetySettingsTopBtn = document.getElementById('safetySettingsTopBtn');
@@ -3030,6 +3046,9 @@ delugeView.addEventListener('ipc-message', (event) => {
         scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced (${data.pageCount || 1} pgs)`;
       }
       if (typeof updateRosterModeUI === 'function') updateRosterModeUI();
+      if (aiAssistantModal && aiAssistantModal.style.display === 'flex' && typeof renderEvolutionDecisionMakerUI === 'function') {
+        renderEvolutionDecisionMakerUI();
+      }
       console.log(`[TeamBuilder] Successfully synced ${currentCollection.length} Pokemon across ${data.pageCount || 1} pages.`);
       backendLog('TEAM_BUILDER', `Synced ${currentCollection.length} Pokemon across ${data.pageCount || 1} pages`);
 
@@ -5717,6 +5736,9 @@ function loadTeamBuilderData() {
       }
       updateRosterModeUI();
       syncUserCollectionToGuest();
+      if (aiAssistantModal && aiAssistantModal.style.display === 'flex' && typeof renderEvolutionDecisionMakerUI === 'function') {
+        renderEvolutionDecisionMakerUI();
+      }
     }
   } catch (_) {}
 
@@ -7670,6 +7692,7 @@ function openAiAssistantPanel() {
     delugeView.send('check-evolve-card');
   }
   renderAiAssistantUI();
+  renderEvolutionDecisionMakerUI();
 }
 
 function closeAiAssistantPanel() {
@@ -7985,6 +8008,306 @@ function handleEvolveCardClosed() {
   const isAiPanelOpen = Boolean(aiAssistantModal && aiAssistantModal.style.display === 'flex');
   if (isAiPanelOpen) {
     renderAiAssistantUI();
+    renderEvolutionDecisionMakerUI();
+  }
+}
+
+// =============================================================================
+// EVOLUTION & ATTACK MOVES DECISION MAKER CONTROLLERS
+// =============================================================================
+
+function setEvoFilter(filterType) {
+  currentEvoFilter = filterType;
+  if (evoFilterUniqueBtn) {
+    evoFilterUniqueBtn.className = filterType === 'UNIQUE' ? 'btn btn-accent' : 'btn';
+    evoFilterUniqueBtn.style.fontWeight = filterType === 'UNIQUE' ? '700' : '600';
+  }
+  if (evoFilterAllBtn) {
+    evoFilterAllBtn.className = filterType === 'ALL' ? 'btn btn-accent' : 'btn';
+    evoFilterAllBtn.style.fontWeight = filterType === 'ALL' ? '700' : '600';
+  }
+  if (evoFilterBlockedBtn) {
+    evoFilterBlockedBtn.className = filterType === 'BLOCKED' ? 'btn btn-accent' : 'btn';
+    evoFilterBlockedBtn.style.fontWeight = filterType === 'BLOCKED' ? '700' : '600';
+  }
+  renderEvolutionDecisionMakerUI();
+}
+
+function refreshEvolveBoxList() {
+  loadTeamBuilderData();
+  renderEvolutionDecisionMakerUI();
+  updateStatus('Evolve-ready Pokemon box refreshed', '#10b981');
+}
+
+function selectEvolvePokemon(poke, branch) {
+  if (!poke) return;
+  selectedEvoPoke = poke;
+  const targetBranch = branch || poke.bestBranch || (poke.branches && poke.branches[0]);
+  if (!targetBranch) return;
+
+  const targetName = targetBranch.name;
+  const isDuplicate = Boolean(targetBranch.isDuplicate);
+
+  if (aiBattleOpponentBadge) {
+    aiBattleOpponentBadge.innerHTML = `${escapeHtml(poke.name)} &#8594; ${escapeHtml(targetName)}`;
+    aiBattleOpponentBadge.style.color = isDuplicate ? '#f87171' : '#10b981';
+  }
+
+  if (aiStatusChip) {
+    aiStatusChip.textContent = isDuplicate ? 'Duplicate Blocked' : '100% Unique';
+    aiStatusChip.style.color = isDuplicate ? '#f87171' : '#10b981';
+  }
+
+  if (aiTacticalBriefing) {
+    const moveAnalysis = targetBranch.moveAnalysis || ((evolutionEngine && typeof evolutionEngine.evaluateEvolutionMoveSelection === 'function')
+      ? evolutionEngine.evaluateEvolutionMoveSelection(targetName, (poke.moves || []).map(m => (typeof m === 'string' ? m : m.name)), currentCollection)
+      : { recommendedMoves: [], dropMoves: [], slotOrder: [] });
+
+    let recListHtml = '';
+    (moveAnalysis.recommendedMoves || []).forEach((m, idx) => {
+      recListHtml += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0; border-top: 1px solid #1a283e;">
+          <div style="font-size: 10px; font-weight: 600; color: #e0ecfa;">
+            <span style="color: #388bfd; font-weight: 700; margin-right: 4px;">[Slot ${idx + 1}]</span>
+            ${escapeHtml(m.name)}
+            <span style="font-size: 9px; color: #8eaad0; margin-left: 3px;">(${escapeHtml(m.type)}) [${m.power} Pwr]</span>
+          </div>
+          <div>
+            ${m.isStab ? '<span style="font-size: 8px; font-weight: 700; color: #10b981; padding: 1px 3px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 2px;">STAB</span>' : ''}
+          </div>
+        </div>
+      `;
+    });
+
+    let dropListHtml = '';
+    if (moveAnalysis.dropMoves && moveAnalysis.dropMoves.length > 0) {
+      moveAnalysis.dropMoves.slice(0, 3).forEach(m => {
+        dropListHtml += `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 1px 0; font-size: 9px; color: #f87171;">
+            <div>
+              <span style="font-weight: 700; margin-right: 2px;">&#10006;</span>
+              ${escapeHtml(m.name)}
+              <span style="font-size: 8.5px; color: #8eaad0;">(${escapeHtml(m.type)} ${m.power} Pwr)</span>
+            </div>
+            <div style="font-size: 8px; color: #8eaad0;">${escapeHtml(m.reason || '')}</div>
+          </div>
+        `;
+      });
+    }
+
+    const typeStr = (targetBranch.types && targetBranch.types.length > 0) ? targetBranch.types.join('/') : 'Normal';
+    const statusBanner = isDuplicate
+      ? `<div style="background: #2a1215; border: 1px solid #f85149; border-radius: 3px; padding: 4px 6px; margin-bottom: 4px; font-size: 9.5px; font-weight: 700; color: #ff7b72; text-align: center;">&#9888; STOP: Duplicate! ${escapeHtml(targetBranch.ownership && targetBranch.ownership.summaryLabel ? targetBranch.ownership.summaryLabel : 'Already in collection')}</div>`
+      : `<div style="background: #0d281e; border: 1px solid #10b981; border-radius: 3px; padding: 4px 6px; margin-bottom: 4px; font-size: 9.5px; font-weight: 700; color: #34d399; text-align: center;">&#10003; 100% UNIQUE: Expanding your collection with a new unique evolution!</div>`;
+
+    aiTacticalBriefing.innerHTML = `
+      <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+        ${statusBanner}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(targetName)}</span>
+          <span style="font-size: 9.5px; color: #8eaad0;">${targetBranch.bst ? (targetBranch.bst + ' BST &bull; ') : ''}<span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span></span>
+        </div>
+        <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 2px;">RECOMMENDED 4 ATTACKS (SLOTS 1-4)</div>
+        ${recListHtml}
+        ${dropListHtml ? `<div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-top: 4px; margin-bottom: 1px;">ATTACKS TO DROP / UNCHECK</div>${dropListHtml}` : ''}
+      </div>
+    `;
+  }
+
+  if (aiInstantActionSlot) {
+    aiInstantActionSlot.innerHTML = '';
+
+    const evolveTargetUrl = poke.evolveUrl || (poke.id ? `/pokemon/evolve/${poke.id}` : null);
+    if (evolveTargetUrl) {
+      const navBtn = document.createElement('button');
+      navBtn.type = 'button';
+      navBtn.className = isDuplicate ? 'btn' : 'btn btn-accent';
+      navBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
+      navBtn.innerHTML = `&#129516; Go to Evolve Page (${escapeHtml(poke.name)})`;
+      navBtn.addEventListener('click', () => {
+        if (delugeView) {
+          const fullUrl = evolveTargetUrl.startsWith('http') ? evolveTargetUrl : `https://www.delugerpg.com${evolveTargetUrl}`;
+          delugeView.loadURL(fullUrl);
+          updateStatus(`Navigating to evolve page for ${poke.name}...`, '#388bfd');
+        }
+      });
+      aiInstantActionSlot.appendChild(navBtn);
+    }
+
+    if (activeEvolveCardData && activeEvolveCardData.isMoveSelection) {
+      const applyBtn = document.createElement('button');
+      applyBtn.type = 'button';
+      applyBtn.className = 'btn btn-accent';
+      applyBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important; margin-top: 3px;';
+      applyBtn.innerHTML = '&#9876; Auto-Select Best 4 Moves in Game';
+      applyBtn.addEventListener('click', () => {
+        const moveAnalysis = targetBranch.moveAnalysis;
+        if (delugeView && moveAnalysis) {
+          delugeView.send('apply-recommended-moves', {
+            recommendedMoves: (moveAnalysis.recommendedMoves || []).map(m => m.name),
+            dropMoves: (moveAnalysis.dropMoves || []).map(m => m.name),
+            slot1: moveAnalysis.slotOrder ? moveAnalysis.slotOrder[0] : null
+          });
+          updateStatus('Applied recommended 4 moves to game form!', '#10b981');
+        }
+      });
+      aiInstantActionSlot.appendChild(applyBtn);
+    }
+  }
+
+  // Highlight active item card in list
+  if (evoReadyList) {
+    const cards = evoReadyList.querySelectorAll('.evo-item-card');
+    cards.forEach(c => {
+      if (c.getAttribute('data-poke-id') === poke.id) {
+        c.style.borderColor = '#388bfd';
+        c.style.background = '#0c182c';
+      } else {
+        c.style.borderColor = '#1a283e';
+        c.style.background = '#070e1a';
+      }
+    });
+  }
+}
+
+function renderEvolutionDecisionMakerUI() {
+  if (!evolutionEngine || typeof evolutionEngine.getEvolveReadyPokemon !== 'function') return;
+
+  const readyList = evolutionEngine.getEvolveReadyPokemon(currentCollection);
+  cachedEvolveReadyList = readyList;
+
+  const uniqueCount = readyList.filter(p => p.hasUnique).length;
+  const blockedCount = readyList.filter(p => !p.hasUnique).length;
+  const allCount = readyList.length;
+
+  if (evoCountUnique) evoCountUnique.textContent = String(uniqueCount);
+  if (evoCountAll) evoCountAll.textContent = String(allCount);
+  if (evoCountBlocked) evoCountBlocked.textContent = String(blockedCount);
+
+  let displayed = readyList;
+  if (currentEvoFilter === 'UNIQUE') {
+    displayed = readyList.filter(p => p.hasUnique);
+  } else if (currentEvoFilter === 'BLOCKED') {
+    displayed = readyList.filter(p => !p.hasUnique);
+  }
+
+  if (currentEvoSearch) {
+    displayed = displayed.filter(p => {
+      const q = currentEvoSearch;
+      const pName = (p.name || '').toLowerCase();
+      const pVariant = (p.variant || '').toLowerCase();
+      const pTypes = (p.types || []).join(' ').toLowerCase();
+      const branchNames = (p.branches || []).map(b => b.name.toLowerCase()).join(' ');
+      return pName.includes(q) || pVariant.includes(q) || pTypes.includes(q) || branchNames.includes(q);
+    });
+  }
+
+  if (evoReadyCountBadge) {
+    evoReadyCountBadge.textContent = `${displayed.length} Available`;
+    evoReadyCountBadge.style.color = currentEvoFilter === 'BLOCKED' ? '#f87171' : '#10b981';
+  }
+
+  if (!evoReadyList) return;
+  evoReadyList.innerHTML = '';
+
+  if (displayed.length === 0) {
+    const emptyNotice = document.createElement('div');
+    emptyNotice.style.cssText = 'color: #566e96; text-align: center; padding: 16px 8px; font-size: 10px; font-weight: 600;';
+    emptyNotice.textContent = currentEvoFilter === 'BLOCKED'
+      ? 'No duplicate-blocked evolutions found in box.'
+      : (currentEvoFilter === 'UNIQUE' ? 'No new unique evolutions found in box.' : 'No evolve-ready Pokemon found in box.');
+    evoReadyList.appendChild(emptyNotice);
+    return;
+  }
+
+  displayed.forEach(item => {
+    const isSelected = Boolean(selectedEvoPoke && selectedEvoPoke.id === item.id);
+    const card = document.createElement('div');
+    card.className = 'evo-item-card';
+    card.setAttribute('data-poke-id', item.id);
+    card.style.cssText = `
+      background: ${isSelected ? '#0c182c' : '#070e1a'};
+      border: 1px solid ${isSelected ? '#388bfd' : '#1a283e'};
+      border-radius: 4px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+      box-shadow: none !important;
+      transition: border-color 0.12s ease;
+    `;
+
+    const branch = item.bestBranch || (item.branches && item.branches[0]);
+    const branchName = branch ? branch.name : 'Unknown';
+    const isBranchDup = branch ? branch.isDuplicate : !item.hasUnique;
+
+    const statusBadgeHtml = item.hasUnique
+      ? `<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">100% UNIQUE</span>`
+      : `<span style="font-size: 8.5px; font-weight: 700; color: #f87171; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: 3px;">&#9888; DUPLICATE</span>`;
+
+    const targetBadgeHtml = isBranchDup
+      ? `<span style="color: #f87171; font-weight: 600; font-size: 9px;">&#8594; ${escapeHtml(branchName)} (Owned)</span>`
+      : `<span style="color: #388bfd; font-weight: 600; font-size: 9px;">&#8594; ${escapeHtml(branchName)}</span>`;
+
+    const spriteHtml = item.sprite
+      ? `<img src="${escapeHtml(item.sprite)}" style="width: 24px; height: 24px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0;" onerror="this.style.display='none';">`
+      : '';
+
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+          ${spriteHtml}
+          <div style="min-width: 0;">
+            <div style="font-size: 10.5px; font-weight: 700; color: #e0ecfa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${escapeHtml(item.name)}
+            </div>
+            <div style="font-size: 9px; color: #8eaad0;">
+              Lv ${item.level} &bull; <span style="color: #388bfd;">${escapeHtml((item.types || []).join('/'))}</span>
+            </div>
+          </div>
+        </div>
+        <div style="flex-shrink: 0; text-align: right;">
+          ${statusBadgeHtml}
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 3px; border-top: 1px solid #142033; font-size: 9px;">
+        <div>${targetBadgeHtml}</div>
+        <div style="display: flex; gap: 3px;">
+          <button type="button" class="btn btn-inspect-evo" style="height: 20px; font-size: 9px; font-weight: 600; padding: 0 6px; box-shadow: none !important;">Moves</button>
+          <button type="button" class="btn ${item.hasUnique ? 'btn-accent' : ''} btn-action-evolve" style="height: 20px; font-size: 9px; font-weight: 700; padding: 0 6px; box-shadow: none !important;">Evolve</button>
+        </div>
+      </div>
+    `;
+
+    card.addEventListener('click', (e) => {
+      if (e.target && e.target.classList.contains('btn-action-evolve')) {
+        e.stopPropagation();
+        const evolveUrl = item.evolveUrl || (item.id ? `/pokemon/evolve/${item.id}` : null);
+        if (evolveUrl && delugeView) {
+          const fullUrl = evolveUrl.startsWith('http') ? evolveUrl : `https://www.delugerpg.com${evolveUrl}`;
+          delugeView.loadURL(fullUrl);
+          updateStatus(`Opening evolve page for ${item.name}...`, '#388bfd');
+        }
+        return;
+      }
+      selectEvolvePokemon(item, item.bestBranch);
+    });
+
+    const movesBtn = card.querySelector('.btn-inspect-evo');
+    if (movesBtn) {
+      movesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectEvolvePokemon(item, item.bestBranch);
+      });
+    }
+
+    evoReadyList.appendChild(card);
+  });
+
+  // If no card selected yet, auto-select first one to initialize Active Decision Card
+  if (!selectedEvoPoke && displayed.length > 0) {
+    selectEvolvePokemon(displayed[0], displayed[0].bestBranch);
   }
 }
 
@@ -8211,19 +8534,25 @@ function renderAiAssistantUI() {
   const analysis = aiAssistant ? aiAssistant.analyzeBattle(activeAiBattleData, currentCollection) : null;
   lastAnalyzedBattle = analysis;
   if (!analysis || analysis.status === 'IDLE') {
-    if (aiBattleOpponentBadge) {
-      aiBattleOpponentBadge.textContent = 'Waiting for Battle';
-      aiBattleOpponentBadge.style.color = '#8eaad0';
-    }
-    if (aiTacticalBriefing) {
-      aiTacticalBriefing.innerHTML = '<div style="color: #566e96; text-align: center; padding: 8px 4px; font-size: 10px; font-weight: 600; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px;">No Active Battle Detected</div>';
-    }
-    if (aiInstantActionSlot) {
-      aiInstantActionSlot.innerHTML = '';
-    }
-    if (aiStatusChip) {
-      aiStatusChip.textContent = 'Ready';
-      aiStatusChip.style.color = '#10b981';
+    if (selectedEvoPoke) {
+      selectEvolvePokemon(selectedEvoPoke, selectedEvoPoke.bestBranch);
+    } else if (cachedEvolveReadyList && cachedEvolveReadyList.length > 0) {
+      selectEvolvePokemon(cachedEvolveReadyList[0], cachedEvolveReadyList[0].bestBranch);
+    } else {
+      if (aiBattleOpponentBadge) {
+        aiBattleOpponentBadge.textContent = '100% Uniques Active';
+        aiBattleOpponentBadge.style.color = '#8eaad0';
+      }
+      if (aiTacticalBriefing) {
+        aiTacticalBriefing.innerHTML = '<div style="color: #566e96; text-align: center; padding: 8px 4px; font-size: 10px; font-weight: 600; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px;">Select an evolve-ready Pokemon below</div>';
+      }
+      if (aiInstantActionSlot) {
+        aiInstantActionSlot.innerHTML = '';
+      }
+      if (aiStatusChip) {
+        aiStatusChip.textContent = '100% Uniques';
+        aiStatusChip.style.color = '#10b981';
+      }
     }
     if (aiHudActionBtn) {
       aiHudActionBtn.style.display = 'none';
@@ -8640,6 +8969,26 @@ if (aiChatInput) {
       handleAiChatSubmit();
     }
   });
+}
+
+// Event Listeners for Evolution & Moves Decision Maker
+if (evoFilterUniqueBtn) {
+  evoFilterUniqueBtn.addEventListener('click', () => setEvoFilter('UNIQUE'));
+}
+if (evoFilterAllBtn) {
+  evoFilterAllBtn.addEventListener('click', () => setEvoFilter('ALL'));
+}
+if (evoFilterBlockedBtn) {
+  evoFilterBlockedBtn.addEventListener('click', () => setEvoFilter('BLOCKED'));
+}
+if (evoSearchInput) {
+  evoSearchInput.addEventListener('input', (e) => {
+    currentEvoSearch = (e.target.value || '').trim().toLowerCase();
+    renderEvolutionDecisionMakerUI();
+  });
+}
+if (refreshEvoBoxBtn) {
+  refreshEvoBoxBtn.addEventListener('click', refreshEvolveBoxList);
 }
 
 // =============================================================================

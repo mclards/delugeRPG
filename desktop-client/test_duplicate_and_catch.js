@@ -807,6 +807,40 @@ console.log('[PASS] Hide Ads ON dependency strictly enforced.');
   const scraggyMultiCheck = teamEngine.evaluateOwnershipAndMegaEquivalence(scraggyMultiLine, extendedMockCol);
   assert.strictEqual(scraggyMultiCheck.isDuplicate, true, 'Normal Scraggy with DARK FIGHTING type badges must match owned Normal Scraggy');
   assert.strictEqual(scraggyMultiCheck.type, 'EXACT_ALREADY_OWNED', 'Type must be EXACT_ALREADY_OWNED');
+
+  // Case 11: All 10 DelugeRPG Variants Mega Evolution Uniqueness Verification
+  // The 10 variants: Normal, Shiny, Metallic, Ghostly, Dark, Shadow, Mirage, Retro, Chrome, Negative
+  const allTenVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
+  const negativeMegaCol = [
+    { name: 'Dark Pinsir', variant: 'Dark', level: 100 },
+    { name: 'Negative Mega Pinsir', variant: 'Negative', level: 100 }
+  ];
+
+  // Evolving Dark Pinsir -> Dark Mega Pinsir must be 100% UNIQUE because user only has Negative Mega Pinsir
+  const darkPinsirEvoOwn = evolutionEngine.checkEvolutionOwnership('Dark Mega Pinsir', negativeMegaCol, 'Dark');
+  assert.strictEqual(darkPinsirEvoOwn.isOwned, false, 'Dark Mega Pinsir must be unowned when only Negative Mega Pinsir is owned');
+  assert.strictEqual(darkPinsirEvoOwn.hasMegaOwned, false, 'hasMegaOwned must be false for Dark Mega Pinsir when only Negative is owned');
+
+  // Verify all 10 variants systematically: only Negative Mega Pinsir is owned; all other 9 variants are unique!
+  allTenVariants.forEach(variantName => {
+    const candidateName = (variantName === 'Normal') ? 'Mega Pinsir' : `${variantName} Mega Pinsir`;
+    const check = teamEngine.evaluateOwnershipAndMegaEquivalence(candidateName, negativeMegaCol, variantName);
+    if (variantName === 'Negative') {
+      assert.strictEqual(check.isDuplicate, true, 'Negative Mega Pinsir must be recognized as duplicate');
+      assert.strictEqual(check.hasMegaOwned, true, 'hasMegaOwned must be true for Negative Mega Pinsir');
+    } else {
+      assert.strictEqual(check.isDuplicate, false, `${candidateName} must be recognized as 100% UNIQUE`);
+      assert.strictEqual(check.hasMegaOwned, false, `hasMegaOwned must be false for ${candidateName}`);
+    }
+  });
+
+  // Verify getEvolveReadyPokemon accurately marks Dark Pinsir as 100% UNIQUE
+  const readyList = evolutionEngine.getEvolveReadyPokemon(negativeMegaCol);
+  const darkPinsirEntry = readyList.find(p => p.name === 'Dark Pinsir');
+  assert(darkPinsirEntry, 'Dark Pinsir must be present in evolve-ready list');
+  assert.strictEqual(darkPinsirEntry.hasUnique, true, 'Dark Pinsir must have hasUnique: true when only Negative Mega Pinsir is owned');
+  assert.strictEqual(darkPinsirEntry.bestBranch.isDuplicate, false, 'Dark Pinsir bestBranch must not be marked as duplicate');
+  assert.strictEqual(darkPinsirEntry.bestBranch.fullName, 'Dark Mega Pinsir', 'Dark Pinsir bestBranch fullName must be Dark Mega Pinsir');
   console.log('[PASS] 100% Uniqueness & Mega Evolution equivalence checks verified across wild encounters and evolution paths.');
 }
 

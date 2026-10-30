@@ -1264,14 +1264,17 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
 
     const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
     let candidateVariant = 'normal';
+    let hasExplicitVariant = false;
     if (explicitVariant && typeof explicitVariant === 'string' && explicitVariant.trim()) {
         candidateVariant = explicitVariant.trim().toLowerCase();
         if (candidateVariant === 'ghost') candidateVariant = 'ghostly';
+        hasExplicitVariant = true;
     } else {
         const vMatch = candidate.match(VARIANT_PREFIX_REGEX);
         if (vMatch) {
             candidateVariant = vMatch[1].toLowerCase();
             if (candidateVariant === 'ghost') candidateVariant = 'ghostly';
+            hasExplicitVariant = true;
         }
     }
 
@@ -1292,6 +1295,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
         };
     }
 
+    const isTargetMega = isPreloadActualMega(candidate) || isPreloadActualMega(candSpecies);
     const matchingSpecies = [];
     const matchingMegas = [];
     let exactMatch = null;
@@ -1327,7 +1331,13 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
         if (pBase && baseSpecies && pBase === baseSpecies) {
             matchingSpecies.push(p);
             if (p.isMega || isPreloadActualMega(p.name)) {
-                matchingMegas.push(p);
+                if (hasExplicitVariant || isTargetMega) {
+                    if (pVariant === candidateVariant) {
+                        matchingMegas.push(p);
+                    }
+                } else {
+                    matchingMegas.push(p);
+                }
             }
         }
     }
@@ -7150,11 +7160,14 @@ function detectEvolveCard() {
                     const optMatch = labelText.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
                     const optName = optMatch ? optMatch[1].trim() : labelText;
                     const optReq = optMatch && optMatch[2] ? optMatch[2].trim() : '';
+                    const optFullName = (variant !== 'Normal' && !optName.match(VARIANT_PREFIX_REGEX))
+                        ? `${variant} ${optName}`
+                        : optName;
 
-                    const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optName);
+                    const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optFullName, variant);
 
                     options.push({
-                        fullName: optName,
+                        fullName: optFullName,
                         requirement: optReq,
                         radioValue: radio.value,
                         isOwned: optOwnStatus ? optOwnStatus.isOwned : false,
@@ -7180,9 +7193,18 @@ function detectEvolveCard() {
                     if (/^(?:evolve|close|cancel)$/i.test(line)) break;
                     const m = line.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
                     if (m) {
+                        const optName = m[1].trim();
+                        const optFullName = (variant !== 'Normal' && !optName.match(VARIANT_PREFIX_REGEX))
+                            ? `${variant} ${optName}`
+                            : optName;
+                        const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optFullName, variant);
                         options.push({
-                            fullName: m[1].trim(),
-                            requirement: m[2] ? m[2].trim() : ''
+                            fullName: optFullName,
+                            requirement: m[2] ? m[2].trim() : '',
+                            isOwned: optOwnStatus ? optOwnStatus.isOwned : false,
+                            hasMegaOwned: optOwnStatus ? optOwnStatus.hasMegaOwned : false,
+                            ownedPokemon: optOwnStatus ? optOwnStatus.ownedPokemon : null,
+                            alertMessage: optOwnStatus ? optOwnStatus.alertMessage : ''
                         });
                     }
                 }

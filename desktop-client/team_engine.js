@@ -1423,14 +1423,17 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection, explicitVar
 
   const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
   let candidateVariant = 'normal';
+  let hasExplicitVariant = false;
   if (explicitVariant && typeof explicitVariant === 'string' && explicitVariant.trim()) {
     candidateVariant = explicitVariant.trim().toLowerCase();
     if (candidateVariant === 'ghost') candidateVariant = 'ghostly';
+    hasExplicitVariant = true;
   } else {
     const vMatch = candidate.match(VARIANT_PREFIX_REGEX);
     if (vMatch) {
       candidateVariant = vMatch[1].toLowerCase();
       if (candidateVariant === 'ghost') candidateVariant = 'ghostly';
+      hasExplicitVariant = true;
     }
   }
 
@@ -1451,6 +1454,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection, explicitVar
     };
   }
 
+  const isTargetMega = isActualMegaEvolution(candidate) || isActualMegaEvolution(candSpecies);
   const matchingSpecies = [];
   const matchingMegas = [];
   let exactMatch = null;
@@ -1486,7 +1490,13 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection, explicitVar
     if (pBase && baseSpecies && pBase === baseSpecies) {
       matchingSpecies.push(p);
       if (isActualMegaEvolution(p.name)) {
-        matchingMegas.push(p);
+        if (hasExplicitVariant || isTargetMega) {
+          if (pVariant === candidateVariant) {
+            matchingMegas.push(p);
+          }
+        } else {
+          matchingMegas.push(p);
+        }
       }
     }
   }

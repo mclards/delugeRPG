@@ -926,7 +926,7 @@ function findFamily(speciesOrName) {
 }
 
 // Check collection ownership for a specific evolved form
-function checkEvolutionOwnership(evolutionName, userCollection) {
+function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant) {
   if (!Array.isArray(userCollection) || userCollection.length === 0 || !evolutionName) {
     return {
       isOwned: false,
@@ -940,9 +940,22 @@ function checkEvolutionOwnership(evolutionName, userCollection) {
     };
   }
 
-  const eq = teamEngine.evaluateOwnershipAndMegaEquivalence(evolutionName, userCollection);
+  const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
+  const hasExplicitVariant = Boolean((explicitVariant && typeof explicitVariant === 'string' && explicitVariant.trim()) || String(evolutionName).match(VARIANT_PREFIX_REGEX));
+
+  const eq = teamEngine.evaluateOwnershipAndMegaEquivalence(evolutionName, userCollection, explicitVariant);
   const isTargetMega = teamEngine.isActualMegaEvolution(evolutionName);
-  if (!eq.isOwned || (isTargetMega && !eq.hasMegaOwned)) {
+
+  let isActuallyOwned = false;
+  if (isTargetMega) {
+    isActuallyOwned = eq.hasMegaOwned;
+  } else if (hasExplicitVariant) {
+    isActuallyOwned = eq.hasExactOwned || eq.hasMegaOwned;
+  } else {
+    isActuallyOwned = eq.isOwned || eq.hasExactOwned || eq.hasMegaOwned;
+  }
+
+  if (!isActuallyOwned) {
     return {
       isOwned: false,
       count: 0,
@@ -986,23 +999,36 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
   const family = findFamily(pokemonName);
   const baseName = pokemonName ? getBaseSpecies(pokemonName) : 'Unknown';
 
+  const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
+  let variant = null;
+  const vMatch = pokemonName ? String(pokemonName).match(VARIANT_PREFIX_REGEX) : null;
+  if (vMatch) {
+    variant = (vMatch[1].toLowerCase() === 'ghost') ? 'Ghostly' : (vMatch[1].charAt(0).toUpperCase() + vMatch[1].slice(1).toLowerCase());
+  }
+
   if (!family) {
     // Pokemon has no known evolutions or is a standalone
-    const ownership = checkEvolutionOwnership(baseName, userCollection);
+    const fullBaseName = (variant && variant !== 'Normal' && !baseName.toLowerCase().startsWith(variant.toLowerCase() + ' '))
+      ? `${variant} ${baseName}`
+      : baseName;
+    const ownership = checkEvolutionOwnership(fullBaseName, userCollection, variant);
     return {
       status: 'SINGLE_STAGE',
-      pokemon: baseName,
+      pokemon: fullBaseName,
       family: null,
       branches: [],
       bestBranch: null,
       ownedBranchesCount: ownership.isOwned ? 1 : 0,
       totalBranchesCount: 1,
-      recommendationReason: `${baseName} does not have further branching evolutionary paths in standard DelugeRPG.`
+      recommendationReason: `${fullBaseName} does not have further branching evolutionary paths in standard DelugeRPG.`
     };
   }
 
   const branches = family.branches.map(branch => {
-    const ownership = checkEvolutionOwnership(branch.name, userCollection);
+    const fullBranchName = (variant && variant !== 'Normal' && !branch.name.toLowerCase().startsWith(variant.toLowerCase() + ' '))
+      ? `${variant} ${branch.name}`
+      : branch.name;
+    const ownership = checkEvolutionOwnership(fullBranchName, userCollection, variant);
     const defProfile = teamEngine.getDefensiveProfile(branch.types);
 
     // Deluge Combat Viability Scoring:
@@ -1506,8 +1532,15 @@ function getEvolveReadyPokemon(userCollection) {
     }
 
     if (branches.length > 0) {
+      const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
+      const pVariant = poke.variant || (rawName.match(VARIANT_PREFIX_REGEX) || ['Normal'])[0];
+      const normalizedVariant = (pVariant.toLowerCase() === 'ghost') ? 'Ghostly' : (pVariant.charAt(0).toUpperCase() + pVariant.slice(1).toLowerCase());
+
       const evaluatedBranches = branches.map(br => {
-        const ownership = checkEvolutionOwnership(br.name, userCollection);
+        const fullBranchName = (normalizedVariant !== 'Normal' && !br.name.toLowerCase().startsWith(normalizedVariant.toLowerCase() + ' '))
+          ? `${normalizedVariant} ${br.name}`
+          : br.name;
+        const ownership = checkEvolutionOwnership(fullBranchName, userCollection, normalizedVariant);
         const isDuplicate = ownership.isOwned || ownership.hasMegaOwned;
 
         // Combine current equipped moves and branch key moves for best 4 attacks evaluation
@@ -1517,6 +1550,7 @@ function getEvolveReadyPokemon(userCollection) {
 
         return {
           name: br.name,
+          fullName: fullBranchName,
           types: br.types || ['Normal'],
           bst: br.bst || 500,
           mega: Boolean(br.mega),

@@ -7872,7 +7872,7 @@ function handleEvolveCardDetected(card) {
     : (evolutionEngine && evolutionEngine.resolvePokemonTypes ? evolutionEngine.resolvePokemonTypes(card.fullName || species, currentCollection) : ['Normal']);
   card.types = resolvedTypes;
 
-  const evoAnalysis = aiAssistant ? aiAssistant.analyzeEvolutionPath(species, currentCollection) : null;
+  const evoAnalysis = aiAssistant ? aiAssistant.analyzeEvolutionPath(card.fullName || species, currentCollection) : null;
   const bestBranch = evoAnalysis ? evoAnalysis.bestBranch : null;
   const bestBranchName = bestBranch ? bestBranch.name : '';
 
@@ -7897,10 +7897,15 @@ function handleEvolveCardDetected(card) {
         <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 4px;">TARGET EVOLUTIONS</div>
     `;
 
+    const cardVariant = card.variant || (card.fullName && (card.fullName.match(/^(Normal|Shiny|Metallic|Ghostly|Ghost|Dark|Shadow|Mirage|Retro|Chrome|Negative)\s+/i) || ['Normal'])[0]) || 'Normal';
+    const normCardVariant = (cardVariant.toLowerCase() === 'ghost') ? 'Ghostly' : (cardVariant.charAt(0).toUpperCase() + cardVariant.slice(1).toLowerCase());
+
     const hasAnyMegaOwned = Array.isArray(card.options) && card.options.some(opt => {
       const optRaw = opt.fullName || opt.name || '';
-      const optBase = getBaseSpecies ? getBaseSpecies(optRaw) : optRaw;
-      const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(optBase, currentCollection) : { isOwned: false };
+      const fullTargetName = (normCardVariant !== 'Normal' && !optRaw.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
+        ? `${normCardVariant} ${optRaw}`
+        : optRaw;
+      const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
       return own.hasMegaOwned;
     });
 
@@ -7915,9 +7920,12 @@ function handleEvolveCardDetected(card) {
     if (Array.isArray(card.options) && card.options.length > 0) {
       card.options.forEach(opt => {
         const optRaw = opt.fullName || opt.name || '';
-        const optBase = getBaseSpecies ? getBaseSpecies(optRaw) : optRaw;
-        const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(optBase, currentCollection) : { isOwned: false };
-        const isBest = Boolean(bestBranchName && (optBase.toLowerCase() === bestBranchName.toLowerCase() || optRaw.toLowerCase().includes(bestBranchName.toLowerCase())));
+        const fullTargetName = (normCardVariant !== 'Normal' && !optRaw.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
+          ? `${normCardVariant} ${optRaw}`
+          : optRaw;
+        const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
+        const optBase = getBaseSpecies ? getBaseSpecies(fullTargetName) : fullTargetName;
+        const isBest = Boolean(bestBranchName && (optBase.toLowerCase() === bestBranchName.toLowerCase() || fullTargetName.toLowerCase().includes(bestBranchName.toLowerCase()) || optRaw.toLowerCase().includes(bestBranchName.toLowerCase())));
 
         let badgeHtml = '';
         if (own.isOwned) {
@@ -7927,7 +7935,7 @@ function handleEvolveCardDetected(card) {
             badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">OWNED (Lv ${own.bestLevel})</span>`;
           }
         } else {
-          badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #d29922; padding: 1px 4px; background: rgba(210, 153, 34, 0.15); border: 1px solid rgba(210, 153, 34, 0.3); border-radius: 3px;">NOT IN COLLECTION</span>`;
+          badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">100% UNIQUE</span>`;
         }
 
         let metaHtml = '';
@@ -8045,7 +8053,7 @@ function selectEvolvePokemon(poke, branch) {
   const targetBranch = branch || poke.bestBranch || (poke.branches && poke.branches[0]);
   if (!targetBranch) return;
 
-  const targetName = targetBranch.name;
+  const targetName = targetBranch.fullName || targetBranch.name;
   const isDuplicate = Boolean(targetBranch.isDuplicate);
 
   if (aiBattleOpponentBadge) {
@@ -8235,7 +8243,7 @@ function renderEvolutionDecisionMakerUI() {
     `;
 
     const branch = item.bestBranch || (item.branches && item.branches[0]);
-    const branchName = branch ? branch.name : 'Unknown';
+    const branchName = branch ? (branch.fullName || branch.name) : 'Unknown';
     const isBranchDup = branch ? branch.isDuplicate : !item.hasUnique;
 
     const statusBadgeHtml = item.hasUnique

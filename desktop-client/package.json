@@ -9,7 +9,7 @@
     "dist": "npm run build:python && electron-builder"
   },
   "build": {
-    "electronVersion": "39.0.0",
+    "electronVersion": "38.3.0",
     "appId": "com.antigravity.delugerpg.client",
     "productName": "DelugeRPG Stealth Client",
     "win": {

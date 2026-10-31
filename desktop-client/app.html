@@ -2263,7 +2263,7 @@
               <div class="dropdown-divider"></div>
               <div id="navVersionFooter" class="nav-version-footer">
                 <span class="nav-version-label">DelugeRPG Client</span>
-                <span id="navVersionBadge" class="nav-version-badge">v1.4.5</span>
+                <span id="navVersionBadge" class="nav-version-badge">v1.4.6</span>
               </div>
             </div>
           </div>
@@ -2966,13 +2966,14 @@
       <!-- Controls & Filter Toolbar -->
       <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; flex-shrink: 0;">
         <div style="display: flex; gap: 4px; align-items: center;">
-          <input type="text" id="evoSearchInput" placeholder="Filter box Pokemon..." style="flex: 1; height: 26px; font-size: 10.5px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; outline: none; box-shadow: none !important;">
+          <input type="text" id="evoSearchInput" placeholder="Filter box or search any Pokemon..." style="flex: 1; height: 26px; font-size: 10.5px; background: #070e1a; border: 1px solid #1a283e; color: #e0ecfa; border-radius: 4px; padding: 0 8px; outline: none; box-shadow: none !important;">
           <button type="button" id="refreshEvoBoxBtn" class="btn btn-accent" style="height: 26px; font-size: 10px; font-weight: 700; padding: 0 8px; box-shadow: none !important;" title="Refresh and scan evolve-ready Pokemon in collection">&#8635; Scan</button>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px;">
-          <button type="button" id="evoFilterUniqueBtn" class="btn btn-accent" style="height: 22px; font-size: 9.5px; font-weight: 700; padding: 0 2px; justify-content: center; box-shadow: none !important;">New (<span id="evoCountUnique">0</span>)</button>
-          <button type="button" id="evoFilterAllBtn" class="btn" style="height: 22px; font-size: 9.5px; font-weight: 600; padding: 0 2px; justify-content: center; box-shadow: none !important;">All (<span id="evoCountAll">0</span>)</button>
-          <button type="button" id="evoFilterBlockedBtn" class="btn" style="height: 22px; font-size: 9.5px; font-weight: 600; padding: 0 2px; justify-content: center; box-shadow: none !important;">Blocked (<span id="evoCountBlocked">0</span>)</button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 3px;">
+          <button type="button" id="evoFilterUniqueBtn" class="btn btn-accent" style="height: 22px; font-size: 9.5px; font-weight: 700; padding: 0 2px; justify-content: center; box-shadow: none !important;">Evolve (<span id="evoCountUnique">0</span>)</button>
+          <button type="button" id="evoFilterMegasBtn" class="btn" style="height: 22px; font-size: 9.5px; font-weight: 600; padding: 0 2px; justify-content: center; box-shadow: none !important;">Megas (<span id="evoCountMegas">0</span>)</button>
+          <button type="button" id="evoFilterAllBtn" class="btn" style="height: 22px; font-size: 9.5px; font-weight: 600; padding: 0 2px; justify-content: center; box-shadow: none !important;">Box Moves (<span id="evoCountAll">0</span>)</button>
+          <button type="button" id="evoFilterBlockedBtn" class="btn" style="height: 22px; font-size: 9.5px; font-weight: 600; padding: 0 2px; justify-content: center; box-shadow: none !important;">Flawed (<span id="evoCountBlocked">0</span>)</button>
         </div>
       </div>
 
@@ -2991,7 +2992,7 @@
       <!-- Main Scrollable Evolve-Ready Pokemon Box List -->
       <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; padding: 6px; box-shadow: none !important;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid #1a283e; flex-shrink: 0;">
-          <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase;">Evolve-Ready Box Pokemon</span>
+          <span id="evoListHeaderTitle" style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase;">Evolve-Ready Box Pokemon</span>
           <span id="evoReadyCountBadge" style="font-size: 9.5px; font-weight: 700; color: #10b981;">0 Available</span>
         </div>
         <div id="evoReadyList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 2px;">

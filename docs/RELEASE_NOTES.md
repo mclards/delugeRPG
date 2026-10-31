@@ -2,6 +2,19 @@
 
 ---
 
+## DelugeRPG Stealth Client v1.4.6 (Stable Release)
+
+### Key Highlights & Improvements:
+- **Universal Attack Moves Intelligence Engine:** Expanded the Evolution & Moves panel into a universal intelligence suite supporting all box Pokemon (`Box Moves (165)`) and flawed attacks filtering (`Flawed (47)`).
+- **On-Demand Species Strategy Lookup:** Real-time query analyzer in the search toolbar allows auditing canonical movesets for any Pokemon (owned or unowned) cross-referenced against 381 species in `gym_leaders.json`.
+- **In-Game Move Change Automation:** Added direct `[Change]` actions and `/pokemon/change_attack/<id>` IPC bridge with one-click automated 4-move checkbox pre-filling.
+- **Zero DelugeRPG Page Overlays:** Eliminated all full-screen modal overlays and backdrops blocking gameplay; enforced docked 1/4 side-panel split view across all tool panels.
+- **Variant-Aware 100% Uniqueness Engine:** Strict ownership validation across all 10 DelugeRPG variants (Normal, Shiny, Metallic, Ghostly, Dark, Shadow, Mirage, Retro, Chrome, Negative) without cross-variant false positives.
+- **Evolution 4-Choice Deduplication:** Identifies and deduplicates shared current vs evolution attacks, guiding safe single-checkbox selection.
+- **Client Bump & Deep Verification:** Bumped to v1.4.6 and verified 115/115 tests passing across all 9 pipelines with 100% 7-bit clean ASCII integrity.
+
+---
+
 ## DelugeRPG Stealth Client v1.4.5 (Stable Release)
 
 ### Key Highlights & Improvements:

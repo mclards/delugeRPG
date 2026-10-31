@@ -7069,22 +7069,35 @@ function detectEvolveCard() {
         // CASE 1: Move Selection upon Evolution or Change Attacks
         if (hasMoveSelectionPrompt) {
             const checkboxes = Array.from(modalContainer.querySelectorAll('input[type="checkbox"]'));
+            const currentChoices = [];
+            const evolutionChoices = [];
             const availableMoves = [];
-            const seenMoves = new Set();
+
+            let midPoint = Math.floor(checkboxes.length / 2);
+            if (checkboxes.length === 8) {
+                midPoint = 4;
+            }
+
             for (let i = 0; i < checkboxes.length; i++) {
                 const cb = checkboxes[i];
                 const mName = extractMoveNameFromCheckbox(cb, modalContainer);
-                if (mName && !seenMoves.has(mName.toLowerCase()) && !/^(choose|tick|current|evolution|attack|order)/i.test(mName)) {
-                    seenMoves.add(mName.toLowerCase());
-                    availableMoves.push({
-                        name: mName,
-                        checked: cb.checked
-                    });
+                if (!mName || /^(choose|tick|current|evolution|attack|order)/i.test(mName)) continue;
+                const source = (i < midPoint) ? 'current' : 'evolution';
+                if (source === 'current') {
+                    currentChoices.push(mName);
+                } else {
+                    evolutionChoices.push(mName);
                 }
+                availableMoves.push({
+                    name: mName,
+                    source: source,
+                    checked: cb.checked
+                });
             }
 
             if (availableMoves.length === 0) {
                 const pills = modalContainer.querySelectorAll('.attack, .move, li, span, button');
+                const seenMoves = new Set();
                 for (let j = 0; j < pills.length; j++) {
                     const pTxt = (pills[j].textContent || '').trim();
                     if (pTxt && pTxt.length >= 3 && pTxt.length <= 25 && !seenMoves.has(pTxt.toLowerCase())) {
@@ -7095,6 +7108,17 @@ function detectEvolveCard() {
                     }
                 }
             }
+
+            const currentSet = new Set(currentChoices.map(n => n.toLowerCase().trim()));
+            const duplicateChoices = [];
+            const dupSet = new Set();
+            evolutionChoices.forEach(em => {
+                const lower = em.toLowerCase().trim();
+                if (currentSet.has(lower) && !dupSet.has(lower)) {
+                    duplicateChoices.push(em);
+                    dupSet.add(lower);
+                }
+            });
 
             let pName = (lastClickedPokemonInfo && lastClickedPokemonInfo.name) || '';
             let pLevel = (lastClickedPokemonInfo && lastClickedPokemonInfo.level) || 50;
@@ -7113,6 +7137,9 @@ function detectEvolveCard() {
                 fullName: pName || 'Evolving Pokemon',
                 level: pLevel,
                 types: pTypes,
+                currentChoices: currentChoices,
+                evolutionChoices: evolutionChoices,
+                duplicateChoices: duplicateChoices,
                 availableMoves: availableMoves,
                 options: []
             };
@@ -7315,16 +7342,36 @@ ipcRenderer.on('apply-recommended-moves', (event, data) => {
         if (!modalContainer) return;
 
         const checkboxes = Array.from(modalContainer.querySelectorAll('input[type="checkbox"]'));
+        const chosenMoves = new Set();
+        let selectedCount = 0;
+
+        // Phase 1: Uncheck all checkboxes that are explicitly in targetDrop
         for (let i = 0; i < checkboxes.length; i++) {
             const cb = checkboxes[i];
             const mName = extractMoveNameFromCheckbox(cb, modalContainer).toLowerCase().trim();
-            if (targetRec.has(mName)) {
+            if (targetDrop.has(mName)) {
+                if (cb.checked) {
+                    cb.checked = false;
+                    cb.dispatchEvent(new Event('change', { bubbles: true }));
+                    cb.dispatchEvent(new Event('click', { bubbles: true }));
+                }
+            }
+        }
+
+        // Phase 2: Check exactly 1 checkbox per recommended move (handling duplicates cleanly)
+        for (let i = 0; i < checkboxes.length; i++) {
+            const cb = checkboxes[i];
+            const mName = extractMoveNameFromCheckbox(cb, modalContainer).toLowerCase().trim();
+            if (targetRec.has(mName) && !chosenMoves.has(mName) && selectedCount < 4) {
+                chosenMoves.add(mName);
+                selectedCount++;
                 if (!cb.checked) {
                     cb.checked = true;
                     cb.dispatchEvent(new Event('change', { bubbles: true }));
                     cb.dispatchEvent(new Event('click', { bubbles: true }));
                 }
-            } else if (targetDrop.has(mName)) {
+            } else {
+                // If it is a duplicate instance of an already-chosen move or not recommended: uncheck!
                 if (cb.checked) {
                     cb.checked = false;
                     cb.dispatchEvent(new Event('change', { bubbles: true }));
@@ -7367,6 +7414,40 @@ ipcRenderer.on('trigger-evolve-pokemon', (event, data) => {
 
         if (window.location.pathname.indexOf('/pokemon') === -1) {
             window.location.href = '/pokemon';
+        }
+    } catch (_) {}
+});
+
+ipcRenderer.on('trigger-change-attack', (event, data) => {
+    try {
+        const pokeId = data && data.pokemonId;
+        if (pokeId) {
+            const link = document.querySelector(`a.chgattack[href*="${pokeId}"]`) ||
+                         document.querySelector(`a[href*="/pokemon/change_attack/${pokeId}"]`);
+            if (link) {
+                link.click();
+                return;
+            }
+        }
+
+        const pokeName = (data && data.name ? data.name : '').toLowerCase();
+        if (pokeName) {
+            const rows = document.querySelectorAll('.row, tr, div[data-pkid], .prow, .pkmn');
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const text = (row.textContent || '').toLowerCase();
+                if (text.includes(pokeName)) {
+                    const chgLink = row.querySelector('a.chgattack, a[href*="/pokemon/change_attack/"]');
+                    if (chgLink) {
+                        chgLink.click();
+                        return;
+                    }
+                }
+            }
+        }
+
+        if (pokeId) {
+            window.location.href = `/pokemon/change_attack/${pokeId}`;
         }
     } catch (_) {}
 });

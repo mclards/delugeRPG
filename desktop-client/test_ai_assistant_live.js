@@ -201,6 +201,23 @@ assert(charizardMoves.moveCritique.length >= 3, 'Must flag Tail Whip (status), F
 console.log('  Moveset Recommendation -> ' + charizardMoves.optimalMoves.map(m => m.name + ' (' + m.type + ')').join(', '));
 console.log('  Move Flaws Critiqued -> ' + charizardMoves.moveCritique.length + ' flaws detected & fixed');
 
+// D2. Test Evolution 4-Choice & Duplicate Attack Moves Analysis
+const evolutionEngine = require('./evolution_engine.js');
+const houndoomAnalysis = evolutionEngine.evaluateEvolutionMoveSelection('Houndoom', {
+  currentMoves: ['Smog', 'Bite', 'Fire Fang', 'Feint Attack'],
+  evolutionMoves: ['Fire Fang', 'Feint Attack', 'Flamethrower', 'Crunch']
+}, coll);
+
+assert(houndoomAnalysis.currentChoices.length === 4, 'Must identify exactly 4 current choices');
+assert(houndoomAnalysis.evolutionChoices.length === 4, 'Must identify exactly 4 evolution choices');
+assert(houndoomAnalysis.duplicateChoices.length === 2, 'Must identify 2 duplicate attack moves');
+assert(houndoomAnalysis.duplicateChoices.includes('Fire Fang'), 'Fire Fang must be identified as duplicate choice');
+assert(houndoomAnalysis.duplicateChoices.includes('Feint Attack'), 'Feint Attack must be identified as duplicate choice');
+assert(houndoomAnalysis.recommendedMoves.length === 4, 'Must recommend exactly 4 unique moves');
+assert(new Set(houndoomAnalysis.recommendedMoves.map(m => m.name.toLowerCase())).size === 4, 'Recommended moves must be 100% deduplicated');
+assert(houndoomAnalysis.dropMoves.some(m => m.name === 'Smog'), 'Smog must be dropped');
+console.log('  Evolution 4-Choice Audit -> 4 Current + 4 Evolution (' + houndoomAnalysis.duplicateChoices.length + ' duplicates) correctly analyzed & deduplicated');
+
 // E. Test chat AI copilot responses
 const evoChatResp = aiAssistant.askAssistant('what should i evolve eevee into?', { collection: coll });
 assert(evoChatResp && evoChatResp.includes('Evolution'), 'Chat copilot must answer evolution queries');

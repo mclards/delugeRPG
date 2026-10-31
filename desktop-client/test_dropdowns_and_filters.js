@@ -144,7 +144,7 @@ runTest('Live AppData Collection: G-Max Challenge arena team building audit', ()
     try { collection = JSON.parse(fs.readFileSync(appDataPath, 'utf8')); } catch (_) {}
   }
   let gmaxPool = teamEngine.filterCandidatePool(collection, 'GMAX');
-  if (!gmaxPool.some(p => p.level === 100) && fs.existsSync(localPath)) {
+  if ((!gmaxPool.some(p => p.level === 100) || !gmaxPool.some(p => (p.level || 100) < 100)) && fs.existsSync(localPath)) {
     collection = JSON.parse(fs.readFileSync(localPath, 'utf8'));
     gmaxPool = teamEngine.filterCandidatePool(collection, 'GMAX');
   }
@@ -179,7 +179,7 @@ runTest('Live AppData Collection: Training mode mixed team with Hard Carry audit
     try { collection = JSON.parse(fs.readFileSync(appDataPath, 'utf8')); } catch (_) {}
   }
   let gmaxPool = teamEngine.filterCandidatePool(collection, 'GMAX');
-  if (!gmaxPool.some(p => p.level === 100) && fs.existsSync(localPath)) {
+  if ((!gmaxPool.some(p => p.level === 100) || !gmaxPool.some(p => (p.level || 100) < 100)) && fs.existsSync(localPath)) {
     collection = JSON.parse(fs.readFileSync(localPath, 'utf8'));
     gmaxPool = teamEngine.filterCandidatePool(collection, 'GMAX');
   }

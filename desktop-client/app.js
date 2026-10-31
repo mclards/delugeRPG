@@ -608,17 +608,24 @@ let lastKnownUserTeam = [];
 const evoSearchInput = document.getElementById('evoSearchInput');
 const refreshEvoBoxBtn = document.getElementById('refreshEvoBoxBtn');
 const evoFilterUniqueBtn = document.getElementById('evoFilterUniqueBtn');
+const evoFilterMegasBtn = document.getElementById('evoFilterMegasBtn');
 const evoFilterAllBtn = document.getElementById('evoFilterAllBtn');
 const evoFilterBlockedBtn = document.getElementById('evoFilterBlockedBtn');
 const evoCountUnique = document.getElementById('evoCountUnique');
+const evoCountMegas = document.getElementById('evoCountMegas');
 const evoCountAll = document.getElementById('evoCountAll');
 const evoCountBlocked = document.getElementById('evoCountBlocked');
+const evoListHeaderTitle = document.getElementById('evoListHeaderTitle');
 const evoReadyCountBadge = document.getElementById('evoReadyCountBadge');
 const evoReadyList = document.getElementById('evoReadyList');
 let currentEvoFilter = 'UNIQUE';
 let currentEvoSearch = '';
 let selectedEvoPoke = null;
+let selectedMegaPoke = null;
+let selectedMovesPoke = null;
 let cachedEvolveReadyList = [];
+let cachedMegaList = [];
+let cachedBoxMovesList = [];
 
 // Safety & Anti-Ban Limits Elements
 const safetySettingsModal = document.getElementById('safetySettingsModal');
@@ -1116,7 +1123,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.4.5';
+    let appVer = '1.4.6';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -7776,7 +7783,10 @@ function handleEvolveMoveSelection(card) {
   const availableMoves = Array.isArray(card.availableMoves) ? card.availableMoves : [];
 
   const evalResult = (evolutionEngine && evolutionEngine.evaluateEvolutionMoveSelection)
-    ? evolutionEngine.evaluateEvolutionMoveSelection(pName, availableMoves.map(m => m.name), currentCollection)
+    ? evolutionEngine.evaluateEvolutionMoveSelection(pName, {
+        currentMoves: card.currentChoices || [],
+        evolutionMoves: card.evolutionChoices || []
+      }, currentCollection)
     : { recommendedMoves: [], dropMoves: [], slotOrder: [], types: [] };
 
   card.recommendedMoves = evalResult.recommendedMoves;
@@ -7796,6 +7806,31 @@ function handleEvolveMoveSelection(card) {
 
   // 2. Render Tactical Briefing Card
   if (aiTacticalBriefing) {
+    const renderMoveItem = (mName) => {
+      const isDup = (evalResult.duplicateChoices || []).some(d => d.toLowerCase() === mName.toLowerCase());
+      const dupBadge = isDup ? ' <span style="color: #d29922; font-weight: 700; font-size: 7.5px;">[DUP]</span>' : '';
+      return `<div style="font-size: 9px; color: #e0ecfa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1px 0;">&bull; ${escapeHtml(mName)}${dupBadge}</div>`;
+    };
+
+    let choicesGridHtml = '';
+    const curList = evalResult.currentChoices || card.currentChoices || [];
+    const evoList = evalResult.evolutionChoices || card.evolutionChoices || [];
+    if (curList.length > 0 || evoList.length > 0) {
+      choicesGridHtml = `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0; background: #070e1a; border: 1px solid #142033; border-radius: 3px; padding: 4px 6px;">
+          <div>
+            <div style="font-size: 8px; font-weight: 700; color: #8eaad0; text-transform: uppercase; margin-bottom: 2px;">Current (4)</div>
+            ${curList.map(renderMoveItem).join('')}
+          </div>
+          <div>
+            <div style="font-size: 8px; font-weight: 700; color: #388bfd; text-transform: uppercase; margin-bottom: 2px;">Evolution (4)</div>
+            ${evoList.map(renderMoveItem).join('')}
+          </div>
+        </div>
+        ${(evalResult.duplicateChoices && evalResult.duplicateChoices.length > 0) ? `<div style="font-size: 8.5px; color: #d29922; margin-bottom: 4px; font-weight: 600;">&#9888; Duplicate choice: ${escapeHtml(evalResult.duplicateChoices.join(', '))} (tick 1 checkbox only)</div>` : ''}
+      `;
+    }
+
     let recListHtml = '';
     evalResult.recommendedMoves.forEach((m, idx) => {
       recListHtml += `
@@ -7836,7 +7871,8 @@ function handleEvolveMoveSelection(card) {
           <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(pName)}</span>
           <span style="font-size: 9.5px; color: #8eaad0;">Lv ${card.level || 50} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span></span>
         </div>
-        <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 3px;">RECOMMENDED 4 ATTACKS TO KEEP</div>
+        ${choicesGridHtml}
+        <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-top: 4px; margin-bottom: 2px;">RECOMMENDED 4 ATTACKS TO KEEP</div>
         ${recListHtml}
         ${dropListHtml ? `<div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-top: 5px; margin-bottom: 2px;">ATTACKS TO DROP / UNCHECK</div>${dropListHtml}` : ''}
       </div>
@@ -8056,6 +8092,10 @@ function setEvoFilter(filterType) {
     evoFilterUniqueBtn.className = filterType === 'UNIQUE' ? 'btn btn-accent' : 'btn';
     evoFilterUniqueBtn.style.fontWeight = filterType === 'UNIQUE' ? '700' : '600';
   }
+  if (evoFilterMegasBtn) {
+    evoFilterMegasBtn.className = filterType === 'MEGAS' ? 'btn btn-accent' : 'btn';
+    evoFilterMegasBtn.style.fontWeight = filterType === 'MEGAS' ? '700' : '600';
+  }
   if (evoFilterAllBtn) {
     evoFilterAllBtn.className = filterType === 'ALL' ? 'btn btn-accent' : 'btn';
     evoFilterAllBtn.style.fontWeight = filterType === 'ALL' ? '700' : '600';
@@ -8104,8 +8144,36 @@ function selectEvolvePokemon(poke, branch) {
 
   if (aiTacticalBriefing) {
     const moveAnalysis = targetBranch.moveAnalysis || ((evolutionEngine && typeof evolutionEngine.evaluateEvolutionMoveSelection === 'function')
-      ? evolutionEngine.evaluateEvolutionMoveSelection(targetName, (poke.moves || []).map(m => (typeof m === 'string' ? m : m.name)), currentCollection)
+      ? evolutionEngine.evaluateEvolutionMoveSelection(targetName, {
+          currentMoves: (poke.moves || []).map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : ''))).filter(Boolean),
+          evolutionMoves: targetBranch.keyMoves || []
+        }, currentCollection)
       : { recommendedMoves: [], dropMoves: [], slotOrder: [] });
+
+    const renderMoveItem = (mName) => {
+      const isDup = (moveAnalysis.duplicateChoices || []).some(d => d.toLowerCase() === mName.toLowerCase());
+      const dupBadge = isDup ? ' <span style="color: #d29922; font-weight: 700; font-size: 7.5px;">[DUP]</span>' : '';
+      return `<div style="font-size: 9px; color: #e0ecfa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1px 0;">&bull; ${escapeHtml(mName)}${dupBadge}</div>`;
+    };
+
+    let choicesGridHtml = '';
+    const curList = moveAnalysis.currentChoices || (poke.moves || []).map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : ''))).filter(Boolean);
+    const evoList = moveAnalysis.evolutionChoices || targetBranch.keyMoves || [];
+    if (curList.length > 0 || evoList.length > 0) {
+      choicesGridHtml = `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0; background: #070e1a; border: 1px solid #142033; border-radius: 3px; padding: 4px 6px;">
+          <div>
+            <div style="font-size: 8px; font-weight: 700; color: #8eaad0; text-transform: uppercase; margin-bottom: 2px;">Current (4)</div>
+            ${curList.map(renderMoveItem).join('')}
+          </div>
+          <div>
+            <div style="font-size: 8px; font-weight: 700; color: #388bfd; text-transform: uppercase; margin-bottom: 2px;">Evolution (4)</div>
+            ${evoList.map(renderMoveItem).join('')}
+          </div>
+        </div>
+        ${(moveAnalysis.duplicateChoices && moveAnalysis.duplicateChoices.length > 0) ? `<div style="font-size: 8.5px; color: #d29922; margin-bottom: 4px; font-weight: 600;">&#9888; Duplicate choice: ${escapeHtml(moveAnalysis.duplicateChoices.join(', '))} (tick 1 checkbox only)</div>` : ''}
+      `;
+    }
 
     let recListHtml = '';
     (moveAnalysis.recommendedMoves || []).forEach((m, idx) => {
@@ -8151,7 +8219,8 @@ function selectEvolvePokemon(poke, branch) {
           <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(targetName)}</span>
           <span style="font-size: 9.5px; color: #8eaad0;">${targetBranch.bst ? (targetBranch.bst + ' BST &bull; ') : ''}<span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span></span>
         </div>
-        <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 2px;">RECOMMENDED 4 ATTACKS (SLOTS 1-4)</div>
+        ${choicesGridHtml}
+        <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-top: 4px; margin-bottom: 2px;">RECOMMENDED 4 ATTACKS (SLOTS 1-4)</div>
         ${recListHtml}
         ${dropListHtml ? `<div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-top: 4px; margin-bottom: 1px;">ATTACKS TO DROP / UNCHECK</div>${dropListHtml}` : ''}
       </div>
@@ -8210,30 +8279,418 @@ function selectEvolvePokemon(poke, branch) {
   }
 }
 
+function selectPokemonForMoves(poke) {
+  if (!poke) return;
+  selectedMegaPoke = poke;
+  selectedMovesPoke = poke;
+
+  const isLookup = Boolean(poke.isLookup);
+  const flawsCount = poke.moveCritique ? poke.moveCritique.length : 0;
+  const isFlawed = poke.moveStatus === 'NEEDS_OPTIMIZATION' || flawsCount > 0;
+  const isCanImprove = poke.moveStatus === 'CAN_IMPROVE';
+
+  if (aiBattleOpponentBadge) {
+    if (isLookup) {
+      aiBattleOpponentBadge.innerHTML = `${escapeHtml(poke.name)} [Strategy Lookup]`;
+      aiBattleOpponentBadge.style.color = '#388bfd';
+    } else {
+      aiBattleOpponentBadge.innerHTML = `${escapeHtml(poke.name)} [Lv ${poke.level || 100}]`;
+      aiBattleOpponentBadge.style.color = isFlawed ? '#f87171' : (isCanImprove ? '#d29922' : '#10b981');
+    }
+  }
+
+  if (aiStatusChip) {
+    if (isLookup) {
+      aiStatusChip.textContent = 'Species Lookup';
+      aiStatusChip.style.color = '#388bfd';
+    } else if (isFlawed) {
+      aiStatusChip.textContent = 'Flawed Moves';
+      aiStatusChip.style.color = '#f87171';
+    } else if (isCanImprove) {
+      aiStatusChip.textContent = 'Can Improve';
+      aiStatusChip.style.color = '#d29922';
+    } else {
+      aiStatusChip.textContent = 'Optimal Moves';
+      aiStatusChip.style.color = '#10b981';
+    }
+  }
+
+  if (aiTacticalBriefing) {
+    let statusBanner = '';
+    if (isLookup) {
+      statusBanner = `<div style="background: #0d1e35; border: 1px solid #388bfd; border-radius: 3px; padding: 4px 6px; margin-bottom: 4px; font-size: 9.5px; font-weight: 700; color: #58a6ff; text-align: center;">&#128269; Canonical DelugeRPG Moveset Blueprint (${escapeHtml(poke.name)})</div>`;
+    } else if (flawsCount > 0) {
+      statusBanner = `<div style="background: #2a1215; border: 1px solid #f85149; border-radius: 3px; padding: 4px 6px; margin-bottom: 4px; font-size: 9.5px; font-weight: 700; color: #ff7b72; text-align: center;">&#9888; ${flawsCount} Sub-Optimal Attack(s) Detected in Equipped Moves</div>`;
+    } else {
+      statusBanner = `<div style="background: #0d281e; border: 1px solid #10b981; border-radius: 3px; padding: 4px 6px; margin-bottom: 4px; font-size: 9.5px; font-weight: 700; color: #34d399; text-align: center;">&#10003; 100% Accuracy STAB &amp; Anti-Weakness Moveset Verified</div>`;
+    }
+
+    let equippedHtml = '';
+    if (Array.isArray(poke.currentMoves) && poke.currentMoves.length > 0) {
+      poke.currentMoves.forEach((mName, idx) => {
+        const flawObj = (poke.moveCritique || []).find(c => c.move.toLowerCase() === mName.toLowerCase());
+        const res = teamEngine.resolveMove(mName);
+        const isStab = (poke.types || []).some(t => t.toLowerCase() === (res.type || '').toLowerCase());
+        const pwr = res.power || 0;
+        const flawTag = flawObj
+          ? `<span style="font-size: 8px; font-weight: 700; color: #f87171; padding: 1px 3px; background: rgba(248,81,73,0.15); border: 1px solid rgba(248,81,73,0.3); border-radius: 2px;">FLAW</span>`
+          : (isStab ? `<span style="font-size: 8px; font-weight: 700; color: #10b981; padding: 1px 3px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: 2px;">STAB</span>` : '');
+
+        equippedHtml += `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0; border-top: 1px solid #1a283e; font-size: 9.5px;">
+            <div style="color: ${flawObj ? '#ff7b72' : '#e0ecfa'}; font-weight: 600;">
+              <span style="color: #8eaad0; margin-right: 3px;">[Slot ${idx + 1}]</span>
+              ${escapeHtml(mName)}
+              <span style="font-size: 8.5px; color: #8eaad0; margin-left: 2px;">(${escapeHtml(res.type || 'Normal')} ${pwr} Pwr)</span>
+            </div>
+            <div>${flawTag}</div>
+          </div>
+        `;
+        if (flawObj) {
+          equippedHtml += `
+            <div style="font-size: 8px; color: #ff7b72; padding-left: 8px; margin-bottom: 2px;">
+              &#10006; ${escapeHtml(flawObj.flaw)} &rarr; ${escapeHtml(flawObj.recommendation)}
+            </div>
+          `;
+        }
+      });
+    }
+
+    let recListHtml = '';
+    (poke.optimalMoves || []).forEach((m, idx) => {
+      const isStab = (poke.types || []).some(t => t.toLowerCase() === (m.type || '').toLowerCase());
+      recListHtml += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0; border-top: 1px solid #1a283e;">
+          <div style="font-size: 10px; font-weight: 600; color: #e0ecfa;">
+            <span style="color: #388bfd; font-weight: 700; margin-right: 4px;">[Slot ${idx + 1}]</span>
+            ${escapeHtml(m.name)}
+            <span style="font-size: 9px; color: #8eaad0; margin-left: 3px;">(${escapeHtml(m.type)}) [${m.power} Pwr]</span>
+          </div>
+          <div>
+            ${isStab ? '<span style="font-size: 8px; font-weight: 700; color: #10b981; padding: 1px 3px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 2px;">STAB</span>' : ''}
+          </div>
+        </div>
+      `;
+    });
+
+    const typeStr = (poke.types && poke.types.length > 0) ? poke.types.join('/') : 'Normal';
+    const headerSub = isLookup
+      ? `<span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span>`
+      : `Lv ${poke.level || 100} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span>`;
+
+    const equippedSection = equippedHtml
+      ? `<div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 2px;">CURRENT EQUIPPED MOVES</div>${equippedHtml}`
+      : '';
+
+    aiTacticalBriefing.innerHTML = `
+      <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+        ${statusBanner}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(poke.name)}</span>
+          <span style="font-size: 9.5px; color: #8eaad0;">${headerSub}</span>
+        </div>
+        ${equippedSection}
+        <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-top: ${equippedHtml ? '5px' : '2px'}; margin-bottom: 2px;">RECOMMENDED 4 ATTACKS (SLOTS 1-4)</div>
+        ${recListHtml}
+      </div>
+    `;
+  }
+
+  if (aiInstantActionSlot) {
+    aiInstantActionSlot.innerHTML = '';
+
+    if (activeEvolveCardData && activeEvolveCardData.isMoveSelection) {
+      const applyBtn = document.createElement('button');
+      applyBtn.type = 'button';
+      applyBtn.className = 'btn btn-accent';
+      applyBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
+      applyBtn.innerHTML = '&#9876; Auto-Select Best 4 Moves in Game';
+      applyBtn.addEventListener('click', () => {
+        if (delugeView && poke.optimalMoves) {
+          const top4Names = poke.optimalMoves.map(m => m.name);
+          const dropNames = (poke.currentMoves || []).filter(m => !top4Names.map(x => x.toLowerCase()).includes(m.toLowerCase()));
+          delugeView.send('apply-recommended-moves', {
+            recommendedMoves: top4Names,
+            dropMoves: dropNames,
+            slot1: top4Names[0] || null
+          });
+          updateStatus('Applied recommended 4 moves to game form!', '#10b981');
+        }
+      });
+      aiInstantActionSlot.appendChild(applyBtn);
+    } else if (poke.id) {
+      const changeBtn = document.createElement('button');
+      changeBtn.type = 'button';
+      changeBtn.className = 'btn btn-accent';
+      changeBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
+      changeBtn.innerHTML = `&#9876; Change Moves in Game (${escapeHtml(poke.name)})`;
+      changeBtn.addEventListener('click', () => {
+        if (delugeView) {
+          delugeView.send('trigger-change-attack', { pokemonId: poke.id, name: poke.name });
+          updateStatus(`Opening Change Moves for ${poke.name}...`, '#388bfd');
+        }
+      });
+      aiInstantActionSlot.appendChild(changeBtn);
+    }
+  }
+
+  if (evoReadyList) {
+    const cards = evoReadyList.querySelectorAll('.evo-item-card');
+    cards.forEach(c => {
+      if (c.getAttribute('data-poke-id') === poke.id) {
+        c.style.borderColor = '#388bfd';
+        c.style.background = '#0c182c';
+      } else {
+        c.style.borderColor = '#1a283e';
+        c.style.background = '#070e1a';
+      }
+    });
+  }
+}
+
+const selectMegaPokemon = selectPokemonForMoves;
+
+function renderMoveItemCard(item) {
+  const isSelected = Boolean(selectedMovesPoke && selectedMovesPoke.id === item.id);
+  const card = document.createElement('div');
+  card.className = 'evo-item-card';
+  card.setAttribute('data-poke-id', item.id);
+  card.style.cssText = `
+    background: ${isSelected ? '#0c182c' : '#070e1a'};
+    border: 1px solid ${isSelected ? '#388bfd' : '#1a283e'};
+    border-radius: 4px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+    box-shadow: none !important;
+    transition: border-color 0.12s ease;
+  `;
+
+  let statusBadgeHtml = '';
+  if (item.moveStatus === 'NEEDS_OPTIMIZATION') {
+    const fCount = item.flawsCount || (item.moveCritique ? item.moveCritique.length : 1);
+    statusBadgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #f87171; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: 3px;">&#9888; ${fCount} FLAWS</span>`;
+  } else if (item.moveStatus === 'CAN_IMPROVE') {
+    statusBadgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #d29922; padding: 1px 4px; background: rgba(210, 153, 34, 0.15); border: 1px solid rgba(210, 153, 34, 0.3); border-radius: 3px;">CAN IMPROVE</span>`;
+  } else {
+    statusBadgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">OPTIMAL</span>`;
+  }
+
+  const spriteHtml = item.sprite
+    ? `<img src="${escapeHtml(item.sprite)}" style="width: 24px; height: 24px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0;" onerror="this.style.display='none';">`
+    : '';
+
+  const movesPreview = (item.currentMoves || []).slice(0, 3).join(', ');
+
+  card.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+        ${spriteHtml}
+        <div style="min-width: 0;">
+          <div style="font-size: 10.5px; font-weight: 700; color: #e0ecfa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${escapeHtml(item.name)}
+          </div>
+          <div style="font-size: 9px; color: #8eaad0;">
+            Lv ${item.level || 100} &bull; <span style="color: #388bfd;">${escapeHtml((item.types || []).join('/'))}</span>
+          </div>
+        </div>
+      </div>
+      <div style="flex-shrink: 0; text-align: right;">
+        ${statusBadgeHtml}
+      </div>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 3px; border-top: 1px solid #142033; font-size: 9px;">
+      <div style="color: #8eaad0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 58%; font-size: 8.5px;" title="${escapeHtml((item.currentMoves || []).join(', '))}">
+        ${escapeHtml(movesPreview)}${(item.currentMoves || []).length > 3 ? '...' : ''}
+      </div>
+      <div style="display: flex; gap: 3px;">
+        <button type="button" class="btn btn-inspect-moves" style="height: 20px; font-size: 9px; font-weight: 600; padding: 0 6px; box-shadow: none !important;">Moves</button>
+        <button type="button" class="btn btn-accent btn-action-change-moves" style="height: 20px; font-size: 9px; font-weight: 700; padding: 0 6px; box-shadow: none !important;">Change</button>
+      </div>
+    </div>
+  `;
+
+  card.addEventListener('click', (e) => {
+    if (e.target && e.target.classList.contains('btn-action-change-moves')) {
+      e.stopPropagation();
+      selectPokemonForMoves(item);
+      if (delugeView && item.id) {
+        delugeView.send('trigger-change-attack', { pokemonId: item.id, name: item.name });
+        updateStatus(`Opening Change Moves for ${item.name}...`, '#388bfd');
+      }
+      return;
+    }
+    selectPokemonForMoves(item);
+  });
+
+  const movesBtn = card.querySelector('.btn-inspect-moves');
+  if (movesBtn) {
+    movesBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectPokemonForMoves(item);
+    });
+  }
+
+  return card;
+}
+
 function renderEvolutionDecisionMakerUI() {
   if (!evolutionEngine || typeof evolutionEngine.getEvolveReadyPokemon !== 'function') return;
 
   const readyList = evolutionEngine.getEvolveReadyPokemon(currentCollection);
   cachedEvolveReadyList = readyList;
 
+  const boxMovesList = (typeof evolutionEngine.getBoxPokemonMovesCollection === 'function')
+    ? evolutionEngine.getBoxPokemonMovesCollection(currentCollection)
+    : [];
+  cachedBoxMovesList = boxMovesList;
+
+  const megaList = boxMovesList.filter(p => teamEngine.isActualMegaEvolution(p.name));
+  cachedMegaList = megaList;
+
+  const flawedList = boxMovesList.filter(p => p.moveStatus === 'NEEDS_OPTIMIZATION');
+
   const uniqueCount = readyList.filter(p => p.hasUnique).length;
-  const blockedCount = readyList.filter(p => !p.hasUnique).length;
-  const allCount = readyList.length;
+  const megaCount = megaList.length;
+  const allCount = boxMovesList.length;
+  const flawedCount = flawedList.length;
 
   if (evoCountUnique) evoCountUnique.textContent = String(uniqueCount);
+  if (evoCountMegas) evoCountMegas.textContent = String(megaCount);
   if (evoCountAll) evoCountAll.textContent = String(allCount);
-  if (evoCountBlocked) evoCountBlocked.textContent = String(blockedCount);
+  if (evoCountBlocked) evoCountBlocked.textContent = String(flawedCount);
 
-  let displayed = readyList;
-  if (currentEvoFilter === 'UNIQUE') {
-    displayed = readyList.filter(p => p.hasUnique);
-  } else if (currentEvoFilter === 'BLOCKED') {
-    displayed = readyList.filter(p => !p.hasUnique);
+  // If in MOVES modes (MEGAS, ALL, BLOCKED)
+  if (currentEvoFilter === 'MEGAS' || currentEvoFilter === 'ALL' || currentEvoFilter === 'BLOCKED') {
+    let displayedMoves = boxMovesList;
+    let sectionTitle = 'Box Pokemon Movesets';
+    let badgeSuffix = 'Box Moves';
+
+    if (currentEvoFilter === 'MEGAS') {
+      displayedMoves = megaList;
+      sectionTitle = 'Mega Pokemon & Movesets';
+      badgeSuffix = 'Megas';
+    } else if (currentEvoFilter === 'BLOCKED') {
+      displayedMoves = flawedList;
+      sectionTitle = 'Flawed Box Movesets';
+      badgeSuffix = 'Flawed';
+    }
+
+    if (evoListHeaderTitle) evoListHeaderTitle.textContent = sectionTitle;
+
+    if (currentEvoSearch) {
+      const q = currentEvoSearch.toLowerCase();
+      displayedMoves = displayedMoves.filter(p => {
+        const pName = (p.name || '').toLowerCase();
+        const pVariant = (p.variant || '').toLowerCase();
+        const pTypes = (p.types || []).join(' ').toLowerCase();
+        const pMoves = (p.currentMoves || []).join(' ').toLowerCase();
+        return pName.includes(q) || pVariant.includes(q) || pTypes.includes(q) || pMoves.includes(q);
+      });
+    }
+
+    if (evoReadyCountBadge) {
+      evoReadyCountBadge.textContent = `${displayedMoves.length} ${badgeSuffix}`;
+      evoReadyCountBadge.style.color = currentEvoFilter === 'BLOCKED' ? '#f87171' : '#388bfd';
+    }
+
+    if (!evoReadyList) return;
+    evoReadyList.innerHTML = '';
+
+    displayedMoves.forEach(item => {
+      evoReadyList.appendChild(renderMoveItemCard(item));
+    });
+
+    // On-demand species lookup card when searching
+    if (currentEvoSearch && currentEvoSearch.trim().length >= 2) {
+      const query = currentEvoSearch.trim();
+      const exactInDisplayed = displayedMoves.some(p => p.name.toLowerCase() === query.toLowerCase());
+      if (!exactInDisplayed) {
+        const rec = evolutionEngine.recommendOptimalMoves(query, [], currentCollection);
+        if (rec && rec.optimalMoves && rec.optimalMoves.length > 0) {
+          const lookupCard = document.createElement('div');
+          lookupCard.className = 'evo-item-card lookup-item-card';
+          lookupCard.style.cssText = `
+            background: #071526;
+            border: 1px dashed #388bfd;
+            border-radius: 4px;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            cursor: pointer;
+            box-shadow: none !important;
+            margin-top: 4px;
+          `;
+          const lookupTypes = rec.types || ['Normal'];
+          const pwrPreview = rec.optimalMoves.slice(0, 3).map(m => m.name).join(', ');
+          lookupCard.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+              <div style="min-width: 0;">
+                <div style="font-size: 10.5px; font-weight: 700; color: #58a6ff;">
+                  &#128269; ${escapeHtml(query.toUpperCase())}
+                </div>
+                <div style="font-size: 9px; color: #8eaad0;">
+                  Species Strategy &bull; <span style="color: #388bfd;">${escapeHtml(lookupTypes.join('/'))}</span>
+                </div>
+              </div>
+              <div style="flex-shrink: 0;">
+                <span style="font-size: 8.5px; font-weight: 700; color: #58a6ff; padding: 1px 4px; background: rgba(56, 139, 253, 0.15); border: 1px solid rgba(56, 139, 253, 0.3); border-radius: 3px;">SPECIES LOOKUP</span>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 3px; border-top: 1px solid #142033; font-size: 8.5px; color: #8eaad0;">
+              <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75%;">
+                ${escapeHtml(pwrPreview)}...
+              </div>
+              <button type="button" class="btn btn-accent" style="height: 20px; font-size: 9px; font-weight: 700; padding: 0 6px; box-shadow: none !important;">Analyze</button>
+            </div>
+          `;
+          const lookupPoke = {
+            name: query.charAt(0).toUpperCase() + query.slice(1),
+            types: lookupTypes,
+            currentMoves: [],
+            optimalMoves: rec.optimalMoves,
+            moveCritique: [],
+            moveStatus: 'OPTIMAL',
+            isLookup: true
+          };
+          lookupCard.addEventListener('click', () => {
+            selectPokemonForMoves(lookupPoke);
+          });
+          evoReadyList.appendChild(lookupCard);
+          if (displayedMoves.length === 0) {
+            selectPokemonForMoves(lookupPoke);
+            return;
+          }
+        }
+      }
+    }
+
+    if (displayedMoves.length === 0) {
+      const emptyNotice = document.createElement('div');
+      emptyNotice.style.cssText = 'color: #566e96; text-align: center; padding: 16px 8px; font-size: 10px; font-weight: 600;';
+      emptyNotice.textContent = currentEvoFilter === 'BLOCKED'
+        ? 'No flawed movesets found matching search filter in box.'
+        : 'No Pokemon found matching search filter in box.';
+      evoReadyList.appendChild(emptyNotice);
+      return;
+    }
+
+    if (!selectedMovesPoke && displayedMoves.length > 0) {
+      selectPokemonForMoves(displayedMoves[0]);
+    }
+    return;
   }
 
+  // Otherwise: UNIQUE EVOLVE MODE
+  if (evoListHeaderTitle) evoListHeaderTitle.textContent = 'Evolve-Ready Box Pokemon';
+  let displayed = readyList.filter(p => p.hasUnique);
+
   if (currentEvoSearch) {
+    const q = currentEvoSearch.toLowerCase();
     displayed = displayed.filter(p => {
-      const q = currentEvoSearch;
       const pName = (p.name || '').toLowerCase();
       const pVariant = (p.variant || '').toLowerCase();
       const pTypes = (p.types || []).join(' ').toLowerCase();
@@ -8244,21 +8701,11 @@ function renderEvolutionDecisionMakerUI() {
 
   if (evoReadyCountBadge) {
     evoReadyCountBadge.textContent = `${displayed.length} Available`;
-    evoReadyCountBadge.style.color = currentEvoFilter === 'BLOCKED' ? '#f87171' : '#10b981';
+    evoReadyCountBadge.style.color = '#10b981';
   }
 
   if (!evoReadyList) return;
   evoReadyList.innerHTML = '';
-
-  if (displayed.length === 0) {
-    const emptyNotice = document.createElement('div');
-    emptyNotice.style.cssText = 'color: #566e96; text-align: center; padding: 16px 8px; font-size: 10px; font-weight: 600;';
-    emptyNotice.textContent = currentEvoFilter === 'BLOCKED'
-      ? 'No duplicate-blocked evolutions found in box.'
-      : (currentEvoFilter === 'UNIQUE' ? 'No new unique evolutions found in box.' : 'No evolve-ready Pokemon found in box.');
-    evoReadyList.appendChild(emptyNotice);
-    return;
-  }
 
   displayed.forEach(item => {
     const isSelected = Boolean(selectedEvoPoke && selectedEvoPoke.id === item.id);
@@ -8344,7 +8791,79 @@ function renderEvolutionDecisionMakerUI() {
     evoReadyList.appendChild(card);
   });
 
-  // If no card selected yet, auto-select first one to initialize Active Decision Card
+  // On-demand species lookup card when searching in Unique mode
+  if (currentEvoSearch && currentEvoSearch.trim().length >= 2) {
+    const query = currentEvoSearch.trim();
+    const exactInDisplayed = displayed.some(p => p.name.toLowerCase() === query.toLowerCase());
+    if (!exactInDisplayed) {
+      const rec = evolutionEngine.recommendOptimalMoves(query, [], currentCollection);
+      if (rec && rec.optimalMoves && rec.optimalMoves.length > 0) {
+        const lookupCard = document.createElement('div');
+        lookupCard.className = 'evo-item-card lookup-item-card';
+        lookupCard.style.cssText = `
+          background: #071526;
+          border: 1px dashed #388bfd;
+          border-radius: 4px;
+          padding: 6px 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          cursor: pointer;
+          box-shadow: none !important;
+          margin-top: 4px;
+        `;
+        const lookupTypes = rec.types || ['Normal'];
+        const pwrPreview = rec.optimalMoves.slice(0, 3).map(m => m.name).join(', ');
+        lookupCard.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+            <div style="min-width: 0;">
+              <div style="font-size: 10.5px; font-weight: 700; color: #58a6ff;">
+                &#128269; ${escapeHtml(query.toUpperCase())}
+              </div>
+              <div style="font-size: 9px; color: #8eaad0;">
+                Species Strategy &bull; <span style="color: #388bfd;">${escapeHtml(lookupTypes.join('/'))}</span>
+              </div>
+            </div>
+            <div style="flex-shrink: 0;">
+              <span style="font-size: 8.5px; font-weight: 700; color: #58a6ff; padding: 1px 4px; background: rgba(56, 139, 253, 0.15); border: 1px solid rgba(56, 139, 253, 0.3); border-radius: 3px;">SPECIES LOOKUP</span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 3px; border-top: 1px solid #142033; font-size: 8.5px; color: #8eaad0;">
+            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75%;">
+              ${escapeHtml(pwrPreview)}...
+            </div>
+            <button type="button" class="btn btn-accent" style="height: 20px; font-size: 9px; font-weight: 700; padding: 0 6px; box-shadow: none !important;">Analyze</button>
+          </div>
+        `;
+        const lookupPoke = {
+          name: query.charAt(0).toUpperCase() + query.slice(1),
+          types: lookupTypes,
+          currentMoves: [],
+          optimalMoves: rec.optimalMoves,
+          moveCritique: [],
+          moveStatus: 'OPTIMAL',
+          isLookup: true
+        };
+        lookupCard.addEventListener('click', () => {
+          selectPokemonForMoves(lookupPoke);
+        });
+        evoReadyList.appendChild(lookupCard);
+        if (displayed.length === 0) {
+          selectPokemonForMoves(lookupPoke);
+          return;
+        }
+      }
+    }
+  }
+
+  if (displayed.length === 0) {
+    const emptyNotice = document.createElement('div');
+    emptyNotice.style.cssText = 'color: #566e96; text-align: center; padding: 16px 8px; font-size: 10px; font-weight: 600;';
+    emptyNotice.textContent = 'No evolve-ready Pokemon found matching search filter in box.';
+    evoReadyList.appendChild(emptyNotice);
+    return;
+  }
+
   if (!selectedEvoPoke && displayed.length > 0) {
     selectEvolvePokemon(displayed[0], displayed[0].bestBranch);
   }
@@ -8561,29 +9080,54 @@ function updateTeamBuilderBattleAction(battleData) {
   }
 }
 
+function renderAiBattleRoadmap(analysis) {
+  if (!analysis || !analysis.counterRoadmap) return '';
+  return `
+    <div style="margin-top: 6px; background: #0c1524; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+      <div style="font-size: 9px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: flex; justify-content: space-between;">
+        <span>ROSTER COUNTER ROADMAP</span>
+        <span style="color: #388bfd;">${analysis.counterRoadmap.length} Opponents</span>
+      </div>
+    </div>
+  `;
+}
+
 function renderAiAssistantUI() {
   if (!aiAssistantModal) return;
 
-  // Prioritize active on-screen Evolve dialog if present and no active battle taking place
-  if (activeEvolveCardData && (!activeAiBattleData || !activeAiBattleData.roster || activeAiBattleData.roster.length === 0)) {
+  // Prioritize active on-screen Evolve dialog if present
+  if (activeEvolveCardData) {
     handleEvolveCardDetected(activeEvolveCardData);
     return;
   }
 
   const analysis = aiAssistant ? aiAssistant.analyzeBattle(activeAiBattleData, currentCollection) : null;
   lastAnalyzedBattle = analysis;
-  if (!analysis || analysis.status === 'IDLE') {
+
+  if (currentEvoFilter === 'MEGAS' || currentEvoFilter === 'ALL' || currentEvoFilter === 'BLOCKED') {
+    if (selectedMovesPoke) {
+      selectPokemonForMoves(selectedMovesPoke);
+    } else if (selectedMegaPoke) {
+      selectPokemonForMoves(selectedMegaPoke);
+    } else if (cachedBoxMovesList && cachedBoxMovesList.length > 0) {
+      selectPokemonForMoves(cachedBoxMovesList[0]);
+    }
+  } else {
     if (selectedEvoPoke) {
       selectEvolvePokemon(selectedEvoPoke, selectedEvoPoke.bestBranch);
     } else if (cachedEvolveReadyList && cachedEvolveReadyList.length > 0) {
       selectEvolvePokemon(cachedEvolveReadyList[0], cachedEvolveReadyList[0].bestBranch);
+    } else if (selectedMovesPoke) {
+      selectPokemonForMoves(selectedMovesPoke);
+    } else if (cachedBoxMovesList && cachedBoxMovesList.length > 0) {
+      selectPokemonForMoves(cachedBoxMovesList[0]);
     } else {
       if (aiBattleOpponentBadge) {
         aiBattleOpponentBadge.textContent = '100% Uniques Active';
         aiBattleOpponentBadge.style.color = '#8eaad0';
       }
       if (aiTacticalBriefing) {
-        aiTacticalBriefing.innerHTML = '<div style="color: #566e96; text-align: center; padding: 8px 4px; font-size: 10px; font-weight: 600; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px;">Select an evolve-ready Pokemon below</div>';
+        aiTacticalBriefing.innerHTML = '<div style="color: #566e96; text-align: center; padding: 8px 4px; font-size: 10px; font-weight: 600; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px;">Select an evolve-ready or Box Pokemon below</div>';
       }
       if (aiInstantActionSlot) {
         aiInstantActionSlot.innerHTML = '';
@@ -8593,174 +9137,10 @@ function renderAiAssistantUI() {
         aiStatusChip.style.color = '#10b981';
       }
     }
-    if (aiHudActionBtn) {
-      aiHudActionBtn.style.display = 'none';
-    }
-    return;
   }
 
-  if (aiBattleOpponentBadge) {
-    aiBattleOpponentBadge.textContent = `${analysis.trainerName} (${analysis.rosterCount} Pkmn)`;
-    aiBattleOpponentBadge.style.color = '#388bfd';
-  }
-
-  if (aiStatusChip) {
-    aiStatusChip.textContent = 'Observing Battle';
-    aiStatusChip.style.color = '#388bfd';
-  }
-
-  const cleanActiveLead = analysis.bestActiveLead ? analysis.bestActiveLead.name.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-  const cleanBoxCarry = analysis.bestCarry ? analysis.bestCarry.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-  const isLeadSameAsCarry = cleanActiveLead && cleanBoxCarry && (cleanActiveLead === cleanBoxCarry || cleanActiveLead.includes(cleanBoxCarry) || cleanBoxCarry.includes(cleanActiveLead));
-  const activeTeamHasCarry = Boolean(isLeadSameAsCarry || (activeAiBattleData && activeAiBattleData.userTeam && cleanBoxCarry && activeAiBattleData.userTeam.some(u => {
-    const uClean = (u.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    return uClean === cleanBoxCarry || cleanBoxCarry.includes(uClean);
-  })));
-
-  if (aiTacticalBriefing) {
-    const leadName = analysis.bestActiveLead ? analysis.bestActiveLead.name : (analysis.bestCarry || 'Auto Counter');
-    const leadMove = (analysis.bestActiveLead && analysis.bestActiveLead.recommendedMove) ? analysis.bestActiveLead.recommendedMove : (analysis.recommendedMove || 'Best STAB');
-
-    let html = `
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
-        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
-          <div style="font-size: 9px; font-weight: 700; color: #566e96; text-transform: uppercase;">TARGET</div>
-          <div style="font-size: 11px; font-weight: 700; color: #e0ecfa; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(analysis.activeOpponent)}">
-            ${escapeHtml(analysis.activeOpponent)}
-          </div>
-          <div style="font-size: 9.5px; color: #8eaad0; margin-top: 2px;">
-            Lv ${analysis.activeOpponentLevel} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(analysis.activeOpponentTypes.join('/'))}</span>
-          </div>
-        </div>
-        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
-          <div style="font-size: 9px; font-weight: 700; color: #10b981; text-transform: uppercase;">${analysis.isInActiveBattle ? 'ACTIVE BATTLER' : 'COUNTER LEAD'}</div>
-          <div style="font-size: 11px; font-weight: 700; color: #10b981; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(leadName)}">
-            ${escapeHtml(leadName)}
-          </div>
-          <div style="font-size: 9.5px; color: #e0ecfa; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(leadMove)}">
-            ${escapeHtml(leadMove)}
-          </div>
-        </div>
-      </div>
-    `;
-
-    if (analysis.hazards && analysis.hazards.length > 0) {
-      html += `<div style="margin-top: 5px; padding: 3px 6px; background: #1c1500; border: 1px solid #6e4900; border-radius: 3px; font-size: 9.5px; color: #d29922; text-align: center; font-weight: 600; box-shadow: none !important;">&#9888; ${escapeHtml(analysis.hazards.join(' &bull; '))}</div>`;
-    }
-
-    if (analysis.counterRoadmap && analysis.counterRoadmap.length > 0) {
-      let roadmapRows = '';
-      for (let i = 0; i < analysis.counterRoadmap.length; i++) {
-        const item = analysis.counterRoadmap[i];
-        const oppColor = item.isFainted ? '#566e96; text-decoration: line-through;' : (item.isActive ? '#e0ecfa; font-weight: 700;' : '#8eaad0;');
-        const badgeBg = item.multiplier >= 4.0 ? '#238636' : (item.multiplier >= 2.0 ? '#1f6feb' : '#21262d');
-        const badgeColor = (item.multiplier >= 2.0) ? '#ffffff' : '#8b949e';
-        const activeMarker = item.isActive ? '&#9654; ' : '';
-        const faintedTag = item.isFainted ? ' [KO]' : '';
-
-        roadmapRows += `
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #142033; font-size: 9.5px;">
-            <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; max-width: 52%;">
-              <span style="color: ${oppColor} white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(item.opponentName)}">
-                ${activeMarker}${escapeHtml(item.opponentName)}${faintedTag}
-              </span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; max-width: 48%; justify-content: flex-end;">
-              <span style="color: ${item.isCounterAlive ? '#10b981' : '#ef4444'}; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(item.counterName)}">
-                ${escapeHtml(item.counterName)}
-              </span>
-              <span style="color: #6b84a6; font-size: 8.5px; white-space: nowrap;">${escapeHtml(item.bestMoveName)}</span>
-              <span style="background: ${badgeBg}; color: ${badgeColor}; font-size: 8px; font-weight: 700; padding: 1px 3px; border-radius: 2px; border: 1px solid #30363d; box-shadow: none !important;">${item.multiplier}x</span>
-            </div>
-          </div>
-        `;
-      }
-
-      html += `
-        <div style="margin-top: 6px; background: #0c1524; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
-          <div style="font-size: 9px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: flex; justify-content: space-between;">
-            <span>ROSTER COUNTER ROADMAP</span>
-            <span style="color: #388bfd;">${analysis.counterRoadmap.length} Opponents</span>
-          </div>
-          <div style="display: flex; flex-direction: column;">
-            ${roadmapRows}
-          </div>
-        </div>
-      `;
-    }
-
-    const isChallengeLocked = Boolean(
-      (activeAiBattleData && (activeAiBattleData.isChallengePreview || activeAiBattleData.isGmaxChallenge || activeAiBattleData.isChallengeLocked || (activeAiBattleData.battleUrl && activeAiBattleData.battleUrl.includes('challenge')))) ||
-      analysis.isChallengeLocked ||
-      analysis.isInActiveBattle
-    );
-
-    if (analysis.bestCarry && !activeTeamHasCarry && !isChallengeLocked) {
-      html += `
-        <div style="margin-top: 5px; padding-top: 4px; border-top: 1px solid #1a283e; font-size: 9.5px; color: #8eaad0; display: flex; justify-content: space-between; align-items: center;">
-          <span>Optimal Box Carry:</span>
-          <span style="color: #e0ecfa; font-weight: 600;">${escapeHtml(analysis.bestCarry)}</span>
-        </div>
-      `;
-    }
-
-    aiTacticalBriefing.innerHTML = html;
-  }
-
-  // Render Smart Unified Battle Action Button
-  if (aiInstantActionSlot) {
-    aiInstantActionSlot.innerHTML = '';
-
-    const isChallengeLocked = Boolean(
-      (activeAiBattleData && (activeAiBattleData.isChallengePreview || activeAiBattleData.isGmaxChallenge || activeAiBattleData.isChallengeLocked || (activeAiBattleData.battleUrl && activeAiBattleData.battleUrl.includes('challenge')))) ||
-      analysis.isChallengeLocked
-    );
-
-    const mainBtnConfig = computeAiBattleActionConfig(activeAiBattleData, currentCollection);
-
-    if (mainBtnConfig) {
-      const deployBtn = document.createElement('button');
-      deployBtn.type = 'button';
-      deployBtn.id = 'aiDeployLeadBtn';
-      deployBtn.className = mainBtnConfig.btnClass;
-      deployBtn.disabled = Boolean(mainBtnConfig.disabled);
-      deployBtn.style.cssText = 'width: 100%; height: 28px; font-size: 11px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
-      deployBtn.innerHTML = mainBtnConfig.labelHtml;
-      if (mainBtnConfig.action) {
-        deployBtn.addEventListener('click', mainBtnConfig.action);
-      }
-      aiInstantActionSlot.appendChild(deployBtn);
-
-      // In preparation mode, show Equip Carry if eligible
-      if (analysis.isPreparationScreen && !activeTeamHasCarry && analysis.bestCarryObj && !isChallengeLocked) {
-        const equipBtn = document.createElement('button');
-        equipBtn.type = 'button';
-        equipBtn.id = 'aiEquipCarryBtn';
-        equipBtn.className = 'btn';
-        equipBtn.style.cssText = 'width: 100%; height: 24px; font-size: 10px; font-weight: 600; justify-content: center; gap: 6px; box-shadow: none !important; margin-top: 4px;';
-        equipBtn.innerHTML = `&#128190; Equip ${escapeHtml(analysis.bestCarry)} to Slot 1`;
-        equipBtn.addEventListener('click', () => {
-          equipAiCarryToSlot1(analysis.bestCarryObj);
-        });
-        aiInstantActionSlot.appendChild(equipBtn);
-      }
-
-      // Update Floating HUD Action Button to match
-      if (aiHudActionBtn) {
-        aiHudActionBtn.style.display = 'inline-flex';
-        aiHudActionBtn.innerHTML = mainBtnConfig.hudText;
-        aiHudActionBtn.disabled = Boolean(mainBtnConfig.disabled);
-        if (mainBtnConfig.action) {
-          aiHudActionBtn.onclick = mainBtnConfig.action;
-        } else {
-          aiHudActionBtn.onclick = null;
-        }
-      }
-    } else {
-      if (aiHudActionBtn) {
-        aiHudActionBtn.style.display = 'none';
-      }
-    }
+  if (aiHudActionBtn) {
+    aiHudActionBtn.style.display = 'none';
   }
 }
 
@@ -9013,6 +9393,9 @@ if (aiChatInput) {
 // Event Listeners for Evolution & Moves Decision Maker
 if (evoFilterUniqueBtn) {
   evoFilterUniqueBtn.addEventListener('click', () => setEvoFilter('UNIQUE'));
+}
+if (evoFilterMegasBtn) {
+  evoFilterMegasBtn.addEventListener('click', () => setEvoFilter('MEGAS'));
 }
 if (evoFilterAllBtn) {
   evoFilterAllBtn.addEventListener('click', () => setEvoFilter('ALL'));

@@ -10,6 +10,32 @@ try {
   skillsMap = {};
 }
 
+let gymSpeciesTypesMap = null;
+function getGymSpeciesTypesMap() {
+  if (gymSpeciesTypesMap) return gymSpeciesTypesMap;
+  gymSpeciesTypesMap = {};
+  try {
+    const gl = require('./gym_leaders.json');
+    Object.keys(gl).forEach(k => {
+      if (Array.isArray(gl[k])) {
+        gl[k].forEach(t => {
+          if (Array.isArray(t.roster)) {
+            t.roster.forEach(p => {
+              if (p && p.name && Array.isArray(p.types) && p.types.length > 0) {
+                const norm = String(p.name).toLowerCase().trim();
+                if (!gymSpeciesTypesMap[norm]) gymSpeciesTypesMap[norm] = p.types;
+              }
+            });
+          }
+        });
+      }
+    });
+  } catch (e) {
+    gymSpeciesTypesMap = {};
+  }
+  return gymSpeciesTypesMap;
+}
+
 // -----------------------------------------------------------------------------
 // 1. EVOLUTION FAMILIES DATABASE (Branching and Popular Evolution Lines)
 // -----------------------------------------------------------------------------
@@ -880,6 +906,11 @@ function resolvePokemonTypes(pokemonOrName, collection = []) {
     }
   }
 
+  // 3.5. Check gym leaders database canonical types
+  const gymMap = getGymSpeciesTypesMap();
+  if (gymMap[base]) return gymMap[base];
+  if (gymMap[cleanBase]) return gymMap[cleanBase];
+
   // 4. Return existing object types if any
   if (pokemonOrName && typeof pokemonOrName === 'object' && Array.isArray(pokemonOrName.types) && pokemonOrName.types.length > 0) {
     return pokemonOrName.types;
@@ -1108,6 +1139,98 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
 // -----------------------------------------------------------------------------
 // 5. ATTACK MOVES ADVISOR (STAB, Coverage, Wallbreaker, Critique)
 // -----------------------------------------------------------------------------
+const CANONICAL_SPECIES_MOVES = {
+  ogerpon: ['Ivy Cudgel', 'Wood Hammer', 'Superpower', 'Play Rough'],
+  'brute bonnet': ['Seed Bomb', 'Sucker Punch', 'Close Combat', 'Spore'],
+  victini: ['V-create', 'Fusion Flare', 'Zen Headbutt', 'Bolt Strike'],
+  moltres: ['Flamethrower', 'Air Slash', 'Solar Beam', 'Fire Blast'],
+  'galarian moltres': ['Fiery Wrath', 'Hurricane', 'Dark Pulse', 'Air Slash'],
+  zapdos: ['Thunderbolt', 'Drill Peck', 'Heat Wave', 'Volt Switch'],
+  'galarian zapdos': ['Thunderous Kick', 'Close Combat', 'Brave Bird', 'Stomp'],
+  articuno: ['Ice Beam', 'Air Slash', 'Freeze-Dry', 'Blizzard'],
+  'galarian articuno': ['Freezing Glare', 'Hurricane', 'Psychic', 'Shadow Ball'],
+  comfey: ['Draining Kiss', 'Petal Blizzard', 'Energy Ball', 'Dazzling Gleam'],
+  xurkitree: ['Thunderbolt', 'Energy Ball', 'Dazzling Gleam', 'Signal Beam'],
+  zarude: ['Power Whip', 'Darkest Lariat', 'Close Combat', 'Hammer Arm'],
+  'wo-chien': ['Leaf Storm', 'Dark Pulse', 'Power Whip', 'Foul Play'],
+  'raging bolt': ['Thunderclap', 'Dragon Pulse', 'Thunderbolt', 'Weather Ball'],
+  'walking wake': ['Hydro Steam', 'Dragon Pulse', 'Flamethrower', 'Hydro Pump'],
+  'iron thorns': ['Stone Edge', 'Wild Charge', 'Earthquake', 'Ice Punch'],
+  'iron bundle': ['Freeze-Dry', 'Hydro Pump', 'Ice Beam', 'Flip Turn'],
+  'iron valiant': ['Close Combat', 'Moonblast', 'Spirit Break', 'Psycho Cut'],
+  'roaring moon': ['Crunch', 'Dragon Claw', 'Earthquake', 'Iron Head'],
+  'flutter mane': ['Moonblast', 'Shadow Ball', 'Mystical Fire', 'Power Gem'],
+  'great tusk': ['Headlong Rush', 'Close Combat', 'Earthquake', 'Ice Spinner'],
+  'ting-lu': ['Earthquake', 'Payback', 'Stone Edge', 'Heavy Slam'],
+  'chien-pao': ['Icicle Crash', 'Crunch', 'Sacred Sword', 'Sucker Punch'],
+  'chi-yu': ['Flamethrower', 'Dark Pulse', 'Overheat', 'Psychic'],
+  koraidon: ['Collision Course', 'Flare Blitz', 'Dragon Claw', 'Drain Punch'],
+  miraidon: ['Electro Drift', 'Dragon Pulse', 'Overheat', 'Dazzling Gleam'],
+  zacian: ['Behemoth Blade', 'Play Rough', 'Close Combat', 'Wild Charge'],
+  zamazenta: ['Behemoth Bash', 'Close Combat', 'Iron Head', 'Crunch'],
+  eternatus: ['Dynamax Cannon', 'Sludge Wave', 'Flamethrower', 'Flash Cannon'],
+  urshifu: ['Wicked Blow', 'Close Combat', 'Surging Strikes', 'Iron Head'],
+  calyrex: ['Glacial Lance', 'Astral Barrage', 'Psychic', 'High Horsepower'],
+  mewtwo: ['Psystrike', 'Aura Sphere', 'Shadow Ball', 'Ice Beam'],
+  mew: ['Psychic', 'Aura Sphere', 'Shadow Ball', 'Thunderbolt'],
+  lugia: ['Aeroblast', 'Psychic', 'Hydro Pump', 'Ice Beam'],
+  'ho-oh': ['Sacred Fire', 'Brave Bird', 'Earthquake', 'Flare Blitz'],
+  kyogre: ['Origin Pulse', 'Water Spout', 'Ice Beam', 'Thunder'],
+  groudon: ['Precipice Blades', 'Fire Punch', 'Earthquake', 'Stone Edge'],
+  rayquaza: ['Dragon Ascent', 'Extreme Speed', 'Earthquake', 'V-create'],
+  dialga: ['Roar of Time', 'Flash Cannon', 'Dragon Pulse', 'Earth Power'],
+  palkia: ['Spacial Rend', 'Hydro Pump', 'Dragon Pulse', 'Aura Sphere'],
+  giratina: ['Shadow Force', 'Dragon Pulse', 'Earthquake', 'Aura Sphere'],
+  arceus: ['Judgment', 'Extreme Speed', 'Earthquake', 'Shadow Ball'],
+  reshiram: ['Blue Flare', 'Fusion Flare', 'Dragon Pulse', 'Earth Power'],
+  zekrom: ['Bolt Strike', 'Fusion Bolt', 'Outrage', 'Dragon Claw'],
+  kyurem: ['Ice Beam', 'Dragon Pulse', 'Earth Power', 'Freeze-Dry'],
+  xerneas: ['Moonblast', 'Thunderbolt', 'Psychic', 'Focus Blast'],
+  yveltal: ['Oblivion Wing', 'Dark Pulse', 'Sucker Punch', 'Heat Wave'],
+  zygarde: ['Thousand Arrows', 'Core Enforcer', 'Outrage', 'Earthquake'],
+  solgaleo: ['Sunsteel Strike', 'Zen Headbutt', 'Earthquake', 'Flare Blitz'],
+  lunala: ['Moongeist Beam', 'Psychic', 'Ice Beam', 'Focus Blast'],
+  necrozma: ['Prismatic Laser', 'Photon Geyser', 'Earth Power', 'Dark Pulse'],
+  nihilego: ['Sludge Wave', 'Power Gem', 'Thunderbolt', 'Dazzling Gleam'],
+  buzzwole: ['Close Combat', 'Leech Life', 'Ice Punch', 'Earthquake'],
+  pheromosa: ['High Jump Kick', 'Bug Buzz', 'Ice Beam', 'U-turn'],
+  kartana: ['Leaf Blade', 'Sacred Sword', 'Smart Strike', 'Night Slash'],
+  celesteela: ['Heavy Slam', 'Flamethrower', 'Air Slash', 'Giga Drain'],
+  blacephalon: ['Mind Blown', 'Shadow Ball', 'Fire Blast', 'Dark Pulse'],
+  stakataka: ['Gyro Ball', 'Stone Edge', 'Earthquake', 'Superpower'],
+  darkrai: ['Dark Pulse', 'Dream Eater', 'Ice Beam', 'Sludge Bomb'],
+  deoxys: ['Psycho Boost', 'Superpower', 'Shadow Ball', 'Thunderbolt'],
+  genesect: ['Techno Blast', 'Bug Buzz', 'Iron Head', 'Flamethrower'],
+  marshadow: ['Spectral Thief', 'Close Combat', 'Shadow Sneak', 'Ice Punch'],
+  zeraora: ['Plasma Fists', 'Close Combat', 'Knock Off', 'Fire Punch'],
+  snorlax: ['Body Slam', 'Earthquake', 'Heavy Slam', 'Crunch'],
+  dragonite: ['Outrage', 'Extreme Speed', 'Earthquake', 'Fire Punch'],
+  tyranitar: ['Stone Edge', 'Crunch', 'Earthquake', 'Fire Punch'],
+  metagross: ['Meteor Mash', 'Zen Headbutt', 'Earthquake', 'Bullet Punch'],
+  salamence: ['Dragon Claw', 'Fly', 'Earthquake', 'Fire Blast'],
+  garchomp: ['Earthquake', 'Dragon Claw', 'Stone Edge', 'Fire Fang'],
+  lucario: ['Close Combat', 'Aura Sphere', 'Flash Cannon', 'Extreme Speed'],
+  greninja: ['Hydro Pump', 'Dark Pulse', 'Ice Beam', 'Water Shuriken'],
+  cinderace: ['Pyro Ball', 'High Jump Kick', 'Gunk Shot', 'Iron Head'],
+  rillaboom: ['Drum Beating', 'Wood Hammer', 'High Horsepower', 'Knock Off'],
+  inteleon: ['Snipe Shot', 'Hydro Pump', 'Ice Beam', 'Dark Pulse'],
+  decidueye: ['Spirit Shackle', 'Leaf Blade', 'Brave Bird', 'Sucker Punch'],
+  dragapult: ['Dragon Darts', 'Shadow Ball', 'Flamethrower', 'Thunderbolt'],
+  baxcalibur: ['Glaive Rush', 'Icicle Crash', 'Earthquake', 'Dragon Claw'],
+  volcarona: ['Bug Buzz', 'Fiery Dance', 'Giga Drain', 'Psychic'],
+  hydreigon: ['Draco Meteor', 'Dark Pulse', 'Flash Cannon', 'Fire Blast'],
+  blissey: ['Seismic Toss', 'Hyper Voice', 'Shadow Ball', 'Ice Beam'],
+  corviknight: ['Brave Bird', 'Iron Head', 'Body Press', 'U-turn'],
+  toxapex: ['Sludge Bomb', 'Scald', 'Venoshock', 'Hydro Pump'],
+  gliscor: ['Earthquake', 'Toxic', 'Ice Fang', 'Knock Off'],
+  ferrothorn: ['Power Whip', 'Gyro Ball', 'Body Press', 'Iron Head'],
+  heatran: ['Magma Storm', 'Flash Cannon', 'Earth Power', 'Solar Beam'],
+  landorus: ['Earthquake', 'Stone Edge', 'Superpower', 'Fly'],
+  tornadus: ['Bleakwind Storm', 'Hurricane', 'Heat Wave', 'Focus Blast'],
+  thundurus: ['Wildbolt Storm', 'Thunderbolt', 'Sludge Wave', 'Focus Blast'],
+  enamorus: ['Springtide Storm', 'Moonblast', 'Earth Power', 'Mystical Fire']
+};
+
 function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []) {
   let name = '';
   let existingMoves = [];
@@ -1125,97 +1248,198 @@ function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []
   const primaryType = types[0] || 'Normal';
   const secondaryType = types[1] || null;
 
-  // 1. Primary STAB Attack
-  const primaryStabList = TOP_STAB_MOVES[primaryType] || ['Body Slam', 'Double-Edge'];
-  const move1 = primaryStabList[0];
+  // 1. Check if species has canonical keyMoves in CANONICAL_SPECIES_MOVES, STAGE_TRANSITIONS, or EVOLUTION_FAMILIES
+  const cleanSpName = String(name || '').replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|retro|chrome|negative)\s+/i, '').toLowerCase().trim();
+  const baseSp = (teamEngine && typeof teamEngine.getBaseSpecies === 'function')
+    ? teamEngine.getBaseSpecies(name).toLowerCase()
+    : cleanSpName;
 
-  // 2. Secondary STAB Attack (or High-Power Neutral Coverage if mono-type)
-  let move2 = null;
-  if (secondaryType && TOP_STAB_MOVES[secondaryType]) {
-    move2 = TOP_STAB_MOVES[secondaryType][0];
-  } else {
-    // Mono-type secondary high-power move
-    move2 = primaryStabList[1] || 'Earthquake';
+  let canonicalKeyMoves = null;
+  const isMegaPoke = /\bmega\b/i.test(name) || (teamEngine && teamEngine.isActualMegaEvolution && teamEngine.isActualMegaEvolution(name));
+
+  if (!isMegaPoke && CANONICAL_SPECIES_MOVES[cleanSpName]) {
+    canonicalKeyMoves = CANONICAL_SPECIES_MOVES[cleanSpName];
+  } else if (!isMegaPoke && CANONICAL_SPECIES_MOVES[baseSp]) {
+    canonicalKeyMoves = CANONICAL_SPECIES_MOVES[baseSp];
   }
 
-  // 3. Anti-Weakness Coverage Attack
-  // Find move type that hits the Pokemon's primary weaknesses super-effectively
-  let move3 = 'Earthquake';
-  const topWeakness = defProfile.quadWeaknesses[0] || defProfile.weaknesses[0];
-  if (topWeakness && WEAKNESS_COVERAGE_MAP[topWeakness]) {
-    const counterType = WEAKNESS_COVERAGE_MAP[topWeakness];
-    const candidateMoves = TOP_STAB_MOVES[counterType];
-    if (candidateMoves && candidateMoves.length > 0) {
-      move3 = candidateMoves[0];
-    }
-  } else if (primaryType === 'Water') {
-    move3 = 'Ice Beam'; // Counters Grass
-  } else if (primaryType === 'Fire') {
-    move3 = 'Solar Beam'; // Counters Water, Ground, Rock
-  } else if (primaryType === 'Grass') {
-    move3 = 'Rock Slide'; // Counters Fire, Ice, Flying, Bug
-  } else {
-    move3 = 'Earthquake';
-  }
-
-  // 4. Wallbreaker / High-Impact Coverage
-  let move4 = 'Earthquake';
-  const pool4 = ['Close Combat', 'Aura Sphere', 'Psychic', 'Shadow Ball', 'Thunderbolt', 'Ice Beam', 'Stone Edge'];
-  for (const cand of pool4) {
-    if (cand !== move1 && cand !== move2 && cand !== move3) {
-      move4 = cand;
-      break;
+  if (!canonicalKeyMoves) {
+    const transitions = STAGE_TRANSITIONS[baseSp];
+    if (transitions && transitions.length > 0) {
+      if (isMegaPoke) {
+        const megaTr = transitions.find(t => t.mega && t.keyMoves);
+        if (megaTr) canonicalKeyMoves = megaTr.keyMoves;
+      }
+      if (!canonicalKeyMoves && transitions[0].keyMoves) {
+        canonicalKeyMoves = transitions[0].keyMoves;
+      }
     }
   }
 
-  const optimalMoves = [
-    { name: move1, type: primaryType, role: 'Primary STAB' },
-    { name: move2, type: secondaryType || primaryType, role: secondaryType ? 'Secondary STAB' : 'High-Power STAB' },
-    { name: move3, type: getMoveType(move3), role: 'Anti-Weakness Coverage' },
-    { name: move4, type: getMoveType(move4), role: 'Wallbreaker Coverage' }
-  ].map(m => {
-    const resolved = teamEngine.resolveMove(m.name);
-    return {
-      name: m.name,
-      type: resolved.type || m.type,
-      power: resolved.power || 90,
-      category: resolved.category || 'Special',
-      role: m.role
-    };
-  });
+  if (!canonicalKeyMoves) {
+    for (const k of Object.keys(STAGE_TRANSITIONS)) {
+      const trList = STAGE_TRANSITIONS[k];
+      const matchTr = trList.find(t => (isMegaPoke && t.mega && (t.name.toLowerCase() === baseSp || t.name.toLowerCase() === name.toLowerCase())) || t.name.toLowerCase() === baseSp || t.name.toLowerCase() === name.toLowerCase());
+      if (matchTr && matchTr.keyMoves) {
+        canonicalKeyMoves = matchTr.keyMoves;
+        break;
+      }
+    }
+  }
 
-  // Critique current moves
+  if (!canonicalKeyMoves) {
+    for (const k of Object.keys(EVOLUTION_FAMILIES)) {
+      const fam = EVOLUTION_FAMILIES[k];
+      const matchBr = fam.branches && fam.branches.find(b => (isMegaPoke && b.mega) || b.name.toLowerCase() === baseSp || b.name.toLowerCase() === name.toLowerCase());
+      if (matchBr && matchBr.keyMoves) {
+        canonicalKeyMoves = matchBr.keyMoves;
+        break;
+      }
+    }
+  }
+
+  let optimalMoves = [];
+
+  if (canonicalKeyMoves && canonicalKeyMoves.length > 0) {
+    // Preserve any already equipped high-power, non-flawed moves that the user's Pokemon knows
+    const nonFlawedEquipped = (existingMoves || []).map(m => {
+      const raw = typeof m === 'string' ? m : (m && m.name ? m.name : '');
+      return raw.trim();
+    }).filter(m => {
+      if (!m) return false;
+      const rm = teamEngine.resolveMove(m);
+      return !rm.isStatus && rm.power >= 65 && !rm.isOhko && !rm.isRecharge && !rm.isFixedDamage && (!rm.accuracy || rm.accuracy > 70);
+    });
+
+    const candPool = Array.from(new Set([...nonFlawedEquipped, ...canonicalKeyMoves]));
+    const evaluatedSelection = evaluateEvolutionMoveSelection(name, candPool, collection);
+    optimalMoves = (evaluatedSelection.recommendedMoves || []).slice(0, 4).map(m => {
+      const rm = teamEngine.resolveMove(m.name);
+      const isPrimaryStab = rm.type.toLowerCase() === primaryType.toLowerCase();
+      const isSecondaryStab = secondaryType && rm.type.toLowerCase() === secondaryType.toLowerCase();
+      let role = 'High-Power Coverage';
+      if (isPrimaryStab) role = 'Primary STAB';
+      else if (isSecondaryStab) role = 'Secondary STAB';
+      return {
+        name: m.name,
+        type: rm.type || m.type,
+        power: rm.power || m.power || 90,
+        category: rm.category || 'Special',
+        role: role
+      };
+    });
+  }
+
+  // Fallback to type STAB moves if canonical keyMoves unavailable or insufficient
+  if (!optimalMoves || optimalMoves.length < 4) {
+    const primaryStabList = TOP_STAB_MOVES[primaryType] || ['Body Slam', 'Double-Edge'];
+    const move1 = primaryStabList[0];
+
+    let move2 = null;
+    if (secondaryType && TOP_STAB_MOVES[secondaryType]) {
+      move2 = TOP_STAB_MOVES[secondaryType][0];
+    } else {
+      move2 = primaryStabList[1] || 'Earthquake';
+    }
+
+    let move3 = 'Earthquake';
+    const topWeakness = defProfile.quadWeaknesses[0] || defProfile.weaknesses[0];
+    if (topWeakness && WEAKNESS_COVERAGE_MAP[topWeakness]) {
+      const counterType = WEAKNESS_COVERAGE_MAP[topWeakness];
+      const candidateMoves = TOP_STAB_MOVES[counterType];
+      if (candidateMoves && candidateMoves.length > 0) {
+        move3 = candidateMoves[0];
+      }
+    } else if (primaryType === 'Water') {
+      move3 = 'Ice Beam';
+    } else if (primaryType === 'Fire') {
+      move3 = 'Solar Beam';
+    } else if (primaryType === 'Grass') {
+      move3 = 'Rock Slide';
+    } else {
+      move3 = 'Earthquake';
+    }
+
+    let move4 = 'Earthquake';
+    const pool4 = ['Close Combat', 'Aura Sphere', 'Psychic', 'Shadow Ball', 'Thunderbolt', 'Ice Beam', 'Stone Edge'];
+    for (const cand of pool4) {
+      if (cand !== move1 && cand !== move2 && cand !== move3) {
+        move4 = cand;
+        break;
+      }
+    }
+
+    optimalMoves = [
+      { name: move1, type: primaryType, role: 'Primary STAB' },
+      { name: move2, type: secondaryType || primaryType, role: secondaryType ? 'Secondary STAB' : 'High-Power STAB' },
+      { name: move3, type: getMoveType(move3), role: 'Anti-Weakness Coverage' },
+      { name: move4, type: getMoveType(move4), role: 'Wallbreaker Coverage' }
+    ].map(m => {
+      const resolved = teamEngine.resolveMove(m.name);
+      return {
+        name: m.name,
+        type: resolved.type || m.type,
+        power: resolved.power || 90,
+        category: resolved.category || 'Special',
+        role: m.role
+      };
+    });
+  }
+
+  // Critique current moves with intelligent unequipped move recommendations
   const moveCritique = [];
   if (Array.isArray(existingMoves) && existingMoves.length > 0) {
+    const existingCleanNames = existingMoves.map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : '')).toLowerCase().trim());
+    const unequippedOptimal = optimalMoves.filter(om => !existingCleanNames.includes(om.name.toLowerCase()));
+    let unequippedIdx = 0;
+
     existingMoves.forEach((m, idx) => {
       const rm = teamEngine.resolveMove(m);
+      const repMove = (unequippedIdx < unequippedOptimal.length)
+        ? unequippedOptimal[unequippedIdx++]
+        : optimalMoves[idx % optimalMoves.length];
+
       if (rm.isStatus || rm.power === 0) {
         moveCritique.push({
           slot: idx + 1,
           move: rm.name,
           flaw: 'Status Move (Deals 0 damage in Deluge RPG)',
-          recommendation: `Replace with ${optimalMoves[idx % optimalMoves.length].name}`
+          recommendation: `Replace with ${repMove.name}`
         });
       } else if (rm.isOhko) {
         moveCritique.push({
           slot: idx + 1,
           move: rm.name,
           flaw: '30% Accuracy OHKO (70% miss penalty & level check fail)',
-          recommendation: `Replace with reliable ${optimalMoves[idx % optimalMoves.length].name}`
+          recommendation: `Replace with reliable ${repMove.name}`
         });
       } else if (rm.isRecharge) {
         moveCritique.push({
           slot: idx + 1,
           move: rm.name,
           flaw: 'Turn-Skip Recharge penalty (halves effective DPS)',
-          recommendation: `Replace with consistent ${optimalMoves[idx % optimalMoves.length].name}`
+          recommendation: `Replace with consistent ${repMove.name}`
         });
       } else if (rm.isLocking) {
         moveCritique.push({
           slot: idx + 1,
           move: rm.name,
           flaw: 'Self-locking move (forces lock and confusion trap)',
-          recommendation: `Replace with ${optimalMoves[idx % optimalMoves.length].name}`
+          recommendation: `Replace with ${repMove.name}`
+        });
+      } else if (rm.isFixedDamage) {
+        moveCritique.push({
+          slot: idx + 1,
+          move: rm.name,
+          flaw: 'Fixed Damage (only deals fixed HP regardless of stats)',
+          recommendation: `Replace with ${repMove.name}`
+        });
+      } else if (rm.accuracy && rm.accuracy <= 55 && !rm.isOhko) {
+        moveCritique.push({
+          slot: idx + 1,
+          move: rm.name,
+          flaw: `${rm.accuracy}% Low Accuracy (misses almost half the time)`,
+          recommendation: `Replace with reliable ${repMove.name}`
         });
       }
     });
@@ -1310,24 +1534,96 @@ function formatMovesetCard(analysis) {
   </div>`;
 }
 
-function evaluateEvolutionMoveSelection(pokemonOrName, availableMoves = [], collection = []) {
+function evaluateEvolutionMoveSelection(pokemonOrName, availableMovesInput = [], collection = []) {
   const pName = typeof pokemonOrName === 'string' ? pokemonOrName : (pokemonOrName ? (pokemonOrName.name || pokemonOrName.fullName) : 'Pokemon');
   const types = resolvePokemonTypes(pokemonOrName || pName, collection);
+  const defProfile = (teamEngine && typeof teamEngine.getDefensiveProfile === 'function')
+    ? teamEngine.getDefensiveProfile(types)
+    : { quadWeaknesses: [], weaknesses: [] };
+  const topWeakness = (defProfile.quadWeaknesses && defProfile.quadWeaknesses[0]) || (defProfile.weaknesses && defProfile.weaknesses[0]);
+
+  let currentMoves = [];
+  let evolutionMoves = [];
+  let allCandMoves = [];
+
+  if (availableMovesInput && typeof availableMovesInput === 'object' && !Array.isArray(availableMovesInput)) {
+    currentMoves = Array.isArray(availableMovesInput.currentMoves) ? availableMovesInput.currentMoves : [];
+    evolutionMoves = Array.isArray(availableMovesInput.evolutionMoves) ? availableMovesInput.evolutionMoves : [];
+    allCandMoves = [...currentMoves, ...evolutionMoves];
+  } else if (Array.isArray(availableMovesInput)) {
+    allCandMoves = availableMovesInput;
+    if (availableMovesInput.length === 8) {
+      currentMoves = availableMovesInput.slice(0, 4).map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : '')));
+      evolutionMoves = availableMovesInput.slice(4, 8).map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : '')));
+    } else {
+      availableMovesInput.forEach(m => {
+        const raw = typeof m === 'string' ? m : (m && m.name ? m.name : '');
+        if (m && m.source === 'current') currentMoves.push(raw);
+        else if (m && m.source === 'evolution') evolutionMoves.push(raw);
+      });
+    }
+  }
+
+  // Fallback: If evolutionMoves is empty, check STAGE_TRANSITIONS for keyMoves
+  if (evolutionMoves.length === 0) {
+    const baseSp = (teamEngine && typeof teamEngine.getBaseSpecies === 'function')
+      ? teamEngine.getBaseSpecies(pName).toLowerCase()
+      : pName.toLowerCase();
+    const transitions = STAGE_TRANSITIONS[baseSp];
+    if (transitions && transitions.length > 0 && transitions[0].keyMoves) {
+      evolutionMoves = transitions[0].keyMoves;
+    } else {
+      for (const k of Object.keys(STAGE_TRANSITIONS)) {
+        const tr = STAGE_TRANSITIONS[k].find(t => t.name.toLowerCase() === baseSp || t.name.toLowerCase() === pName.toLowerCase());
+        if (tr && tr.keyMoves) {
+          evolutionMoves = tr.keyMoves;
+          break;
+        }
+      }
+    }
+    if (allCandMoves.length === 0) {
+      allCandMoves = [...currentMoves, ...evolutionMoves];
+    }
+  }
+
+  // Detect duplicate attack moves between Current Attacks and Evolution's Attacks
+  const currentClean = currentMoves.map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : '')).trim()).filter(Boolean);
+  const evolutionClean = evolutionMoves.map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : '')).trim()).filter(Boolean);
+  const currentSet = new Set(currentClean.map(m => m.toLowerCase()));
+  const duplicateChoices = [];
+  const duplicateSet = new Set();
+  evolutionClean.forEach(em => {
+    if (currentSet.has(em.toLowerCase()) && !duplicateSet.has(em.toLowerCase())) {
+      duplicateChoices.push(em);
+      duplicateSet.add(em.toLowerCase());
+    }
+  });
 
   const moveList = [];
   const seen = new Set();
-  availableMoves.forEach(m => {
+  allCandMoves.forEach(m => {
     const rawName = typeof m === 'string' ? m : (m ? m.name : '');
     const clean = (rawName || '').trim();
     if (!clean || seen.has(clean.toLowerCase())) return;
     seen.add(clean.toLowerCase());
 
+    const resolved = (teamEngine && typeof teamEngine.resolveMove === 'function')
+      ? teamEngine.resolveMove(clean)
+      : null;
+
     const normId = clean.toLowerCase().replace(/[^a-z0-9]/g, '');
     const skill = skillsMap ? skillsMap[normId] : null;
-    let power = skill ? (skill.power || 0) : 0;
-    let type = skill ? (skill.type || 'Normal') : 'Normal';
 
-    if (!skill) {
+    let power = resolved ? (resolved.power || 0) : (skill ? (skill.power || 0) : 0);
+    let type = resolved ? (resolved.type || 'Normal') : (skill ? (skill.type || 'Normal') : 'Normal');
+    let accuracy = resolved ? (resolved.accuracy || 100) : 100;
+    const isStatus = resolved ? resolved.isStatus : (power === 0);
+    const isOhko = resolved ? resolved.isOhko : Boolean(skill && skill.special && skill.special.mechanic === 'ohko');
+    const isFixed = resolved ? resolved.isFixedDamage : Boolean(skill && skill.special && skill.special.mechanic === 'fixed_damage');
+    const isSuicide = resolved ? resolved.isSuicide : /explosion|self\-destruct|misty explosion/i.test(clean);
+    const isRecharge = resolved ? (resolved.isRecharge || resolved.isCharge) : /hyper beam|giga impact|blast burn|frenzy plant|hydro cannon/i.test(clean);
+
+    if (!resolved && !skill) {
       if (/thrash/i.test(clean)) { power = 120; type = 'Normal'; }
       else if (/dark pulse/i.test(clean)) { power = 80; type = 'Dark'; }
       else if (/rock slide/i.test(clean)) { power = 75; type = 'Rock'; }
@@ -1343,42 +1639,98 @@ function evaluateEvolutionMoveSelection(pokemonOrName, availableMoves = [], coll
     }
 
     const isStab = types.some(t => t.toLowerCase() === type.toLowerCase());
+    const isDup = duplicateSet.has(clean.toLowerCase());
 
     let effectiveScore = power;
-    if (power === 0) {
-      effectiveScore = -100;
-    } else if (isStab) {
-      effectiveScore = power * 1.5;
-    } else if (power <= 40) {
-      effectiveScore = power * 0.7;
+    let flawReason = null;
+
+    if (isStatus || power === 0) {
+      effectiveScore = -999;
+      flawReason = 'Status move (Deals 0 damage in DelugeRPG)';
+    } else if (isOhko) {
+      effectiveScore = -500;
+      flawReason = 'OHKO move (only 30% accuracy, misses 70% of turns)';
+    } else if (isFixed) {
+      effectiveScore = -400;
+      flawReason = /sonic/i.test(clean) ? 'Fixed 20 HP damage (negligible)' : 'Fixed 40 HP damage (negligible)';
+    } else if (isSuicide) {
+      effectiveScore = -350;
+      flawReason = 'Self-KO suicide move';
+    } else if (isRecharge) {
+      effectiveScore = (power * 0.5) * (accuracy / 100);
+      flawReason = 'Turn-skip / recharge penalty (wastes 1 full turn)';
+    } else {
+      let accFactor = accuracy / 100;
+      if (accuracy <= 70) {
+        accFactor *= 0.85;
+        flawReason = `Low accuracy (${accuracy}%)`;
+      }
+      effectiveScore = power * accFactor;
+
+      if (isStab) {
+        effectiveScore *= 1.5;
+      }
+      if (topWeakness && WEAKNESS_COVERAGE_MAP && WEAKNESS_COVERAGE_MAP[topWeakness] === type) {
+        effectiveScore *= 1.25;
+      }
     }
 
     moveList.push({
       name: clean,
       power: power,
       type: type,
+      accuracy: accuracy,
       isStab: isStab,
-      effectiveScore: effectiveScore
+      isDuplicate: isDup,
+      effectiveScore: effectiveScore,
+      flawReason: flawReason
     });
   });
 
+  // Sort candidates by effective score descending
   moveList.sort((a, b) => b.effectiveScore - a.effectiveScore);
 
-  const top4 = moveList.slice(0, 4);
-  const dropped = moveList.slice(4).map(m => {
-    let reason = 'Lower base power';
-    if (m.power === 0) {
-      reason = 'Status move (Deals 0 damage in DelugeRPG)';
-    } else if (!m.isStab && m.power <= 50) {
-      reason = 'Weak non-STAB attack';
-    } else if (top4.length > 0) {
-      const diff = top4[top4.length - 1].power - m.power;
-      reason = `${m.power} Pwr (${diff > 0 ? diff + ' Pwr weaker than ' + top4[top4.length - 1].name : 'lower priority'})`;
+  // Pick top 4, penalizing redundant weaker moves of identical typing if alternative coverage is present
+  const top4 = [];
+  const remaining = [];
+  const pickedTypesCount = {};
+
+  for (const m of moveList) {
+    if (top4.length < 4) {
+      const typeCount = pickedTypesCount[m.type] || 0;
+      if (typeCount >= 2 && m.effectiveScore > 0) {
+        remaining.push(m);
+      } else {
+        top4.push(m);
+        pickedTypesCount[m.type] = typeCount + 1;
+      }
+    } else {
+      remaining.push(m);
+    }
+  }
+
+  while (top4.length < 4 && remaining.length > 0) {
+    top4.push(remaining.shift());
+  }
+
+  const dropped = remaining.map(m => {
+    let reason = m.flawReason || 'Lower base power';
+    if (!m.flawReason) {
+      if (m.isDuplicate) {
+        reason = `Duplicate choice in form (${m.power} Pwr - tick only 1 checkbox)`;
+      } else if (!m.isStab && m.power <= 50) {
+        reason = `Weak non-STAB attack (${m.power} Pwr)`;
+      } else if (top4.length > 0) {
+        const lastTop = top4[top4.length - 1];
+        const diff = lastTop.power - m.power;
+        reason = `${m.power} Pwr (${diff > 0 ? diff + ' Pwr weaker than ' + lastTop.name : 'lower priority'})`;
+      }
     }
     return {
       name: m.name,
       power: m.power,
       type: m.type,
+      isDuplicate: m.isDuplicate,
       reason: reason
     };
   });
@@ -1388,6 +1740,9 @@ function evaluateEvolutionMoveSelection(pokemonOrName, availableMoves = [], coll
   return {
     targetPokemon: pName,
     types: types,
+    currentChoices: currentClean,
+    evolutionChoices: evolutionClean,
+    duplicateChoices: duplicateChoices,
     recommendedMoves: top4,
     dropMoves: dropped,
     slotOrder: slotOrder
@@ -1437,6 +1792,40 @@ const STAGE_TRANSITIONS = {
   ],
   manectric: [{ name: 'Mega Manectric', minLevel: 100, types: ['Electric'], bst: 575, mega: true, keyMoves: ['Thunderbolt', 'Flamethrower', 'Volt Switch', 'Hidden Power'] }],
   pinsir: [{ name: 'Mega Pinsir', minLevel: 100, types: ['Bug', 'Flying'], bst: 600, mega: true, keyMoves: ['X-Scissor', 'Quick Attack', 'Close Combat', 'Stone Edge'] }],
+  blastoise: [{ name: 'Mega Blastoise', minLevel: 100, types: ['Water'], bst: 630, mega: true, keyMoves: ['Hydro Pump', 'Water Pulse', 'Aura Sphere', 'Ice Beam'] }],
+  beedrill: [{ name: 'Mega Beedrill', minLevel: 100, types: ['Bug', 'Poison'], bst: 495, mega: true, keyMoves: ['Poison Jab', 'X-Scissor', 'Drill Run', 'U-turn'] }],
+  pidgeot: [{ name: 'Mega Pidgeot', minLevel: 100, types: ['Normal', 'Flying'], bst: 579, mega: true, keyMoves: ['Hurricane', 'Heat Wave', 'Air Slash', 'U-turn'] }],
+  gengar: [{ name: 'Mega Gengar', minLevel: 100, types: ['Ghost', 'Poison'], bst: 600, mega: true, keyMoves: ['Shadow Ball', 'Sludge Wave', 'Thunderbolt', 'Focus Blast'] }],
+  gyarados: [{ name: 'Mega Gyarados', minLevel: 100, types: ['Water', 'Dark'], bst: 640, mega: true, keyMoves: ['Waterfall', 'Crunch', 'Earthquake', 'Ice Fang'] }],
+  mewtwo: [
+    { name: 'Mega Mewtwo X', minLevel: 100, types: ['Psychic', 'Fighting'], bst: 780, mega: true, keyMoves: ['Psystrike', 'Close Combat', 'Drain Punch', 'Earthquake'] },
+    { name: 'Mega Mewtwo Y', minLevel: 100, types: ['Psychic'], bst: 780, mega: true, keyMoves: ['Psystrike', 'Psychic', 'Aura Sphere', 'Shadow Ball'] }
+  ],
+  ampharos: [{ name: 'Mega Ampharos', minLevel: 100, types: ['Electric', 'Dragon'], bst: 610, mega: true, keyMoves: ['Thunderbolt', 'Dragon Pulse', 'Focus Blast', 'Signal Beam'] }],
+  scizor: [{ name: 'Mega Scizor', minLevel: 100, types: ['Bug', 'Steel'], bst: 600, mega: true, keyMoves: ['Bullet Punch', 'X-Scissor', 'Close Combat', 'Superpower'] }],
+  heracross: [{ name: 'Mega Heracross', minLevel: 100, types: ['Bug', 'Fighting'], bst: 600, mega: true, keyMoves: ['Close Combat', 'Megahorn', 'Pin Missile', 'Rock Blast'] }],
+  tyranitar: [{ name: 'Mega Tyranitar', minLevel: 100, types: ['Rock', 'Dark'], bst: 700, mega: true, keyMoves: ['Stone Edge', 'Crunch', 'Earthquake', 'Fire Punch'] }],
+  sceptile: [{ name: 'Mega Sceptile', minLevel: 100, types: ['Grass', 'Dragon'], bst: 630, mega: true, keyMoves: ['Leaf Storm', 'Dragon Pulse', 'Energy Ball', 'Focus Blast'] }],
+  blaziken: [{ name: 'Mega Blaziken', minLevel: 100, types: ['Fire', 'Fighting'], bst: 630, mega: true, keyMoves: ['Flare Blitz', 'Close Combat', 'High Jump Kick', 'Stone Edge'] }],
+  gardevoir: [{ name: 'Mega Gardevoir', minLevel: 100, types: ['Psychic', 'Fairy'], bst: 618, mega: true, keyMoves: ['Moonblast', 'Psychic', 'Shadow Ball', 'Thunderbolt'] }],
+  gallade: [{ name: 'Mega Gallade', minLevel: 100, types: ['Psychic', 'Fighting'], bst: 618, mega: true, keyMoves: ['Close Combat', 'Psycho Cut', 'Zen Headbutt', 'Leaf Blade'] }],
+  sableye: [{ name: 'Mega Sableye', minLevel: 100, types: ['Dark', 'Ghost'], bst: 480, mega: true, keyMoves: ['Dark Pulse', 'Shadow Ball', 'Foul Play', 'Dazzling Gleam'] }],
+  mawile: [{ name: 'Mega Mawile', minLevel: 100, types: ['Steel', 'Fairy'], bst: 480, mega: true, keyMoves: ['Play Rough', 'Iron Head', 'Sucker Punch', 'Fire Fang'] }],
+  aggron: [{ name: 'Mega Aggron', minLevel: 100, types: ['Steel'], bst: 630, mega: true, keyMoves: ['Heavy Slam', 'Iron Head', 'Earthquake', 'Stone Edge'] }],
+  sharpedo: [{ name: 'Mega Sharpedo', minLevel: 100, types: ['Water', 'Dark'], bst: 560, mega: true, keyMoves: ['Crunch', 'Waterfall', 'Ice Fang', 'Psychic Fangs'] }],
+  camerupt: [{ name: 'Mega Camerupt', minLevel: 100, types: ['Fire', 'Ground'], bst: 560, mega: true, keyMoves: ['Fire Blast', 'Earth Power', 'Flamethrower', 'Flash Cannon'] }],
+  altaria: [{ name: 'Mega Altaria', minLevel: 100, types: ['Dragon', 'Fairy'], bst: 590, mega: true, keyMoves: ['Dragon Pulse', 'Moonblast', 'Hyper Voice', 'Earthquake'] }],
+  banette: [{ name: 'Mega Banette', minLevel: 100, types: ['Ghost'], bst: 555, mega: true, keyMoves: ['Shadow Claw', 'Phantom Force', 'Gunk Shot', 'Sucker Punch'] }],
+  absol: [{ name: 'Mega Absol', minLevel: 100, types: ['Dark'], bst: 565, mega: true, keyMoves: ['Night Slash', 'Sucker Punch', 'Play Rough', 'Close Combat'] }],
+  latias: [{ name: 'Mega Latias', minLevel: 100, types: ['Dragon', 'Psychic'], bst: 700, mega: true, keyMoves: ['Dragon Pulse', 'Psychic', 'Mist Ball', 'Ice Beam'] }],
+  latios: [{ name: 'Mega Latios', minLevel: 100, types: ['Dragon', 'Psychic'], bst: 700, mega: true, keyMoves: ['Draco Meteor', 'Luster Purge', 'Psychic', 'Thunderbolt'] }],
+  kyogre: [{ name: 'Primal Kyogre', minLevel: 100, types: ['Water'], bst: 770, mega: true, keyMoves: ['Origin Pulse', 'Hydro Pump', 'Ice Beam', 'Thunder'] }],
+  groudon: [{ name: 'Primal Groudon', minLevel: 100, types: ['Ground', 'Fire'], bst: 770, mega: true, keyMoves: ['Precipice Blades', 'Fire Blast', 'Earthquake', 'Stone Edge'] }],
+  lopunny: [{ name: 'Mega Lopunny', minLevel: 100, types: ['Normal', 'Fighting'], bst: 580, mega: true, keyMoves: ['High Jump Kick', 'Return', 'Close Combat', 'Ice Punch'] }],
+  garchomp: [{ name: 'Mega Garchomp', minLevel: 100, types: ['Dragon', 'Ground'], bst: 700, mega: true, keyMoves: ['Earthquake', 'Dragon Claw', 'Stone Edge', 'Fire Blast'] }],
+  lucario: [{ name: 'Mega Lucario', minLevel: 100, types: ['Fighting', 'Steel'], bst: 625, mega: true, keyMoves: ['Close Combat', 'Aura Sphere', 'Flash Cannon', 'Bullet Punch'] }],
+  abomasnow: [{ name: 'Mega Abomasnow', minLevel: 100, types: ['Grass', 'Ice'], bst: 594, mega: true, keyMoves: ['Blizzard', 'Wood Hammer', 'Giga Drain', 'Earthquake'] }],
+  diancie: [{ name: 'Mega Diancie', minLevel: 100, types: ['Rock', 'Fairy'], bst: 700, mega: true, keyMoves: ['Diamond Storm', 'Moonblast', 'Earth Power', 'Mystical Fire'] }],
   houndour: [
     { name: 'Houndoom', minLevel: 24, types: ['Dark', 'Fire'], bst: 500, keyMoves: ['Flamethrower', 'Dark Pulse', 'Fire Blast', 'Sludge Bomb'] }
   ],
@@ -1474,7 +1863,7 @@ const STAGE_TRANSITIONS = {
     { name: 'Urshifu (Single Strike)', minLevel: 1, types: ['Fighting', 'Dark'], bst: 550, gmax: true, keyMoves: ['Wicked Blow', 'Close Combat', 'Poison Jab', 'Iron Head'] },
     { name: 'Urshifu (Rapid Strike)', minLevel: 1, types: ['Fighting', 'Water'], bst: 550, gmax: true, keyMoves: ['Surging Strikes', 'Close Combat', 'Aqua Jet', 'Ice Punch'] }
   ],
-  cosmog: [{ name: 'Cosmoem', minLevel: 43, types: ['Psychic'], bst: 400, keyMoves: ['Teleport', 'Cosmic Power'] }],
+  cosmog: [{ name: 'Cosmoem', minLevel: 43, types: ['Psychic'], bst: 400, keyMoves: ['Teleport', 'Cosmic Power', 'Psyshock', 'Psychic'] }],
   cosmoem: [
     { name: 'Solgaleo', minLevel: 53, types: ['Psychic', 'Steel'], bst: 680, keyMoves: ['Sunsteel Strike', 'Zen Headbutt', 'Earthquake', 'Flare Blitz'] },
     { name: 'Lunala', minLevel: 53, types: ['Psychic', 'Ghost'], bst: 680, keyMoves: ['Moongeist Beam', 'Psychic', 'Ice Beam', 'Focus Blast'] }
@@ -1513,11 +1902,11 @@ function getEvolveReadyPokemon(userCollection) {
       for (const tr of transitions) {
         if (tr.name.toLowerCase() === baseSpecies) continue;
         const minLvl = tr.minLevel || (tr.mega ? 100 : 1);
-        if (tr.mega && (poke.level || 1) < 100 && !poke.canEvolve) {
-          continue;
+        if (tr.mega && (poke.level || 1) < 100) {
+          continue; // Mega Evolution strictly requires Level 100 in DelugeRPG
         }
-        const levelMet = (poke.level || 1) >= minLvl || Boolean(poke.canEvolve);
-        if (levelMet || Boolean(poke.canEvolve)) {
+        const levelMet = (poke.level || 1) >= minLvl || (Boolean(poke.canEvolve) && !tr.mega);
+        if (levelMet) {
           branches.push(tr);
         }
       }
@@ -1528,11 +1917,11 @@ function getEvolveReadyPokemon(userCollection) {
         for (const br of fam.branches) {
           if (br.name.toLowerCase() === baseSpecies) continue;
           const minLvl = br.minLevel || (br.mega ? 100 : 1);
-          if (br.mega && (poke.level || 1) < 100 && !poke.canEvolve) {
-            continue;
+          if (br.mega && (poke.level || 1) < 100) {
+            continue; // Mega Evolution strictly requires Level 100 in DelugeRPG
           }
-          const levelMet = (poke.level || 1) >= minLvl || Boolean(poke.canEvolve);
-          if (levelMet || Boolean(poke.canEvolve)) {
+          const levelMet = (poke.level || 1) >= minLvl || (Boolean(poke.canEvolve) && !br.mega);
+          if (levelMet) {
             branches.push(br);
           }
         }
@@ -1552,9 +1941,12 @@ function getEvolveReadyPokemon(userCollection) {
         const isDuplicate = ownership.isOwned || ownership.hasMegaOwned;
 
         // Combine current equipped moves and branch key moves for best 4 attacks evaluation
-        const currentMoves = Array.isArray(poke.moves) ? poke.moves.map(m => m.name || m) : [];
-        const candMoves = Array.from(new Set([...currentMoves, ...(br.keyMoves || [])]));
-        const moveAnalysis = evaluateEvolutionMoveSelection(br.name, candMoves, userCollection);
+        const currentMoves = Array.isArray(poke.moves) ? poke.moves.map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : ''))).filter(Boolean) : [];
+        const evolutionMoves = Array.isArray(br.keyMoves) ? br.keyMoves : [];
+        const moveAnalysis = evaluateEvolutionMoveSelection(br.name, {
+          currentMoves,
+          evolutionMoves
+        }, userCollection);
 
         return {
           name: br.name,
@@ -1566,6 +1958,7 @@ function getEvolveReadyPokemon(userCollection) {
           isDuplicate,
           status: isDuplicate ? 'DUPLICATE_BLOCKED' : 'NEW_UNIQUE',
           ownership,
+          keyMoves: evolutionMoves,
           moveAnalysis
         };
       });
@@ -1586,6 +1979,7 @@ function getEvolveReadyPokemon(userCollection) {
         variant: poke.variant || 'Normal',
         level: poke.level || 1,
         types: poke.types || resolvePokemonTypes(poke, userCollection),
+        moves: poke.moves || [],
         sprite: poke.sprite || '',
         inTeam: Boolean(poke.inTeam),
         canEvolve: Boolean(poke.canEvolve),
@@ -1607,11 +2001,82 @@ function getEvolveReadyPokemon(userCollection) {
   return readyList;
 }
 
+function getBoxPokemonMovesCollection(userCollection, filterMode = 'ALL') {
+  if (!Array.isArray(userCollection) || userCollection.length === 0) return [];
+  const list = [];
+
+  for (const poke of userCollection) {
+    if (!poke || !poke.name) continue;
+    const rawName = String(poke.name).trim();
+
+    if (filterMode === 'MEGAS' && !teamEngine.isActualMegaEvolution(rawName)) {
+      continue;
+    }
+
+    if (filterMode === 'TEAM' && !poke.inTeam) {
+      continue;
+    }
+
+    const types = resolvePokemonTypes(poke, userCollection);
+    const currentMoves = Array.isArray(poke.moves) ? poke.moves.map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : ''))).filter(Boolean) : [];
+    const moveAnalysis = recommendOptimalMoves(rawName, currentMoves, userCollection);
+    const currentCritiques = moveAnalysis.moveCritique || [];
+    const hasFlaws = currentCritiques.length > 0;
+
+    let moveStatus = 'OPTIMAL';
+    if (hasFlaws) {
+      moveStatus = 'NEEDS_OPTIMIZATION';
+    } else {
+      const equippedResolved = currentMoves.map(m => teamEngine.resolveMove(m));
+      const hasWeakMove = equippedResolved.some(m => m.power > 0 && m.power <= 60 && !m.isPriority);
+      if (hasWeakMove) {
+        moveStatus = 'CAN_IMPROVE';
+      }
+    }
+
+    if (filterMode === 'FLAWED' && moveStatus !== 'NEEDS_OPTIMIZATION') {
+      continue;
+    }
+
+    list.push({
+      id: poke.id || '',
+      name: rawName,
+      variant: poke.variant || 'Normal',
+      level: poke.level || 100,
+      types: types,
+      sprite: poke.sprite || '',
+      inTeam: Boolean(poke.inTeam),
+      currentMoves: currentMoves,
+      optimalMoves: moveAnalysis.optimalMoves,
+      moveCritique: currentCritiques,
+      moveStatus: moveStatus,
+      flawsCount: currentCritiques.length,
+      changeMoveUrl: poke.id ? `/pokemon/change_attack/${poke.id}` : null
+    });
+  }
+
+  // Sort: Needs optimization first, then can improve, then name
+  list.sort((a, b) => {
+    if (a.moveStatus === 'NEEDS_OPTIMIZATION' && b.moveStatus !== 'NEEDS_OPTIMIZATION') return -1;
+    if (a.moveStatus !== 'NEEDS_OPTIMIZATION' && b.moveStatus === 'NEEDS_OPTIMIZATION') return 1;
+    if (a.moveStatus === 'CAN_IMPROVE' && b.moveStatus === 'OPTIMAL') return -1;
+    if (a.moveStatus === 'OPTIMAL' && b.moveStatus === 'CAN_IMPROVE') return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return list;
+}
+
+function getMegaPokemonCollection(userCollection) {
+  return getBoxPokemonMovesCollection(userCollection, 'MEGAS');
+}
+
 module.exports = {
   EVOLUTION_FAMILIES,
   TOP_STAB_MOVES,
   SPECIES_DEFAULT_TYPES,
   STAGE_TRANSITIONS,
+  CANONICAL_SPECIES_MOVES,
   resolvePokemonTypes,
   findFamily,
   checkEvolutionOwnership,
@@ -1619,6 +2084,8 @@ module.exports = {
   recommendOptimalMoves,
   evaluateEvolutionMoveSelection,
   getEvolveReadyPokemon,
+  getBoxPokemonMovesCollection,
+  getMegaPokemonCollection,
   formatEvolutionCard,
   formatMovesetCard,
   evaluateOwnershipAndMegaEquivalence: teamEngine.evaluateOwnershipAndMegaEquivalence

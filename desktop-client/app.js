@@ -2926,7 +2926,7 @@ delugeView.addEventListener('ipc-message', (event) => {
     const targetX = Math.round(typeof payload.x === 'number' ? payload.x : -1);
     const targetY = Math.round(typeof payload.y === 'number' ? payload.y : -1);
 
-    if (targetX < 0 || targetY < 0 || targetY <= 50 || (targetX <= 80 && targetY <= 80)) {
+    if (targetX < 0 || targetY < 0 || targetY <= 35 || (targetX <= 75 && targetY <= 75)) {
       backendLog('ACTION_AUDIT', `Blocked hardware click in invalid or header/logo zone (${targetX}, ${targetY})`);
       if (payload.reqId) {
         try {
@@ -2936,13 +2936,17 @@ delugeView.addEventListener('ipc-message', (event) => {
       return;
     }
 
-    const offsetX = Math.floor((Math.random() - 0.5) * 36) || 14;
-    const offsetY = Math.floor((Math.random() - 0.5) * 36) || 12;
+    const offsetX = Math.floor((Math.random() - 0.5) * 32) || 12;
+    const offsetY = Math.floor((Math.random() - 0.5) * 28) || 10;
     const approachX = Math.max(1, targetX + offsetX);
     const approachY = Math.max(1, targetY + offsetY);
-    const moveGapMs = 135 + Math.floor(Math.random() * 25);
-    const pressDelayMs = 24 + Math.floor(Math.random() * 20);
-    const holdDurationMs = 48 + Math.floor(Math.random() * 35);
+    const midX = Math.max(1, Math.round(targetX + offsetX * 0.4 + (Math.random() - 0.5) * 6));
+    const midY = Math.max(1, Math.round(targetY + offsetY * 0.4 + (Math.random() - 0.5) * 6));
+
+    const moveStep1Ms = 60 + Math.floor(Math.random() * 20);
+    const moveStep2Ms = 50 + Math.floor(Math.random() * 20);
+    const pressDelayMs = 28 + Math.floor(Math.random() * 25);
+    const holdDurationMs = 52 + Math.floor(Math.random() * 38);
 
     try {
       delugeView.sendInputEvent({ type: 'mouseMove', x: approachX, y: approachY });
@@ -2950,29 +2954,35 @@ delugeView.addEventListener('ipc-message', (event) => {
 
     setTimeout(() => {
       try {
-        delugeView.sendInputEvent({ type: 'mouseMove', x: targetX, y: targetY });
+        delugeView.sendInputEvent({ type: 'mouseMove', x: midX, y: midY });
       } catch (_) {}
 
       setTimeout(() => {
         try {
-          delugeView.sendInputEvent({ type: 'mouseDown', x: targetX, y: targetY, button: 'left', clickCount: 1 });
+          delugeView.sendInputEvent({ type: 'mouseMove', x: targetX, y: targetY });
         } catch (_) {}
 
         setTimeout(() => {
           try {
-            delugeView.sendInputEvent({ type: 'mouseUp', x: targetX, y: targetY, button: 'left', clickCount: 1 });
+            delugeView.sendInputEvent({ type: 'mouseDown', x: targetX, y: targetY, button: 'left', clickCount: 1 });
           } catch (_) {}
 
-          if (payload.reqId) {
-            setTimeout(() => {
-              try {
-                delugeView.send('trusted-click-done', { reqId: payload.reqId });
-              } catch (_) {}
-            }, 18);
-          }
-        }, holdDurationMs);
-      }, pressDelayMs);
-    }, moveGapMs);
+          setTimeout(() => {
+            try {
+              delugeView.sendInputEvent({ type: 'mouseUp', x: targetX, y: targetY, button: 'left', clickCount: 1 });
+            } catch (_) {}
+
+            if (payload.reqId) {
+              setTimeout(() => {
+                try {
+                  delugeView.send('trusted-click-done', { reqId: payload.reqId });
+                } catch (_) {}
+              }, 18);
+            }
+          }, holdDurationMs);
+        }, pressDelayMs);
+      }, moveStep2Ms);
+    }, moveStep1Ms);
     return;
   }
 

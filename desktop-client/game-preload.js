@@ -91,11 +91,12 @@ function flushPendingUserNavClick() {
     pendingUserNavClick = null;
     try {
         console.log('[PokePreload] Dispatching queued manual user move:', action.direction);
-        if (action.button && typeof action.button.click === 'function') {
-            action.button.click();
-            ipcRenderer.sendToHost('user-action-dispatched', {
-                direction: action.direction,
-                waitedMs: now - action.time
+        if (action.button) {
+            dispatchHumanClick(action.button, () => {
+                ipcRenderer.sendToHost('user-action-dispatched', {
+                    direction: action.direction,
+                    waitedMs: now - action.time
+                });
             });
         }
     } catch (_) {}
@@ -1605,22 +1606,6 @@ function dispatchHumanClick(el, callback) {
             if (completed) return;
             completed = true;
             ipcRenderer.removeListener('trusted-click-done', onTrustedDone);
-            try {
-                if (typeof PointerEvent === 'function') {
-                    el.dispatchEvent(new PointerEvent('pointerover', moveProps));
-                    el.dispatchEvent(new PointerEvent('pointerdown', downProps));
-                }
-                el.dispatchEvent(new MouseEvent('mouseover', moveProps));
-                el.dispatchEvent(new MouseEvent('mousedown', downProps));
-            } catch (_) {}
-            const upProps = Object.assign({}, moveProps, { buttons: 0, button: 0 });
-            try {
-                if (typeof PointerEvent === 'function') {
-                    el.dispatchEvent(new PointerEvent('pointerup', upProps));
-                }
-            } catch (_) {}
-            el.dispatchEvent(new MouseEvent('mouseup', upProps));
-            try { el.click(); } catch (_) {}
             _internalAuthorizedClickFlag = false;
             __delugeAutoCatchAuthorizedClick = false;
             if (typeof callback === 'function') callback();
@@ -1640,7 +1625,7 @@ function dispatchHumanClick(el, callback) {
         };
 
         ipcRenderer.on('trusted-click-done', onTrustedDone);
-        setTimeout(finishAction, 380);
+        setTimeout(finishAction, 1500);
 
         if (!coords.valid || (coords.x <= 75 && coords.y <= 75)) {
             finishAction();
@@ -1661,7 +1646,6 @@ function dispatchHumanClick(el, callback) {
             _internalAuthorizedClickFlag = true;
             __delugeAutoCatchAuthorizedClick = true;
         }
-        try { el.click(); } catch (_) {}
         _internalAuthorizedClickFlag = false;
         __delugeAutoCatchAuthorizedClick = false;
         if (typeof callback === 'function') callback();
@@ -3496,17 +3480,16 @@ ipcRenderer.on('click-nav-button', (event, data) => {
                     if (!done) {
                         ipcRenderer.removeListener('trusted-key-done', onDone);
                         isBotNavClickInProgress = false;
-                        try { btn.click(); } catch (_) {}
+                        dispatchHumanClick(btn, () => { isBotNavClickInProgress = false; });
                     }
                 }, 260);
                 ipcRenderer.sendToHost('trusted-key-step', { direction: dir, reqId });
             } else {
-                try { btn.click(); } catch (_) {}
-                setTimeout(() => { isBotNavClickInProgress = false; }, 80);
+                dispatchHumanClick(btn, () => { isBotNavClickInProgress = false; });
             }
         } catch (_) {
             isBotNavClickInProgress = false;
-            try { btn.click(); } catch (__) {}
+            dispatchHumanClick(btn, () => { isBotNavClickInProgress = false; });
         }
     }
 });
@@ -7394,7 +7377,7 @@ ipcRenderer.on('trigger-evolve-pokemon', (event, data) => {
         const link = document.querySelector(`a[href*="/pokemon/evolve/${pokeId}"]`) ||
                      document.querySelector(`a.evolve[href*="${pokeId}"]`);
         if (link) {
-            link.click();
+            dispatchHumanClick(link);
             return;
         }
 
@@ -7406,7 +7389,7 @@ ipcRenderer.on('trigger-evolve-pokemon', (event, data) => {
             if (text.includes(pokeName)) {
                 const evoLink = row.querySelector('a.evolve, a[href*="/pokemon/evolve/"]');
                 if (evoLink) {
-                    evoLink.click();
+                    dispatchHumanClick(evoLink);
                     return;
                 }
             }
@@ -7425,7 +7408,7 @@ ipcRenderer.on('trigger-change-attack', (event, data) => {
             const link = document.querySelector(`a.chgattack[href*="${pokeId}"]`) ||
                          document.querySelector(`a[href*="/pokemon/change_attack/${pokeId}"]`);
             if (link) {
-                link.click();
+                dispatchHumanClick(link);
                 return;
             }
         }
@@ -7439,7 +7422,7 @@ ipcRenderer.on('trigger-change-attack', (event, data) => {
                 if (text.includes(pokeName)) {
                     const chgLink = row.querySelector('a.chgattack, a[href*="/pokemon/change_attack/"]');
                     if (chgLink) {
-                        chgLink.click();
+                        dispatchHumanClick(chgLink);
                         return;
                     }
                 }

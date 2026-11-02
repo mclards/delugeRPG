@@ -6319,6 +6319,21 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
                         message: 'Clicked ' + (battleBtn.value || battleBtn.textContent || 'Continue')
                     });
                 });
+            } else {
+                if (!data.__clickRetry) {
+                    data.__clickRetry = true;
+                    setTimeout(() => {
+                        if (typeof ipcRenderer !== 'undefined') {
+                            ipcRenderer.emit('apply-ai-battle-action', null, data);
+                        }
+                    }, 220);
+                    return;
+                }
+                ipcRenderer.sendToHost('ai-battle-action-status', {
+                    success: false,
+                    action: 'click-battle-button',
+                    message: 'Waiting for Battle button...'
+                });
             }
         } else if (data.action === 'execute-battle-move') {
             const rawTargetMove = (data.moveName || '').toLowerCase().trim();
@@ -6478,6 +6493,12 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
                             });
                         }
                     } else {
+                        // If attack button isn't immediately detected, retry once in 220ms for DOM animation
+                        if (!data.__submitRetry) {
+                            data.__submitRetry = true;
+                            setTimeout(proceedToAttackSubmit, 220);
+                            return;
+                        }
                         ipcRenderer.sendToHost('ai-battle-action-status', {
                             success: false,
                             action: 'execute-battle-move',
@@ -6524,6 +6545,22 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
                             move: 'Continue',
                             message: 'Turn transition: Clicked ' + (fallbackBtn.value || fallbackBtn.textContent || 'Continue')
                         });
+                    });
+                } else {
+                    // Retry once in 220ms if turn transition button is still fading in
+                    if (!data.__fallbackRetry) {
+                        data.__fallbackRetry = true;
+                        setTimeout(() => {
+                            if (typeof ipcRenderer !== 'undefined') {
+                                ipcRenderer.emit('apply-ai-battle-action', null, data);
+                            }
+                        }, 220);
+                        return;
+                    }
+                    ipcRenderer.sendToHost('ai-battle-action-status', {
+                        success: false,
+                        action: 'execute-battle-move',
+                        message: 'Waiting for Turn Transition button...'
                     });
                 }
             }

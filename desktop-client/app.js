@@ -3268,16 +3268,37 @@ delugeView.addEventListener('ipc-message', (event) => {
     }
     if (teamActionStatus) {
       if (data.success === false) {
-        if (battleAutoStepTimer) {
-          clearTimeout(battleAutoStepTimer);
-          battleAutoStepTimer = null;
-        }
-        isBattleAutoRunning = false;
-        teamActionStatus.textContent = data.message || 'Action Failed';
+        teamActionStatus.textContent = data.message || 'Action in progress...';
         teamActionStatus.style.color = '#f87171';
+        if (isUnlockChallengeActive || isCaptchaAlarmActive) {
+          if (battleAutoStepTimer) {
+            clearTimeout(battleAutoStepTimer);
+            battleAutoStepTimer = null;
+          }
+          isBattleAutoRunning = false;
+        } else if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
+          if (battleAutoStepTimer) clearTimeout(battleAutoStepTimer);
+          battleAutoStepTimer = setTimeout(() => {
+            battleAutoStepTimer = null;
+            if (delugeView && typeof delugeView.send === 'function') {
+              delugeView.send('check-battle-opponents');
+            }
+          }, 750);
+        }
       } else {
         teamActionStatus.textContent = data.action === 'select-lead-and-start' ? 'Battle Started!' : 'Move Cast!';
         teamActionStatus.style.color = '#10b981';
+        // Watchdog: If next turn does not schedule within 1200ms, request live battle state from webview
+        if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isUnlockChallengeActive && !isCaptchaAlarmActive) {
+          if (!battleAutoStepTimer) {
+            battleAutoStepTimer = setTimeout(() => {
+              battleAutoStepTimer = null;
+              if (delugeView && typeof delugeView.send === 'function') {
+                delugeView.send('check-battle-opponents');
+              }
+            }, 1200);
+          }
+        }
       }
       setTimeout(() => {
         if (teamActionStatus && (teamActionStatus.textContent === 'Battle Started!' || teamActionStatus.textContent === 'Move Cast!' || teamActionStatus.textContent === 'Action Failed')) {
@@ -9150,9 +9171,17 @@ function updateTeamBuilderBattleAction(battleData) {
       clearTimeout(battleAutoStepTimer);
       battleAutoStepTimer = null;
     }
-    isBattleAutoRunning = false;
     teamBattleActionSlot.style.display = 'none';
     teamBattleActionBtn.onclick = null;
+    // Resilient poll: If auto is armed during a transient DOM transition, re-check in 600ms
+    if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isUnlockChallengeActive && !isCaptchaAlarmActive) {
+      battleAutoStepTimer = setTimeout(() => {
+        battleAutoStepTimer = null;
+        if (delugeView && typeof delugeView.send === 'function') {
+          delugeView.send('check-battle-opponents');
+        }
+      }, 600);
+    }
     return;
   }
 
@@ -9209,15 +9238,21 @@ function updateTeamBuilderBattleAction(battleData) {
         isBattleAutoRunning = false;
         return;
       }
-      if (typeof config.action === 'function' && !teamBattleActionBtn.disabled) {
+      if (typeof config.action === 'function' && !config.disabled) {
         if (teamActionStatus) {
           teamActionStatus.textContent = 'Auto executing turn...';
           teamActionStatus.style.color = '#388bfd';
         }
         teamBattleActionBtn.disabled = true;
         config.action();
-      } else {
-        isBattleAutoRunning = false;
+      } else if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isComplete) {
+        // If DOM was mid-animation or action briefly unready, re-poll rather than stopping
+        battleAutoStepTimer = setTimeout(() => {
+          battleAutoStepTimer = null;
+          if (delugeView && typeof delugeView.send === 'function') {
+            delugeView.send('check-battle-opponents');
+          }
+        }, 500);
       }
     }, autoDelay);
   }

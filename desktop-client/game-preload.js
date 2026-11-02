@@ -5329,6 +5329,7 @@ function extractProfileMetadataFromContainer(root) {
 let lastBroadcastBattleSig = null;
 let lastKnownUserTeam = [];
 let lastKnownOpponentRoster = [];
+let lastKnownTrainerName = '';
 const knownVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
 const observedOpponentMoveKeys = new Set();
 
@@ -5840,6 +5841,13 @@ function detectBattleOpponents(isManualCheck) {
                 }
             } catch (_) {}
 
+            if (trainerName && trainerName !== 'Opponent' && trainerName !== 'Challenger' && trainerName !== 'Wild Pokemon') {
+                lastKnownTrainerName = trainerName;
+            }
+            if (Array.isArray(roster) && roster.length > 0) {
+                lastKnownOpponentRoster = roster.map(r => Object.assign({}, r));
+            }
+
             ipcRenderer.sendToHost('battle-opponents-detected', {
                 trainerName: trainerName,
                 trainerTitle: trainerTitle,
@@ -6078,24 +6086,82 @@ function detectBattleOpponents(isManualCheck) {
             }
         }
 
-        // Mode 3: Post-Battle / Victory Screen (#viewpokes .viewpoketable)
+        // Mode 3: Post-Battle Screen (Victory or Defeat)
+        const notifyBox = document.querySelector('.notify_done, .notify_error, .notify_fail, .notify_alert, .notify_ok, .notify, .alert, div[class*="notify"], #bresult, #cresult');
         const viewPokes = document.getElementById('viewpokes');
-        const notifyDone = document.querySelector('.notify_done');
-        if (viewPokes && notifyDone) {
-            const notifText = notifyDone.textContent || '';
-            const tMatch = notifText.match(/defeated\s+<b>?(.+?)<\/b>?\./i) || notifText.match(/defeated\s+(.+?)\./i);
-            const trainerName = tMatch ? tMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+        const rematchLink = document.querySelector('a[href*="/battle/trainer/"], a[href*="/battle/gym/"], a[href*="/battle/"]');
+        const pageText = (notifyBox ? notifyBox.textContent : (document.body ? document.body.textContent : '')) || '';
 
-            if (trainerName) {
-                ipcRenderer.sendToHost('battle-opponents-detected', {
-                    trainerName: trainerName,
-                    trainerTitle: trainerName + "'s Team",
-                    roster: (lastKnownOpponentRoster && lastKnownOpponentRoster.length > 0) ? lastKnownOpponentRoster : [],
-                    isVictoryScreen: true,
-                    battleUrl: window.location.pathname + window.location.search,
-                    isManualCheck: !!isManualCheck
-                });
+        const hasRematchText = /Battle This Trainer Again/i.test(pageText) || (rematchLink && /NORMAL BATTLE/i.test(rematchLink.textContent || ''));
+        const isVictory = /congratulations|you defeated|you beat|gained\s+.*exp/i.test(pageText);
+        const isDefeat = /were defeated by|have been defeated by|defeated by|lost (?:the )?battle|all (?:of )?your pok[e\xE9]mon (?:have )?fainted/i.test(pageText);
+
+        if ((notifyBox && (isVictory || isDefeat)) || hasRematchText || (viewPokes && isVictory)) {
+            let trainerName = '';
+            if (isDefeat) {
+                const dMatch = pageText.match(/(?:were|was|have been)?\s*defeated by\s+<b>?(.+?)<\/b>?(?:\.|\s|$)/i) ||
+                               pageText.match(/lost (?:the battle )?against\s+<b>?(.+?)<\/b>?(?:\.|\s|$)/i);
+                if (dMatch) trainerName = dMatch[1].replace(/<[^>]+>/g, '').trim();
+            } else {
+                const vMatch = pageText.match(/(?:congratulations!?\s+)?you defeated\s+<b>?(.+?)<\/b>?(?:\.|\s|$)/i) ||
+                               pageText.match(/defeated\s+<b>?(.+?)<\/b>?\./i) ||
+                               pageText.match(/defeated\s+(.+?)\./i);
+                if (vMatch) trainerName = vMatch[1].replace(/<[^>]+>/g, '').trim();
             }
+            if (trainerName.toLowerCase().startsWith('by ')) {
+                trainerName = trainerName.substring(3).trim();
+            }
+            if (!trainerName) {
+                trainerName = lastKnownTrainerName || 'Trainer';
+            }
+
+            const userTeam = [];
+            if (viewPokes) {
+                const vpTables = viewPokes.querySelectorAll('.viewpoketable, .battlelistitem, div[class*="poke"]');
+                for (let i = 0; i < vpTables.length; i++) {
+                    const tbl = vpTables[i];
+                    const h4 = tbl.querySelector('h4, .name, b');
+                    const pName = h4 ? h4.textContent.trim() : '';
+                    if (!pName) continue;
+                    let pLevel = 100;
+                    const txt = tbl.textContent || '';
+                    const m = txt.match(/Level:\s*(\d+)/i);
+                    if (m) pLevel = parseInt(m[1], 10);
+                    userTeam.push({
+                        name: pName,
+                        level: pLevel
+                    });
+                }
+            }
+            if (userTeam.length > 0) {
+                if (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > userTeam.length) {
+                    lastKnownUserTeam.forEach(mem => {
+                        const up = userTeam.find(u => u.name && u.name.toLowerCase() === mem.name.toLowerCase());
+                        if (up && up.level) mem.level = up.level;
+                    });
+                } else {
+                    lastKnownUserTeam = userTeam.map(u => Object.assign({}, u));
+                }
+            }
+
+            const postSig = 'POST_BATTLE:' + trainerName + ':' + (isDefeat ? 'DEFEAT' : 'VICTORY') + ':' + (lastKnownUserTeam || []).map(u => u.name + '_' + u.level).join(',');
+            if (!isManualCheck && postSig === lastBroadcastBattleSig) {
+                return;
+            }
+            lastBroadcastBattleSig = postSig;
+
+            ipcRenderer.sendToHost('battle-opponents-detected', {
+                trainerName: trainerName,
+                trainerTitle: trainerName + "'s Team",
+                roster: (lastKnownOpponentRoster && lastKnownOpponentRoster.length > 0) ? lastKnownOpponentRoster : [],
+                userTeam: (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > 0) ? lastKnownUserTeam : (userTeam.length > 0 ? userTeam : []),
+                isVictoryScreen: Boolean(isVictory && !isDefeat),
+                isDefeatScreen: Boolean(isDefeat),
+                isPostBattleScreen: true,
+                battleUrl: window.location.pathname + window.location.search,
+                isManualCheck: !!isManualCheck
+            });
+            return;
         }
 
         // Mode 4: NPC Profile Page (/npc/*)
@@ -6164,6 +6230,33 @@ function detectBattleOpponents(isManualCheck) {
         console.warn('[PokePreload] Error detecting battle opponent:', err);
     }
 }
+
+ipcRenderer.on('click-rematch-button', () => {
+    try {
+        if (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) return;
+        const allLinks = Array.from(document.querySelectorAll('a, input[type="button"], input[type="submit"], button'));
+        let rematchEl = null;
+        for (let i = 0; i < allLinks.length; i++) {
+            const el = allLinks[i];
+            if (!isElementVisible(el) || isCatchHoneypotTrap(el)) continue;
+            const txt = (el.textContent || el.value || '').trim().toLowerCase();
+            const href = (el.getAttribute('href') || el.href || '').toLowerCase();
+            if (txt.includes('normal battle') || (href.includes('/battle/trainer/') && !href.includes('/inverse'))) {
+                rematchEl = el;
+                break;
+            }
+        }
+        if (rematchEl) {
+            dispatchHumanClick(rematchEl, () => {
+                ipcRenderer.sendToHost('ai-battle-action-status', {
+                    success: true,
+                    action: 'click-rematch-button',
+                    message: 'Rematch initiated'
+                });
+            });
+        }
+    } catch (_) {}
+});
 
 ipcRenderer.on('check-battle-opponents', () => {
     detectBattleOpponents(true);
@@ -7062,19 +7155,27 @@ function detectEvolveCard() {
             return null;
         }
 
-        const dModal = document.getElementById('DModal');
-        const dmBody = document.getElementById('DMbody');
-        const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, div[id*="modal" i], form[action*="evolve" i]');
-        
+        const allMoveContainers = Array.from(document.querySelectorAll('#DModal, #DMbody, #delugemodal, .modal, div[id*="modal" i], form[action*="evolve" i], form[action*="attack" i]'));
+        let modalContainer = null;
+        for (let i = 0; i < allMoveContainers.length; i++) {
+            const el = allMoveContainers[i];
+            if (el.style && el.style.display === 'none') continue;
+            const ariaHidden = el.getAttribute ? el.getAttribute('aria-hidden') : null;
+            if (ariaHidden === 'true') continue;
+            const bTxt = (el.textContent || '').toLowerCase();
+            const tTxt = (el.querySelector('#DMtitle, .modal-title, h1, h2, h3, h4')?.textContent || '').toLowerCase();
+            if (bTxt.includes('choose any four attacks') || bTxt.includes('can evolve into') || tTxt.includes('evolve')) {
+                modalContainer = el;
+                break;
+            }
+        }
+        if (!modalContainer) {
+            const bodyTxt = (document.body ? document.body.textContent : '').toLowerCase();
+            if (bodyTxt.includes('choose any four attacks')) {
+                modalContainer = document.querySelector('form[action*="evolve" i], form[action*="attack" i], #content, body');
+            }
+        }
         if (!modalContainer) return null;
-        if (modalContainer.style && modalContainer.style.display === 'none') return null;
-        if (modalContainer.offsetParent === null && !(modalContainer.classList && (modalContainer.classList.contains('in') || modalContainer.classList.contains('show')))) {
-            return null;
-        }
-        const ariaHidden = modalContainer.getAttribute ? modalContainer.getAttribute('aria-hidden') : null;
-        if (ariaHidden === 'true' && !(modalContainer.classList && (modalContainer.classList.contains('in') || modalContainer.classList.contains('show')))) {
-            return null;
-        }
 
         const titleEl = modalContainer.querySelector('#DMtitle, .modal-title, h1, h2, h3, h4');
         const titleText = titleEl ? (titleEl.textContent || '').trim() : '';
@@ -7088,7 +7189,10 @@ function detectEvolveCard() {
 
         // CASE 1: Move Selection upon Evolution or Change Attacks
         if (hasMoveSelectionPrompt) {
-            const checkboxes = Array.from(modalContainer.querySelectorAll('input[type="checkbox"]'));
+            let checkboxes = Array.from(modalContainer.querySelectorAll('input[type="checkbox"]'));
+            if (checkboxes.length === 0) {
+                checkboxes = Array.from(document.querySelectorAll('input[type="checkbox"]'));
+            }
             const currentChoices = [];
             const evolutionChoices = [];
             const availableMoves = [];
@@ -7358,7 +7462,10 @@ ipcRenderer.on('apply-recommended-moves', (event, data) => {
 
         const dModal = document.getElementById('DModal');
         const dmBody = document.getElementById('DMbody');
-        const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, div[id*="modal" i], form[action*="evolve" i], form[action*="attack" i]');
+        let modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, div[id*="modal" i], form[action*="evolve" i], form[action*="attack" i]');
+        if (!modalContainer || !modalContainer.querySelector('input[type="checkbox"]')) {
+            modalContainer = document.querySelector('form[action*="evolve" i], form[action*="attack" i], body');
+        }
         if (!modalContainer) return;
 
         const checkboxes = Array.from(modalContainer.querySelectorAll('input[type="checkbox"]'));

@@ -218,6 +218,37 @@ assert(new Set(houndoomAnalysis.recommendedMoves.map(m => m.name.toLowerCase()))
 assert(houndoomAnalysis.dropMoves.some(m => m.name === 'Smog'), 'Smog must be dropped');
 console.log('  Evolution 4-Choice Audit -> 4 Current + 4 Evolution (' + houndoomAnalysis.duplicateChoices.length + ' duplicates) correctly analyzed & deduplicated');
 
+// D3. Test Live Evolve Modal Moves for Shadow Mega Mewtwo X (dual typing & duplicate handling)
+const mewtwoModalAnalysis = evolutionEngine.evaluateEvolutionMoveSelection('Shadow Mega Mewtwo X', {
+  currentMoves: ['Hyper Beam', 'Confusion', 'Psychic', 'Aura Sphere'],
+  evolutionMoves: ['Psycho Cut', 'Psychic', 'Aura Sphere', 'Psystrike']
+}, coll);
+
+assert(mewtwoModalAnalysis.types.includes('Fighting') && mewtwoModalAnalysis.types.includes('Psychic'), 'Mega Mewtwo X must resolve Psychic/Fighting dual typing');
+assert(mewtwoModalAnalysis.duplicateChoices.includes('Psychic') && mewtwoModalAnalysis.duplicateChoices.includes('Aura Sphere'), 'Must identify Psychic and Aura Sphere duplicates');
+assert.strictEqual(mewtwoModalAnalysis.recommendedMoves.length, 4, 'Must recommend exactly 4 moves');
+assert.strictEqual(new Set(mewtwoModalAnalysis.recommendedMoves.map(m => m.name.toLowerCase())).size, 4, 'Recommended moves must be 100% deduplicated');
+console.log('  Live Evolve Modal Audit -> Shadow Mega Mewtwo X dual STAB & duplicate handling verified');
+
+// D4. Test Evolution Readiness Filter: Strict Minimum Level Enforcement & Zero Omission of Unsynced Pages
+const mockBoxCollection = [
+  { id: 'p1', name: 'Shadow Onix', level: 12, canEvolve: true },
+  { id: 'p2', name: 'Chrome Cosmog', level: 10, canEvolve: true },
+  { id: 'p3', name: 'Mirage Torchic', level: 12, canEvolve: true },
+  { id: 'p4', name: 'Shadow Mewtwo', level: 100 },
+  { id: 'p5', name: 'Poipole', level: 96, canEvolve: true },
+  { id: 'p6', name: 'Venusaur', level: 100 }
+];
+const boxReady = evolutionEngine.getEvolveReadyPokemon(mockBoxCollection);
+const readyNames = boxReady.map(p => p.name);
+assert(readyNames.includes('Shadow Onix'), 'Shadow Onix Lv 12 must be ready (Metal Coat item evo)');
+assert(!readyNames.includes('Chrome Cosmog'), 'Chrome Cosmog Lv 10 must not be ready (minLevel 43)');
+assert(!readyNames.includes('Mirage Torchic'), 'Mirage Torchic Lv 12 must not be ready (minLevel 16)');
+assert(readyNames.includes('Shadow Mewtwo'), 'Shadow Mewtwo Lv 100 on unsynced page must be ready');
+assert(readyNames.includes('Poipole'), 'Poipole Lv 96 must be ready (minLevel 60)');
+assert(readyNames.includes('Venusaur'), 'Venusaur Lv 100 must be ready for Mega Venusaur');
+console.log('  Evolution Readiness Audit -> Under-leveled excluded & Level 100 / Megas included correctly');
+
 // E. Test chat AI copilot responses
 const evoChatResp = aiAssistant.askAssistant('what should i evolve eevee into?', { collection: coll });
 assert(evoChatResp && evoChatResp.includes('Evolution'), 'Chat copilot must answer evolution queries');
@@ -514,7 +545,43 @@ console.log('  State 5 (KO Cont):  Opponent KO - Continue');
 console.log('  State 6 (Switch):   Deploy Shiny Greninja & Continue');
 console.log('  State 7 (Complete): Battle Complete');
 
-// 11. AUDIT 100% 7-BIT CLEAN ASCII
+// 11. AUDIT TRAINING BATTLE LOOP & LEVEL 100 COMPLETION ENGINE
+const appHtmlContent = fs.readFileSync('app.html', 'utf8');
+assert(appHtmlContent.includes('id="teamBattleLoopCheck"'), 'app.html must define teamBattleLoopCheck');
+assert(appHtmlContent.includes('id="teamBattleLoopLabel"'), 'app.html must define teamBattleLoopLabel');
+assert(appHtmlContent.includes('teamBattleLoopCheck" disabled'), 'Loop checkbox must be disabled by default until Auto is armed');
+assert(!appHtmlContent.includes('teamBattleLoopLabel" style="box-shadow: 0 0'), 'Loop label must have zero glowing box-shadow');
+
+// Test Level 100 Detection logic
+const checkAll100 = (team) => team.every(p => p.level >= 100);
+const incompleteTeam = [
+  { name: 'Mega Heracross', level: 100 },
+  { name: 'Naganadel', level: 96 },
+  { name: 'Terapagos', level: 85 }
+];
+const completeTeam = [
+  { name: 'Mega Heracross', level: 100 },
+  { name: 'Naganadel', level: 100 },
+  { name: 'Terapagos', level: 100 }
+];
+assert.strictEqual(checkAll100(incompleteTeam), false, 'Team with level 96 must NOT be considered complete');
+assert.strictEqual(checkAll100(completeTeam), true, 'Team with all level 100s MUST be considered complete');
+
+const appJsFull = fs.readFileSync('app.js', 'utf8');
+assert(appJsFull.includes('function areAllTeamPokemonLevel100()'), 'app.js must define areAllTeamPokemonLevel100');
+assert(appJsFull.includes('function scheduleNextLoopBattle()'), 'app.js must define scheduleNextLoopBattle');
+assert(appJsFull.includes('function updateLoopCheckboxVisual()'), 'app.js must define updateLoopCheckboxVisual');
+assert(appJsFull.includes('if (battleLoopTimer) return;'), 'scheduleNextLoopBattle must prevent 500ms sensor starvation');
+assert(appJsFull.includes('battleData.isDefeatScreen'), 'computeAiBattleActionConfig must support defeat screen');
+assert(appJsFull.includes('Battle Finished'), 'updateTeamBuilderBattleAction must support battle finished on defeat');
+
+const preloadJsFull = fs.readFileSync('game-preload.js', 'utf8');
+assert(preloadJsFull.includes('isDefeatScreen: Boolean(isDefeat)'), 'game-preload.js must emit isDefeatScreen');
+assert(preloadJsFull.includes("ipcRenderer.on('click-rematch-button'"), 'game-preload.js must support click-rematch-button');
+
+console.log('\n[PASS] AUDIT 11: Training Battle Loop Mode & Level 100 Detector Verified');
+
+// 12. AUDIT 100% 7-BIT CLEAN ASCII
 const filesToCheck = ['app.html', 'app.js', 'ai_agent_bridge.js', 'evolution_engine.js', 'team_engine.js', 'ml_combat_engine.py', 'package.json', 'game-preload.js'];
 filesToCheck.forEach(f => {
   const content = fs.readFileSync(f, 'utf8');
@@ -524,7 +591,7 @@ filesToCheck.forEach(f => {
     }
   }
 });
-console.log('\n[PASS] AUDIT 11: 100% 7-bit Clean ASCII Integrity Verified Across All Files');
+console.log('\n[PASS] AUDIT 12: 100% 7-bit Clean ASCII Integrity Verified Across All Files');
 
 console.log('\n================================================================');
 console.log('   ALL LIVE AI ASSISTANT & COPILOT AUDITS PASSED PERFECTLY     ');

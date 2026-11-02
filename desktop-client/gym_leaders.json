@@ -818,6 +818,51 @@
           "types": [
             "Psychic",
             "Flying"
+          ],
+          "moves": [
+            {
+              "name": "Ominous Wind and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 87HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 94HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 86HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 224HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 219HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -825,6 +870,61 @@
           "types": [
             "Ice",
             "Psychic"
+          ],
+          "moves": [
+            {
+              "name": "Ice Punch",
+              "type": "Ice"
+            },
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting"
+            },
+            {
+              "name": "Ice Punch and dealt 280HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Avalanche and dealt 164HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Avalanche and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam and dealt 145HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Punch and dealt 93HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam and dealt 138HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam and dealt 135HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam and dealt 139HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam and dealt 143HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ice",
+            "Fighting",
+            "Normal"
           ]
         },
         {
@@ -832,6 +932,28 @@
           "types": [
             "Grass",
             "Psychic"
+          ],
+          "moves": [
+            {
+              "name": "Leaf Storm and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 304HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm",
+              "type": "Grass"
+            },
+            {
+              "name": "Leaf Storm and dealt 455HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Grass"
           ]
         },
         {
@@ -839,6 +961,27 @@
           "types": [
             "Water",
             "Psychic"
+          ],
+          "moves": [
+            {
+              "name": "Water Pulse and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Water Pulse and dealt 81HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psycho Boost and dealt 351HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Water Pulse and dealt 147HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -846,6 +989,51 @@
           "types": [
             "Psychic",
             "Flying"
+          ],
+          "moves": [
+            {
+              "name": "Ominous Wind and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 87HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 94HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 86HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 224HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 219HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         }
       ]
@@ -1382,12 +1570,51 @@
           "name": "Luvdisc",
           "types": [
             "Water"
+          ],
+          "moves": [
+            {
+              "name": "Take Down and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sweet Kiss",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
           "name": "Whiscash",
           "types": [
             "Water",
+            "Ground"
+          ],
+          "moves": [
+            {
+              "name": "Aqua Tail and dealt 230HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Earthquake",
+              "type": "Ground"
+            },
+            {
+              "name": "Aqua Tail and dealt 224HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Aqua Tail and dealt 123HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Aqua Tail and dealt 222HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
             "Ground"
           ]
         },
@@ -1396,6 +1623,15 @@
           "types": [
             "Ice",
             "Water"
+          ],
+          "moves": [
+            {
+              "name": "Blizzard and dealt 279HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -1409,6 +1645,19 @@
           "name": "Milotic",
           "types": [
             "Water"
+          ],
+          "moves": [
+            {
+              "name": "Hydro Pump and dealt 279HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Aqua Tail and dealt 222HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         }
       ]
@@ -1475,6 +1724,248 @@
           "name": "Mightyena",
           "types": [
             "Dark"
+          ],
+          "moves": [
+            {
+              "name": "Sucker Punch and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 209HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 151HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 157HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 205HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 308HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 231HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 97HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 93HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance",
+              "type": "Dark"
+            },
+            {
+              "name": "Take Down and dealt 159HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch",
+              "type": "Dark"
+            },
+            {
+              "name": "Take Down and dealt 149HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 225HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 228HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 213HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 199HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 210HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 151HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 71HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 75HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 73HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 224HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 236HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 218HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 228HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 167HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 111HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 104HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 223HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 167HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 105HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Dark"
           ]
         },
         {
@@ -1482,6 +1973,285 @@
           "types": [
             "Grass",
             "Dark"
+          ],
+          "moves": [
+            {
+              "name": "Tackle and dealt 82HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 85HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 156HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 83HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 84HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 78HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 167HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 170HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 86HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 79HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 81HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 121HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 263HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 158HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 168HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark"
+            },
+            {
+              "name": "Leaf Storm",
+              "type": "Grass"
+            },
+            {
+              "name": "Tackle and dealt 80HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 125HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 240HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 135HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 313HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 327HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 329HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 304HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 130HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 319HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 134HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 316HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 306HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 129HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 89HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 177HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 88HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 149HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 333HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 201HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf",
+              "type": "Grass"
+            },
+            {
+              "name": "Leaf Storm and dealt 245HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 163HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 141HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 351HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 347HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 157HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 340HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 358HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 247HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 242HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 92HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 90HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 118HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 174HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 159HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 181HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 235HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 93HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Dark",
+            "Grass"
           ]
         },
         {
@@ -1489,6 +2259,269 @@
           "types": [
             "Grass",
             "Dark"
+          ],
+          "moves": [
+            {
+              "name": "Sucker Punch and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 97HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 327HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 203HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 93HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 205HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 216HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 82HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 212HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 218HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 87HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 190HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 89HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 280HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 170HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 126HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 134HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 86HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 133HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 122HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 84HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 174HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch",
+              "type": "Dark"
+            },
+            {
+              "name": "Payback and dealt 83HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 85HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 305HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 103HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 97HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 107HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 178HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 199HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm",
+              "type": "Grass"
+            },
+            {
+              "name": "Needle Arm and dealt 219HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 168HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 217HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 179HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 189HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 157HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 261HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 151HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 209HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 88HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 105HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 193HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Dark",
+            "Grass"
           ]
         },
         {
@@ -1502,6 +2535,215 @@
           "name": "Absol",
           "types": [
             "Dark"
+          ],
+          "moves": [
+            {
+              "name": "Razor Wind and dealt 133HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 127HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 65HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 66HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 132HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 129HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 130HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 68HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 67HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 63HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 223HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 138HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 124HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 120HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 126HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 64HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 135HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 197HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 177HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 201HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 136HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 121HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 68HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 148HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 134HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 212HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 189HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 66HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 60HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 67HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 65HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 63HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 64HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 136HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 132HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 69HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 205HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 71HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 145HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 137HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         }
       ]
@@ -1658,6 +2900,15 @@
           "types": [
             "Steel",
             "Flying"
+          ],
+          "moves": [
+            {
+              "name": "Flip Turn and dealt 102HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -1679,6 +2930,19 @@
           "types": [
             "Rock",
             "Grass"
+          ],
+          "moves": [
+            {
+              "name": "Ancient Power and dealt 214HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 210HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -1686,6 +2950,19 @@
           "types": [
             "Rock",
             "Bug"
+          ],
+          "moves": [
+            {
+              "name": "Crush Claw",
+              "type": "Normal"
+            },
+            {
+              "name": "Slash",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -1869,6 +3146,15 @@
           "types": [
             "Water",
             "Flying"
+          ],
+          "moves": [
+            {
+              "name": "Twister",
+              "type": "Dragon"
+            }
+          ],
+          "knownMoveTypes": [
+            "Dragon"
           ]
         },
         {
@@ -1876,12 +3162,38 @@
           "types": [
             "Water",
             "Ground"
+          ],
+          "moves": [
+            {
+              "name": "Mud Shot and dealt 129HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Slam and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Mud Bomb and dealt 160HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
           "name": "Floatzel",
           "types": [
             "Water"
+          ],
+          "moves": [
+            {
+              "name": "Crunch and dealt 132HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         }
       ]
@@ -3268,6 +4580,24 @@
           "types": [
             "Steel",
             "Fairy"
+          ],
+          "moves": [
+            {
+              "name": "Fairy Wind",
+              "type": "Fairy"
+            },
+            {
+              "name": "Mirror Shot and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Mirror Shot and dealt 162HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Fairy",
+            "Normal"
           ]
         },
         {
@@ -3275,6 +4605,15 @@
           "types": [
             "Rock",
             "Steel"
+          ],
+          "moves": [
+            {
+              "name": "Zap Cannon",
+              "type": "Electric"
+            }
+          ],
+          "knownMoveTypes": [
+            "Electric"
           ]
         },
         {
@@ -3282,6 +4621,35 @@
           "types": [
             "Bug",
             "Steel"
+          ],
+          "moves": [
+            {
+              "name": "Iron Head and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Iron Head and dealt 298HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "X-scissor and dealt 195HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Iron Head and dealt 197HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Iron Head and dealt 190HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "X-scissor and dealt 192HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -3664,11 +5032,184 @@
             {
               "name": "Feint Attack",
               "type": "Dark"
+            },
+            {
+              "name": "Shadow Ball and dealt 195HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 103HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 111HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 126HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 127HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 216HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 201HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 97HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 71HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 63HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 70HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 65HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 68HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 64HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 93HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 214HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 67HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 136HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 124HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 129HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 106HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 110HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 108HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Sneak and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Sneak and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 189HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 301HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 295HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 205HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
             "Ghost",
-            "Dark"
+            "Dark",
+            "Normal"
           ]
         },
         {
@@ -3900,30 +5441,15 @@
       "defeated": true,
       "roster": [
         {
-          "name": "Armaldo",
-          "types": [
-            "Rock",
-            "Bug"
-          ]
-        },
-        {
-          "name": "Cradily",
-          "types": [
-            "Rock",
-            "Grass"
-          ]
-        },
-        {
-          "name": "Gigalith",
+          "name": "Nosepass",
           "types": [
             "Rock"
           ]
         },
         {
-          "name": "Probopass",
+          "name": "Boldore",
           "types": [
-            "Rock",
-            "Steel"
+            "Rock"
           ]
         },
         {
@@ -3987,93 +5513,191 @@
             {
               "name": "Feint Attack",
               "type": "Dark"
+            },
+            {
+              "name": "Shadow Ball and dealt 195HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 103HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 111HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 126HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 127HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 216HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 201HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 97HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 71HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 63HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 70HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 65HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 68HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 64HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 93HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 214HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 67HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 136HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 124HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 129HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 106HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 110HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 108HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Sneak and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Sneak and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 189HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 301HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 295HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 205HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
             "Ghost",
-            "Dark"
+            "Dark",
+            "Normal"
           ]
         },
         {
-          "name": "Dhelmise",
+          "name": "Mimikyu",
           "types": [
             "Ghost",
-            "Grass"
-          ],
-          "moves": [
-            {
-              "name": "Anchor Shot",
-              "type": "Steel"
-            },
-            {
-              "name": "Power Whip",
-              "type": "Grass"
-            },
-            {
-              "name": "Shadow Ball",
-              "type": "Ghost"
-            }
-          ],
-          "knownMoveTypes": [
-            "Steel",
-            "Grass",
-            "Ghost"
-          ]
-        },
-        {
-          "name": "Froslass",
-          "types": [
-            "Ice",
-            "Ghost"
-          ],
-          "knownMoveTypes": [
-            "Fighting",
-            "Ice",
-            "Ghost"
-          ],
-          "moves": [
-            {
-              "name": "Wake-up Slap",
-              "type": "Fighting"
-            },
-            {
-              "name": "Blizzard",
-              "type": "Ice"
-            },
-            {
-              "name": "Shadow Ball",
-              "type": "Ghost"
-            }
-          ]
-        },
-        {
-          "name": "Palossand",
-          "types": [
-            "Ghost",
-            "Ground"
-          ],
-          "moves": [
-            {
-              "name": "Earth Power",
-              "type": "Ground"
-            },
-            {
-              "name": "Shadow Ball",
-              "type": "Ghost"
-            },
-            {
-              "name": "Sand Tomb",
-              "type": "Ground"
-            },
-            {
-              "name": "Mega Drain",
-              "type": "Grass"
-            }
-          ],
-          "knownMoveTypes": [
-            "Ground",
-            "Ghost",
-            "Grass"
+            "Fairy"
           ]
         }
       ]
@@ -5037,6 +6661,15 @@
           "types": [
             "Water",
             "Ground"
+          ],
+          "moves": [
+            {
+              "name": "Earthquake and dealt 248HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -5044,6 +6677,19 @@
           "types": [
             "Fire",
             "Ground"
+          ],
+          "moves": [
+            {
+              "name": "Fissure and dealt 246HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Earthquake and dealt 251HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -5056,6 +6702,15 @@
           "name": "Dugtrio",
           "types": [
             "Ground"
+          ],
+          "moves": [
+            {
+              "name": "Earthquake and dealt 256HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -5063,6 +6718,25 @@
           "types": [
             "Poison",
             "Ground"
+          ],
+          "moves": [
+            {
+              "name": "Sludge Wave",
+              "type": "Poison"
+            },
+            {
+              "name": "Sludge Wave and dealt 226HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Megahorn",
+              "type": "Bug"
+            }
+          ],
+          "knownMoveTypes": [
+            "Poison",
+            "Normal",
+            "Bug"
           ]
         }
       ]
@@ -5126,24 +6800,15 @@
       "defeated": true,
       "roster": [
         {
-          "name": "Tropius",
+          "name": "Komala",
           "types": [
-            "Grass",
-            "Flying"
+            "Normal"
           ]
         },
         {
-          "name": "Oricorio",
+          "name": "Dudunsparce",
           "types": [
-            "Electric",
-            "Flying"
-          ]
-        },
-        {
-          "name": "Altaria",
-          "types": [
-            "Dragon",
-            "Flying"
+            "Normal"
           ]
         },
         {
@@ -5151,13 +6816,6 @@
           "types": [
             "Normal",
             "Flying"
-          ]
-        },
-        {
-          "name": "Flamigo",
-          "types": [
-            "Flying",
-            "Fighting"
           ]
         }
       ]
@@ -5277,39 +6935,49 @@
       "avatar": "https://i.dstatic.com/images/trainers/league/aaron.png",
       "roster": [
         {
-          "name": "Dustox",
-          "types": [
-            "Bug",
-            "Poison"
-          ]
-        },
-        {
-          "name": "Beautifly",
+          "name": "Yanmega",
           "types": [
             "Bug",
             "Flying"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/yanmega.png"
         },
         {
-          "name": "Vespiquen",
+          "name": "Scizor",
           "types": [
             "Bug",
-            "Flying"
-          ]
+            "Steel"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/scizor.png"
         },
         {
           "name": "Heracross",
           "types": [
             "Bug",
             "Fighting"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/heracross.png"
+        },
+        {
+          "name": "Vespiquen",
+          "types": [
+            "Bug",
+            "Flying"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/vespiquen.png"
         },
         {
           "name": "Drapion",
           "types": [
             "Poison",
             "Dark"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/drapion.png"
         }
       ]
     },
@@ -5326,35 +6994,12 @@
       "avatar": "https://i.dstatic.com/images/trainers/league/acerola.png",
       "roster": [
         {
-          "name": "Sableye",
-          "types": [
-            "Dark",
-            "Ghost"
-          ],
-          "moves": [
-            {
-              "name": "Foul Play",
-              "type": "Dark"
-            },
-            {
-              "name": "Shadow Sneak",
-              "type": "Ghost"
-            },
-            {
-              "name": "Feint Attack",
-              "type": "Dark"
-            }
-          ],
-          "knownMoveTypes": [
-            "Dark",
-            "Ghost"
-          ]
-        },
-        {
           "name": "Banette",
           "types": [
             "Ghost"
           ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/banette.png",
           "moves": [
             {
               "name": "Shadow Sneak",
@@ -5367,11 +7012,393 @@
             {
               "name": "Feint Attack",
               "type": "Dark"
+            },
+            {
+              "name": "Shadow Ball and dealt 195HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 103HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 111HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 126HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 127HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 216HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 201HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 97HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 71HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 63HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 70HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 65HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 68HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 64HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 93HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 214HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 67HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 136HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 124HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 129HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 106HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 110HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 108HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Sneak and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Sneak and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 189HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 301HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 295HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 205HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
             "Ghost",
-            "Dark"
+            "Dark",
+            "Normal"
+          ]
+        },
+        {
+          "name": "Drifblim",
+          "types": [
+            "Ghost",
+            "Flying"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/drifblim.png",
+          "moves": [
+            {
+              "name": "Gust",
+              "type": "Flying"
+            },
+            {
+              "name": "Ominous Wind and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 225HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 116HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 149HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 213HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 125HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 126HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 73HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 81HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 108HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 109HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 76HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 97HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 75HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 93HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 79HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 107HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 82HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 71HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 157HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 70HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 214HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 108HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 233HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 74HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback",
+              "type": "Dark"
+            },
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost"
+            },
+            {
+              "name": "Ominous Wind and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 103HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 151HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 106HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Gust and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 143HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Flying",
+            "Normal",
+            "Dark",
+            "Ghost"
           ]
         },
         {
@@ -5380,6 +7407,8 @@
             "Ghost",
             "Grass"
           ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dhelmise.png",
           "moves": [
             {
               "name": "Anchor Shot",
@@ -5392,12 +7421,153 @@
             {
               "name": "Shadow Ball",
               "type": "Ghost"
+            },
+            {
+              "name": "Slam and dealt 124HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Slam and dealt 126HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Slam and dealt 197HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 157HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 298HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Anchor Shot and dealt 130HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 230HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 429HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 305HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 217HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Slam and dealt 220HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Anchor Shot and dealt 132HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 286HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 161HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 224HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 301HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 213HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 289HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 295HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 280HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 283HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 241HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball",
+              "type": "Grass"
+            },
+            {
+              "name": "Power Whip and dealt 228HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 151HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 214HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 292HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 167HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 225HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 159HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
             "Steel",
             "Grass",
-            "Ghost"
+            "Ghost",
+            "Normal"
           ]
         },
         {
@@ -5406,10 +7576,13 @@
             "Ice",
             "Ghost"
           ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/froslass.png",
           "knownMoveTypes": [
             "Fighting",
             "Ice",
-            "Ghost"
+            "Ghost",
+            "Normal"
           ],
           "moves": [
             {
@@ -5423,6 +7596,134 @@
             {
               "name": "Shadow Ball",
               "type": "Ghost"
+            },
+            {
+              "name": "Ominous Wind and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 419HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 164HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 303HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 159HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 153HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 130HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 259HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 257HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 394HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 138HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Shard",
+              "type": "Ice"
+            },
+            {
+              "name": "Blizzard and dealt 276HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 288HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 268HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 141HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 297HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost"
+            },
+            {
+              "name": "Blizzard and dealt 279HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 273HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 149HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 397HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 270HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 262HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 410HP Damage",
+              "type": "Normal"
             }
           ]
         },
@@ -5432,6 +7733,8 @@
             "Ghost",
             "Ground"
           ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/palossand.png",
           "moves": [
             {
               "name": "Earth Power",
@@ -5448,12 +7751,134 @@
             {
               "name": "Mega Drain",
               "type": "Grass"
+            },
+            {
+              "name": "Giga Drain",
+              "type": "Grass"
+            },
+            {
+              "name": "Shadow Ball and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 195HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 199HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 209HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 207HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 182HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 184HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Giga Drain and dealt 127HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 265HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 180HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 218HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 189HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Giga Drain and dealt 118HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 177HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 190HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Giga Drain and dealt 135HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 203HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Hypnosis",
+              "type": "Psychic"
+            },
+            {
+              "name": "Shadow Ball and dealt 197HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 178HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 111HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 109HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 205HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 295HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
             "Ground",
             "Ghost",
-            "Grass"
+            "Grass",
+            "Normal",
+            "Psychic"
           ]
         }
       ]
@@ -5512,11 +7937,184 @@
             {
               "name": "Feint Attack",
               "type": "Dark"
+            },
+            {
+              "name": "Shadow Ball and dealt 195HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 103HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 111HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 126HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 127HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 216HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 201HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 97HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 71HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 63HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 70HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 65HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 68HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 64HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 93HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 214HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 67HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 136HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 124HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 129HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 106HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 110HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 108HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Sneak and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Sneak and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 189HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 301HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 295HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 205HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
             "Ghost",
-            "Dark"
+            "Dark",
+            "Normal"
           ]
         },
         {
@@ -5537,12 +8135,153 @@
             {
               "name": "Shadow Ball",
               "type": "Ghost"
+            },
+            {
+              "name": "Slam and dealt 124HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Slam and dealt 126HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Slam and dealt 197HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 157HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 298HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Anchor Shot and dealt 130HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 230HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 429HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 305HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 217HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Slam and dealt 220HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Anchor Shot and dealt 132HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 286HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 161HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 224HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 301HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 213HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 289HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 295HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 280HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 283HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 241HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball",
+              "type": "Grass"
+            },
+            {
+              "name": "Power Whip and dealt 228HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 151HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 214HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 292HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 167HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 225HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 159HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
             "Steel",
             "Grass",
-            "Ghost"
+            "Ghost",
+            "Normal"
           ]
         },
         {
@@ -5554,7 +8293,8 @@
           "knownMoveTypes": [
             "Fighting",
             "Ice",
-            "Ghost"
+            "Ghost",
+            "Normal"
           ],
           "moves": [
             {
@@ -5568,6 +8308,134 @@
             {
               "name": "Shadow Ball",
               "type": "Ghost"
+            },
+            {
+              "name": "Ominous Wind and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 419HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 164HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 303HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 159HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 153HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 130HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 259HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 257HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 394HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 138HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Shard",
+              "type": "Ice"
+            },
+            {
+              "name": "Blizzard and dealt 276HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 288HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 268HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 141HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 297HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost"
+            },
+            {
+              "name": "Blizzard and dealt 279HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 273HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 149HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 397HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 270HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 262HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Blizzard and dealt 410HP Damage",
+              "type": "Normal"
             }
           ]
         },
@@ -5593,12 +8461,134 @@
             {
               "name": "Mega Drain",
               "type": "Grass"
+            },
+            {
+              "name": "Giga Drain",
+              "type": "Grass"
+            },
+            {
+              "name": "Shadow Ball and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 195HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 199HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 209HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 207HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 182HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 184HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Giga Drain and dealt 127HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 265HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 180HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 218HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 189HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Giga Drain and dealt 118HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 177HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 190HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Giga Drain and dealt 135HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 203HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Hypnosis",
+              "type": "Psychic"
+            },
+            {
+              "name": "Shadow Ball and dealt 197HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 178HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 111HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 109HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 205HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Shadow Ball and dealt 295HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
             "Ground",
             "Ghost",
-            "Grass"
+            "Grass",
+            "Normal",
+            "Psychic"
           ]
         }
       ]
@@ -5621,34 +8611,44 @@
           "types": [
             "Ghost",
             "Poison"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/gengar.png"
         },
         {
           "name": "Golbat",
           "types": [
             "Poison",
             "Flying"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/golbat.png"
         },
         {
           "name": "Haunter",
           "types": [
             "Ghost",
             "Poison"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/haunter.png"
         },
         {
           "name": "Arbok",
           "types": [
             "Poison"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/arbok.png"
         },
         {
           "name": "Gengar",
           "types": [
             "Ghost",
             "Poison"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/gengar.png"
         }
       ]
     },
@@ -5717,31 +8717,39 @@
       "avatar": "https://i.dstatic.com/images/trainers/league/allister.png",
       "roster": [
         {
+          "name": "Galarian Yamask",
+          "types": [
+            "Ground",
+            "Ghost"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/galarian%20yamask.png"
+        },
+        {
+          "name": "Mimikyu (Disguised Form)",
+          "types": [
+            "Ghost",
+            "Fairy"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mimikyu%20%28disguised%20form%29.png"
+        },
+        {
+          "name": "Galarian Corsola",
+          "types": [
+            "Ghost"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/galarian%20corsola.png"
+        },
+        {
           "name": "Gengar",
           "types": [
             "Ghost",
             "Poison"
-          ]
-        },
-        {
-          "name": "Mimikyu",
-          "types": [
-            "Ghost",
-            "Fairy"
-          ]
-        },
-        {
-          "name": "Cursola",
-          "types": [
-            "Ghost"
-          ]
-        },
-        {
-          "name": "Chandelure",
-          "types": [
-            "Ghost",
-            "Fire"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/gengar.png"
         }
       ]
     },
@@ -5758,29 +8766,37 @@
       "avatar": "https://i.dstatic.com/images/trainers/league/bea.png",
       "roster": [
         {
-          "name": "Hawlucha",
+          "name": "Hitmontop",
+          "types": [
+            "Fighting"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/hitmontop.png"
+        },
+        {
+          "name": "Pangoro",
           "types": [
             "Fighting",
-            "Flying"
-          ]
+            "Dark"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/pangoro.png"
         },
         {
-          "name": "Grapploct",
+          "name": "Sirfetch'd",
           "types": [
             "Fighting"
-          ]
-        },
-        {
-          "name": "Sirfetchd",
-          "types": [
-            "Fighting"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/sirfetch%27d.png"
         },
         {
           "name": "Machamp",
           "types": [
             "Fighting"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/machamp.png"
         }
       ]
     },
@@ -8705,34 +11721,43 @@
           "types": [
             "Psychic",
             "Fairy"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mr.%20mime.png"
         },
         {
-          "name": "Girafarig",
-          "types": [
-            "Normal",
-            "Psychic"
-          ]
-        },
-        {
-          "name": "Medicham",
-          "types": [
-            "Fighting",
-            "Psychic"
-          ]
-        },
-        {
-          "name": "Alakazam",
+          "name": "Espeon",
           "types": [
             "Psychic"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/espeon.png"
         },
         {
           "name": "Bronzong",
           "types": [
             "Steel",
             "Psychic"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/bronzong.png"
+        },
+        {
+          "name": "Alakazam",
+          "types": [
+            "Psychic"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/alakazam.png"
+        },
+        {
+          "name": "Gallade",
+          "types": [
+            "Psychic",
+            "Fighting"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/gallade.png"
         }
       ]
     },
@@ -9772,6 +12797,17 @@
           "types": [
             "Water",
             "Ground"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/whiscash.png",
+          "moves": [
+            {
+              "name": "Earthquake and dealt 248HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -9779,18 +12815,46 @@
           "types": [
             "Fire",
             "Ground"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/camerupt.png",
+          "moves": [
+            {
+              "name": "Fissure and dealt 246HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Earthquake and dealt 251HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
           "name": "Donphan",
           "types": [
             "Ground"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/donphan.png"
         },
         {
           "name": "Dugtrio",
           "types": [
             "Ground"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dugtrio.png",
+          "moves": [
+            {
+              "name": "Earthquake and dealt 256HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -9798,6 +12862,27 @@
           "types": [
             "Poison",
             "Ground"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/clodsire.png",
+          "moves": [
+            {
+              "name": "Sludge Wave",
+              "type": "Poison"
+            },
+            {
+              "name": "Sludge Wave and dealt 226HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Megahorn",
+              "type": "Bug"
+            }
+          ],
+          "knownMoveTypes": [
+            "Poison",
+            "Normal",
+            "Bug"
           ]
         }
       ]
@@ -10035,6 +13120,250 @@
           "name": "Mightyena",
           "types": [
             "Dark"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mightyena.png",
+          "moves": [
+            {
+              "name": "Sucker Punch and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 209HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 151HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 157HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 205HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 308HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 231HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 97HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 93HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance",
+              "type": "Dark"
+            },
+            {
+              "name": "Take Down and dealt 159HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch",
+              "type": "Dark"
+            },
+            {
+              "name": "Take Down and dealt 149HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 225HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 228HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 213HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 199HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 210HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 151HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 71HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 75HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 73HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 224HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 236HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 218HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 228HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 167HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 111HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 104HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 223HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 167HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Take Down and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 105HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Dark"
           ]
         },
         {
@@ -10042,6 +13371,287 @@
           "types": [
             "Grass",
             "Dark"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/shiftry.png",
+          "moves": [
+            {
+              "name": "Tackle and dealt 82HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 85HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 156HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 83HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 84HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 78HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 167HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 170HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 86HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 79HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 81HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 121HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 263HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 158HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 168HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark"
+            },
+            {
+              "name": "Leaf Storm",
+              "type": "Grass"
+            },
+            {
+              "name": "Tackle and dealt 80HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 125HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 240HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 135HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 313HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 327HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 329HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 304HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 130HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 319HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 134HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 316HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 306HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 129HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 89HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 177HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 88HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 149HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 333HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 201HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf",
+              "type": "Grass"
+            },
+            {
+              "name": "Leaf Storm and dealt 245HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 163HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 141HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 351HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 347HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 157HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 340HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 358HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 247HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 242HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 92HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 90HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 118HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 174HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 159HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 181HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 235HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Tackle and dealt 93HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Dark",
+            "Grass"
           ]
         },
         {
@@ -10049,12 +13659,674 @@
           "types": [
             "Grass",
             "Dark"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/cacturne.png",
+          "moves": [
+            {
+              "name": "Sucker Punch and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 99HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 97HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 327HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 203HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 93HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 205HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 216HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 82HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 212HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 218HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 87HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 190HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 89HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 280HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 170HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 126HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 134HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 86HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 133HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 122HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 84HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 174HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch",
+              "type": "Dark"
+            },
+            {
+              "name": "Payback and dealt 83HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 85HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 305HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 103HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 97HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 107HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 178HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 199HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm",
+              "type": "Grass"
+            },
+            {
+              "name": "Needle Arm and dealt 219HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 168HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 217HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 179HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 189HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 157HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 261HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 151HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 209HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 88HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 105HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 193HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Dark",
+            "Grass"
           ]
         },
         {
-          "name": "Crawdaunt",
+          "name": "Sharpedo",
           "types": [
             "Water",
+            "Dark"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/sharpedo.png",
+          "moves": [
+            {
+              "name": "Bite and dealt 113HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 73HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 159HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 157HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 233HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 103HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 167HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 80HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 82HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 79HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 83HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 77HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 114HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 72HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 107HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 76HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 109HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 79HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 78HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 80HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 82HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 83HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 106HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang",
+              "type": "Ice"
+            },
+            {
+              "name": "Bite and dealt 70HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 151HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 149HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 248HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 81HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 77HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 119HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 117HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 124HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 118HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 117HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 110HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite",
+              "type": "Dark"
+            },
+            {
+              "name": "Assurance",
+              "type": "Dark"
+            },
+            {
+              "name": "Bite and dealt 167HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 76HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 104HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 109HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 111HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 73HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 75HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 151HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 214HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 214HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 222HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 224HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 245HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 154HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 74HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 105HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 74HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 156HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 108HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 149HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 75HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 71HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 159HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 243HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 115HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 119HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 113HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 106HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 238HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 157HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 155HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 120HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 162HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 168HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Fang and dealt 167HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Ice",
             "Dark"
           ]
         },
@@ -10062,6 +14334,217 @@
           "name": "Absol",
           "types": [
             "Dark"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/absol.png",
+          "moves": [
+            {
+              "name": "Razor Wind and dealt 133HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 127HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 65HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 66HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 132HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 129HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 130HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 140HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 68HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 67HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 63HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 223HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 138HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 124HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 120HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 126HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 64HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 187HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 135HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 197HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 177HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 201HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 136HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 121HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 68HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 148HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 134HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 212HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 189HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 66HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 60HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 67HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 65HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 63HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 64HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 136HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Pursuit and dealt 132HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 69HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 205HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 71HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 202HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 145HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Razor Wind and dealt 137HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         }
       ]
@@ -10194,6 +14677,17 @@
           "types": [
             "Steel",
             "Flying"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/skarmory.png",
+          "moves": [
+            {
+              "name": "Flip Turn and dealt 102HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -10201,20 +14695,39 @@
           "types": [
             "Ground",
             "Psychic"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/claydol.png"
         },
         {
           "name": "Aggron",
           "types": [
             "Steel",
             "Rock"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/aggron.png"
         },
         {
           "name": "Cradily",
           "types": [
             "Rock",
             "Grass"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/cradily.png",
+          "moves": [
+            {
+              "name": "Ancient Power and dealt 214HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Energy Ball and dealt 210HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -10222,6 +14735,21 @@
           "types": [
             "Rock",
             "Bug"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/armaldo.png",
+          "moves": [
+            {
+              "name": "Crush Claw",
+              "type": "Normal"
+            },
+            {
+              "name": "Slash",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -10229,7 +14757,9 @@
           "types": [
             "Steel",
             "Psychic"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/metagross.png"
         }
       ]
     },
@@ -10433,6 +14963,17 @@
           "types": [
             "Water",
             "Flying"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/gyarados.png",
+          "moves": [
+            {
+              "name": "Twister",
+              "type": "Dragon"
+            }
+          ],
+          "knownMoveTypes": [
+            "Dragon"
           ]
         },
         {
@@ -10440,12 +14981,42 @@
           "types": [
             "Water",
             "Ground"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/quagsire.png",
+          "moves": [
+            {
+              "name": "Mud Shot and dealt 129HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Slam and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Mud Bomb and dealt 160HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
           "name": "Floatzel",
           "types": [
             "Water"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/floatzel.png",
+          "moves": [
+            {
+              "name": "Crunch and dealt 132HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         }
       ]
@@ -10466,13 +15037,26 @@
           "name": "Wailord",
           "types": [
             "Water"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/wailord.png"
         },
         {
           "name": "Tentacruel",
           "types": [
             "Water",
             "Poison"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/tentacruel.png",
+          "moves": [
+            {
+              "name": "Poison Jab and dealt 199HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -10480,13 +15064,26 @@
           "types": [
             "Water",
             "Grass"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/ludicolo.png"
         },
         {
           "name": "Whiscash",
           "types": [
             "Water",
             "Ground"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/whiscash.png",
+          "moves": [
+            {
+              "name": "Aqua Tail and dealt 222HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -10494,13 +15091,17 @@
           "types": [
             "Water",
             "Flying"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/gyarados.png"
         },
         {
           "name": "Milotic",
           "types": [
             "Water"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/milotic.png"
         }
       ]
     },
@@ -10520,6 +15121,19 @@
           "name": "Wailord",
           "types": [
             "Water"
+          ],
+          "moves": [
+            {
+              "name": "Dive and dealt 199HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Hydro Pump and dealt 282HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -10527,12 +15141,39 @@
           "types": [
             "Water",
             "Poison"
+          ],
+          "moves": [
+            {
+              "name": "Poison Jab and dealt 199HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
           "name": "Ludicolo",
           "types": [
             "Water",
+            "Grass"
+          ],
+          "moves": [
+            {
+              "name": "Mega Drain and dealt 51HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Mega Drain",
+              "type": "Grass"
+            },
+            {
+              "name": "Astonish and dealt 73HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
             "Grass"
           ]
         },
@@ -10541,6 +15182,32 @@
           "types": [
             "Water",
             "Ground"
+          ],
+          "moves": [
+            {
+              "name": "Aqua Tail and dealt 230HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Earthquake",
+              "type": "Ground"
+            },
+            {
+              "name": "Aqua Tail and dealt 224HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Aqua Tail and dealt 123HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Aqua Tail and dealt 222HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Ground"
           ]
         },
         {
@@ -10548,12 +15215,34 @@
           "types": [
             "Water",
             "Flying"
+          ],
+          "moves": [
+            {
+              "name": "Hydro Pump and dealt 262HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
           "name": "Milotic",
           "types": [
             "Water"
+          ],
+          "moves": [
+            {
+              "name": "Hydro Pump and dealt 279HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Aqua Tail and dealt 222HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         }
       ]
@@ -10642,6 +15331,26 @@
           "types": [
             "Steel",
             "Fairy"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/klefki.png",
+          "moves": [
+            {
+              "name": "Fairy Wind",
+              "type": "Fairy"
+            },
+            {
+              "name": "Mirror Shot and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Mirror Shot and dealt 162HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Fairy",
+            "Normal"
           ]
         },
         {
@@ -10649,6 +15358,17 @@
           "types": [
             "Rock",
             "Steel"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/probopass.png",
+          "moves": [
+            {
+              "name": "Zap Cannon",
+              "type": "Electric"
+            }
+          ],
+          "knownMoveTypes": [
+            "Electric"
           ]
         },
         {
@@ -10656,14 +15376,47 @@
           "types": [
             "Bug",
             "Steel"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/scizor.png",
+          "moves": [
+            {
+              "name": "Iron Head and dealt 192HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Iron Head and dealt 298HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "X-scissor and dealt 195HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Iron Head and dealt 197HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Iron Head and dealt 190HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "X-scissor and dealt 192HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
-          "name": "Aegislash",
+          "name": "Aegislash (Blade Form)",
           "types": [
             "Steel",
             "Ghost"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/aegislash%20%28blade%20form%29.png"
         }
       ]
     },
@@ -10684,6 +15437,53 @@
           "types": [
             "Psychic",
             "Flying"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/xatu.png",
+          "moves": [
+            {
+              "name": "Ominous Wind and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 87HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 94HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 86HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 224HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 219HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         },
         {
@@ -10691,13 +15491,63 @@
           "types": [
             "Ice",
             "Psychic"
-          ]
-        },
-        {
-          "name": "Exeggutor",
-          "types": [
-            "Grass",
-            "Psychic"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/jynx.png",
+          "moves": [
+            {
+              "name": "Ice Punch",
+              "type": "Ice"
+            },
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting"
+            },
+            {
+              "name": "Ice Punch and dealt 280HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Avalanche and dealt 164HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Avalanche and dealt 160HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam and dealt 145HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ice Punch and dealt 93HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam and dealt 138HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam and dealt 135HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam and dealt 139HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Body Slam and dealt 143HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ice",
+            "Fighting",
+            "Normal"
           ]
         },
         {
@@ -10705,6 +15555,60 @@
           "types": [
             "Water",
             "Psychic"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/slowbro.png",
+          "moves": [
+            {
+              "name": "Water Pulse and dealt 142HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Water Pulse and dealt 81HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psycho Boost and dealt 351HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Water Pulse and dealt 147HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
+          ]
+        },
+        {
+          "name": "Exeggutor",
+          "types": [
+            "Grass",
+            "Psychic"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/exeggutor.png",
+          "moves": [
+            {
+              "name": "Leaf Storm and dealt 165HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 304HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm",
+              "type": "Grass"
+            },
+            {
+              "name": "Leaf Storm and dealt 455HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Grass"
           ]
         },
         {
@@ -10712,6 +15616,53 @@
           "types": [
             "Psychic",
             "Flying"
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/xatu.png",
+          "moves": [
+            {
+              "name": "Ominous Wind and dealt 100HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 96HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 95HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 87HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 94HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 86HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 224HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 98HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 102HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 219HP Damage",
+              "type": "Normal"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal"
           ]
         }
       ]
@@ -10729,39 +15680,40 @@
       "avatar": "https://i.dstatic.com/images/trainers/league/winona.png",
       "roster": [
         {
-          "name": "Swablu",
+          "name": "Swellow",
           "types": [
             "Normal",
             "Flying"
-          ]
-        },
-        {
-          "name": "Tropius",
-          "types": [
-            "Grass",
-            "Flying"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/swellow.png"
         },
         {
           "name": "Pelipper",
           "types": [
             "Water",
             "Flying"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/pelipper.png"
         },
         {
           "name": "Skarmory",
           "types": [
             "Steel",
             "Flying"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/skarmory.png"
         },
         {
           "name": "Altaria",
           "types": [
             "Dragon",
             "Flying"
-          ]
+          ],
+          "level": 100,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/altaria.png"
         }
       ]
     },

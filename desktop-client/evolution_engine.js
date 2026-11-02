@@ -874,14 +874,31 @@ function resolvePokemonTypes(pokemonOrName, collection = []) {
     return pokemonOrName.types;
   }
   const rawName = typeof pokemonOrName === 'string' ? pokemonOrName : (pokemonOrName ? pokemonOrName.name : '');
+  const rc = cleanNameWithoutVariant(rawName);
+
+  // 1. Check STAGE_TRANSITIONS for specific branch/mega match (longest specific match)
+  let bestStageMatch = null;
+  let bestStageLen = 0;
+  for (const k of Object.keys(STAGE_TRANSITIONS)) {
+    for (const tr of STAGE_TRANSITIONS[k]) {
+      const tc = cleanNameWithoutVariant(tr.name);
+      if (tc === rc && Array.isArray(tr.types) && tr.types.length > 0) return tr.types;
+      if (rc.includes(tc) && tc.length > bestStageLen && Array.isArray(tr.types) && tr.types.length > 0) {
+        bestStageMatch = tr;
+        bestStageLen = tc.length;
+      }
+    }
+  }
+  if (bestStageMatch && bestStageMatch.types) return bestStageMatch.types;
+
   const base = getBaseSpecies(rawName).toLowerCase();
   const cleanBase = base.replace(/^mega\s+/i, '').replace(/\s+mega$/i, '').trim();
 
-  // 1. Check SPECIES_DEFAULT_TYPES
+  // 2. Check SPECIES_DEFAULT_TYPES
   if (SPECIES_DEFAULT_TYPES[base]) return SPECIES_DEFAULT_TYPES[base];
   if (SPECIES_DEFAULT_TYPES[cleanBase]) return SPECIES_DEFAULT_TYPES[cleanBase];
 
-  // 2. Check EVOLUTION_FAMILIES
+  // 3. Check EVOLUTION_FAMILIES
   const fam = findFamily(base) || findFamily(cleanBase);
   if (fam) {
     const matchBranch = fam.branches.find(b => b.name.toLowerCase() === base || b.name.toLowerCase() === cleanBase);
@@ -894,7 +911,7 @@ function resolvePokemonTypes(pokemonOrName, collection = []) {
     }
   }
 
-  // 3. Check collection
+  // 4. Check collection
   if (Array.isArray(collection) && collection.length > 0) {
     const cClean = cleanName(rawName);
     const matched = collection.find(p => {
@@ -906,17 +923,24 @@ function resolvePokemonTypes(pokemonOrName, collection = []) {
     }
   }
 
-  // 3.5. Check gym leaders database canonical types
+  // 4.5. Check gym leaders database canonical types
   const gymMap = getGymSpeciesTypesMap();
   if (gymMap[base]) return gymMap[base];
   if (gymMap[cleanBase]) return gymMap[cleanBase];
 
-  // 4. Return existing object types if any
+  // 5. Return existing object types if any
   if (pokemonOrName && typeof pokemonOrName === 'object' && Array.isArray(pokemonOrName.types) && pokemonOrName.types.length > 0) {
     return pokemonOrName.types;
   }
 
   return ['Normal'];
+}
+
+function cleanNameWithoutVariant(n) {
+  if (!n) return '';
+  return String(n).toLowerCase()
+    .replace(/^(shiny|metallic|ghostly|dark|shadow|mirage|retro|chrome|negative)\s+/i, '')
+    .replace(/[^a-z0-9]/g, '');
 }
 
 function cleanName(n) {
@@ -1765,19 +1789,19 @@ const STAGE_TRANSITIONS = {
     { name: 'Kadabra', minLevel: 16, types: ['Psychic'], bst: 400, keyMoves: ['Psychic', 'Psyshock', 'Shadow Ball', 'Dazzling Gleam'] }
   ],
   kadabra: [
-    { name: 'Alakazam', minLevel: 16, types: ['Psychic'], bst: 500, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Energy Ball'] }
+    { name: 'Alakazam', minLevel: 1, types: ['Psychic'], bst: 500, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Energy Ball'] }
   ],
   alakazam: [
     { name: 'Mega Alakazam', minLevel: 100, types: ['Psychic'], bst: 600, mega: true, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Dazzling Gleam'] }
   ],
   bagon: [{ name: 'Shelgon', minLevel: 30, types: ['Dragon'], bst: 420, keyMoves: ['Dragon Claw', 'Double-Edge', 'Crunch', 'Rock Slide'] }],
-  shelgon: [{ name: 'Salamence', minLevel: 50, types: ['Dragon', 'Flying'], bst: 600, mega: true, keyMoves: ['Dragon Claw', 'Fly', 'Earthquake', 'Fire Blast'] }],
+  shelgon: [{ name: 'Salamence', minLevel: 50, types: ['Dragon', 'Flying'], bst: 600, mega: false, keyMoves: ['Dragon Claw', 'Fly', 'Earthquake', 'Fire Blast'] }],
   salamence: [{ name: 'Mega Salamence', minLevel: 100, types: ['Dragon', 'Flying'], bst: 700, mega: true, keyMoves: ['Double-Edge', 'Dragon Claw', 'Earthquake', 'Roost'] }],
   beldum: [{ name: 'Metang', minLevel: 20, types: ['Steel', 'Psychic'], bst: 420, keyMoves: ['Meteor Mash', 'Zen Headbutt', 'Bullet Punch', 'Iron Head'] }],
-  metang: [{ name: 'Metagross', minLevel: 45, types: ['Steel', 'Psychic'], bst: 600, mega: true, keyMoves: ['Meteor Mash', 'Zen Headbutt', 'Earthquake', 'Bullet Punch'] }],
+  metang: [{ name: 'Metagross', minLevel: 45, types: ['Steel', 'Psychic'], bst: 600, mega: false, keyMoves: ['Meteor Mash', 'Zen Headbutt', 'Earthquake', 'Bullet Punch'] }],
   metagross: [{ name: 'Mega Metagross', minLevel: 100, types: ['Steel', 'Psychic'], bst: 700, mega: true, keyMoves: ['Meteor Mash', 'Zen Headbutt', 'Earthquake', 'Ice Punch'] }],
   mudkip: [{ name: 'Marshtomp', minLevel: 16, types: ['Water', 'Ground'], bst: 405, keyMoves: ['Waterfall', 'Mud Bomb', 'Ice Punch', 'Rock Slide'] }],
-  marshtomp: [{ name: 'Swampert', minLevel: 36, types: ['Water', 'Ground'], bst: 535, mega: true, keyMoves: ['Earthquake', 'Waterfall', 'Ice Punch', 'Stone Edge'] }],
+  marshtomp: [{ name: 'Swampert', minLevel: 36, types: ['Water', 'Ground'], bst: 535, mega: false, keyMoves: ['Earthquake', 'Waterfall', 'Ice Punch', 'Stone Edge'] }],
   swampert: [{ name: 'Mega Swampert', minLevel: 100, types: ['Water', 'Ground'], bst: 635, mega: true, keyMoves: ['Waterfall', 'Earthquake', 'Ice Punch', 'Superpower'] }],
   froakie: [{ name: 'Frogadier', minLevel: 16, types: ['Water'], bst: 405, keyMoves: ['Water Pulse', 'Aerial Ace', 'Quick Attack', 'Lick'] }],
   frogadier: [{ name: 'Greninja', minLevel: 36, types: ['Water', 'Dark'], bst: 530, keyMoves: ['Hydro Pump', 'Dark Pulse', 'Ice Beam', 'Gunk Shot'] }],
@@ -1838,12 +1862,12 @@ const STAGE_TRANSITIONS = {
   ],
   medicham: [{ name: 'Mega Medicham', minLevel: 100, types: ['Fighting', 'Psychic'], bst: 510, mega: true, keyMoves: ['High Jump Kick', 'Zen Headbutt', 'Ice Punch', 'Close Combat'] }],
   onix: [
-    { name: 'Steelix', minLevel: 30, types: ['Steel', 'Ground'], bst: 510, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] }
+    { name: 'Steelix', minLevel: 1, types: ['Steel', 'Ground'], bst: 510, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] }
   ],
   steelix: [{ name: 'Mega Steelix', minLevel: 100, types: ['Steel', 'Ground'], bst: 610, mega: true, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] }],
   scyther: [
-    { name: 'Scizor', minLevel: 30, types: ['Bug', 'Steel'], bst: 500, keyMoves: ['Bullet Punch', 'X-Scissor', 'Superpower', 'Swords Dance'] },
-    { name: 'Kleavor', minLevel: 30, types: ['Bug', 'Rock'], bst: 500, keyMoves: ['Stone Axe', 'X-Scissor', 'Close Combat', 'Night Slash'] }
+    { name: 'Scizor', minLevel: 1, types: ['Bug', 'Steel'], bst: 500, keyMoves: ['Bullet Punch', 'X-Scissor', 'Superpower', 'Swords Dance'] },
+    { name: 'Kleavor', minLevel: 1, types: ['Bug', 'Rock'], bst: 500, keyMoves: ['Stone Axe', 'X-Scissor', 'Close Combat', 'Night Slash'] }
   ],
   slowpoke: [
     { name: 'Slowbro', minLevel: 37, types: ['Water', 'Psychic'], bst: 490, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Flamethrower'] },
@@ -1855,14 +1879,19 @@ const STAGE_TRANSITIONS = {
     { name: 'Froslass', minLevel: 42, types: ['Ice', 'Ghost'], bst: 480, keyMoves: ['Ice Beam', 'Shadow Ball', 'Thunderbolt', 'Psychic'] }
   ],
   glalie: [{ name: 'Mega Glalie', minLevel: 100, types: ['Ice'], bst: 580, mega: true, keyMoves: ['Double-Edge', 'Ice Beam', 'Earthquake', 'Explosion'] }],
-  poipole: [{ name: 'Naganadel', minLevel: 1, types: ['Poison', 'Dragon'], bst: 540, keyMoves: ['Sludge Wave', 'Draco Meteor', 'Fire Blast', 'Thunderbolt'] }],
-  meltan: [{ name: 'Melmetal', minLevel: 1, types: ['Steel'], bst: 600, keyMoves: ['Double Iron Bash', 'Earthquake', 'Thunder Punch', 'Superpower'] }],
-  'type: null': [{ name: 'Silvally', minLevel: 1, types: ['Normal'], bst: 570, keyMoves: ['Multi-Attack', 'Parting Shot', 'Iron Head', 'Flamethrower'] }],
-  "farfetch'd": [{ name: "Sirfetch'd", minLevel: 1, types: ['Fighting'], bst: 507, keyMoves: ['Meteor Assault', 'Close Combat', 'Brave Bird', 'First Impression'] }],
+  poipole: [{ name: 'Naganadel', minLevel: 60, types: ['Poison', 'Dragon'], bst: 540, keyMoves: ['Sludge Wave', 'Draco Meteor', 'Fire Blast', 'Thunderbolt'] }],
+  meltan: [{ name: 'Melmetal', minLevel: 80, types: ['Steel'], bst: 600, keyMoves: ['Double Iron Bash', 'Earthquake', 'Thunder Punch', 'Superpower'] }],
+  'type: null': [{ name: 'Silvally', minLevel: 25, types: ['Normal'], bst: 570, keyMoves: ['Multi-Attack', 'Parting Shot', 'Iron Head', 'Flamethrower'] }],
+  "farfetch'd": [{ name: "Sirfetch'd", minLevel: 35, types: ['Fighting'], bst: 507, keyMoves: ['Meteor Assault', 'Close Combat', 'Brave Bird', 'First Impression'] }],
   kubfu: [
-    { name: 'Urshifu (Single Strike)', minLevel: 1, types: ['Fighting', 'Dark'], bst: 550, gmax: true, keyMoves: ['Wicked Blow', 'Close Combat', 'Poison Jab', 'Iron Head'] },
-    { name: 'Urshifu (Rapid Strike)', minLevel: 1, types: ['Fighting', 'Water'], bst: 550, gmax: true, keyMoves: ['Surging Strikes', 'Close Combat', 'Aqua Jet', 'Ice Punch'] }
+    { name: 'Urshifu (Single Strike)', minLevel: 20, types: ['Fighting', 'Dark'], bst: 550, gmax: true, keyMoves: ['Wicked Blow', 'Close Combat', 'Poison Jab', 'Iron Head'] },
+    { name: 'Urshifu (Rapid Strike)', minLevel: 20, types: ['Fighting', 'Water'], bst: 550, gmax: true, keyMoves: ['Surging Strikes', 'Close Combat', 'Aqua Jet', 'Ice Punch'] }
   ],
+  urshifu: [
+    { name: 'G-Max Urshifu (Rapid Strike)', minLevel: 100, types: ['Fighting', 'Water'], bst: 550, gmax: true, keyMoves: ['Surging Strikes', 'Close Combat', 'Aqua Jet', 'Ice Punch'] },
+    { name: 'G-Max Urshifu (Single Strike)', minLevel: 100, types: ['Fighting', 'Dark'], bst: 550, gmax: true, keyMoves: ['Wicked Blow', 'Close Combat', 'Poison Jab', 'Iron Head'] }
+  ],
+  stunky: [{ name: 'Skuntank', minLevel: 34, types: ['Poison', 'Dark'], bst: 479, keyMoves: ['Sucker Punch', 'Sludge Bomb', 'Poison Jab', 'Night Slash'] }],
   cosmog: [{ name: 'Cosmoem', minLevel: 43, types: ['Psychic'], bst: 400, keyMoves: ['Teleport', 'Cosmic Power', 'Psyshock', 'Psychic'] }],
   cosmoem: [
     { name: 'Solgaleo', minLevel: 53, types: ['Psychic', 'Steel'], bst: 680, keyMoves: ['Sunsteel Strike', 'Zen Headbutt', 'Earthquake', 'Flare Blitz'] },
@@ -1876,8 +1905,6 @@ function getEvolveReadyPokemon(userCollection) {
   if (!Array.isArray(userCollection) || userCollection.length === 0) return [];
   const readyList = [];
 
-  const hasAnyCanEvolveFlags = userCollection.some(p => typeof p.canEvolve === 'boolean');
-
   for (const poke of userCollection) {
     if (!poke || !poke.name) continue;
     const rawName = String(poke.name).trim();
@@ -1887,9 +1914,9 @@ function getEvolveReadyPokemon(userCollection) {
       continue;
     }
 
-    // Strict Ground Truth: If live game canEvolve flags are present in collection,
-    // only include Pokemon that are actually verified ready to evolve on DelugeRPG!
-    if (hasAnyCanEvolveFlags && poke.canEvolve !== true) {
+    // Strict Ground Truth: If live game DOM verified that this specific Pokemon CANNOT evolve on DelugeRPG, skip it.
+    // When poke.canEvolve is undefined (box page not yet viewed on screen), evaluate based on species and level.
+    if (poke.canEvolve === false) {
       continue;
     }
 
@@ -1899,16 +1926,19 @@ function getEvolveReadyPokemon(userCollection) {
 
     const branches = [];
     if (transitions && transitions.length > 0) {
-      for (const tr of transitions) {
+      let filteredTransitions = transitions;
+      if (rawName.toLowerCase().includes('rapid strike')) {
+        filteredTransitions = transitions.filter(t => t.name.toLowerCase().includes('rapid strike'));
+      } else if (rawName.toLowerCase().includes('single strike')) {
+        filteredTransitions = transitions.filter(t => t.name.toLowerCase().includes('single strike'));
+      }
+      for (const tr of filteredTransitions) {
         if (tr.name.toLowerCase() === baseSpecies) continue;
-        const minLvl = tr.minLevel || (tr.mega ? 100 : 1);
-        if (tr.mega && (poke.level || 1) < 100) {
-          continue; // Mega Evolution strictly requires Level 100 in DelugeRPG
+        const minLvl = (tr.mega || tr.gmax) ? 100 : (tr.minLevel || 1);
+        if ((poke.level || 1) < minLvl) {
+          continue; // Strict level enforcement: under-leveled Pokemon can NEVER evolve
         }
-        const levelMet = (poke.level || 1) >= minLvl || (Boolean(poke.canEvolve) && !tr.mega);
-        if (levelMet) {
-          branches.push(tr);
-        }
+        branches.push(tr);
       }
     } else if (fam) {
       const isBase = fam.base.toLowerCase() === baseSpecies;
@@ -1916,22 +1946,21 @@ function getEvolveReadyPokemon(userCollection) {
       if (isBase || isStage) {
         for (const br of fam.branches) {
           if (br.name.toLowerCase() === baseSpecies) continue;
-          const minLvl = br.minLevel || (br.mega ? 100 : 1);
-          if (br.mega && (poke.level || 1) < 100) {
-            continue; // Mega Evolution strictly requires Level 100 in DelugeRPG
+          const minLvl = (br.mega || br.gmax) ? 100 : (br.minLevel || 1);
+          if ((poke.level || 1) < minLvl) {
+            continue; // Strict level enforcement: under-leveled Pokemon can NEVER evolve
           }
-          const levelMet = (poke.level || 1) >= minLvl || (Boolean(poke.canEvolve) && !br.mega);
-          if (levelMet) {
-            branches.push(br);
-          }
+          branches.push(br);
         }
       }
     }
 
     if (branches.length > 0) {
-      const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
-      const pVariant = poke.variant || (rawName.match(VARIANT_PREFIX_REGEX) || ['Normal'])[0];
-      const normalizedVariant = (pVariant.toLowerCase() === 'ghost') ? 'Ghostly' : (pVariant.charAt(0).toUpperCase() + pVariant.slice(1).toLowerCase());
+      const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)(?:\s+|$)/i;
+      const vMatch = rawName.match(VARIANT_PREFIX_REGEX);
+      const pVariant = poke.variant || (vMatch ? vMatch[1] : 'Normal');
+      const cleanVariant = String(pVariant).trim();
+      const normalizedVariant = (cleanVariant.toLowerCase() === 'ghost') ? 'Ghostly' : (cleanVariant.charAt(0).toUpperCase() + cleanVariant.slice(1).toLowerCase());
 
       const evaluatedBranches = branches.map(br => {
         const fullBranchName = (normalizedVariant !== 'Normal' && !br.name.toLowerCase().startsWith(normalizedVariant.toLowerCase() + ' '))

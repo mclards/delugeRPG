@@ -2813,12 +2813,16 @@
       <div id="teamActionRow" style="display: none; flex-direction: column; gap: 5px; border-top: 1px solid #1a283e; padding-top: 8px; margin-top: auto; flex-shrink: 0;">
         <span id="teamActionStatus" style="font-size: 10.5px; color: #8eaad0; font-weight: 600; text-align: center;"></span>
         <div id="teamBattleActionSlot" style="display: none; width: 100%;">
-          <div style="display: flex; gap: 5px; align-items: center; width: 100%; margin-bottom: 2px;">
-            <label id="teamBattleAutoLabel" style="display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; font-size: 10.5px; font-weight: 700; color: #8eaad0; cursor: pointer; user-select: none; flex-shrink: 0; box-shadow: none !important;" title="Auto mode: Continuously advance turns automatically with safe delays until battle ends">
+          <div style="display: flex; gap: 4px; align-items: center; width: 100%; margin-bottom: 2px;">
+            <label id="teamBattleAutoLabel" style="display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; font-size: 10.5px; font-weight: 700; color: #8eaad0; cursor: pointer; user-select: none; flex-shrink: 0; box-shadow: none !important;" title="Auto mode: Continuously advance turns automatically with safe delays until battle ends">
               <span>Auto</span>
               <input type="checkbox" id="teamBattleAutoCheck" style="margin: 0; cursor: pointer; accent-color: #388bfd;">
             </label>
-            <button id="teamBattleActionBtn" type="button" class="btn btn-accent" style="flex: 1; min-width: 0; height: 28px; padding: 0 8px; font-size: 11px; font-weight: 700; justify-content: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: none !important;" title="Execute optimal battle move or action directly from Team Builder">&#9889; Attack</button>
+            <label id="teamBattleLoopLabel" style="display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; font-size: 10.5px; font-weight: 700; color: #566e96; opacity: 0.6; cursor: not-allowed; user-select: none; flex-shrink: 0; box-shadow: none !important;" title="Loop mode: Repeatedly battle until all Pokemon in the team reach Level 100 (requires Auto)">
+              <span>Loop</span>
+              <input type="checkbox" id="teamBattleLoopCheck" disabled style="margin: 0; cursor: not-allowed; accent-color: #388bfd;">
+            </label>
+            <button id="teamBattleActionBtn" type="button" class="btn btn-accent" style="flex: 1; min-width: 0; height: 28px; padding: 0 6px; font-size: 11px; font-weight: 700; justify-content: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: none !important;" title="Execute optimal battle move or action directly from Team Builder">&#9889; Attack</button>
           </div>
         </div>
         <div style="display: flex; gap: 6px;">
@@ -2990,7 +2994,7 @@
           <span id="aiBattleOpponentBadge" style="font-size: 9.5px; font-weight: 700; color: #388bfd;">Select Pokemon Below</span>
         </div>
         <div id="aiTacticalBriefing" style="margin-top: 4px;">
-          <div style="color: #8eaad0; text-align: center; padding: 6px 4px; font-size: 10px; font-weight: 600; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px;">Select a Pokemon to inspect moves &amp; evolution</div>
+          <div style="color: #8eaad0; text-align: center; padding: 6px 4px; font-size: 10px; font-weight: 600; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px;">Select a Pokemon below</div>
         </div>
         <div id="aiInstantActionSlot" style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;"></div>
       </div>

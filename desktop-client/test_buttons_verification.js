@@ -358,6 +358,27 @@ runTest('Beveled Pill Button Component & Zero Glow Audit', () => {
   assert(btnSlice.includes('box-shadow: none !important;'), 'Button CSS must enforce box-shadow: none !important');
 });
 
+runTest('teamBattleAutoCheck: Safe In-Battle Auto Checkbox Button & Zero-Glow State Machine Audit', () => {
+  // 1. Verify existence and zero-glow styling in app.html
+  assert(appHtml.includes('id="teamBattleAutoCheck"'), 'app.html must define teamBattleAutoCheck');
+  assert(appHtml.includes('id="teamBattleAutoLabel"'), 'app.html must define teamBattleAutoLabel');
+  const autoIdx = appHtml.indexOf('id="teamBattleAutoLabel"');
+  const autoSlice = appHtml.slice(autoIdx, autoIdx + 600);
+  assert(autoSlice.includes('<span>Auto</span>'), 'teamBattleAutoLabel must display Auto label');
+  assert(autoSlice.includes('box-shadow: none !important;'), 'teamBattleAutoLabel must enforce box-shadow: none !important');
+
+  // 2. Verify element binding and state tracking in app.js
+  assert(appJs.includes("const teamBattleAutoCheck = document.getElementById('teamBattleAutoCheck')"), 'app.js must bind teamBattleAutoCheck');
+  assert(appJs.includes("const teamBattleAutoLabel = document.getElementById('teamBattleAutoLabel')"), 'app.js must bind teamBattleAutoLabel');
+  assert(appJs.includes('let isBattleAutoRunning = false'), 'app.js must declare isBattleAutoRunning state');
+  assert(appJs.includes('let battleAutoStepTimer = null'), 'app.js must declare battleAutoStepTimer');
+
+  // 3. Verify event listener and safe halts in app.js
+  assert(appJs.includes("teamBattleAutoCheck.addEventListener('change'"), 'app.js must attach change listener to teamBattleAutoCheck');
+  assert(appJs.includes('850 + Math.floor(Math.random() * 500)'), 'app.js must use randomized human reaction delay');
+  assert(appJs.includes('isBattleAutoRunning = false'), 'app.js must halt auto mode on state changes');
+});
+
 runTest('Segmented Sliding Tab Component (.tab-container) & Unified Scan Box Capsule Audit', () => {
   assert(appHtml.includes('.tab-container {'), 'app.html must define .tab-container CSS');
   assert(appHtml.includes('.indicator {'), 'app.html must define .indicator CSS');

@@ -531,6 +531,10 @@ let pvpCandidateTier = (config && config.settings && config.settings.pvpCandidat
 const battleOpponentBtn = document.getElementById('battleOpponentBtn');
 const teamBattleActionSlot = document.getElementById('teamBattleActionSlot');
 const teamBattleActionBtn = document.getElementById('teamBattleActionBtn');
+const teamBattleAutoCheck = document.getElementById('teamBattleAutoCheck');
+const teamBattleAutoLabel = document.getElementById('teamBattleAutoLabel');
+let isBattleAutoRunning = false;
+let battleAutoStepTimer = null;
 const adsInspectorModal = document.getElementById('adsInspectorModal');
 const adsInspectorMenuBtn = document.getElementById('adsInspectorMenuBtn');
 const closeAdsInspectorBtn = document.getElementById('closeAdsInspectorBtn');
@@ -1766,6 +1770,11 @@ function toggleHunting() {
     isAutoCatchCountdownActive = false;
     userManuallyPaused = true;
     wasHuntingBeforeAutoCatch = false;
+    if (battleAutoStepTimer) {
+      clearTimeout(battleAutoStepTimer);
+      battleAutoStepTimer = null;
+    }
+    isBattleAutoRunning = false;
     isRunning = false;
     try {
       if (delugeView && typeof delugeView.send === 'function') {
@@ -1782,6 +1791,11 @@ function toggleHunting() {
     isAutoCatchCountdownActive = false;
     userManuallyPaused = true;
     wasHuntingBeforeAutoCatch = false;
+    if (battleAutoStepTimer) {
+      clearTimeout(battleAutoStepTimer);
+      battleAutoStepTimer = null;
+    }
+    isBattleAutoRunning = false;
     isRunning = false;
     try {
       if (delugeView && typeof delugeView.send === 'function') {
@@ -1880,6 +1894,11 @@ function toggleHunting() {
     isAutoCatchCountdownActive = false;
     userManuallyPaused = true;
     wasHuntingBeforeAutoCatch = false;
+    if (battleAutoStepTimer) {
+      clearTimeout(battleAutoStepTimer);
+      battleAutoStepTimer = null;
+    }
+    isBattleAutoRunning = false;
     cancelPendingAutoStart('Hunting paused by user');
     backendLog('HuntingPause', 'Automated hunting paused by user');
     isStepPending = false;
@@ -2729,6 +2748,13 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
 
 function handleMapNavigation(url) {
   isGuestInputFocused = false;
+  if (url && (url.indexOf('/map') !== -1 || (url.indexOf('/battle') === -1 && url.indexOf('/challenge') === -1))) {
+    if (battleAutoStepTimer) {
+      clearTimeout(battleAutoStepTimer);
+      battleAutoStepTimer = null;
+    }
+    isBattleAutoRunning = false;
+  }
   if (url && !isMapUrl(url)) {
     guestReportsMap = false;
   }
@@ -3232,6 +3258,11 @@ delugeView.addEventListener('ipc-message', (event) => {
     }
     if (teamActionStatus) {
       if (data.success === false) {
+        if (battleAutoStepTimer) {
+          clearTimeout(battleAutoStepTimer);
+          battleAutoStepTimer = null;
+        }
+        isBattleAutoRunning = false;
         teamActionStatus.textContent = data.message || 'Action Failed';
         teamActionStatus.style.color = '#f87171';
       } else {
@@ -6235,6 +6266,11 @@ function openTeamBuilderPanel() {
 }
 
 function closeTeamBuilderPanel() {
+  if (battleAutoStepTimer) {
+    clearTimeout(battleAutoStepTimer);
+    battleAutoStepTimer = null;
+  }
+  isBattleAutoRunning = false;
   if (!teamBuilderModal) return;
   teamBuilderModal.style.display = 'none';
   if ((!adsInspectorModal || adsInspectorModal.style.display !== 'flex') &&
@@ -7239,6 +7275,45 @@ if (battleOpponentBtn) {
         }
       }, 1200);
     }, 350);
+  });
+}
+
+if (teamBattleAutoCheck) {
+  teamBattleAutoCheck.addEventListener('change', () => {
+    if (teamBattleAutoCheck.checked) {
+      if (teamBattleAutoLabel) {
+        teamBattleAutoLabel.style.borderColor = '#388bfd';
+        teamBattleAutoLabel.style.color = '#58a6ff';
+      }
+      if (teamActionStatus && !isBattleAutoRunning) {
+        teamActionStatus.textContent = 'Auto mode armed. Click action button to start.';
+        teamActionStatus.style.color = '#388bfd';
+        setTimeout(() => {
+          if (teamActionStatus && teamActionStatus.textContent === 'Auto mode armed. Click action button to start.') {
+            teamActionStatus.textContent = '';
+          }
+        }, 3000);
+      }
+    } else {
+      isBattleAutoRunning = false;
+      if (battleAutoStepTimer) {
+        clearTimeout(battleAutoStepTimer);
+        battleAutoStepTimer = null;
+      }
+      if (teamBattleAutoLabel) {
+        teamBattleAutoLabel.style.borderColor = '#1a283e';
+        teamBattleAutoLabel.style.color = '#8eaad0';
+      }
+      if (teamActionStatus) {
+        teamActionStatus.textContent = 'Auto mode disengaged';
+        teamActionStatus.style.color = '#8eaad0';
+        setTimeout(() => {
+          if (teamActionStatus && teamActionStatus.textContent === 'Auto mode disengaged') {
+            teamActionStatus.textContent = '';
+          }
+        }, 2000);
+      }
+    }
   });
 }
 
@@ -9045,6 +9120,11 @@ function computeAiBattleActionConfig(battleData, collection) {
 function updateTeamBuilderBattleAction(battleData) {
   if (!teamBattleActionSlot || !teamBattleActionBtn) return;
   if (isUnlockChallengeActive || isCaptchaAlarmActive) {
+    if (battleAutoStepTimer) {
+      clearTimeout(battleAutoStepTimer);
+      battleAutoStepTimer = null;
+    }
+    isBattleAutoRunning = false;
     teamBattleActionSlot.style.display = 'block';
     teamBattleActionBtn.className = 'btn';
     teamBattleActionBtn.disabled = true;
@@ -9056,10 +9136,25 @@ function updateTeamBuilderBattleAction(battleData) {
   }
   const config = computeAiBattleActionConfig(battleData, currentCollection);
   if (!config) {
+    if (battleAutoStepTimer) {
+      clearTimeout(battleAutoStepTimer);
+      battleAutoStepTimer = null;
+    }
+    isBattleAutoRunning = false;
     teamBattleActionSlot.style.display = 'none';
     teamBattleActionBtn.onclick = null;
     return;
   }
+
+  const isComplete = Boolean(config.disabled || !config.action || (config.labelHtml && config.labelHtml.indexOf('Battle Complete') !== -1));
+  if (isComplete) {
+    if (battleAutoStepTimer) {
+      clearTimeout(battleAutoStepTimer);
+      battleAutoStepTimer = null;
+    }
+    isBattleAutoRunning = false;
+  }
+
   teamBattleActionSlot.style.display = 'block';
   teamBattleActionBtn.className = config.btnClass || 'btn btn-accent';
   teamBattleActionBtn.disabled = Boolean(config.disabled);
@@ -9067,8 +9162,13 @@ function updateTeamBuilderBattleAction(battleData) {
   teamBattleActionBtn.title = 'Execute optimal battle move or action directly from Team Builder';
   teamBattleActionBtn.onclick = () => {
     if (typeof config.action === 'function') {
+      if (teamBattleAutoCheck && teamBattleAutoCheck.checked) {
+        isBattleAutoRunning = true;
+      } else {
+        isBattleAutoRunning = false;
+      }
       if (teamActionStatus) {
-        teamActionStatus.textContent = 'Applying...';
+        teamActionStatus.textContent = isBattleAutoRunning ? 'Auto executing turn...' : 'Applying...';
         teamActionStatus.style.color = '#388bfd';
       }
       teamBattleActionBtn.disabled = true;
@@ -9077,6 +9177,39 @@ function updateTeamBuilderBattleAction(battleData) {
   };
   if (teamActionRow) {
     teamActionRow.style.display = 'flex';
+  }
+
+  if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isComplete && typeof config.action === 'function' && !config.disabled) {
+    if (battleAutoStepTimer) {
+      clearTimeout(battleAutoStepTimer);
+      battleAutoStepTimer = null;
+    }
+    const autoDelay = 850 + Math.floor(Math.random() * 500);
+    if (teamActionStatus) {
+      teamActionStatus.textContent = `Auto turn in ${(autoDelay / 1000).toFixed(1)}s...`;
+      teamActionStatus.style.color = '#388bfd';
+    }
+    battleAutoStepTimer = setTimeout(() => {
+      battleAutoStepTimer = null;
+      if (isUnlockChallengeActive || isCaptchaAlarmActive || userManuallyPaused) {
+        isBattleAutoRunning = false;
+        return;
+      }
+      if (!teamBattleAutoCheck || !teamBattleAutoCheck.checked) {
+        isBattleAutoRunning = false;
+        return;
+      }
+      if (typeof config.action === 'function' && !teamBattleActionBtn.disabled) {
+        if (teamActionStatus) {
+          teamActionStatus.textContent = 'Auto executing turn...';
+          teamActionStatus.style.color = '#388bfd';
+        }
+        teamBattleActionBtn.disabled = true;
+        config.action();
+      } else {
+        isBattleAutoRunning = false;
+      }
+    }, autoDelay);
   }
 }
 
@@ -9147,6 +9280,11 @@ function renderAiAssistantUI() {
 let aiActionTimeoutTimer = null;
 function executeAiBattleAction(action, payload) {
   if (isUnlockChallengeActive || isCaptchaAlarmActive) {
+    if (battleAutoStepTimer) {
+      clearTimeout(battleAutoStepTimer);
+      battleAutoStepTimer = null;
+    }
+    isBattleAutoRunning = false;
     backendLog('SecurityChallenge', `Blocked battle action "${action}": Captcha active and unacknowledged.`);
     if (teamActionStatus) {
       teamActionStatus.textContent = 'Action Blocked: Captcha Active';
@@ -9156,6 +9294,14 @@ function executeAiBattleAction(action, payload) {
       aiStatusChip.textContent = 'Captcha Active';
       aiStatusChip.style.color = '#ef4444';
     }
+    return;
+  }
+  if (userManuallyPaused) {
+    if (battleAutoStepTimer) {
+      clearTimeout(battleAutoStepTimer);
+      battleAutoStepTimer = null;
+    }
+    isBattleAutoRunning = false;
     return;
   }
   if (!delugeView) return;
@@ -9676,6 +9822,11 @@ function silenceCaptchaAlarm() {
 }
 
 function handleCaptchaEmergencyHalt(reason = 'Captcha challenge detected') {
+  if (battleAutoStepTimer) {
+    clearTimeout(battleAutoStepTimer);
+    battleAutoStepTimer = null;
+  }
+  isBattleAutoRunning = false;
   cancelPendingAutoStart(reason);
   if (walkTimeout) {
     clearTimeout(walkTimeout);

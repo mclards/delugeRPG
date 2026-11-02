@@ -2816,7 +2816,7 @@ delugeView.addEventListener('did-finish-load', () => {
     }
     const reloadSvg = refreshBtn ? refreshBtn.querySelector('.reload-icon') : null;
     if (reloadSvg) reloadSvg.classList.remove('spinning');
-    if (!isRunning) updateStatus('Ready', '#10b981');
+    if (!isRunning && isCurrentPageMap()) updateStatus('Ready', '#10b981');
   }
 });
 
@@ -2829,7 +2829,7 @@ delugeView.addEventListener('did-stop-loading', () => {
     }
     const reloadSvg = refreshBtn ? refreshBtn.querySelector('.reload-icon') : null;
     if (reloadSvg) reloadSvg.classList.remove('spinning');
-    if (!isRunning) updateStatus('Ready', '#10b981');
+    if (!isRunning && isCurrentPageMap()) updateStatus('Ready', '#10b981');
   }
 });
 
@@ -4683,6 +4683,12 @@ if (openLogsBtn) {
   });
 }
 
+function flushBattleSessionCache() {
+  try {
+    ipcRenderer.invoke('soft-session-flush').catch(() => {});
+  } catch (_) {}
+}
+
 let isManualReloadInProgress = false;
 let manualReloadUnlockTimer = null;
 
@@ -4697,7 +4703,7 @@ if (refreshBtn) {
     isGuestInputFocused = false;
     cancelPendingAutoStart('Manual page reload');
 
-    // 1. Cleanly halt hunting and drop in-flight steps
+    // 1. Cleanly halt automated hunting and drop in-flight navigation steps
     if (isRunning) {
       isRunning = false;
       updateToggleButton();
@@ -4715,7 +4721,7 @@ if (refreshBtn) {
       fallbackCollisionTimer = null;
     }
 
-    // 2. Abort guest actions and purge transient battle/navigation state
+    // 2. Abort guest hunting ticks without disrupting active client UI panels or state
     if (delugeView && typeof delugeView.send === 'function') {
       try {
         delugeView.send('abort-autocatch');
@@ -4724,33 +4730,30 @@ if (refreshBtn) {
     }
     isEncounterOnScreen = false;
     isAutoCatchCountdownActive = false;
-    guestReportsMap = false;
-    activeAiBattleData = null;
-    liveBattleOpponent = null;
-    if (typeof updateTeamBuilderBattleAction === 'function') updateTeamBuilderBattleAction(null);
-    navBlockedStatus = {};
-    blockedDirections = {};
-    recentMoves = [];
 
+    // 3. Spin reload icon for clear visual feedback
     const reloadSvg = refreshBtn.querySelector('.reload-icon');
     if (reloadSvg) {
       reloadSvg.classList.remove('spinning');
       void reloadSvg.offsetWidth;
       reloadSvg.classList.add('spinning');
     }
-    updateStatus('Reloading page...', '#38bdf8');
 
-    // 3. Fire non-blocking soft cache flush in parallel (clears transient HTTP cache)
-    try {
-      ipcRenderer.invoke('soft-session-flush').catch(() => {});
-    } catch (_) {}
-
-    // 4. Immediate native reload dispatch with URL fallback (no stop() call to prevent aborted navigation)
+    // 4. Dispatch reload strictly to the DelugeRPG webpage inside the webview (never reload desktop client)
     if (delugeView) {
       const currentTargetUrl = (typeof delugeView.getURL === 'function' && delugeView.getURL())
         || delugeView.src
         || 'https://www.delugerpg.com/map';
-      backendLog('RELOAD', `Manual reload triggered for URL: ${currentTargetUrl}`);
+      backendLog('RELOAD', `Manual reload triggered for DelugeRPG webpage: ${currentTargetUrl}`);
+
+      // Direct in-guest page reload execution
+      try {
+        if (typeof delugeView.executeJavaScript === 'function') {
+          delugeView.executeJavaScript('window.location.reload()').catch(() => {});
+        }
+      } catch (_) {}
+
+      // Authoritative native webview reload dispatch
       try {
         if (typeof delugeView.reload === 'function') {
           delugeView.reload();
@@ -4775,13 +4778,12 @@ if (refreshBtn) {
       }
     }
 
-    // Safety timeout in case webview navigation finishes without event
+    // 5. Safety timeout in case webview navigation finishes without event
     manualReloadUnlockTimer = setTimeout(() => {
       if (isManualReloadInProgress) {
         isManualReloadInProgress = false;
         manualReloadUnlockTimer = null;
         if (reloadSvg) reloadSvg.classList.remove('spinning');
-        if (!isRunning) updateStatus('Ready', '#10b981');
       }
     }, 3000);
   });

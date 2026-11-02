@@ -427,6 +427,25 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'app.html'));
 
+  // Shield desktop client host window: never navigate mainWindow away from app.html
+  mainWindow.webContents.on('will-navigate', (e, url) => {
+    if (!url.startsWith('file://')) {
+      e.preventDefault();
+    }
+  });
+
+  // Intercept F5 / Ctrl+R / Ctrl+Shift+R on host window: forward solely to webview reload
+  mainWindow.webContents.on('before-input-event', (inputEvent, input) => {
+    if (input.type === 'keyDown') {
+      const keyLower = (input.key || '').toLowerCase();
+      if (input.key === 'F5' || ((input.control || input.meta) && keyLower === 'r')) {
+        inputEvent.preventDefault();
+        mainWindow.webContents.send('reload-command');
+        return;
+      }
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -590,8 +609,6 @@ if (!gotTheLock) {
     }
   });
 
-  createWindow();
-
   // Register zoom shortcuts and security policies across all window frames, iframes and webviews
   app.on('web-contents-created', (event, contents) => {
     contents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -644,6 +661,8 @@ if (!gotTheLock) {
       }
     });
   });
+
+  createWindow();
 
   // Register F2 global hotkey for pause/resume
   globalShortcut.register('F2', () => {

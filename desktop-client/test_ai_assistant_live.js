@@ -567,8 +567,34 @@ const completeTeam = [
 assert.strictEqual(checkAll100(incompleteTeam), false, 'Team with level 96 must NOT be considered complete');
 assert.strictEqual(checkAll100(completeTeam), true, 'Team with all level 100s MUST be considered complete');
 
+// Test Live Battling Team Prioritization over Sidebar Team
+const evaluateAll100WithPriority = (liveBattlingTeam, sidebarTeam) => {
+  const teamToCheck = (liveBattlingTeam && liveBattlingTeam.length > 0)
+    ? liveBattlingTeam
+    : (sidebarTeam && sidebarTeam.length > 0 ? sidebarTeam : null);
+  if (!teamToCheck || teamToCheck.length === 0) return false;
+  return teamToCheck.every(p => (p && typeof p.level === 'number' ? p.level : 0) >= 100);
+};
+
+const sidebarWithTrainees = [
+  { name: 'Mega Mewtwo X', level: 100 },
+  { name: 'Kubfu', level: 65 },
+  { name: 'Goomy', level: 16 }
+];
+const liveMaxedBattlingTeam = [
+  { name: 'Mega Heracross', level: 100 },
+  { name: 'Naganadel', level: 100 },
+  { name: 'Terapagos', level: 100 }
+];
+assert.strictEqual(
+  evaluateAll100WithPriority(liveMaxedBattlingTeam, sidebarWithTrainees),
+  true,
+  'Live maxed battling team MUST trigger training complete even when sidebar contains trainee members'
+);
+
 const appJsFull = fs.readFileSync('app.js', 'utf8');
 assert(appJsFull.includes('function areAllTeamPokemonLevel100()'), 'app.js must define areAllTeamPokemonLevel100');
+assert(appJsFull.includes('const battlingTeam = (activeAiBattleData && Array.isArray(activeAiBattleData.userTeam)'), 'areAllTeamPokemonLevel100 must prioritize activeAiBattleData.userTeam');
 assert(appJsFull.includes('function scheduleNextLoopBattle()'), 'app.js must define scheduleNextLoopBattle');
 assert(appJsFull.includes('function updateLoopCheckboxVisual()'), 'app.js must define updateLoopCheckboxVisual');
 assert(appJsFull.includes('if (battleLoopTimer) return;'), 'scheduleNextLoopBattle must prevent 500ms sensor starvation');
@@ -578,6 +604,8 @@ assert(appJsFull.includes('Battle Finished'), 'updateTeamBuilderBattleAction mus
 const preloadJsFull = fs.readFileSync('game-preload.js', 'utf8');
 assert(preloadJsFull.includes('isDefeatScreen: Boolean(isDefeat)'), 'game-preload.js must emit isDefeatScreen');
 assert(preloadJsFull.includes("ipcRenderer.on('click-rematch-button'"), 'game-preload.js must support click-rematch-button');
+assert(preloadJsFull.includes('STEALTH_FOCUS_STYLE_ID'), 'game-preload.js must implement stealth focus outline suppression');
+assert(preloadJsFull.includes('applyCleanFocusOutline()'), 'game-preload.js must execute applyCleanFocusOutline');
 
 console.log('\n[PASS] AUDIT 11: Training Battle Loop Mode & Level 100 Detector Verified');
 

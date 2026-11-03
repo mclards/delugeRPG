@@ -461,8 +461,42 @@ const COSMETIC_AD_CSS = [
     '    padding: 0px !important;',
     '    overflow: hidden !important;',
     '    display: none !important;',
+    '}',
+    '/* Suppress Chromium focus ring outline on game containers and buttons */',
+    ':focus, :focus-visible {',
+    '    outline: none !important;',
+    '}',
+    'button:focus, input:focus, select:focus, textarea:focus, div:focus, form:focus, a:focus {',
+    '    outline: none !important;',
     '}'
 ].join('\n');
+
+const STEALTH_FOCUS_STYLE_ID = 'stealth-clean-focus-outline';
+const STEALTH_FOCUS_CSS = [
+    '/* Suppress Chromium focus ring outline on game containers and buttons */',
+    ':focus, :focus-visible {',
+    '    outline: none !important;',
+    '}',
+    'button:focus, input:focus, select:focus, textarea:focus, div:focus, form:focus, a:focus {',
+    '    outline: none !important;',
+    '}'
+].join('\n');
+
+function applyCleanFocusOutline() {
+    try {
+        let styleEl = document.getElementById(STEALTH_FOCUS_STYLE_ID);
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = STEALTH_FOCUS_STYLE_ID;
+            styleEl.type = 'text/css';
+            styleEl.textContent = STEALTH_FOCUS_CSS;
+            const parent = document.head || document.documentElement || document.body;
+            if (parent) {
+                parent.appendChild(styleEl);
+            }
+        }
+    } catch (_) {}
+}
 
 function vaccinateLinksAgainstVignettes() {
     if (config.hideAdsCosmetically === false) return;
@@ -1014,6 +1048,7 @@ function applyCosmeticAdHiding() {
 
 // Initial application of Option B & Ads Listener
 healDelugeHeader();
+applyCleanFocusOutline();
 applyCosmeticAdHiding();
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
@@ -5859,6 +5894,12 @@ function detectBattleOpponents(isManualCheck) {
                         if (t && rTypes.indexOf(t) === -1) rTypes.push(t);
                     }
                     let rLevel = 100;
+                    if (Array.isArray(lastKnownUserTeam)) {
+                        const matched = lastKnownUserTeam.find(u => (u.name || '').toLowerCase() === rName.toLowerCase());
+                        if (matched && typeof matched.level === 'number') {
+                            rLevel = matched.level;
+                        }
+                    }
                     let rHp = 100;
                     let rMaxHp = 100;
                     const rLvlEl = rItem.querySelector('.battlelistlvlhp, .hp');

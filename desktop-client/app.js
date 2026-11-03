@@ -6070,6 +6070,15 @@ function handleLiveBattleOpponents(data) {
         renderTeamLineup(liveBattleOpponent || { name: 'Active Opponent' }, lastRecommendedTeam);
       }
     }
+    if (Array.isArray(currentCollection) && currentCollection.length > 0) {
+      data.userTeam.forEach(u => {
+        if (!u || !u.name || !u.level) return;
+        const match = currentCollection.find(c => c && c.name && c.name.toLowerCase() === u.name.toLowerCase());
+        if (match && typeof match.level === 'number' && u.level > match.level) {
+          match.level = u.level;
+        }
+      });
+    }
   } else if ((!data.userTeam || data.userTeam.length === 0) && Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > 0) {
     data.userTeam = lastKnownUserTeam;
   }
@@ -7848,16 +7857,31 @@ function updateLoopCheckboxVisual() {
 }
 
 function areAllTeamPokemonLevel100() {
-  const teamToCheck = (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0)
-    ? lastRecommendedTeam
+  // 1. Live Battling Team (Strict Source of Truth for Active Combat & Post-Battle Victory)
+  const battlingTeam = (activeAiBattleData && Array.isArray(activeAiBattleData.userTeam) && activeAiBattleData.userTeam.length > 0)
+    ? activeAiBattleData.userTeam
     : (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > 0 ? lastKnownUserTeam : null);
 
-  if (!teamToCheck || teamToCheck.length === 0) return false;
+  if (battlingTeam && battlingTeam.length > 0) {
+    return battlingTeam.every(p => {
+      let lvl = (p && p.level !== undefined && p.level !== null) ? parseInt(p.level, 10) : NaN;
+      if (isNaN(lvl) && Array.isArray(currentCollection) && p && p.name) {
+        const match = currentCollection.find(c => c && c.name && c.name.toLowerCase() === p.name.toLowerCase());
+        if (match && match.level !== undefined && match.level !== null) lvl = parseInt(match.level, 10);
+      }
+      return !isNaN(lvl) && lvl >= 100;
+    });
+  }
 
-  return teamToCheck.every(p => {
-    const lvl = (p && p.level !== undefined && p.level !== null) ? parseInt(p.level, 10) : NaN;
-    return !isNaN(lvl) && lvl >= 100;
-  });
+  // 2. Fallback ONLY if no battle has occurred yet and no active team has been observed
+  if (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0) {
+    return lastRecommendedTeam.every(p => {
+      const lvl = (p && p.level !== undefined && p.level !== null) ? parseInt(p.level, 10) : NaN;
+      return !isNaN(lvl) && lvl >= 100;
+    });
+  }
+
+  return false;
 }
 
 function scheduleNextLoopBattle() {
@@ -8025,6 +8049,15 @@ if (teamBattleLoopCheck) {
 
     if (teamBattleLoopCheck.checked) {
       userManuallyPaused = false;
+      if (areAllTeamPokemonLevel100()) {
+        teamBattleLoopCheck.checked = false;
+        updateLoopCheckboxVisual();
+        if (teamActionStatus) {
+          teamActionStatus.textContent = 'All battling Pokemon reached Lv 100! Training complete.';
+          teamActionStatus.style.color = '#10b981';
+        }
+        return;
+      }
       updateLoopCheckboxVisual();
       if (teamActionStatus) {
         teamActionStatus.textContent = 'Loop mode armed (battles until all team is Lv 100)';

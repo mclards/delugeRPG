@@ -1131,7 +1131,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.4.8';
+    let appVer = '1.4.9';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -7728,6 +7728,116 @@ function updateCatchLogBadge() {
   }
 }
 
+const CATCH_MYTHICAL_SPECIES = [
+  'mew', 'celebi', 'jirachi', 'deoxys', 'phione', 'manaphy', 'darkrai', 'shaymin', 'arceus',
+  'victini', 'keldeo', 'meloetta', 'genesect', 'diancie', 'hoopa', 'volcanion', 'magearna',
+  'marshadow', 'zeraora', 'meltan', 'melmetal', 'zarude', 'pecharunt'
+];
+
+const CATCH_ULTRA_BEASTS = [
+  'nihilego', 'buzzwole', 'pheromosa', 'xurkitree', 'celesteela', 'kartana',
+  'guzzlord', 'poipole', 'naganadel', 'stakataka', 'blacephalon'
+];
+
+const CATCH_PARADOX_SPECIES = [
+  'great tusk', 'scream tail', 'brute bonnet', 'flutter mane', 'slither wing', 'sandy shocks',
+  'iron treads', 'iron bundle', 'iron hands', 'iron jugulis', 'iron moth', 'iron thorns',
+  'roaring moon', 'iron valiant', 'walking wake', 'iron leaves',
+  'gouging fire', 'raging bolt', 'iron boulder', 'iron crown'
+];
+
+const CATCH_LEGENDARY_SPECIES = [
+  'articuno', 'zapdos', 'moltres', 'mewtwo', 'raikou', 'entei', 'suicune', 'lugia', 'ho-oh',
+  'regirock', 'regice', 'registeel', 'latias', 'latios', 'kyogre', 'groudon', 'rayquaza',
+  'uxie', 'mesprit', 'azelf', 'dialga', 'palkia', 'heatran', 'regigigas', 'giratina', 'cresselia',
+  'cobalion', 'terrakion', 'virizion', 'tornadus', 'thundurus', 'reshiram', 'zekrom',
+  'landorus', 'kyurem', 'xerneas', 'yveltal', 'zygarde', 'type: null', 'type null', 'silvally',
+  'tapu koko', 'tapu lele', 'tapu bulu', 'tapu fini', 'cosmog', 'cosmoem', 'solgaleo', 'lunala',
+  'necrozma', 'zacian', 'zamazenta', 'eternatus', 'kubfu', 'urshifu', 'regieleki', 'regidrago',
+  'glastrier', 'spectrier', 'calyrex', 'enamorus', 'wo-chien', 'chien-pao', 'ting-lu', 'chi-yu',
+  'koraidon', 'miraidon', 'okidogi', 'munkidori', 'fezandipiti', 'ogerpon', 'terapagos'
+];
+
+const CATCH_DIRECT_MEGA_SPECIES = [
+  'venusaur', 'charizard', 'blastoise', 'beedrill', 'pidgeot', 'alakazam', 'slowbro',
+  'gengar', 'kangaskhan', 'pinsir', 'gyarados', 'aerodactyl', 'mewtwo', 'ampharos',
+  'steelix', 'scizor', 'heracross', 'houndoom', 'tyranitar', 'sceptile', 'blaziken',
+  'swampert', 'gardevoir', 'gallade', 'sableye', 'mawile', 'aggron', 'medicham',
+  'manectric', 'sharpedo', 'camerupt', 'altaria', 'banette', 'absol', 'glalie',
+  'salamence', 'metagross', 'latias', 'latios', 'rayquaza', 'lopunny', 'garchomp',
+  'lucario', 'abomasnow', 'diancie', 'audino', 'kyogre', 'groudon'
+];
+
+function getCaughtPokemonKind(p) {
+  const name = typeof p === 'string' ? p : ((p && (p.name || p.fullName)) || '');
+  const cat = (p && p.category) ? String(p.category).toLowerCase() : '';
+  const lower = name.toLowerCase();
+  let base = name
+    .replace(/^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
+    .replace(/^(Mega|Primal|G-Max|Gigantamax)\s+/i, '')
+    .replace(/^(Alolan|Galarian|Hisuian|Paldean)\s+/i, '')
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/-(Wash|Heat|Frost|Fan|Mow|Origin|Therian|Incarnate|Altered|Dusk-Mane|Dawn-Wings|Rapid-Strike|Single-Strike|Paldea|Hisui|Galar|Alola|Sky|Attack|Defense|Speed)$/i, '')
+    .replace(/\s+[XYZ]$/i, '')
+    .trim()
+    .toLowerCase();
+
+  if (cat.includes('ultra beast') || cat.includes('ultrabeast') || CATCH_ULTRA_BEASTS.includes(base)) {
+    return 'Ultra Beast';
+  }
+  if (cat.includes('paradox') || CATCH_PARADOX_SPECIES.includes(base) || lower.startsWith('iron ') || base.startsWith('iron ')) {
+    return 'Paradox';
+  }
+  if (CATCH_MYTHICAL_SPECIES.includes(base)) {
+    return 'Mythical';
+  }
+  if (cat.includes('legendary') || CATCH_LEGENDARY_SPECIES.includes(base)) {
+    return 'Legendary';
+  }
+  if (lower.includes('g-max') || lower.includes('gigantamax') || cat.includes('gigantamax')) {
+    return 'Gigantamax';
+  }
+  if (lower.includes('mega ') || lower.includes('primal ') || CATCH_DIRECT_MEGA_SPECIES.includes(base) || cat.includes('mega')) {
+    return 'Mega';
+  }
+  return 'Common';
+}
+
+function getCaughtPokemonKindBadge(p) {
+  const kind = getCaughtPokemonKind(p);
+  let bg = '#070e1a';
+  let border = '#1a283e';
+  let color = '#8eaad0';
+
+  if (kind === 'Ultra Beast') {
+    bg = 'rgba(63, 185, 80, 0.15)';
+    border = '#3fb950';
+    color = '#3fb950';
+  } else if (kind === 'Paradox') {
+    bg = 'rgba(236, 72, 153, 0.15)';
+    border = '#ec4899';
+    color = '#ec4899';
+  } else if (kind === 'Mythical') {
+    bg = 'rgba(163, 113, 247, 0.15)';
+    border = '#a371f7';
+    color = '#a371f7';
+  } else if (kind === 'Legendary') {
+    bg = 'rgba(210, 153, 34, 0.15)';
+    border = '#d29922';
+    color = '#d29922';
+  } else if (kind === 'Gigantamax') {
+    bg = 'rgba(249, 115, 22, 0.15)';
+    border = '#f97316';
+    color = '#f97316';
+  } else if (kind === 'Mega') {
+    bg = 'rgba(56, 139, 253, 0.15)';
+    border = '#388bfd';
+    color = '#388bfd';
+  }
+
+  return `<span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: ${bg}; border: 1px solid ${border}; color: ${color}; font-weight: 600; box-shadow: none !important;">${kind}</span>`;
+}
+
 function renderCatchLogUI() {
   ensureTodayCatchLog();
   const count = dailyCatchData.caught ? dailyCatchData.caught.length : 0;
@@ -7772,6 +7882,7 @@ function renderCatchLogUI() {
   for (let i = 0; i < dailyCatchData.caught.length; i++) {
     const p = dailyCatchData.caught[i];
     const spriteTag = p.sprite ? `<img src="${p.sprite}" alt="${p.name}">` : `<span class="icon-pokeball"></span>`;
+    const kindBadge = getCaughtPokemonKindBadge(p);
     html += `
       <div class="caught-pokemon-card">
         <div class="caught-card-thumb">${spriteTag}</div>
@@ -7781,9 +7892,8 @@ function renderCatchLogUI() {
             <span style="font-size: 9.5px; color: #8eaad0; font-weight: 600;">${p.timestamp || ''}</span>
           </div>
           <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(56, 139, 253, 0.15); border: 1px solid #388bfd; color: #388bfd; font-weight: 600;">${p.variant || 'Normal'}</span>
+            ${kindBadge}
             <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: #070e1a; border: 1px solid #1a283e; color: #8eaad0; font-weight: 600;">Lv ${p.level || '?'}</span>
-            <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(210, 153, 34, 0.15); border: 1px solid #d29922; color: #d29922; font-weight: 600;">${p.ball || 'Master Ball'}</span>
           </div>
         </div>
       </div>
@@ -7795,6 +7905,9 @@ function renderCatchLogUI() {
 function recordCaughtPokemon(pokemon, remainingStock) {
   ensureTodayCatchLog();
   if (pokemon) {
+    if (!pokemon.kind) {
+      pokemon.kind = getCaughtPokemonKind(pokemon);
+    }
     dailyCatchData.caught.unshift(pokemon);
   }
   dailyCatchData.masterBallUsedToday = (dailyCatchData.masterBallUsedToday || 0) + 1;

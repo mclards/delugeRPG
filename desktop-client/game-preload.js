@@ -2822,11 +2822,11 @@ function scanForTargets() {
         const specName = extractEncounterSpeciesName();
         if (config.dexCompletionMode === 'unowned_species' && !ownStatus.isOwned) {
             const foundName = varPrefix + 'Dex Missing: ' + (specName ? specName.toUpperCase() : 'NEW SPECIES') + lvlSuffix;
-            triggerTargetFound(foundName, 'Dex Completionist', preferredDexBall);
+            triggerTargetFound(foundName, 'Dex Completionist');
             return;
         } else if (config.dexCompletionMode === 'unowned_variants' && !ownStatus.hasExactOwned) {
             const foundName = varPrefix + 'New Variant: ' + (specName ? specName.toUpperCase() : 'NEW VARIANT') + lvlSuffix;
-            triggerTargetFound(foundName, 'Dex Completionist', preferredDexBall);
+            triggerTargetFound(foundName, 'Dex Completionist');
             return;
         }
     }
@@ -3132,7 +3132,7 @@ function scanForTargets() {
 }
 
 // --- 4. TARGET FOUND HANDLER ---
-function triggerTargetFound(targetName, category, preferredBall = '') {
+function triggerTargetFound(targetName, category) {
     const currentPath = (window.location.pathname || '').toLowerCase();
     if (currentPath.indexOf('/map') === -1) return;
     if (!isHuntingActive) return;
@@ -3224,25 +3224,6 @@ function triggerTargetFound(targetName, category, preferredBall = '') {
                 .replace(/\s+/g, ' ')
                 .trim();
 
-            let assignedBall = preferredBall;
-            if (!assignedBall && config.ballRouting) {
-                const catLower = (category || '').toLowerCase();
-                if (catLower.includes('legend') || catLower.includes('ultra beast') || catLower.includes('paradox')) {
-                    assignedBall = config.ballRouting.legendaries || 'Master Ball';
-                } else if (catLower.includes('pseudo')) {
-                    assignedBall = config.ballRouting.pseudo || 'Ultra Ball';
-                } else if (catLower.includes('mega') || catLower.includes('special form')) {
-                    assignedBall = config.ballRouting.megas || 'Ultra Ball';
-                } else if (catLower.includes('type')) {
-                    assignedBall = config.ballRouting.types || 'Ultra Ball';
-                } else if (catLower.includes('dex')) {
-                    assignedBall = config.ballRouting.dex || 'Ultra Ball';
-                } else {
-                    assignedBall = config.ballRouting.variants || 'Ultra Ball';
-                }
-            }
-            if (!assignedBall) assignedBall = 'Master Ball';
-
             const detailsObj = {
                 name: cleanName || targetName,
                 fullName: targetName,
@@ -3250,7 +3231,7 @@ function triggerTargetFound(targetName, category, preferredBall = '') {
                 level: level,
                 sprite: spriteUrl,
                 category: category || 'Wild Encounter',
-                ball: assignedBall,
+                ball: 'Master Ball',
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
             };
             sessionStorage.setItem('deluge_autocatch_details', JSON.stringify(detailsObj));
@@ -4790,62 +4771,38 @@ function runAutoCatchLifecycle() {
     const radioPool = formScope ? Array.from(formScope.querySelectorAll('input[type="radio"]')) : Array.from(document.querySelectorAll('input[type="radio"]'));
 
     if (throwBtn && radioPool.length > 0) {
-        let preferredBallName = 'Master Ball';
-        try {
-            const rawDetails = sessionStorage.getItem('deluge_autocatch_details');
-            if (rawDetails) {
-                const p = JSON.parse(rawDetails);
-                if (p.ball) preferredBallName = p.ball;
-            }
-        } catch (_) {}
+        let masterRadio = null;
+        let isMasterUnavailable = false;
+        let masterStock = null;
 
-        function getRadioForBall(ballName) {
-            const term = (ballName || '').toLowerCase().replace(/\s*ball\b/i, '').trim();
-            for (let rIdx = 0; rIdx < radioPool.length; rIdx++) {
-                const r = radioPool[rIdx];
-                let desc = (r.value || '') + ' ' + (r.id || '') + ' ' + (r.name || '') + ' ';
-                if (r.parentElement) desc += ' ' + r.parentElement.textContent;
-                if (r.labels && r.labels.length) {
-                    for (let l = 0; l < r.labels.length; l++) desc += ' ' + r.labels[l].textContent;
-                }
-                if (r.id) {
-                    const forLabel = document.querySelector('label[for="' + r.id + '"]');
-                    if (forLabel) desc += ' ' + forLabel.textContent;
-                }
-                const dLower = desc.toLowerCase();
-                if (dLower.indexOf(term) !== -1 || (r.value && r.value.toLowerCase().indexOf(term) !== -1)) {
-                    let stock = null;
-                    const stockMatch = desc.match(/\((\d+)\)/);
-                    if (stockMatch) stock = parseInt(stockMatch[1], 10);
-                    let unavail = (r.disabled || dLower.indexOf('(0)') !== -1 || stock === 0);
-                    const parent = r.parentElement;
-                    if (parent && (parent.querySelector('strike, del, s') || (parent.style && parent.style.textDecoration && parent.style.textDecoration.indexOf('line-through') !== -1))) {
-                        unavail = true;
-                    }
-                    return { radio: r, unavailable: unavail, stock: stock, name: ballName };
-                }
+        for (let rIdx = 0; rIdx < radioPool.length; rIdx++) {
+            const r = radioPool[rIdx];
+            let desc = (r.value || '') + ' ' + (r.id || '') + ' ' + (r.name || '') + ' ';
+            if (r.parentElement) desc += ' ' + r.parentElement.textContent;
+            if (r.labels && r.labels.length) {
+                for (let l = 0; l < r.labels.length; l++) desc += ' ' + r.labels[l].textContent;
             }
-            return null;
-        }
-
-        let selectedBallChoice = getRadioForBall(preferredBallName);
-        if (!selectedBallChoice || selectedBallChoice.unavailable) {
-            const fallbackPolicy = config.ballFallbackPolicy || 'downgrade';
-            if (fallbackPolicy === 'downgrade') {
-                const ballOrder = ['Master Ball', 'Ultra Ball', 'Great Ball', 'Poke Ball'];
-                const startIndex = Math.max(0, ballOrder.indexOf(preferredBallName));
-                for (let bo = startIndex; bo < ballOrder.length; bo++) {
-                    const candidate = getRadioForBall(ballOrder[bo]);
-                    if (candidate && !candidate.unavailable) {
-                        selectedBallChoice = candidate;
-                        break;
-                    }
+            if (r.id) {
+                const forLabel = document.querySelector('label[for="' + r.id + '"]');
+                if (forLabel) desc += ' ' + forLabel.textContent;
+            }
+            const dLower = desc.toLowerCase();
+            if (dLower.indexOf('master') !== -1 || (r.value && r.value.toLowerCase().indexOf('master') !== -1)) {
+                masterRadio = r;
+                const stockMatch = desc.match(/master\s*ball[^\d(]*\((\d+)\)/i) || desc.match(/\((\d+)\)/);
+                if (stockMatch) {
+                    masterStock = parseInt(stockMatch[1], 10);
                 }
+                if (r.disabled || dLower.indexOf('(0)') !== -1 || masterStock === 0) {
+                    isMasterUnavailable = true;
+                }
+                const parent = r.parentElement;
+                if (parent && (parent.querySelector('strike, del, s') || (parent.style && parent.style.textDecoration && parent.style.textDecoration.indexOf('line-through') !== -1))) {
+                    isMasterUnavailable = true;
+                }
+                break;
             }
         }
-
-        const masterRadio = (selectedBallChoice && !selectedBallChoice.unavailable) ? selectedBallChoice.radio : null;
-        const isMasterUnavailable = !masterRadio;
 
         if (!masterRadio || isMasterUnavailable) {
             autoCatchStepInProgress = true;

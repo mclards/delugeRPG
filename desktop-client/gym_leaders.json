@@ -859,10 +859,48 @@
             {
               "name": "Psychic and dealt 219HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 84HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 51HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost"
+            },
+            {
+              "name": "Peck and dealt 85HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 52HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Night Shade",
+              "type": "Ghost"
+            },
+            {
+              "name": "Ominous Wind and dealt 48HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 217HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck",
+              "type": "Flying"
             }
           ],
           "knownMoveTypes": [
-            "Normal"
+            "Normal",
+            "Ghost",
+            "Flying"
           ]
         },
         {
@@ -919,6 +957,10 @@
             {
               "name": "Body Slam and dealt 143HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Avalanche",
+              "type": "Ice"
             }
           ],
           "knownMoveTypes": [
@@ -949,6 +991,30 @@
             {
               "name": "Leaf Storm and dealt 455HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 333HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Wood Hammer and dealt 289HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 327HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Wood Hammer and dealt 305HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Wood Hammer and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 329HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
@@ -977,6 +1043,30 @@
             },
             {
               "name": "Water Pulse and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Water Pulse and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psycho Boost and dealt 176HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Water Pulse and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Zen Headbutt and dealt 307HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psycho Boost and dealt 358HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Water Pulse and dealt 151HP Damage",
               "type": "Normal"
             }
           ],
@@ -1030,10 +1120,48 @@
             {
               "name": "Psychic and dealt 219HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 84HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 51HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost"
+            },
+            {
+              "name": "Peck and dealt 85HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 52HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Night Shade",
+              "type": "Ghost"
+            },
+            {
+              "name": "Ominous Wind and dealt 48HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 217HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck",
+              "type": "Flying"
             }
           ],
           "knownMoveTypes": [
-            "Normal"
+            "Normal",
+            "Ghost",
+            "Flying"
           ]
         }
       ]
@@ -1961,6 +2089,18 @@
             {
               "name": "Sucker Punch and dealt 105HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 149HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 146HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
@@ -2246,6 +2386,30 @@
             {
               "name": "Tackle and dealt 93HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 137HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 109HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 76HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 70HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 249HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 152HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
@@ -2516,6 +2680,30 @@
             {
               "name": "Payback and dealt 193HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 295HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 197HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 172HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 307HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 167HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
@@ -2739,6 +2927,14 @@
             },
             {
               "name": "Razor Wind and dealt 137HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 100HP Damage",
               "type": "Normal"
             }
           ],
@@ -7561,6 +7757,18 @@
             {
               "name": "Power Whip and dealt 159HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 149HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
@@ -7724,6 +7932,10 @@
             {
               "name": "Blizzard and dealt 410HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 143HP Damage",
+              "type": "Normal"
             }
           ]
         },
@@ -7870,6 +8082,10 @@
             },
             {
               "name": "Shadow Ball and dealt 295HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 94HP Damage",
               "type": "Normal"
             }
           ],
@@ -8275,6 +8491,18 @@
             {
               "name": "Power Whip and dealt 159HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 146HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Power Whip and dealt 149HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
@@ -8436,6 +8664,10 @@
             {
               "name": "Blizzard and dealt 410HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 143HP Damage",
+              "type": "Normal"
             }
           ]
         },
@@ -8580,6 +8812,10 @@
             },
             {
               "name": "Shadow Ball and dealt 295HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sand Tomb and dealt 94HP Damage",
               "type": "Normal"
             }
           ],
@@ -13359,6 +13595,18 @@
             {
               "name": "Sucker Punch and dealt 105HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 149HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 147HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 146HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
@@ -13646,6 +13894,30 @@
             {
               "name": "Tackle and dealt 93HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Razor Leaf and dealt 137HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 109HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 76HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 70HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 249HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Feint Attack and dealt 152HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
@@ -13917,6 +14189,30 @@
             },
             {
               "name": "Payback and dealt 193HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 295HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 197HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 172HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Sucker Punch and dealt 307HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Needle Arm and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Payback and dealt 167HP Damage",
               "type": "Normal"
             }
           ],
@@ -14322,6 +14618,18 @@
             {
               "name": "Ice Fang and dealt 167HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 228HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Assurance and dealt 245HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Bite and dealt 217HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
@@ -14540,6 +14848,14 @@
             },
             {
               "name": "Razor Wind and dealt 137HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 101HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Scratch and dealt 100HP Damage",
               "type": "Normal"
             }
           ],
@@ -15480,10 +15796,48 @@
             {
               "name": "Psychic and dealt 219HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 84HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 51HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost"
+            },
+            {
+              "name": "Peck and dealt 85HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 52HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Night Shade",
+              "type": "Ghost"
+            },
+            {
+              "name": "Ominous Wind and dealt 48HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 217HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck",
+              "type": "Flying"
             }
           ],
           "knownMoveTypes": [
-            "Normal"
+            "Normal",
+            "Ghost",
+            "Flying"
           ]
         },
         {
@@ -15542,6 +15896,10 @@
             {
               "name": "Body Slam and dealt 143HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Avalanche",
+              "type": "Ice"
             }
           ],
           "knownMoveTypes": [
@@ -15574,6 +15932,30 @@
             {
               "name": "Water Pulse and dealt 147HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Water Pulse and dealt 152HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psycho Boost and dealt 176HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Water Pulse and dealt 144HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Zen Headbutt and dealt 307HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psycho Boost and dealt 358HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Water Pulse and dealt 151HP Damage",
+              "type": "Normal"
             }
           ],
           "knownMoveTypes": [
@@ -15603,6 +15985,30 @@
             },
             {
               "name": "Leaf Storm and dealt 455HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 333HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Wood Hammer and dealt 289HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 327HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Wood Hammer and dealt 305HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Wood Hammer and dealt 143HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Leaf Storm and dealt 329HP Damage",
               "type": "Normal"
             }
           ],
@@ -15659,10 +16065,48 @@
             {
               "name": "Psychic and dealt 219HP Damage",
               "type": "Normal"
+            },
+            {
+              "name": "Peck and dealt 84HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 51HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost"
+            },
+            {
+              "name": "Peck and dealt 85HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Ominous Wind and dealt 52HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Night Shade",
+              "type": "Ghost"
+            },
+            {
+              "name": "Ominous Wind and dealt 48HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Psychic and dealt 217HP Damage",
+              "type": "Normal"
+            },
+            {
+              "name": "Peck",
+              "type": "Flying"
             }
           ],
           "knownMoveTypes": [
-            "Normal"
+            "Normal",
+            "Ghost",
+            "Flying"
           ]
         }
       ]

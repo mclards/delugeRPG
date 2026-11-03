@@ -1131,7 +1131,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.4.9';
+    let appVer = '1.4.10';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -1688,6 +1688,29 @@ function isCurrentPageMap() {
   return !!guestReportsMap;
 }
 
+function isCurrentPageBattle() {
+  const curUrl = (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '';
+  const lower = curUrl.toLowerCase();
+  return lower.includes('/battle') || lower.includes('/challenge') || lower.includes('/arena') || lower.includes('/npc') || lower.includes('/gym');
+}
+
+let isPendingSessionAutoStop = false;
+let pendingSessionAutoStopReason = '';
+let pendingSessionAutoStopMsg = '';
+
+function triggerSessionAutoStop(reason, statusMsg) {
+  const isInActiveBattle = isCurrentPageBattle() && activeAiBattleData && !activeAiBattleData.isVictoryScreen && !activeAiBattleData.isDefeatScreen && !activeAiBattleData.isPostBattleScreen;
+  if (isInActiveBattle) {
+    backendLog('SafetyAutoStop', `Session auto-stop reached, but active battle is underway. Deferring pause until battle completes.`);
+    isPendingSessionAutoStop = true;
+    pendingSessionAutoStopReason = reason;
+    pendingSessionAutoStopMsg = statusMsg;
+    return;
+  }
+  stopHuntingWithReason(reason, statusMsg, '#f59e0b');
+  playAlarmSound();
+}
+
 function autoPauseOutsideMap(source = '') {
   cancelPendingAutoStart('Navigated outside map');
   userManuallyPaused = false;
@@ -1864,8 +1887,7 @@ function toggleHunting() {
       sessionAutoStopTargetMins = stopMins;
       if (sessionAutoStopTimer) clearTimeout(sessionAutoStopTimer);
       sessionAutoStopTimer = setTimeout(() => {
-        stopHuntingWithReason(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, `Paused (Auto-Stop: ${sessionAutoStopTargetMins}m)`, '#f59e0b');
-        playAlarmSound();
+        triggerSessionAutoStop(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, `Paused (Auto-Stop: ${sessionAutoStopTargetMins}m)`);
       }, stopMins * 60 * 1000);
       backendLog('SafetyAutoStop', `Session auto-stop timer scheduled for ${stopMins} minutes`);
     }
@@ -2730,8 +2752,7 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
         sessionAutoStopTargetMins = stopMins;
         if (sessionAutoStopTimer) clearTimeout(sessionAutoStopTimer);
         sessionAutoStopTimer = setTimeout(() => {
-          stopHuntingWithReason(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, `Paused (Auto-Stop: ${sessionAutoStopTargetMins}m)`, '#f59e0b');
-          playAlarmSound();
+          triggerSessionAutoStop(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, `Paused (Auto-Stop: ${sessionAutoStopTargetMins}m)`);
         }, stopMins * 60 * 1000);
         backendLog('SafetyAutoStop', `Session auto-stop timer scheduled for ${stopMins} minutes`);
       }
@@ -5642,27 +5663,50 @@ function handleLiveBattleOpponents(data) {
   if (gymLeadersData && data.trainerName && !data.isProfileStalk) {
     let targetTrainer = null;
     const cleanSearchName = data.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const curBattleUrl = (data.battleUrl || (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '').toLowerCase();
     const allGroups = [
       gymLeadersData.ULTIMATE_TRAINERS,
       gymLeadersData.STRONG_TRAINERS,
       gymLeadersData.VIP_TRAINERS,
       gymLeadersData.STANDARD_TRAINERS
     ];
+
+    // Priority 1: Match by battleUrl or npcId
     for (const group of allGroups) {
       if (!group) continue;
       targetTrainer = group.find(t => {
-        const cName = t.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-        return cName === cleanSearchName || (t.npcId && data.npcId && t.npcId === data.npcId);
+        return (t.battleUrl && curBattleUrl && curBattleUrl.includes(t.battleUrl.toLowerCase())) ||
+               (t.npcId && data.npcId && t.npcId === data.npcId);
       });
       if (targetTrainer) break;
     }
     if (!targetTrainer && gymLeadersData.GYM_LEAGUES) {
       for (const reg in gymLeadersData.GYM_LEAGUES) {
         targetTrainer = gymLeadersData.GYM_LEAGUES[reg].find(t => {
+          return t.battleUrl && curBattleUrl && curBattleUrl.includes(t.battleUrl.toLowerCase());
+        });
+        if (targetTrainer) break;
+      }
+    }
+
+    // Priority 2: Fallback to matching by trainer name
+    if (!targetTrainer) {
+      for (const group of allGroups) {
+        if (!group) continue;
+        targetTrainer = group.find(t => {
           const cName = t.name.toLowerCase().replace(/[^a-z0-9]/g, '');
           return cName === cleanSearchName;
         });
         if (targetTrainer) break;
+      }
+      if (!targetTrainer && gymLeadersData.GYM_LEAGUES) {
+        for (const reg in gymLeadersData.GYM_LEAGUES) {
+          targetTrainer = gymLeadersData.GYM_LEAGUES[reg].find(t => {
+            const cName = t.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return cName === cleanSearchName;
+          });
+          if (targetTrainer) break;
+        }
       }
     }
 
@@ -5670,16 +5714,19 @@ function handleLiveBattleOpponents(data) {
       if (!Array.isArray(targetTrainer.roster)) targetTrainer.roster = [];
       let updated = false;
       if (data.isPreparationScreen && Array.isArray(data.roster) && data.roster.length > 0 && data.roster.length <= 6) {
-        const cleanCurrent = targetTrainer.roster.map(p => `${p.name}_${p.level}`).join(',');
-        const cleanIncoming = data.roster.map(p => `${p.name}_${p.level}`).join(',');
-        if (cleanCurrent !== cleanIncoming) {
-          targetTrainer.roster = data.roster.map(p => ({
-            name: p.name,
-            types: p.types || ['Normal'],
-            level: p.level || targetTrainer.avgLevel || 50,
-            sprite: p.sprite || ''
-          }));
-          updated = true;
+        // Protect canonical 6-Pokemon rosters from partial preview truncation
+        if (!(targetTrainer.roster.length === 6 && data.roster.length < 6)) {
+          const cleanCurrent = targetTrainer.roster.map(p => `${p.name}_${p.level}`).join(',');
+          const cleanIncoming = data.roster.map(p => `${p.name}_${p.level}`).join(',');
+          if (cleanCurrent !== cleanIncoming) {
+            targetTrainer.roster = data.roster.map(p => ({
+              name: p.name,
+              types: p.types || ['Normal'],
+              level: p.level || targetTrainer.avgLevel || 50,
+              sprite: p.sprite || ''
+            }));
+            updated = true;
+          }
         }
       } else {
         for (const newPoke of data.roster) {
@@ -7363,11 +7410,18 @@ function areAllTeamPokemonLevel100() {
 }
 
 function scheduleNextLoopBattle() {
+  if (isPendingSessionAutoStop) {
+    isPendingSessionAutoStop = false;
+    stopHuntingWithReason(pendingSessionAutoStopReason || 'Session auto-stop triggered', pendingSessionAutoStopMsg || 'Paused (Session Auto-Stop Limit)', '#f59e0b');
+    playAlarmSound();
+    return;
+  }
+  userManuallyPaused = false;
   // If a loop transition is already active and counting down, DO NOT reset it!
   if (battleLoopTimer) return;
 
   // Highest priority: Captcha & security challenges halt immediately
-  if (isUnlockChallengeActive || isCaptchaAlarmActive || userManuallyPaused) {
+  if (isUnlockChallengeActive || isCaptchaAlarmActive) {
     isBattleLoopRunning = false;
     if (teamBattleLoopCheck) teamBattleLoopCheck.checked = false;
     updateLoopCheckboxVisual();
@@ -7403,7 +7457,7 @@ function scheduleNextLoopBattle() {
   battleLoopTimer = setTimeout(() => {
     battleLoopTimer = null;
     // Strict safety re-verification before executing click
-    if (isUnlockChallengeActive || isCaptchaAlarmActive || userManuallyPaused) {
+    if (isUnlockChallengeActive || isCaptchaAlarmActive) {
       isBattleLoopRunning = false;
       return;
     }
@@ -7456,6 +7510,7 @@ function scheduleNextLoopBattle() {
 if (teamBattleAutoCheck) {
   teamBattleAutoCheck.addEventListener('change', () => {
     if (teamBattleAutoCheck.checked) {
+      userManuallyPaused = false;
       if (teamBattleAutoLabel) {
         teamBattleAutoLabel.style.borderColor = '#388bfd';
         teamBattleAutoLabel.style.color = '#58a6ff';
@@ -7518,6 +7573,7 @@ if (teamBattleLoopCheck) {
     }
 
     if (teamBattleLoopCheck.checked) {
+      userManuallyPaused = false;
       updateLoopCheckboxVisual();
       if (teamActionStatus) {
         teamActionStatus.textContent = 'Loop mode armed (battles until all team is Lv 100)';
@@ -9502,6 +9558,13 @@ function updateTeamBuilderBattleAction(battleData) {
     }
     isBattleAutoRunning = false;
 
+    if (isPendingSessionAutoStop) {
+      isPendingSessionAutoStop = false;
+      stopHuntingWithReason(pendingSessionAutoStopReason || 'Session auto-stop triggered', pendingSessionAutoStopMsg || 'Paused (Session Auto-Stop Limit)', '#f59e0b');
+      playAlarmSound();
+      return;
+    }
+
     // Check if Loop mode is armed
     if (teamBattleLoopCheck && teamBattleLoopCheck.checked && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
       scheduleNextLoopBattle();
@@ -9514,6 +9577,7 @@ function updateTeamBuilderBattleAction(battleData) {
   teamBattleActionBtn.innerHTML = config.labelHtml;
   teamBattleActionBtn.title = 'Execute optimal battle move or action directly from Team Builder';
   teamBattleActionBtn.onclick = () => {
+    userManuallyPaused = false;
     if (typeof config.action === 'function') {
       if (teamBattleAutoCheck && teamBattleAutoCheck.checked) {
         isBattleAutoRunning = true;
@@ -9534,7 +9598,7 @@ function updateTeamBuilderBattleAction(battleData) {
 
   // If loop mode is active on non-complete screens, ensure auto runs
   if (teamBattleLoopCheck && teamBattleLoopCheck.checked && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
-    if (!isUnlockChallengeActive && !isCaptchaAlarmActive && !userManuallyPaused && !isComplete) {
+    if (!isUnlockChallengeActive && !isCaptchaAlarmActive && !isComplete) {
       isBattleAutoRunning = true;
     }
   }
@@ -9556,7 +9620,7 @@ function updateTeamBuilderBattleAction(battleData) {
     }
     battleAutoStepTimer = setTimeout(() => {
       battleAutoStepTimer = null;
-      if (isUnlockChallengeActive || isCaptchaAlarmActive || userManuallyPaused) {
+      if (isUnlockChallengeActive || isCaptchaAlarmActive) {
         isBattleAutoRunning = false;
         return;
       }
@@ -9665,14 +9729,6 @@ function executeAiBattleAction(action, payload) {
       aiStatusChip.textContent = 'Captcha Active';
       aiStatusChip.style.color = '#ef4444';
     }
-    return;
-  }
-  if (userManuallyPaused) {
-    if (battleAutoStepTimer) {
-      clearTimeout(battleAutoStepTimer);
-      battleAutoStepTimer = null;
-    }
-    isBattleAutoRunning = false;
     return;
   }
   if (!delugeView) return;
@@ -10372,8 +10428,7 @@ function saveSafetySettingsFromUI() {
     sessionAutoStopTargetMins = stopMins;
     if (sessionAutoStopTimer) clearTimeout(sessionAutoStopTimer);
     sessionAutoStopTimer = setTimeout(() => {
-      stopHuntingWithReason(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, `Paused (Auto-Stop: ${sessionAutoStopTargetMins}m)`, '#f59e0b');
-      playAlarmSound();
+      triggerSessionAutoStop(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, `Paused (Auto-Stop: ${sessionAutoStopTargetMins}m)`);
     }, stopMins * 60 * 1000);
   }
 
@@ -10407,8 +10462,7 @@ function rerollSafetyTargets() {
     sessionAutoStopTargetMins = stopMins;
     if (sessionAutoStopTimer) clearTimeout(sessionAutoStopTimer);
     sessionAutoStopTimer = setTimeout(() => {
-      stopHuntingWithReason(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, 'Paused (Session Auto-Stop Limit)', '#f59e0b');
-      playAlarmSound();
+      triggerSessionAutoStop(`Session auto-stop triggered after ${sessionAutoStopTargetMins}m`, 'Paused (Session Auto-Stop Limit)');
     }, stopMins * 60 * 1000);
   }
 

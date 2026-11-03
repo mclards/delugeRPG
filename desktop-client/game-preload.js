@@ -260,6 +260,20 @@ const TARGETS = {
         "Fennekin", "Braixen", "Delphox",
         "Froakie", "Frogadier", "Greninja"
     ],
+    // 3. All 10 Pseudo-Legendary Families (600 BST 3-Stage Lines)
+    pseudoLegendaries: [
+        "Dratini", "Dragonair", "Dragonite",
+        "Larvitar", "Pupitar", "Tyranitar",
+        "Bagon", "Shelgon", "Salamence",
+        "Beldum", "Metang", "Metagross",
+        "Gible", "Gabite", "Garchomp",
+        "Deino", "Zweilous", "Hydreigon",
+        "Goomy", "Sliggoo", "Goodra",
+        "Jangmo-o", "Hakamo-o", "Kommo-o",
+        "Dreepy", "Drakloak", "Dragapult",
+        "Frigibax", "Arctibax", "Baxcalibur"
+    ],
+
     specialForms: [
         "mega", "gigantamax", "g-max", "gmax", "primal", "ultra"
     ],
@@ -270,6 +284,7 @@ const TARGETS = {
 
 const LEGENDARY_LOWER = TARGETS.legendaries.map(l => l.toLowerCase());
 const MEGAS_LOWER = TARGETS.megas.map(m => m.toLowerCase());
+const PSEUDO_LOWER = (TARGETS.pseudoLegendaries || []).map(p => p.toLowerCase());
 const FORMS = TARGETS.specialForms;
 const VARIANTS = TARGETS.specialVariants;
 const ULTRA_BEASTS = [
@@ -2728,6 +2743,37 @@ function scanForTargets() {
         if (typeof removeUniquenessAlertBanner === 'function') removeUniquenessAlertBanner();
     }
 
+    // Helper: extracts elemental type badges from encounter container
+    function extractEncounterTypes() {
+        const types = [];
+        const encContainer = getEncounterContainer();
+        if (encContainer) {
+            const typeImgs = encContainer.querySelectorAll('img[src*="/types/"], img[src*="/type/"]');
+            for (let ti = 0; ti < typeImgs.length; ti++) {
+                const src = (typeImgs[ti].src || '').toLowerCase();
+                const alt = (typeImgs[ti].alt || '').toLowerCase();
+                const match = src.match(/\/types?\/([a-z]+)\.(?:png|gif|jpe?g)/i) || alt.match(/^([a-z]+)$/i);
+                if (match && match[1]) {
+                    const typeName = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+                    if (!types.includes(typeName)) types.push(typeName);
+                }
+            }
+        }
+        return types;
+    }
+
+    const hasCustomPseudoVariants = Array.isArray(config.pseudoVariants);
+    const allowedPseudoVariants = hasCustomPseudoVariants
+        ? config.pseudoVariants.map(v => v.toLowerCase())
+        : allowedVariants;
+
+    function isVariantAcceptedForPseudo() {
+        if (hasCustomPseudoVariants) {
+            return allowedPseudoVariants.includes(detectedVariant);
+        }
+        return isVariantAcceptedForSpecies();
+    }
+
     // Helper: checks whether the encounter's variant is accepted for Wild / Custom species (Tier 1 & Tier 4)
     function isVariantAcceptedForSpecies() {
         const isFilterActive = (config.enableVariantFilter !== false) && (config.findAnySpecialVariant !== false);
@@ -2770,6 +2816,21 @@ function scanForTargets() {
     }
 
     // D. Match against Tab 1 Target Tiers:
+    // 0. Dex Completionist Mode (Auto-target unowned Dex species or variants)
+    if (config.dexCompletionMode && config.dexCompletionMode !== 'standard' && ownStatus) {
+        const preferredDexBall = (config.ballRouting && config.ballRouting.dex) || 'Ultra Ball';
+        const specName = extractEncounterSpeciesName();
+        if (config.dexCompletionMode === 'unowned_species' && !ownStatus.isOwned) {
+            const foundName = varPrefix + 'Dex Missing: ' + (specName ? specName.toUpperCase() : 'NEW SPECIES') + lvlSuffix;
+            triggerTargetFound(foundName, 'Dex Completionist', preferredDexBall);
+            return;
+        } else if (config.dexCompletionMode === 'unowned_variants' && !ownStatus.hasExactOwned) {
+            const foundName = varPrefix + 'New Variant: ' + (specName ? specName.toUpperCase() : 'NEW VARIANT') + lvlSuffix;
+            triggerTargetFound(foundName, 'Dex Completionist', preferredDexBall);
+            return;
+        }
+    }
+
     // 1. Tier 1: Custom Target Whitelist
     if (config.customTargetList && typeof config.customTargetList === 'string') {
         const customTargets = config.customTargetList.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
@@ -2879,6 +2940,28 @@ function scanForTargets() {
         }
     }
 
+    // 2.5 Tier: Pseudo-Legendaries (600 BST 3-Stage Lines)
+    const findPseudos = (config.findPseudoLegendaries !== false);
+    const pseudoList = (TARGETS && TARGETS.pseudoLegendaries) ? TARGETS.pseudoLegendaries : [];
+    const pseudoLower = pseudoList.map(p => p.toLowerCase());
+    if (findPseudos) {
+        for (let ps = 0; ps < pseudoLower.length; ps++) {
+            const targetPseudo = pseudoLower[ps];
+            if (LEGENDARY_LOWER.indexOf(targetPseudo) !== -1) continue;
+            if (textLower.indexOf(targetPseudo) !== -1 && matchesSpeciesInText(textLower, targetPseudo)) {
+                if (isVariantAcceptedForPseudo()) {
+                    const preferredPseudoBall = (config.ballRouting && config.ballRouting.pseudo) || 'Ultra Ball';
+                    const foundName = varPrefix + 'Pseudo-Legendary: ' + pseudoList[ps] + lvlSuffix;
+                    triggerTargetFound(foundName, 'Pseudo-Legendary', preferredPseudoBall);
+                    return;
+                } else if (isNewEncounter) {
+                    console.log('[TargetEngine] IGNORED: ' + pseudoList[ps] + ' matched Pseudo-Legendary tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked for Pseudo tier');
+                }
+                return;
+            }
+        }
+    }
+
     // 3. Tier 3: Mega Evolutions & Rare Evolution Lines
     const hasMegaBanner = /\bmega\s*(?:evolution|pok[e\u00e9]mon)\b/i.test(encounterBoxText || textLower);
     let matchedExplicitForm = null;
@@ -2941,6 +3024,20 @@ function scanForTargets() {
             console.log('[TargetEngine] IGNORED: Explicit Mega/G-Max form skipped (Mega tier is disabled)');
         }
         return;
+    }
+
+    // 3.5 Tier: Elemental Types Filter
+    if (config.enableTypeFilter && Array.isArray(config.selectedTypes) && config.selectedTypes.length > 0) {
+        const encTypes = extractEncounterTypes();
+        const selectedTypesLower = config.selectedTypes.map(t => t.toLowerCase());
+        const hasTypeMatch = encTypes.some(t => selectedTypesLower.includes(t.toLowerCase()));
+        if (hasTypeMatch && isVariantAcceptedForSpecies()) {
+            const preferredTypeBall = (config.ballRouting && config.ballRouting.types) || 'Ultra Ball';
+            const specName = extractEncounterSpeciesName();
+            const foundName = varPrefix + 'Type Match (' + encTypes.join('/') + '): ' + (specName ? specName.toUpperCase() : 'WILD') + lvlSuffix;
+            triggerTargetFound(foundName, 'Elemental Type Match', preferredTypeBall);
+            return;
+        }
     }
 
     // 4. Tier 4: Special Sprite Variants (Generic Wild Pokemon)
@@ -3035,7 +3132,7 @@ function scanForTargets() {
 }
 
 // --- 4. TARGET FOUND HANDLER ---
-function triggerTargetFound(targetName, category) {
+function triggerTargetFound(targetName, category, preferredBall = '') {
     const currentPath = (window.location.pathname || '').toLowerCase();
     if (currentPath.indexOf('/map') === -1) return;
     if (!isHuntingActive) return;
@@ -3127,6 +3224,25 @@ function triggerTargetFound(targetName, category) {
                 .replace(/\s+/g, ' ')
                 .trim();
 
+            let assignedBall = preferredBall;
+            if (!assignedBall && config.ballRouting) {
+                const catLower = (category || '').toLowerCase();
+                if (catLower.includes('legend') || catLower.includes('ultra beast') || catLower.includes('paradox')) {
+                    assignedBall = config.ballRouting.legendaries || 'Master Ball';
+                } else if (catLower.includes('pseudo')) {
+                    assignedBall = config.ballRouting.pseudo || 'Ultra Ball';
+                } else if (catLower.includes('mega') || catLower.includes('special form')) {
+                    assignedBall = config.ballRouting.megas || 'Ultra Ball';
+                } else if (catLower.includes('type')) {
+                    assignedBall = config.ballRouting.types || 'Ultra Ball';
+                } else if (catLower.includes('dex')) {
+                    assignedBall = config.ballRouting.dex || 'Ultra Ball';
+                } else {
+                    assignedBall = config.ballRouting.variants || 'Ultra Ball';
+                }
+            }
+            if (!assignedBall) assignedBall = 'Master Ball';
+
             const detailsObj = {
                 name: cleanName || targetName,
                 fullName: targetName,
@@ -3134,7 +3250,7 @@ function triggerTargetFound(targetName, category) {
                 level: level,
                 sprite: spriteUrl,
                 category: category || 'Wild Encounter',
-                ball: 'Master Ball',
+                ball: assignedBall,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
             };
             sessionStorage.setItem('deluge_autocatch_details', JSON.stringify(detailsObj));
@@ -4674,38 +4790,62 @@ function runAutoCatchLifecycle() {
     const radioPool = formScope ? Array.from(formScope.querySelectorAll('input[type="radio"]')) : Array.from(document.querySelectorAll('input[type="radio"]'));
 
     if (throwBtn && radioPool.length > 0) {
-        let masterRadio = null;
-        let isMasterUnavailable = false;
-        let masterStock = null;
+        let preferredBallName = 'Master Ball';
+        try {
+            const rawDetails = sessionStorage.getItem('deluge_autocatch_details');
+            if (rawDetails) {
+                const p = JSON.parse(rawDetails);
+                if (p.ball) preferredBallName = p.ball;
+            }
+        } catch (_) {}
 
-        for (let rIdx = 0; rIdx < radioPool.length; rIdx++) {
-            const r = radioPool[rIdx];
-            let desc = (r.value || '') + ' ' + (r.id || '') + ' ' + (r.name || '') + ' ';
-            if (r.parentElement) desc += ' ' + r.parentElement.textContent;
-            if (r.labels && r.labels.length) {
-                for (let l = 0; l < r.labels.length; l++) desc += ' ' + r.labels[l].textContent;
+        function getRadioForBall(ballName) {
+            const term = (ballName || '').toLowerCase().replace(/\s*ball\b/i, '').trim();
+            for (let rIdx = 0; rIdx < radioPool.length; rIdx++) {
+                const r = radioPool[rIdx];
+                let desc = (r.value || '') + ' ' + (r.id || '') + ' ' + (r.name || '') + ' ';
+                if (r.parentElement) desc += ' ' + r.parentElement.textContent;
+                if (r.labels && r.labels.length) {
+                    for (let l = 0; l < r.labels.length; l++) desc += ' ' + r.labels[l].textContent;
+                }
+                if (r.id) {
+                    const forLabel = document.querySelector('label[for="' + r.id + '"]');
+                    if (forLabel) desc += ' ' + forLabel.textContent;
+                }
+                const dLower = desc.toLowerCase();
+                if (dLower.indexOf(term) !== -1 || (r.value && r.value.toLowerCase().indexOf(term) !== -1)) {
+                    let stock = null;
+                    const stockMatch = desc.match(/\((\d+)\)/);
+                    if (stockMatch) stock = parseInt(stockMatch[1], 10);
+                    let unavail = (r.disabled || dLower.indexOf('(0)') !== -1 || stock === 0);
+                    const parent = r.parentElement;
+                    if (parent && (parent.querySelector('strike, del, s') || (parent.style && parent.style.textDecoration && parent.style.textDecoration.indexOf('line-through') !== -1))) {
+                        unavail = true;
+                    }
+                    return { radio: r, unavailable: unavail, stock: stock, name: ballName };
+                }
             }
-            if (r.id) {
-                const forLabel = document.querySelector('label[for="' + r.id + '"]');
-                if (forLabel) desc += ' ' + forLabel.textContent;
-            }
-            const dLower = desc.toLowerCase();
-            if (dLower.indexOf('master') !== -1 || (r.value && r.value.toLowerCase().indexOf('master') !== -1)) {
-                masterRadio = r;
-                const stockMatch = desc.match(/master\s*ball[^\d(]*\((\d+)\)/i) || desc.match(/\((\d+)\)/);
-                if (stockMatch) {
-                    masterStock = parseInt(stockMatch[1], 10);
+            return null;
+        }
+
+        let selectedBallChoice = getRadioForBall(preferredBallName);
+        if (!selectedBallChoice || selectedBallChoice.unavailable) {
+            const fallbackPolicy = config.ballFallbackPolicy || 'downgrade';
+            if (fallbackPolicy === 'downgrade') {
+                const ballOrder = ['Master Ball', 'Ultra Ball', 'Great Ball', 'Poke Ball'];
+                const startIndex = Math.max(0, ballOrder.indexOf(preferredBallName));
+                for (let bo = startIndex; bo < ballOrder.length; bo++) {
+                    const candidate = getRadioForBall(ballOrder[bo]);
+                    if (candidate && !candidate.unavailable) {
+                        selectedBallChoice = candidate;
+                        break;
+                    }
                 }
-                if (r.disabled || dLower.indexOf('(0)') !== -1 || masterStock === 0) {
-                    isMasterUnavailable = true;
-                }
-                const parent = r.parentElement;
-                if (parent && (parent.querySelector('strike, del, s') || (parent.style && parent.style.textDecoration && parent.style.textDecoration.indexOf('line-through') !== -1))) {
-                    isMasterUnavailable = true;
-                }
-                break;
             }
         }
+
+        const masterRadio = (selectedBallChoice && !selectedBallChoice.unavailable) ? selectedBallChoice.radio : null;
+        const isMasterUnavailable = !masterRadio;
 
         if (!masterRadio || isMasterUnavailable) {
             autoCatchStepInProgress = true;

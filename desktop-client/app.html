@@ -1455,6 +1455,25 @@
       left: 50%;
     }
 
+    /* 4-Tab Full-Width Variant (Target Modal) */
+    .tab-container-4 {
+      width: 100%;
+    }
+    .tab-container-4 .tab_label {
+      flex: 1;
+      width: 25%;
+      height: 24px;
+      font-size: 10.5px;
+    }
+    .tab-container-4 .indicator {
+      width: calc(25% - 2px);
+      height: 24px;
+    }
+    .tab-container-4 .tab--1:checked ~ .indicator { left: 2px; }
+    .tab-container-4 .tab--2:checked ~ .indicator { left: 25%; }
+    .tab-container-4 .tab--3:checked ~ .indicator { left: 50%; }
+    .tab-container-4 .tab--4:checked ~ .indicator { left: 75%; }
+
     /* 6-Tab Full-Width Variant (Ads Inspector Filter Tabs) */
     .tab-container-6 {
       width: 100%;
@@ -2279,13 +2298,29 @@
       <button id="closeTargetBtn" class="modal-close-icon" title="Close">&#10005;</button>
     </div>
 
+    <!-- Preset Management Toolbar -->
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; background: #0c1829; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px;">
+      <span style="font-size: 11px; font-weight: 700; color: #8b949e;">Preset:</span>
+      <select id="targetPresetSelect" class="clean-select" style="flex: 1; height: 24px; font-size: 11px;">
+        <option value="default_legendaries">Default: Legendaries Only</option>
+        <option value="all_powerhouses">All Powerhouses (Leg + Pseudo + Megas)</option>
+        <option value="shiny_hunters">Shiny &amp; Special Variants</option>
+        <option value="dex_completionist">Dex Completionist (New Species)</option>
+      </select>
+      <button id="savePresetBtn" type="button" class="btn" style="height: 24px; padding: 0 8px; font-size: 10px;" title="Save current settings as preset">Save</button>
+      <button id="deletePresetBtn" type="button" class="btn" style="height: 24px; padding: 0 6px; font-size: 10px; color: #f85149; border-color: rgba(218,54,51,0.4);" title="Delete custom preset">Del</button>
+    </div>
+
     <!-- Segmented Navigation Tabs -->
-    <div class="tab-container" style="margin-bottom: 10px;">
+    <div class="tab-container tab-container-4" style="margin-bottom: 10px;">
       <input type="radio" name="targetModalTab" id="targetTab1" class="tab tab--1" checked />
       <label class="tab_label modal-tab-btn active" for="targetTab1" data-tab="tabSpecies">Tiers</label>
 
       <input type="radio" name="targetModalTab" id="targetTab2" class="tab tab--2" />
-      <label class="tab_label modal-tab-btn" for="targetTab2" id="tabVariantsBtn" data-tab="tabVariants">Variants (10)</label>
+      <label class="tab_label modal-tab-btn" for="targetTab2" id="tabVariantsBtn" data-tab="tabVariants">Variants</label>
+
+      <input type="radio" name="targetModalTab" id="targetTab4" class="tab tab--4" />
+      <label class="tab_label modal-tab-btn" for="targetTab4" data-tab="tabBallRouting">Smart Balls</label>
 
       <input type="radio" name="targetModalTab" id="targetTab3" class="tab tab--3" />
       <label class="tab_label modal-tab-btn" for="targetTab3" data-tab="tabCustom">Blacklist</label>
@@ -2339,6 +2374,18 @@
         </div>
       </div>
 
+      <!-- Tier 2b: Pseudo-Legendaries & 600 BST Sweepers + Assigned Variants Badge -->
+      <div class="filter-item" id="pseudoTierItem">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <label class="filter-row" style="margin: 0;">
+            <input type="checkbox" id="filterPseudoCheckbox" class="input" checked>
+            <span class="custom-checkbox"></span>
+            <span class="filter-label">Pseudo-Legendaries (600 BST Lines)</span>
+          </label>
+          <button type="button" id="pseudoTierVariantsBadge" class="quick-tag-btn" style="border-color: #243856; color: #388bfd;" title="Click to configure Pseudo-Legendary Sprite Variants">All (10)</button>
+        </div>
+      </div>
+
       <!-- Tier 3: Wild / Custom Species Variants + Assigned Variants Badge -->
       <div class="filter-item">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
@@ -2359,16 +2406,62 @@
         <input type="text" id="customTargetInput" class="input-field" placeholder="Comma-separated (e.g. Ditto, Eevee, Lucario, Gengar, Bagon, Dratini)">
       </div>
 
+      <!-- Elemental Types Filter -->
+      <div class="filter-item" id="typesFilterItem">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <label class="filter-row" style="margin: 0;">
+            <input type="checkbox" id="filterTypesCheckbox" class="input">
+            <span class="custom-checkbox"></span>
+            <span class="filter-label">&#9889; Elemental Types</span>
+          </label>
+          <div class="quick-btn-group" id="typeQuickGroup" style="opacity: 0.4; pointer-events: none;">
+            <button id="btnAllTypes" type="button" class="quick-tag-btn">All (18)</button>
+            <button id="btnClearTypes" type="button" class="quick-tag-btn">Clear</button>
+          </div>
+        </div>
+        <div id="typesGridWrap" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; opacity: 0.4; pointer-events: none;">
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Normal" class="input type-chip-input"><span class="custom-checkbox"></span><span>Normal</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Fire" class="input type-chip-input"><span class="custom-checkbox"></span><span>Fire</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Water" class="input type-chip-input"><span class="custom-checkbox"></span><span>Water</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Grass" class="input type-chip-input"><span class="custom-checkbox"></span><span>Grass</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Electric" class="input type-chip-input"><span class="custom-checkbox"></span><span>Electric</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Ice" class="input type-chip-input"><span class="custom-checkbox"></span><span>Ice</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Fighting" class="input type-chip-input"><span class="custom-checkbox"></span><span>Fighting</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Poison" class="input type-chip-input"><span class="custom-checkbox"></span><span>Poison</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Ground" class="input type-chip-input"><span class="custom-checkbox"></span><span>Ground</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Flying" class="input type-chip-input"><span class="custom-checkbox"></span><span>Flying</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Psychic" class="input type-chip-input"><span class="custom-checkbox"></span><span>Psychic</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Bug" class="input type-chip-input"><span class="custom-checkbox"></span><span>Bug</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Rock" class="input type-chip-input"><span class="custom-checkbox"></span><span>Rock</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Ghost" class="input type-chip-input"><span class="custom-checkbox"></span><span>Ghost</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Dragon" class="input type-chip-input"><span class="custom-checkbox"></span><span>Dragon</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Steel" class="input type-chip-input"><span class="custom-checkbox"></span><span>Steel</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Dark" class="input type-chip-input"><span class="custom-checkbox"></span><span>Dark</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Fairy" class="input type-chip-input"><span class="custom-checkbox"></span><span>Fairy</span></label>
+        </div>
+      </div>
+
       <!-- Encounter Rules -->
       <div class="filter-group-title">Encounter Rules</div>
 
-      <!-- Duplication Avoidance -->
+      <!-- Collection & Dex Mode -->
       <div class="filter-item">
-        <label class="filter-row">
-          <input type="checkbox" id="avoidDuplicatesCheck" class="input" checked>
-          <span class="custom-checkbox"></span>
-          <span class="filter-label">&#128260; Avoid Duplicates (Skip Already Caught)</span>
-        </label>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+          <span class="filter-label">&#128218; Collection / Dex Mode:</span>
+          <select id="dexCompletionMode" class="clean-select" style="max-width: 195px;">
+            <option value="standard">Standard (Manual Tiers)</option>
+            <option value="unowned_species">Dex: Missing Species Only</option>
+            <option value="unowned_variants">Dex: Missing Species or Variants</option>
+          </select>
+        </div>
+        <div id="avoidDuplicatesWrap" style="display: flex; align-items: center; justify-content: space-between;">
+          <label class="filter-row" style="margin: 0;">
+            <input type="checkbox" id="avoidDuplicatesCheck" class="input" checked>
+            <span class="custom-checkbox"></span>
+            <span class="filter-label">&#128260; Avoid Duplicates (Skip Already Caught)</span>
+          </label>
+          <span id="dexModeLockChip" class="quick-tag-btn" style="display: none; border-color: #243856; color: #388bfd; font-size: 9.5px; height: 18px; padding: 0 4px;">AUTO-ACTIVE</span>
+        </div>
       </div>
 
       <!-- Wild Level Filter -->
@@ -2448,6 +2541,31 @@
         </div>
       </div>
 
+      <!-- 2b. Pseudo-Legendaries Tier Variants -->
+      <div class="filter-item">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+          <span class="filter-label">Pseudo-Legendaries Tier:</span>
+          <div class="quick-btn-group">
+            <button id="btnPseudoAllVariants" type="button" class="quick-tag-btn">All (10)</button>
+            <button id="btnPseudoVariantsOnly" type="button" class="quick-tag-btn">Variants (9)</button>
+            <button id="btnPseudoShiniesOnly" type="button" class="quick-tag-btn">&#9733; Shiny</button>
+            <button id="btnPseudoChromeOnly" type="button" class="quick-tag-btn">Chrome</button>
+          </div>
+        </div>
+        <div id="pseudoVariantsWrap" class="variant-grid-5">
+          <label class="variant-cell" style="border-color: #388bfd;"><input type="checkbox" id="pseudoVarNormal" class="input" checked><span class="custom-checkbox"></span><span style="color:#388bfd;font-weight:700;">Normal</span></label>
+          <label class="variant-cell"><input type="checkbox" id="pseudoVarShiny" class="input" checked><span class="custom-checkbox"></span><span>Shiny</span></label>
+          <label class="variant-cell"><input type="checkbox" id="pseudoVarChrome" class="input" checked><span class="custom-checkbox"></span><span>Chrome</span></label>
+          <label class="variant-cell"><input type="checkbox" id="pseudoVarRetro" class="input" checked><span class="custom-checkbox"></span><span>Retro</span></label>
+          <label class="variant-cell"><input type="checkbox" id="pseudoVarMetallic" class="input" checked><span class="custom-checkbox"></span><span>Metallic</span></label>
+          <label class="variant-cell"><input type="checkbox" id="pseudoVarShadow" class="input" checked><span class="custom-checkbox"></span><span>Shadow</span></label>
+          <label class="variant-cell"><input type="checkbox" id="pseudoVarGhostly" class="input" checked><span class="custom-checkbox"></span><span>Ghostly</span></label>
+          <label class="variant-cell"><input type="checkbox" id="pseudoVarDark" class="input" checked><span class="custom-checkbox"></span><span>Dark</span></label>
+          <label class="variant-cell"><input type="checkbox" id="pseudoVarMirage" class="input" checked><span class="custom-checkbox"></span><span>Mirage</span></label>
+          <label class="variant-cell"><input type="checkbox" id="pseudoVarNegative" class="input" checked><span class="custom-checkbox"></span><span>Negative</span></label>
+        </div>
+      </div>
+
       <!-- 3. Wild / Custom Species Variants -->
       <div class="filter-item">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
@@ -2470,6 +2588,88 @@
           <label class="variant-cell"><input type="checkbox" id="varDark" class="input" checked><span class="custom-checkbox"></span><span>Dark</span></label>
           <label class="variant-cell"><input type="checkbox" id="varMirage" class="input" checked><span class="custom-checkbox"></span><span>Mirage</span></label>
           <label class="variant-cell"><input type="checkbox" id="varNegative" class="input" checked><span class="custom-checkbox"></span><span>Negative</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: SMART BALL TIER ROUTING -->
+    <div id="tabBallRouting" class="modal-tab-content">
+      <div id="ballRoutingMasterNotice" class="quick-tag-btn" style="display: none; border-color: #f59e0b; color: #f59e0b; width: 100%; text-align: center; margin-bottom: 8px;">
+        Auto-Catch is OFF - Target encounters will only pause &amp; alert
+      </div>
+      <div class="filter-item" id="ballRowLegendary">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span class="filter-label">Legendaries &amp; Special:</span>
+          <select id="ballSelectLegendary" class="clean-select">
+            <option value="Master Ball">Master Ball</option>
+            <option value="Ultra Ball">Ultra Ball</option>
+            <option value="Great Ball">Great Ball</option>
+            <option value="Poke Ball">Poke Ball</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-item" id="ballRowPseudo">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span class="filter-label">Pseudo-Legendaries:</span>
+          <select id="ballSelectPseudo" class="clean-select">
+            <option value="Ultra Ball">Ultra Ball</option>
+            <option value="Master Ball">Master Ball</option>
+            <option value="Great Ball">Great Ball</option>
+            <option value="Poke Ball">Poke Ball</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-item" id="ballRowMega">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span class="filter-label">Mega &amp; G-Max Lines:</span>
+          <select id="ballSelectMega" class="clean-select">
+            <option value="Ultra Ball">Ultra Ball</option>
+            <option value="Master Ball">Master Ball</option>
+            <option value="Great Ball">Great Ball</option>
+            <option value="Poke Ball">Poke Ball</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-item" id="ballRowTypes">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span class="filter-label">Elemental Types:</span>
+          <select id="ballSelectTypes" class="clean-select">
+            <option value="Ultra Ball">Ultra Ball</option>
+            <option value="Great Ball">Great Ball</option>
+            <option value="Master Ball">Master Ball</option>
+            <option value="Poke Ball">Poke Ball</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-item" id="ballRowDex">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span class="filter-label">Dex Completionist:</span>
+          <select id="ballSelectDex" class="clean-select">
+            <option value="Ultra Ball">Ultra Ball</option>
+            <option value="Master Ball">Master Ball</option>
+            <option value="Great Ball">Great Ball</option>
+            <option value="Poke Ball">Poke Ball</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-item" id="ballRowWildVariants">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span class="filter-label">Wild Special Variants:</span>
+          <select id="ballSelectWildVariants" class="clean-select">
+            <option value="Ultra Ball">Ultra Ball</option>
+            <option value="Great Ball">Great Ball</option>
+            <option value="Master Ball">Master Ball</option>
+            <option value="Poke Ball">Poke Ball</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-item" style="border-top: 1px solid #1a283e; padding-top: 8px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span class="filter-label">Out-of-Stock Policy:</span>
+          <select id="ballFallbackPolicy" class="clean-select">
+            <option value="downgrade">Downgrade to Next Ball</option>
+            <option value="halt">Halt Hunting &amp; Alert</option>
+          </select>
         </div>
       </div>
     </div>

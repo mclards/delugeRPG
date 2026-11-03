@@ -343,6 +343,51 @@ const subClassicLegCheckbox = document.getElementById('subClassicLegCheckbox');
 const subUltraBeastsCheckbox = document.getElementById('subUltraBeastsCheckbox');
 const subParadoxCheckbox = document.getElementById('subParadoxCheckbox');
 const filterMegasCheckbox = document.getElementById('filterMegasCheckbox');
+const filterPseudoCheckbox = document.getElementById('filterPseudoCheckbox');
+const pseudoTierVariantsBadge = document.getElementById('pseudoTierVariantsBadge');
+const pseudoVariantsWrap = document.getElementById('pseudoVariantsWrap');
+const filterTypesCheckbox = document.getElementById('filterTypesCheckbox');
+const typeQuickGroup = document.getElementById('typeQuickGroup');
+const btnAllTypes = document.getElementById('btnAllTypes');
+const btnClearTypes = document.getElementById('btnClearTypes');
+const typesGridWrap = document.getElementById('typesGridWrap');
+const dexCompletionMode = document.getElementById('dexCompletionMode');
+const avoidDuplicatesWrap = document.getElementById('avoidDuplicatesWrap');
+const dexModeLockChip = document.getElementById('dexModeLockChip');
+const targetPresetSelect = document.getElementById('targetPresetSelect');
+const savePresetBtn = document.getElementById('savePresetBtn');
+const deletePresetBtn = document.getElementById('deletePresetBtn');
+
+// Smart Ball Routing Elements
+const ballRoutingMasterNotice = document.getElementById('ballRoutingMasterNotice');
+const ballRowLegendary = document.getElementById('ballRowLegendary');
+const ballSelectLegendary = document.getElementById('ballSelectLegendary');
+const ballRowPseudo = document.getElementById('ballRowPseudo');
+const ballSelectPseudo = document.getElementById('ballSelectPseudo');
+const ballRowMega = document.getElementById('ballRowMega');
+const ballSelectMega = document.getElementById('ballSelectMega');
+const ballRowTypes = document.getElementById('ballRowTypes');
+const ballSelectTypes = document.getElementById('ballSelectTypes');
+const ballRowDex = document.getElementById('ballRowDex');
+const ballSelectDex = document.getElementById('ballSelectDex');
+const ballRowWildVariants = document.getElementById('ballRowWildVariants');
+const ballSelectWildVariants = document.getElementById('ballSelectWildVariants');
+const ballFallbackPolicy = document.getElementById('ballFallbackPolicy');
+
+const btnPseudoAllVariants = document.getElementById('btnPseudoAllVariants');
+const btnPseudoVariantsOnly = document.getElementById('btnPseudoVariantsOnly');
+const btnPseudoShiniesOnly = document.getElementById('btnPseudoShiniesOnly');
+const btnPseudoChromeOnly = document.getElementById('btnPseudoChromeOnly');
+
+const pseudoVariantIds = [
+  'pseudoVarNormal', 'pseudoVarShiny', 'pseudoVarChrome', 'pseudoVarRetro', 'pseudoVarMetallic',
+  'pseudoVarShadow', 'pseudoVarGhostly', 'pseudoVarDark', 'pseudoVarMirage', 'pseudoVarNegative'
+];
+const pseudoVariantMap = {
+  pseudoVarNormal: 'Normal', pseudoVarShiny: 'Shiny', pseudoVarChrome: 'Chrome', pseudoVarRetro: 'Retro',
+  pseudoVarMetallic: 'Metallic', pseudoVarShadow: 'Shadow', pseudoVarGhostly: 'Ghostly', pseudoVarDark: 'Dark',
+  pseudoVarMirage: 'Mirage', pseudoVarNegative: 'Negative'
+};
 const filterVariantsCheckbox = document.getElementById('filterVariantsCheckbox');
 const btnAllVariants = document.getElementById('btnAllVariants');
 const btnVariantsOnly = document.getElementById('btnVariantsOnly');
@@ -1131,7 +1176,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.4.10';
+    let appVer = '1.4.11';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -1248,6 +1293,94 @@ function calculateTargetSummary(leg, megas, vars, enableLevel, levelMode, levelV
   return summary;
 }
 
+// Interactive GUI Mutual Exclusion & State Synchronizer
+function syncTargetModalInteractiveStates() {
+  // 1. Dex Completionist Mode vs. Avoid Duplicates
+  const dexMode = dexCompletionMode ? dexCompletionMode.value : 'standard';
+  if (dexMode !== 'standard') {
+    if (avoidDuplicatesCheck) {
+      avoidDuplicatesCheck.checked = true;
+      avoidDuplicatesCheck.disabled = true;
+    }
+    if (avoidDuplicatesWrap) {
+      avoidDuplicatesWrap.style.opacity = '0.5';
+      avoidDuplicatesWrap.style.pointerEvents = 'none';
+    }
+    if (dexModeLockChip) dexModeLockChip.style.display = 'inline-block';
+  } else {
+    if (avoidDuplicatesCheck) avoidDuplicatesCheck.disabled = false;
+    if (avoidDuplicatesWrap) {
+      avoidDuplicatesWrap.style.opacity = '1';
+      avoidDuplicatesWrap.style.pointerEvents = 'auto';
+    }
+    if (dexModeLockChip) dexModeLockChip.style.display = 'none';
+  }
+
+  // 2. Elemental Types Filter Master Toggle
+  const isTypeActive = filterTypesCheckbox ? filterTypesCheckbox.checked : false;
+  if (typeQuickGroup) {
+    typeQuickGroup.style.opacity = isTypeActive ? '1' : '0.4';
+    typeQuickGroup.style.pointerEvents = isTypeActive ? 'auto' : 'none';
+  }
+  if (typesGridWrap) {
+    typesGridWrap.style.opacity = isTypeActive ? '1' : '0.4';
+    typesGridWrap.style.pointerEvents = isTypeActive ? 'auto' : 'none';
+    typesGridWrap.style.filter = isTypeActive ? 'none' : 'grayscale(1)';
+  }
+
+  // 3. Smart Ball Routing Couplings
+  const isAutoCatchMasterOn = config.settings && (config.settings.autoCatchMasterBall !== false);
+  if (ballRoutingMasterNotice) {
+    ballRoutingMasterNotice.style.display = isAutoCatchMasterOn ? 'none' : 'block';
+  }
+
+  const isLegOn = subClassicLegCheckbox?.checked || subUltraBeastsCheckbox?.checked || subParadoxCheckbox?.checked;
+  const isPseudoOn = filterPseudoCheckbox ? filterPseudoCheckbox.checked : false;
+  const isMegaOn = filterMegasCheckbox ? filterMegasCheckbox.checked : false;
+  const isVarOn = filterVariantsCheckbox ? filterVariantsCheckbox.checked : false;
+
+  if (ballRowLegendary) {
+    ballRowLegendary.style.opacity = isLegOn ? '1' : '0.4';
+    ballRowLegendary.style.pointerEvents = isLegOn ? 'auto' : 'none';
+  }
+  if (ballRowPseudo) {
+    ballRowPseudo.style.opacity = isPseudoOn ? '1' : '0.4';
+    ballRowPseudo.style.pointerEvents = isPseudoOn ? 'auto' : 'none';
+  }
+  if (ballRowMega) {
+    ballRowMega.style.opacity = isMegaOn ? '1' : '0.4';
+    ballRowMega.style.pointerEvents = isMegaOn ? 'auto' : 'none';
+  }
+  if (ballRowTypes) {
+    ballRowTypes.style.opacity = isTypeActive ? '1' : '0.4';
+    ballRowTypes.style.pointerEvents = isTypeActive ? 'auto' : 'none';
+  }
+  if (ballRowDex) {
+    ballRowDex.style.opacity = (dexMode !== 'standard') ? '1' : '0.4';
+    ballRowDex.style.pointerEvents = (dexMode !== 'standard') ? 'auto' : 'none';
+  }
+  if (ballRowWildVariants) {
+    ballRowWildVariants.style.opacity = isVarOn ? '1' : '0.4';
+    ballRowWildVariants.style.pointerEvents = isVarOn ? 'auto' : 'none';
+  }
+
+  // 4. Delete button enabled only for custom user presets
+  if (deletePresetBtn && targetPresetSelect) {
+    const curVal = targetPresetSelect.value;
+    const isBuiltIn = ['default_legendaries', 'all_powerhouses', 'shiny_hunters', 'dex_completionist', 'custom'].includes(curVal);
+    deletePresetBtn.disabled = isBuiltIn;
+    deletePresetBtn.style.opacity = isBuiltIn ? '0.35' : '1';
+    deletePresetBtn.style.cursor = isBuiltIn ? 'not-allowed' : 'pointer';
+  }
+}
+
+function updatePseudoBadge(vars, isEnabled = true) {
+  if (!pseudoTierVariantsBadge) return;
+  pseudoTierVariantsBadge.textContent = formatTierVariantsBadge(vars, isEnabled);
+  pseudoTierVariantsBadge.style.color = isEnabled ? '#388bfd' : '#8eaad0';
+  pseudoTierVariantsBadge.style.opacity = isEnabled ? '1' : '0.55';
+}
+
 function updateTargetUI() {
   const isLegConfig = config.settings && config.settings.findLegendaries !== false;
   const classicLeg = isLegConfig && (config.settings.legendaryClassic !== false);
@@ -1256,7 +1389,19 @@ function updateTargetUI() {
   const isLeg = isLegConfig && (classicLeg || ubLeg || paradoxLeg);
 
   const isMega = config.settings && config.settings.findMegasAndGigantamax !== false;
+  const isPseudo = config.settings && (config.settings.findPseudoLegendaries !== false);
   const isVar = config.settings && config.settings.findAnySpecialVariant !== false;
+  const isType = config.settings && !!config.settings.enableTypeFilter;
+  const activeTypes = (config.settings && Array.isArray(config.settings.selectedTypes)) ? config.settings.selectedTypes : [];
+  const activeDexMode = (config.settings && config.settings.dexCompletionMode) || 'standard';
+  const ballRouting = (config.settings && config.settings.ballRouting) || {
+    legendaries: 'Master Ball', pseudo: 'Ultra Ball', megas: 'Ultra Ball', types: 'Ultra Ball', dex: 'Ultra Ball', variants: 'Ultra Ball'
+  };
+  const fallbackPolicy = (config.settings && config.settings.ballFallbackPolicy) || 'downgrade';
+
+  const activePseudoVariants = (config.settings && Array.isArray(config.settings.pseudoVariants))
+    ? config.settings.pseudoVariants
+    : Object.values(pseudoVariantMap);
 
   const activeVariants = (config.settings && Array.isArray(config.settings.selectedVariants))
     ? config.settings.selectedVariants
@@ -1289,8 +1434,35 @@ function updateTargetUI() {
   if (subParadoxCheckbox) subParadoxCheckbox.checked = paradoxLeg;
 
   if (filterMegasCheckbox) filterMegasCheckbox.checked = isMega;
+  if (filterPseudoCheckbox) filterPseudoCheckbox.checked = isPseudo;
+  if (filterTypesCheckbox) filterTypesCheckbox.checked = isType;
   const isVarActive = config.settings && (config.settings.enableVariantFilter !== undefined ? !!config.settings.enableVariantFilter : (config.settings.findAnySpecialVariant !== false));
   if (filterVariantsCheckbox) filterVariantsCheckbox.checked = isVarActive;
+
+  pseudoVariantIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.checked = activePseudoVariants.map(v => v.toLowerCase()).includes(pseudoVariantMap[id].toLowerCase());
+    }
+  });
+
+  const typeInputs = document.querySelectorAll('.type-chip-input');
+  typeInputs.forEach(inp => {
+    const typeName = inp.id.replace('type_', '');
+    inp.checked = activeTypes.map(t => t.toLowerCase()).includes(typeName.toLowerCase());
+  });
+
+  if (dexCompletionMode) dexCompletionMode.value = activeDexMode;
+  if (ballSelectLegendary) ballSelectLegendary.value = ballRouting.legendaries || 'Master Ball';
+  if (ballSelectPseudo) ballSelectPseudo.value = ballRouting.pseudo || 'Ultra Ball';
+  if (ballSelectMega) ballSelectMega.value = ballRouting.megas || 'Ultra Ball';
+  if (ballSelectTypes) ballSelectTypes.value = ballRouting.types || 'Ultra Ball';
+  if (ballSelectDex) ballSelectDex.value = ballRouting.dex || 'Ultra Ball';
+  if (ballSelectWildVariants) ballSelectWildVariants.value = ballRouting.variants || 'Ultra Ball';
+  if (ballFallbackPolicy) ballFallbackPolicy.value = fallbackPolicy;
+
+  updatePseudoBadge(activePseudoVariants, isPseudo);
+  syncTargetModalInteractiveStates();
 
   if (legVariantsWrap) legVariantsWrap.classList.toggle('dimmed', !isLeg);
   if (megaVariantsWrap) megaVariantsWrap.classList.toggle('dimmed', !isMega);
@@ -1560,6 +1732,13 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
     config.settings.legendaryUltraBeasts = isLeg && isUB;
     config.settings.legendaryParadox = isLeg && isParadox;
     config.settings.findMegasAndGigantamax = isMega;
+    config.settings.findPseudoLegendaries = isPseudo;
+    config.settings.pseudoVariants = selectedPseudoVars;
+    config.settings.enableTypeFilter = isType;
+    config.settings.selectedTypes = selectedTypesList;
+    config.settings.dexCompletionMode = activeDex;
+    config.settings.ballRouting = routingObj;
+    config.settings.ballFallbackPolicy = activeFallback;
     config.settings.findAnySpecialVariant = isVar;
     config.settings.enableVariantFilter = isVar;
     config.settings.selectedVariants = selectedVars;
@@ -4258,6 +4437,203 @@ function switchToVariantsTab() {
 if (legTierVariantsBadge) legTierVariantsBadge.addEventListener('click', switchToVariantsTab);
 if (megaTierVariantsBadge) megaTierVariantsBadge.addEventListener('click', switchToVariantsTab);
 if (wildTierVariantsBadge) wildTierVariantsBadge.addEventListener('click', switchToVariantsTab);
+if (pseudoTierVariantsBadge) pseudoTierVariantsBadge.addEventListener('click', switchToVariantsTab);
+
+if (btnPseudoAllVariants) {
+  btnPseudoAllVariants.addEventListener('click', () => {
+    if (filterPseudoCheckbox) filterPseudoCheckbox.checked = true;
+    pseudoVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = true;
+    });
+    refreshModalSummary();
+    syncTargetModalInteractiveStates();
+  });
+}
+if (btnPseudoVariantsOnly) {
+  btnPseudoVariantsOnly.addEventListener('click', () => {
+    if (filterPseudoCheckbox) filterPseudoCheckbox.checked = true;
+    pseudoVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = (id !== 'pseudoVarNormal');
+    });
+    refreshModalSummary();
+    syncTargetModalInteractiveStates();
+  });
+}
+if (btnPseudoShiniesOnly) {
+  btnPseudoShiniesOnly.addEventListener('click', () => {
+    if (filterPseudoCheckbox) filterPseudoCheckbox.checked = true;
+    pseudoVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = (id === 'pseudoVarShiny');
+    });
+    refreshModalSummary();
+    syncTargetModalInteractiveStates();
+  });
+}
+if (btnPseudoChromeOnly) {
+  btnPseudoChromeOnly.addEventListener('click', () => {
+    if (filterPseudoCheckbox) filterPseudoCheckbox.checked = true;
+    pseudoVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = (id === 'pseudoVarChrome');
+    });
+    refreshModalSummary();
+    syncTargetModalInteractiveStates();
+  });
+}
+
+if (btnAllTypes) {
+  btnAllTypes.addEventListener('click', () => {
+    if (filterTypesCheckbox) filterTypesCheckbox.checked = true;
+    document.querySelectorAll('.type-chip-input').forEach(inp => inp.checked = true);
+    refreshModalSummary();
+    syncTargetModalInteractiveStates();
+  });
+}
+if (btnClearTypes) {
+  btnClearTypes.addEventListener('click', () => {
+    document.querySelectorAll('.type-chip-input').forEach(inp => inp.checked = false);
+    refreshModalSummary();
+    syncTargetModalInteractiveStates();
+  });
+}
+
+if (filterTypesCheckbox) {
+  filterTypesCheckbox.addEventListener('change', () => {
+    syncTargetModalInteractiveStates();
+    refreshModalSummary();
+  });
+}
+if (filterPseudoCheckbox) {
+  filterPseudoCheckbox.addEventListener('change', () => {
+    syncTargetModalInteractiveStates();
+    refreshModalSummary();
+  });
+}
+if (dexCompletionMode) {
+  dexCompletionMode.addEventListener('change', () => {
+    syncTargetModalInteractiveStates();
+    refreshModalSummary();
+  });
+}
+
+// Preset Handler
+const BUILT_IN_PRESETS = {
+  default_legendaries: {
+    findLegendaries: true,
+    legendaryClassic: true,
+    legendaryUltraBeasts: true,
+    legendaryParadox: true,
+    findPseudoLegendaries: false,
+    findMegasAndGigantamax: false,
+    findAnySpecialVariant: false,
+    enableTypeFilter: false,
+    dexCompletionMode: 'standard'
+  },
+  all_powerhouses: {
+    findLegendaries: true,
+    legendaryClassic: true,
+    legendaryUltraBeasts: true,
+    legendaryParadox: true,
+    findPseudoLegendaries: true,
+    findMegasAndGigantamax: true,
+    findAnySpecialVariant: false,
+    enableTypeFilter: false,
+    dexCompletionMode: 'standard'
+  },
+  shiny_hunters: {
+    findLegendaries: true,
+    legendaryClassic: true,
+    legendaryUltraBeasts: true,
+    legendaryParadox: true,
+    findPseudoLegendaries: true,
+    findMegasAndGigantamax: true,
+    findAnySpecialVariant: true,
+    enableVariantFilter: true,
+    enableTypeFilter: false,
+    dexCompletionMode: 'standard'
+  },
+  dex_completionist: {
+    findLegendaries: true,
+    legendaryClassic: true,
+    legendaryUltraBeasts: true,
+    legendaryParadox: true,
+    findPseudoLegendaries: true,
+    findMegasAndGigantamax: true,
+    findAnySpecialVariant: false,
+    enableTypeFilter: false,
+    dexCompletionMode: 'unowned_species'
+  }
+};
+
+function applyNamedPreset(presetKey) {
+  const p = BUILT_IN_PRESETS[presetKey] || (config.settings && config.settings.targetProfiles && config.settings.targetProfiles[presetKey]);
+  if (!p) return;
+  if (subClassicLegCheckbox) subClassicLegCheckbox.checked = p.legendaryClassic !== false;
+  if (subUltraBeastsCheckbox) subUltraBeastsCheckbox.checked = p.legendaryUltraBeasts !== false;
+  if (subParadoxCheckbox) subParadoxCheckbox.checked = p.legendaryParadox !== false;
+  if (filterPseudoCheckbox) filterPseudoCheckbox.checked = p.findPseudoLegendaries !== false;
+  if (filterMegasCheckbox) filterMegasCheckbox.checked = p.findMegasAndGigantamax !== false;
+  if (filterVariantsCheckbox) filterVariantsCheckbox.checked = !!p.findAnySpecialVariant;
+  if (filterTypesCheckbox) filterTypesCheckbox.checked = !!p.enableTypeFilter;
+  if (dexCompletionMode) dexCompletionMode.value = p.dexCompletionMode || 'standard';
+  syncTargetModalInteractiveStates();
+  refreshModalSummary();
+}
+
+if (targetPresetSelect) {
+  targetPresetSelect.addEventListener('change', () => {
+    applyNamedPreset(targetPresetSelect.value);
+  });
+}
+
+if (savePresetBtn) {
+  savePresetBtn.addEventListener('click', () => {
+    const name = (prompt('Enter name for custom target preset:') || '').trim();
+    if (!name) return;
+    const cleanKey = 'custom_' + name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    config.settings.targetProfiles = config.settings.targetProfiles || {};
+    config.settings.targetProfiles[cleanKey] = {
+      name: name,
+      legendaryClassic: subClassicLegCheckbox?.checked,
+      legendaryUltraBeasts: subUltraBeastsCheckbox?.checked,
+      legendaryParadox: subParadoxCheckbox?.checked,
+      findPseudoLegendaries: filterPseudoCheckbox?.checked,
+      findMegasAndGigantamax: filterMegasCheckbox?.checked,
+      findAnySpecialVariant: filterVariantsCheckbox?.checked,
+      enableTypeFilter: filterTypesCheckbox?.checked,
+      dexCompletionMode: dexCompletionMode?.value || 'standard'
+    };
+    saveLocalConfig();
+    const opt = document.createElement('option');
+    opt.value = cleanKey;
+    opt.textContent = name;
+    targetPresetSelect.appendChild(opt);
+    targetPresetSelect.value = cleanKey;
+    syncTargetModalInteractiveStates();
+    updateStatus('Saved Preset: ' + name, '#10b981');
+  });
+}
+
+if (deletePresetBtn) {
+  deletePresetBtn.addEventListener('click', () => {
+    const curVal = targetPresetSelect ? targetPresetSelect.value : '';
+    if (!curVal || ['default_legendaries', 'all_powerhouses', 'shiny_hunters', 'dex_completionist'].includes(curVal)) {
+      return;
+    }
+    if (config.settings && config.settings.targetProfiles && config.settings.targetProfiles[curVal]) {
+      delete config.settings.targetProfiles[curVal];
+      saveLocalConfig();
+      const opt = targetPresetSelect.querySelector('option[value="' + curVal + '"]');
+      if (opt) opt.remove();
+      targetPresetSelect.value = 'default_legendaries';
+      applyNamedPreset('default_legendaries');
+      updateStatus('Deleted Custom Preset', '#f59e0b');
+    }
+  });
+}
 
 if (btnLegAllVariants) {
   btnLegAllVariants.addEventListener('click', () => {
@@ -4413,7 +4789,33 @@ if (saveTargetsBtn) {
     if (filterLegendariesCheckbox) filterLegendariesCheckbox.checked = isLeg;
 
     const isMega = filterMegasCheckbox ? filterMegasCheckbox.checked : false;
+    const isPseudo = filterPseudoCheckbox ? filterPseudoCheckbox.checked : false;
     const isVar = filterVariantsCheckbox ? filterVariantsCheckbox.checked : false;
+    const isType = filterTypesCheckbox ? filterTypesCheckbox.checked : false;
+
+    const selectedPseudoVars = [];
+    pseudoVariantIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.checked) {
+        selectedPseudoVars.push(pseudoVariantMap[id]);
+      }
+    });
+
+    const selectedTypesList = [];
+    document.querySelectorAll('.type-chip-input:checked').forEach(inp => {
+      selectedTypesList.push(inp.id.replace('type_', ''));
+    });
+
+    const activeDex = dexCompletionMode ? dexCompletionMode.value : 'standard';
+    const routingObj = {
+      legendaries: ballSelectLegendary ? ballSelectLegendary.value : 'Master Ball',
+      pseudo: ballSelectPseudo ? ballSelectPseudo.value : 'Ultra Ball',
+      megas: ballSelectMega ? ballSelectMega.value : 'Ultra Ball',
+      types: ballSelectTypes ? ballSelectTypes.value : 'Ultra Ball',
+      dex: ballSelectDex ? ballSelectDex.value : 'Ultra Ball',
+      variants: ballSelectWildVariants ? ballSelectWildVariants.value : 'Ultra Ball'
+    };
+    const activeFallback = ballFallbackPolicy ? ballFallbackPolicy.value : 'downgrade';
 
     const selectedVars = [];
     variantIds.forEach(id => {
@@ -7824,6 +8226,19 @@ const CATCH_DIRECT_MEGA_SPECIES = [
   'lucario', 'abomasnow', 'diancie', 'audino', 'kyogre', 'groudon'
 ];
 
+const CATCH_PSEUDO_LEGENDARIES = [
+  'dratini', 'dragonair', 'dragonite',
+  'larvitar', 'pupitar', 'tyranitar',
+  'bagon', 'shelgon', 'salamence',
+  'beldum', 'metang', 'metagross',
+  'gible', 'gabite', 'garchomp',
+  'deino', 'zweilous', 'hydreigon',
+  'goomy', 'sliggoo', 'goodra',
+  'jangmo-o', 'hakamo-o', 'kommo-o',
+  'dreepy', 'drakloak', 'dragapult',
+  'frigibax', 'arctibax', 'baxcalibur'
+];
+
 function getCaughtPokemonKind(p) {
   const name = typeof p === 'string' ? p : ((p && (p.name || p.fullName)) || '');
   const cat = (p && p.category) ? String(p.category).toLowerCase() : '';
@@ -7853,7 +8268,13 @@ function getCaughtPokemonKind(p) {
   if (lower.includes('g-max') || lower.includes('gigantamax') || cat.includes('gigantamax')) {
     return 'Gigantamax';
   }
-  if (lower.includes('mega ') || lower.includes('primal ') || CATCH_DIRECT_MEGA_SPECIES.includes(base) || cat.includes('mega')) {
+  if (lower.includes('mega ') || lower.includes('primal ') || cat.includes('mega')) {
+    return 'Mega';
+  }
+  if (cat.includes('pseudo') || CATCH_PSEUDO_LEGENDARIES.includes(base)) {
+    return 'Pseudo-Legendary';
+  }
+  if (CATCH_DIRECT_MEGA_SPECIES.includes(base)) {
     return 'Mega';
   }
   return 'Common';
@@ -7889,6 +8310,10 @@ function getCaughtPokemonKindBadge(p) {
     bg = 'rgba(56, 139, 253, 0.15)';
     border = '#388bfd';
     color = '#388bfd';
+  } else if (kind === 'Pseudo-Legendary') {
+    bg = 'rgba(45, 212, 191, 0.15)';
+    border = '#2dd4bf';
+    color = '#2dd4bf';
   }
 
   return `<span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: ${bg}; border: 1px solid ${border}; color: ${color}; font-weight: 600; box-shadow: none !important;">${kind}</span>`;

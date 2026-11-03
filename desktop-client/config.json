@@ -90,7 +90,32 @@
       "Will",
       "Acerola",
       "Sidney"
-    ]
+    ],
+    "findPseudoLegendaries": true,
+    "pseudoVariants": [
+      "Normal",
+      "Shiny",
+      "Chrome",
+      "Retro",
+      "Metallic",
+      "Shadow",
+      "Ghostly",
+      "Dark",
+      "Mirage",
+      "Negative"
+    ],
+    "enableTypeFilter": false,
+    "selectedTypes": [],
+    "dexCompletionMode": "standard",
+    "ballRouting": {
+      "legendaries": "Master Ball",
+      "pseudo": "Ultra Ball",
+      "megas": "Ultra Ball",
+      "types": "Ultra Ball",
+      "dex": "Ultra Ball",
+      "variants": "Ultra Ball"
+    },
+    "ballFallbackPolicy": "downgrade"
   },
   "safety": {
     "enableDeadManSwitch": true,

@@ -114,7 +114,30 @@ const TARGETS = {
         "Froakie", "Frogadier", "Greninja"
     ],
 
-    // 3. Special Form Prefixes (DelugeRPG)
+    // 3. All 10 Pseudo-Legendary Families (600 BST 3-Stage Evolutionary Lines)
+    pseudoLegendaries: [
+        // Gen 1
+        "Dratini", "Dragonair", "Dragonite",
+        // Gen 2
+        "Larvitar", "Pupitar", "Tyranitar",
+        // Gen 3
+        "Bagon", "Shelgon", "Salamence",
+        "Beldum", "Metang", "Metagross",
+        // Gen 4
+        "Gible", "Gabite", "Garchomp",
+        // Gen 5
+        "Deino", "Zweilous", "Hydreigon",
+        // Gen 6
+        "Goomy", "Sliggoo", "Goodra",
+        // Gen 7
+        "Jangmo-o", "Hakamo-o", "Kommo-o",
+        // Gen 8
+        "Dreepy", "Drakloak", "Dragapult",
+        // Gen 9
+        "Frigibax", "Arctibax", "Baxcalibur"
+    ],
+
+    // 4. Special Form Prefixes (DelugeRPG)
     specialForms: [
         "mega", "gigantamax", "g-max", "gmax", "primal", "ultra"
     ],

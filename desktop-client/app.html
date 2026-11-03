@@ -2319,11 +2319,11 @@
       <input type="radio" name="targetModalTab" id="targetTab2" class="tab tab--2" />
       <label class="tab_label modal-tab-btn" for="targetTab2" id="tabVariantsBtn" data-tab="tabVariants">Variants</label>
 
-      <input type="radio" name="targetModalTab" id="targetTab4" class="tab tab--4" />
-      <label class="tab_label modal-tab-btn" for="targetTab4" data-tab="tabBallRouting">Smart Balls</label>
-
       <input type="radio" name="targetModalTab" id="targetTab3" class="tab tab--3" />
-      <label class="tab_label modal-tab-btn" for="targetTab3" data-tab="tabCustom">Blacklist</label>
+      <label class="tab_label modal-tab-btn" for="targetTab3" data-tab="tabBallRouting">Smart Balls</label>
+
+      <input type="radio" name="targetModalTab" id="targetTab4" class="tab tab--4" />
+      <label class="tab_label modal-tab-btn" for="targetTab4" data-tab="tabCustom">Blacklist</label>
 
       <div class="indicator"></div>
     </div>
@@ -2597,17 +2597,25 @@
       <div id="ballRoutingMasterNotice" class="quick-tag-btn" style="display: none; border-color: #f59e0b; color: #f59e0b; width: 100%; text-align: center; margin-bottom: 8px;">
         Auto-Catch is OFF - Target encounters will only pause &amp; alert
       </div>
-      <!-- AUTO-CATCH EXECUTION MODE (OPTION A vs OPTION B) -->
+      <!-- CATCH EXECUTION MODE TOGGLE (OPTION A vs OPTION B) -->
       <div class="filter-item" style="margin-bottom: 8px; border-bottom: 1px solid #1a283e; padding-bottom: 8px;">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-          <span class="filter-label" style="font-weight: 700;">Catch Execution Mode:</span>
-          <select id="autoCatchModeSelect" class="clean-select" style="min-width: 220px;">
+          <span class="filter-label" style="font-weight: 700;">Catch Mode:</span>
+          <div class="tab-container tab-container-2" style="width: 240px; margin: 0;">
+            <input type="radio" name="autoCatchModeRadio" id="catchModeMasterRadio" class="tab tab--1" value="master_only" checked />
+            <label class="tab_label" for="catchModeMasterRadio" id="catchModeMasterBtn" title="Option A: 100% instant capture via Master Ball. Safe halt on 0 stock.">Master Only (A)</label>
+
+            <input type="radio" name="autoCatchModeRadio" id="catchModeSmartRadio" class="tab tab--2" value="smart_routing" />
+            <label class="tab_label" for="catchModeSmartRadio" id="catchModeSmartBtn" title="Option B: Custom balls per tier with automated retry loop.">Smart Balls (B)</label>
+
+            <div class="indicator"></div>
+          </div>
+          <!-- Retained for backward compatibility with automated tests -->
+          <select id="autoCatchModeSelect" style="display: none;">
             <option value="master_only">Option A: Strict Master Ball (Guaranteed)</option>
             <option value="smart_routing">Option B: Smart Ball Priority &amp; Retry</option>
           </select>
-        </div>
-        <div id="catchModeHelpBadge" style="margin-top: 5px; font-size: 9.5px; font-weight: 600; color: #d29922;">
-          Option A: 100% instant capture via Master Ball. Pauses safely when stock is 0.
+          <div id="catchModeHelpBadge" style="display: none;"></div>
         </div>
       </div>
       <div class="filter-item" id="ballRowLegendary">

@@ -374,6 +374,8 @@ const ballRowWildVariants = document.getElementById('ballRowWildVariants');
 const ballSelectWildVariants = document.getElementById('ballSelectWildVariants');
 const ballFallbackPolicy = document.getElementById('ballFallbackPolicy');
 const autoCatchModeSelect = document.getElementById('autoCatchModeSelect');
+const catchModeMasterRadio = document.getElementById('catchModeMasterRadio');
+const catchModeSmartRadio = document.getElementById('catchModeSmartRadio');
 const catchModeHelpBadge = document.getElementById('catchModeHelpBadge');
 
 const btnPseudoAllVariants = document.getElementById('btnPseudoAllVariants');
@@ -1336,50 +1338,44 @@ function syncTargetModalInteractiveStates() {
     ballRoutingMasterNotice.style.display = isAutoCatchMasterOn ? 'none' : 'block';
   }
 
-  const activeCatchMode = autoCatchModeSelect ? autoCatchModeSelect.value : ((config.settings && config.settings.autoCatchMode) || 'master_only');
-  if (catchModeHelpBadge) {
-    if (activeCatchMode === 'master_only') {
-      catchModeHelpBadge.textContent = 'Option A: 100% instant capture via Master Ball. Pauses safely when stock is 0.';
-      catchModeHelpBadge.style.color = '#d29922';
+  const activeCatchMode = (catchModeSmartRadio && catchModeSmartRadio.checked) ? 'smart_routing' : (autoCatchModeSelect ? autoCatchModeSelect.value : ((config.settings && config.settings.autoCatchMode) || 'master_only'));
+  if (autoCatchModeSelect) autoCatchModeSelect.value = activeCatchMode;
+  if (catchModeMasterRadio && catchModeSmartRadio) {
+    if (activeCatchMode === 'smart_routing') {
+      catchModeSmartRadio.checked = true;
     } else {
-      catchModeHelpBadge.textContent = 'Option B: Custom balls per tier with automated break-free retry loop.';
-      catchModeHelpBadge.style.color = '#388bfd';
+      catchModeMasterRadio.checked = true;
     }
   }
 
-  const isSmart = (activeCatchMode === 'smart_routing');
-  const isLegOn = subClassicLegCheckbox?.checked || subUltraBeastsCheckbox?.checked || subParadoxCheckbox?.checked;
-  const isPseudoOn = filterPseudoCheckbox ? filterPseudoCheckbox.checked : false;
-  const isMegaOn = filterMegasCheckbox ? filterMegasCheckbox.checked : false;
-  const isVarOn = filterVariantsCheckbox ? filterVariantsCheckbox.checked : false;
-
+  // Always keep all ball routing rows clean, legible, and fully functional
   if (ballRowLegendary) {
-    ballRowLegendary.style.opacity = (isSmart && isLegOn) ? '1' : '0.4';
-    ballRowLegendary.style.pointerEvents = (isSmart && isLegOn) ? 'auto' : 'none';
+    ballRowLegendary.style.opacity = '1';
+    ballRowLegendary.style.pointerEvents = 'auto';
   }
   if (ballRowPseudo) {
-    ballRowPseudo.style.opacity = (isSmart && isPseudoOn) ? '1' : '0.4';
-    ballRowPseudo.style.pointerEvents = (isSmart && isPseudoOn) ? 'auto' : 'none';
+    ballRowPseudo.style.opacity = '1';
+    ballRowPseudo.style.pointerEvents = 'auto';
   }
   if (ballRowMega) {
-    ballRowMega.style.opacity = (isSmart && isMegaOn) ? '1' : '0.4';
-    ballRowMega.style.pointerEvents = (isSmart && isMegaOn) ? 'auto' : 'none';
+    ballRowMega.style.opacity = '1';
+    ballRowMega.style.pointerEvents = 'auto';
   }
   if (ballRowTypes) {
-    ballRowTypes.style.opacity = (isSmart && isTypeActive) ? '1' : '0.4';
-    ballRowTypes.style.pointerEvents = (isSmart && isTypeActive) ? 'auto' : 'none';
+    ballRowTypes.style.opacity = '1';
+    ballRowTypes.style.pointerEvents = 'auto';
   }
   if (ballRowDex) {
-    ballRowDex.style.opacity = (isSmart && dexMode !== 'standard') ? '1' : '0.4';
-    ballRowDex.style.pointerEvents = (isSmart && dexMode !== 'standard') ? 'auto' : 'none';
+    ballRowDex.style.opacity = '1';
+    ballRowDex.style.pointerEvents = 'auto';
   }
   if (ballRowWildVariants) {
-    ballRowWildVariants.style.opacity = (isSmart && isVarOn) ? '1' : '0.4';
-    ballRowWildVariants.style.pointerEvents = (isSmart && isVarOn) ? 'auto' : 'none';
+    ballRowWildVariants.style.opacity = '1';
+    ballRowWildVariants.style.pointerEvents = 'auto';
   }
   if (ballFallbackPolicy && ballFallbackPolicy.parentElement) {
-    ballFallbackPolicy.parentElement.style.opacity = isSmart ? '1' : '0.4';
-    ballFallbackPolicy.parentElement.style.pointerEvents = isSmart ? 'auto' : 'none';
+    ballFallbackPolicy.parentElement.style.opacity = '1';
+    ballFallbackPolicy.parentElement.style.pointerEvents = 'auto';
   }
 
   // 4. Delete button enabled only for custom user presets
@@ -1480,6 +1476,13 @@ function updateTargetUI() {
   if (ballFallbackPolicy) ballFallbackPolicy.value = fallbackPolicy;
   const activeCatchMode = (config.settings && config.settings.autoCatchMode) || 'master_only';
   if (autoCatchModeSelect) autoCatchModeSelect.value = activeCatchMode;
+  if (catchModeMasterRadio && catchModeSmartRadio) {
+    if (activeCatchMode === 'smart_routing') {
+      catchModeSmartRadio.checked = true;
+    } else {
+      catchModeMasterRadio.checked = true;
+    }
+  }
 
   updatePseudoBadge(activePseudoVariants, isPseudo);
   syncTargetModalInteractiveStates();
@@ -4836,8 +4839,9 @@ if (saveTargetsBtn) {
       variants: ballSelectWildVariants ? ballSelectWildVariants.value : 'Ultra Ball'
     };
     const activeFallback = ballFallbackPolicy ? ballFallbackPolicy.value : 'downgrade';
-    const activeCatchMode = autoCatchModeSelect ? autoCatchModeSelect.value : 'master_only';
+    const activeCatchMode = (catchModeSmartRadio && catchModeSmartRadio.checked) ? 'smart_routing' : (autoCatchModeSelect ? autoCatchModeSelect.value : 'master_only');
     config.settings.autoCatchMode = activeCatchMode;
+    if (autoCatchModeSelect) autoCatchModeSelect.value = activeCatchMode;
 
     const selectedVars = [];
     variantIds.forEach(id => {
@@ -4921,6 +4925,22 @@ if (saveTargetsBtn) {
 if (autoCatchModeSelect) {
   autoCatchModeSelect.addEventListener('change', () => {
     syncTargetModalInteractiveStates();
+  });
+}
+if (catchModeMasterRadio) {
+  catchModeMasterRadio.addEventListener('change', () => {
+    if (autoCatchModeSelect) autoCatchModeSelect.value = 'master_only';
+    config.settings.autoCatchMode = 'master_only';
+    syncTargetModalInteractiveStates();
+    saveLocalConfig();
+  });
+}
+if (catchModeSmartRadio) {
+  catchModeSmartRadio.addEventListener('change', () => {
+    if (autoCatchModeSelect) autoCatchModeSelect.value = 'smart_routing';
+    config.settings.autoCatchMode = 'smart_routing';
+    syncTargetModalInteractiveStates();
+    saveLocalConfig();
   });
 }
 
@@ -9091,7 +9111,7 @@ function selectEvolvePokemon(poke, branch) {
   const isDuplicate = Boolean(targetBranch.isDuplicate);
 
   if (aiBattleOpponentBadge) {
-    aiBattleOpponentBadge.innerHTML = `${escapeHtml(poke.name)} &#8594; ${escapeHtml(targetName)}`;
+    aiBattleOpponentBadge.innerHTML = escapeHtml(poke.name);
     aiBattleOpponentBadge.style.color = isDuplicate ? '#f87171' : '#10b981';
   }
 
@@ -9123,9 +9143,9 @@ function selectEvolvePokemon(poke, branch) {
       recListHtml += `
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0; border-top: 1px solid #1a283e;">
           <div style="font-size: 10px; font-weight: 600; color: #e0ecfa;">
-            <span style="color: #388bfd; font-weight: 700; margin-right: 4px;">[Slot ${idx + 1}]</span>
+            <span style="color: #8eaad0; margin-right: 4px;">${idx + 1}.</span>
             ${escapeHtml(m.name)}
-            <span style="font-size: 9px; color: #8eaad0; margin-left: 3px;">(${escapeHtml(m.type)}) [${m.power} Pwr]</span>
+            <span style="font-size: 9px; color: #8eaad0; margin-left: 3px;">(${m.power} Pwr)</span>
           </div>
           <div>
             ${m.isStab ? '<span style="font-size: 8px; font-weight: 700; color: #10b981; padding: 1px 3px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 2px;">STAB</span>' : ''}
@@ -9138,11 +9158,10 @@ function selectEvolvePokemon(poke, branch) {
 
     aiTacticalBriefing.innerHTML = `
       <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
           <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(targetName)}</span>
           <span style="font-size: 9.5px; color: #8eaad0;">${targetBranch.bst ? (targetBranch.bst + ' BST &bull; ') : ''}<span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span></span>
         </div>
-        <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-top: 4px; margin-bottom: 2px;">RECOMMENDED 4 ATTACKS</div>
         ${recListHtml}
       </div>
     `;
@@ -9174,7 +9193,7 @@ function selectEvolvePokemon(poke, branch) {
       triggerBtn.type = 'button';
       triggerBtn.className = isDuplicate ? 'btn' : 'btn btn-accent';
       triggerBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
-      triggerBtn.innerHTML = `&#129516; Open Evolve Modal (${escapeHtml(poke.name)})`;
+      triggerBtn.innerHTML = '&#129516; Open Evolve Modal';
       triggerBtn.addEventListener('click', () => {
         if (delugeView) {
           delugeView.send('trigger-evolve-pokemon', {
@@ -9652,27 +9671,21 @@ function renderEvolutionDecisionMakerUI() {
       : '';
 
     card.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
           ${spriteHtml}
           <div style="min-width: 0;">
             <div style="font-size: 10.5px; font-weight: 700; color: #e0ecfa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
               ${escapeHtml(item.name)}
             </div>
-            <div style="font-size: 9px; color: #8eaad0;">
-              Lv ${item.level} &bull; <span style="color: #388bfd;">${escapeHtml((item.types || []).join('/'))}</span>
+            <div style="font-size: 9px; color: #8eaad0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              Lv ${item.level} &bull; <span style="color: #388bfd;">&#8594; ${escapeHtml(branchName)}</span>
             </div>
           </div>
         </div>
-        <div style="flex-shrink: 0; text-align: right;">
-          ${statusBadgeHtml}
-        </div>
-      </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 3px; border-top: 1px solid #142033; font-size: 9px;">
-        <div>${targetBadgeHtml}</div>
-        <div style="display: flex; gap: 3px;">
-          <button type="button" class="btn btn-inspect-evo" style="height: 20px; font-size: 9px; font-weight: 600; padding: 0 6px; box-shadow: none !important;">Moves</button>
-          <button type="button" class="btn ${item.hasUnique ? 'btn-accent' : ''} btn-action-evolve" style="height: 20px; font-size: 9px; font-weight: 700; padding: 0 6px; box-shadow: none !important;">Evolve</button>
+        <div style="flex-shrink: 0; display: flex; align-items: center; gap: 6px;">
+          ${isBranchDup ? '<span style="font-size: 8px; font-weight: 700; color: #f87171; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: 3px;">Owned</span>' : ''}
+          <button type="button" class="btn btn-accent btn-action-evolve" style="height: 22px; font-size: 9.5px; font-weight: 700; padding: 0 8px; box-shadow: none !important;">Evolve</button>
         </div>
       </div>
     `;

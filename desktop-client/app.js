@@ -8253,6 +8253,12 @@ function getCaughtPokemonKind(p) {
     .trim()
     .toLowerCase();
 
+  if (lower.includes('g-max') || lower.includes('gigantamax') || cat.includes('gigantamax')) {
+    return 'Gigantamax';
+  }
+  if (lower.includes('mega ') || lower.includes('primal ') || cat.includes('mega')) {
+    return 'Mega';
+  }
   if (cat.includes('ultra beast') || cat.includes('ultrabeast') || CATCH_ULTRA_BEASTS.includes(base)) {
     return 'Ultra Beast';
   }
@@ -8264,12 +8270,6 @@ function getCaughtPokemonKind(p) {
   }
   if (cat.includes('legendary') || CATCH_LEGENDARY_SPECIES.includes(base)) {
     return 'Legendary';
-  }
-  if (lower.includes('g-max') || lower.includes('gigantamax') || cat.includes('gigantamax')) {
-    return 'Gigantamax';
-  }
-  if (lower.includes('mega ') || lower.includes('primal ') || cat.includes('mega')) {
-    return 'Mega';
   }
   if (cat.includes('pseudo') || CATCH_PSEUDO_LEGENDARIES.includes(base)) {
     return 'Pseudo-Legendary';

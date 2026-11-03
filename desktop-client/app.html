@@ -2597,6 +2597,19 @@
       <div id="ballRoutingMasterNotice" class="quick-tag-btn" style="display: none; border-color: #f59e0b; color: #f59e0b; width: 100%; text-align: center; margin-bottom: 8px;">
         Auto-Catch is OFF - Target encounters will only pause &amp; alert
       </div>
+      <!-- AUTO-CATCH EXECUTION MODE (OPTION A vs OPTION B) -->
+      <div class="filter-item" style="margin-bottom: 8px; border-bottom: 1px solid #1a283e; padding-bottom: 8px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span class="filter-label" style="font-weight: 700;">Catch Execution Mode:</span>
+          <select id="autoCatchModeSelect" class="clean-select" style="min-width: 220px;">
+            <option value="master_only">Option A: Strict Master Ball (Guaranteed)</option>
+            <option value="smart_routing">Option B: Smart Ball Priority &amp; Retry</option>
+          </select>
+        </div>
+        <div id="catchModeHelpBadge" style="margin-top: 5px; font-size: 9.5px; font-weight: 600; color: #d29922;">
+          Option A: 100% instant capture via Master Ball. Pauses safely when stock is 0.
+        </div>
+      </div>
       <div class="filter-item" id="ballRowLegendary">
         <div style="display: flex; align-items: center; justify-content: space-between;">
           <span class="filter-label">Legendaries &amp; Special:</span>

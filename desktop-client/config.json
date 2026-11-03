@@ -33,7 +33,7 @@
     "enableLevelFilter": false,
     "levelFilterMode": "min",
     "levelFilterValue": 30,
-    "zoomFactor": 0.7,
+    "zoomFactor": 0.8,
     "levelFilterScope": "targets",
     "legendaryClassic": true,
     "legendaryUltraBeasts": true,
@@ -82,7 +82,7 @@
     "teamBattleMode": "NPC",
     "pvpStrategy": "GODSQUAD",
     "teamCategoryFilter": "VIP_TRAINERS",
-    "lastSelectedTrainer": "VIP_TRAINERS__113",
+    "lastSelectedTrainer": "VIP_TRAINERS__2",
     "favoriteTrainers": [
       "Veteran Tamaki",
       "Veteran Shareef",
@@ -115,7 +115,8 @@
       "dex": "Ultra Ball",
       "variants": "Ultra Ball"
     },
-    "ballFallbackPolicy": "downgrade"
+    "ballFallbackPolicy": "downgrade",
+    "autoCatchMode": "master_only"
   },
   "safety": {
     "enableDeadManSwitch": true,
@@ -130,7 +131,7 @@
     "dailyStepMin": 5000,
     "dailyStepMax": 10000,
     "dailyCatchMin": 25,
-    "dailyCatchMax": 40,
+    "dailyCatchMax": 35,
     "antiBotEmergencyHalt": true
   }
 }

@@ -471,6 +471,11 @@ function vaccinateLinksAgainstVignettes() {
 function dismissGoogleVignetteOverlay() {
     if (config.hideAdsCosmetically === false) return;
     try {
+        // Native DelugeRPG Modal Protection: Never dismiss or click if a native game modal/dialog is open!
+        if (document.body && document.body.classList.contains('modal-open')) return;
+        const nativeModal = document.querySelector('.modal.in, .modal.show, .modal[style*="display: block"], [role="dialog"][style*="display: block"], #cboxOverlay[style*="display: block"]');
+        if (nativeModal) return;
+
         // A. Clean vignette hash from URL without navigation
         if (window.location.hash && window.location.hash.indexOf('google_vignette') !== -1) {
             try {
@@ -478,23 +483,28 @@ function dismissGoogleVignetteOverlay() {
             } catch (_) {}
         }
 
-        // B. Auto-click native Google Vignette dismiss / close buttons
+        // B. Auto-click native Google Vignette dismiss / close buttons (STRICTLY within ad containers)
         const dismissSelectors = [
             '#dismiss-button',
             'div#dismiss-button',
             'button#dismiss-button',
             'div[aria-label="Close ad" i]',
             'button[aria-label="Close ad" i]',
-            'div[aria-label="Close" i]',
-            'button[aria-label="Close" i]',
-            '.grippy-host',
-            'div[class*="close-button" i]',
-            'div[id*="close-button" i]'
+            '.grippy-host'
         ];
 
         for (let s = 0; s < dismissSelectors.length; s++) {
-            const btn = document.querySelector(dismissSelectors[s]);
-            if (btn && btn.offsetParent !== null) {
+            const btns = document.querySelectorAll(dismissSelectors[s]);
+            for (let bIdx = 0; bIdx < btns.length; bIdx++) {
+                const btn = btns[bIdx];
+                if (!btn || btn.offsetParent === null) continue;
+                // Strict isolation: Never click anything inside DelugeRPG page/modal containers!
+                if (btn.closest && btn.closest('.modal, .modal-dialog, .modal-content, [role="dialog"], #cboxContent, #colorbox, .ui-dialog, form, #user_pokes, #showmon, .boxwrap, #pokedex, #team, main, #main, #content, .content, #del_header, #navwrap, nav, table')) {
+                    continue;
+                }
+                // Must be verified ad-related (inside an ad iframe, ins.adsbygoogle, or ad container)
+                const isAdRelated = !!(btn.id === 'dismiss-button' || (btn.classList && btn.classList.contains('grippy-host')) || (btn.closest && btn.closest('ins.adsbygoogle, [data-vignette-loaded], [id*="aswift"], [id*="google"], [class*="vignette"], [id*="vignette"], div[id^="div-gpt-ad"]')));
+                if (!isAdRelated) continue;
                 try {
                     btn.click();
                 } catch (_) {}
@@ -505,7 +515,7 @@ function dismissGoogleVignetteOverlay() {
         const fixedElements = document.querySelectorAll('div[style*="position: fixed"], div[style*="position:fixed"], ins.adsbygoogle[data-vignette-loaded]');
         for (let f = 0; f < fixedElements.length; f++) {
             const el = fixedElements[f];
-            if (el.id === 'del_header' || el.id === 'navwrap' || (el.closest && el.closest('#del_header, #navwrap, nav'))) {
+            if (el.id === 'del_header' || el.id === 'navwrap' || (el.closest && el.closest('#del_header, #navwrap, nav, .modal, .modal-backdrop, .modal-dialog, [role="dialog"], #cboxContent, #colorbox, .ui-dialog, form, #user_pokes, #showmon, .boxwrap, #pokedex, #team, main, #main, #content, .content, table'))) {
                 continue;
             }
             const hasAdChild = el.querySelector('iframe[src*="google"], iframe[src*="doubleclick"], iframe[id^="aswift"], ins.adsbygoogle, #dismiss-button');
@@ -1113,6 +1123,8 @@ function clearAutoCatchSession(reason = '') {
         sessionStorage.removeItem('deluge_autocatch_target');
         sessionStorage.removeItem('deluge_autocatch_stock');
         sessionStorage.removeItem('deluge_autocatch_details');
+        sessionStorage.removeItem('deluge_autocatch_ball');
+        sessionStorage.removeItem('deluge_autocatch_retries');
         sessionStorage.removeItem('deluge_autocatch_out_of_stock');
     } catch (_) {}
     if (reason) {
@@ -3183,7 +3195,24 @@ function triggerTargetFound(targetName, category) {
     });
 
     if (config.autoCatchMasterBall && config.hideAdsCosmetically !== false) {
-        if (lastScrapedMasterBall === 0) {
+        const catchMode = (config.autoCatchMode || 'master_only');
+        let preferredBall = 'Master Ball';
+        if (catchMode === 'smart_routing' && config.ballRouting) {
+            if (category === 'Legendaries & Special' && config.ballRouting.legendaries) {
+                preferredBall = config.ballRouting.legendaries;
+            } else if (category === 'Pseudo-Legendary' && config.ballRouting.pseudo) {
+                preferredBall = config.ballRouting.pseudo;
+            } else if (category === 'Megas & Gigantamax' && config.ballRouting.megas) {
+                preferredBall = config.ballRouting.megas;
+            } else if (category === 'Selected Types' && config.ballRouting.types) {
+                preferredBall = config.ballRouting.types;
+            } else if (category === 'Missing Dex' && config.ballRouting.dex) {
+                preferredBall = config.ballRouting.dex;
+            } else if (category === 'Custom Variants' && config.ballRouting.variants) {
+                preferredBall = config.ballRouting.variants;
+            }
+        }
+        if ((catchMode === 'master_only' || preferredBall === 'Master Ball') && lastScrapedMasterBall === 0) {
             ipcRenderer.sendToHost('autocatch-status', {
                 step: 'out-of-stock',
                 delay: 0
@@ -3231,9 +3260,11 @@ function triggerTargetFound(targetName, category) {
                 level: level,
                 sprite: spriteUrl,
                 category: category || 'Wild Encounter',
-                ball: 'Master Ball',
+                ball: preferredBall,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
             };
+            sessionStorage.setItem('deluge_autocatch_ball', preferredBall);
+            sessionStorage.setItem('deluge_autocatch_retries', '0');
             sessionStorage.setItem('deluge_autocatch_details', JSON.stringify(detailsObj));
         } catch (_) {}
 
@@ -4572,8 +4603,11 @@ function runAutoCatchLifecycle() {
         let targetName = 'Target Pokemon';
         let remainingStock = null;
         let caughtData = null;
+        let usedBall = 'Master Ball';
         try {
             targetName = sessionStorage.getItem('deluge_autocatch_target') || 'Target Pokemon';
+            const storedBall = sessionStorage.getItem('deluge_autocatch_ball');
+            if (storedBall) usedBall = storedBall;
             const rawStock = sessionStorage.getItem('deluge_autocatch_stock');
             if (rawStock !== null) {
                 const s = parseInt(rawStock, 10);
@@ -4771,12 +4805,9 @@ function runAutoCatchLifecycle() {
     const radioPool = formScope ? Array.from(formScope.querySelectorAll('input[type="radio"]')) : Array.from(document.querySelectorAll('input[type="radio"]'));
 
     if (throwBtn && radioPool.length > 0) {
-        let masterRadio = null;
-        let isMasterUnavailable = false;
-        let masterStock = null;
+        const catchMode = (config.autoCatchMode || 'master_only');
 
-        for (let rIdx = 0; rIdx < radioPool.length; rIdx++) {
-            const r = radioPool[rIdx];
+        function parseRadioInfo(r) {
             let desc = (r.value || '') + ' ' + (r.id || '') + ' ' + (r.name || '') + ' ';
             if (r.parentElement) desc += ' ' + r.parentElement.textContent;
             if (r.labels && r.labels.length) {
@@ -4787,24 +4818,95 @@ function runAutoCatchLifecycle() {
                 if (forLabel) desc += ' ' + forLabel.textContent;
             }
             const dLower = desc.toLowerCase();
-            if (dLower.indexOf('master') !== -1 || (r.value && r.value.toLowerCase().indexOf('master') !== -1)) {
-                masterRadio = r;
-                const stockMatch = desc.match(/master\s*ball[^\d(]*\((\d+)\)/i) || desc.match(/\((\d+)\)/);
-                if (stockMatch) {
-                    masterStock = parseInt(stockMatch[1], 10);
+            let stock = null;
+            const stockMatch = desc.match(/\((\d+)\)/);
+            if (stockMatch) stock = parseInt(stockMatch[1], 10);
+            const parent = r.parentElement;
+            const isStruck = !!(parent && (parent.querySelector('strike, del, s') || (parent.style && parent.style.textDecoration && parent.style.textDecoration.indexOf('line-through') !== -1)));
+            const isUnavailable = Boolean(r.disabled || dLower.indexOf('(0)') !== -1 || stock === 0 || isStruck);
+            let canonicalName = 'Poke Ball';
+            if (dLower.indexOf('master') !== -1) canonicalName = 'Master Ball';
+            else if (dLower.indexOf('ultra') !== -1) canonicalName = 'Ultra Ball';
+            else if (dLower.indexOf('great') !== -1) canonicalName = 'Great Ball';
+            else if (dLower.indexOf('poke') !== -1) canonicalName = 'Poke Ball';
+
+            return {
+                radio: r,
+                desc: desc,
+                dLower: dLower,
+                stock: stock,
+                isUnavailable: isUnavailable,
+                name: canonicalName
+            };
+        }
+
+        const parsedPool = radioPool.map(parseRadioInfo);
+
+        // Break-free retry loop handling (Option B only)
+        if (catchMode === 'smart_routing' && bodyText.indexOf('broke free') !== -1 && !returnBtn) {
+            let currentRetries = 0;
+            try {
+                currentRetries = parseInt(sessionStorage.getItem('deluge_autocatch_retries') || '0', 10);
+            } catch (_) {}
+
+            if (currentRetries >= 5) {
+                autoCatchStepInProgress = true;
+                clearAutoCatchSession('Max break-free retries (5) reached');
+                ipcRenderer.sendToHost('autocatch-status', { step: 'max-retries-halt' });
+                const haltDelay = getRandomCatchDelay(2000, 5000);
+                setTimeout(() => {
+                    let returnUrl = '/map';
+                    try { returnUrl = sessionStorage.getItem('deluge_last_map_url') || '/map'; } catch (_) {}
+                    window.location.href = returnUrl;
+                    autoCatchStepInProgress = false;
+                }, haltDelay);
+                return;
+            }
+
+            sessionStorage.removeItem('deluge_autocatch_thrown');
+            sessionStorage.setItem('deluge_autocatch_retries', String(currentRetries + 1));
+            ipcRenderer.sendToHost('autocatch-status', {
+                step: 'break-free-retry',
+                retry: currentRetries + 1,
+                maxRetries: 5
+            });
+        }
+
+        let chosenItem = null;
+
+        if (catchMode === 'master_only') {
+            // OPTION A: STRICT MASTER BALL ONLY
+            const masterItem = parsedPool.find(p => p.name === 'Master Ball');
+            if (masterItem && !masterItem.isUnavailable) {
+                chosenItem = masterItem;
+            }
+        } else {
+            // OPTION B: SMART BALL ROUTING & FALLBACK
+            let preferredBall = 'Ultra Ball';
+            try {
+                preferredBall = sessionStorage.getItem('deluge_autocatch_ball') || 'Ultra Ball';
+            } catch (_) {}
+            const fallbackPolicy = config.ballFallbackPolicy || 'downgrade';
+
+            // 1. Try exact preferred ball
+            const prefItem = parsedPool.find(p => p.name.toLowerCase() === preferredBall.toLowerCase() && !p.isUnavailable);
+            if (prefItem) {
+                chosenItem = prefItem;
+            } else if (fallbackPolicy === 'downgrade') {
+                // 2. Try downgrade fallback: Master Ball -> Ultra Ball -> Great Ball -> Poke Ball
+                const priorityOrder = ['Master Ball', 'Ultra Ball', 'Great Ball', 'Poke Ball'];
+                for (let po = 0; po < priorityOrder.length; po++) {
+                    const fallbackName = priorityOrder[po];
+                    const cand = parsedPool.find(p => p.name === fallbackName && !p.isUnavailable);
+                    if (cand) {
+                        chosenItem = cand;
+                        break;
+                    }
                 }
-                if (r.disabled || dLower.indexOf('(0)') !== -1 || masterStock === 0) {
-                    isMasterUnavailable = true;
-                }
-                const parent = r.parentElement;
-                if (parent && (parent.querySelector('strike, del, s') || (parent.style && parent.style.textDecoration && parent.style.textDecoration.indexOf('line-through') !== -1))) {
-                    isMasterUnavailable = true;
-                }
-                break;
             }
         }
 
-        if (!masterRadio || isMasterUnavailable) {
+        if (!chosenItem) {
             autoCatchStepInProgress = true;
             try {
                 sessionStorage.removeItem('deluge_autocatch_active');
@@ -4815,7 +4917,7 @@ function runAutoCatchLifecycle() {
                 step: 'out-of-stock',
                 delay: outOfStockDelay
             });
-            console.warn('[AutoCatch] Master Ball out of stock or unavailable! Redirecting directly to previous map in ' + outOfStockDelay + 'ms.');
+            console.warn('[AutoCatch] Chosen ball out of stock or unavailable! Redirecting directly to previous map in ' + outOfStockDelay + 'ms.');
 
             setTimeout(() => {
                 let returnUrl = '/map';
@@ -4830,18 +4932,29 @@ function runAutoCatchLifecycle() {
         }
 
         autoCatchStepInProgress = true;
-        if (typeof masterStock === 'number') {
-            try { sessionStorage.setItem('deluge_autocatch_stock', String(masterStock)); } catch (_) {}
-            lastScrapedMasterBall = masterStock;
-            checkAndSyncBallInventory(false);
-        }
+        const targetRadio = chosenItem.radio;
+        const targetBallName = chosenItem.name;
+        const targetStock = chosenItem.stock;
 
-        if (!masterRadio.checked) {
+        if (typeof targetStock === 'number') {
+            try { sessionStorage.setItem('deluge_autocatch_stock', String(targetStock)); } catch (_) {}
+            if (targetBallName === 'Master Ball') {
+                lastScrapedMasterBall = targetStock;
+                checkAndSyncBallInventory(false);
+            }
+        }
+        try { sessionStorage.setItem('deluge_autocatch_ball', targetBallName); } catch (_) {}
+
+        const stepSelectName = (targetBallName === 'Master Ball') ? 'selecting-master-ball' : 'selecting-ball';
+        const stepThrowName = (targetBallName === 'Master Ball') ? 'throwing-master-ball' : 'throwing-ball';
+
+        if (!targetRadio.checked) {
             const selectDelay = getRandomCatchDelay(1000, 10000);
             ipcRenderer.sendToHost('autocatch-status', {
-                step: 'selecting-master-ball',
+                step: stepSelectName,
+                ball: targetBallName,
                 delay: selectDelay,
-                stock: masterStock
+                stock: targetStock
             });
 
             if (pendingLifecycleTimeoutId) {
@@ -4857,17 +4970,18 @@ function runAutoCatchLifecycle() {
                     autoCatchStepInProgress = false;
                     return;
                 }
-                const targetEl = (masterRadio.id ? document.querySelector('label[for="' + masterRadio.id + '"]') : null) || masterRadio.closest('label') || masterRadio;
+                const targetEl = (targetRadio.id ? document.querySelector('label[for="' + targetRadio.id + '"]') : null) || targetRadio.closest('label') || targetRadio;
                 dispatchHumanClick(targetEl, () => {
-                    masterRadio.checked = true;
-                    masterRadio.dispatchEvent(new Event('input', { bubbles: true }));
-                    masterRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                    targetRadio.checked = true;
+                    targetRadio.dispatchEvent(new Event('input', { bubbles: true }));
+                    targetRadio.dispatchEvent(new Event('change', { bubbles: true }));
 
                     const throwDelay = getRandomCatchDelay(1000, 10000);
                     ipcRenderer.sendToHost('autocatch-status', {
-                        step: 'throwing-master-ball',
+                        step: stepThrowName,
+                        ball: targetBallName,
                         delay: throwDelay,
-                        stock: masterStock
+                        stock: targetStock
                     });
 
                     if (pendingLifecycleTimeoutId) {
@@ -4906,9 +5020,10 @@ function runAutoCatchLifecycle() {
         } else {
             const throwDelay = getRandomCatchDelay(1000, 10000);
             ipcRenderer.sendToHost('autocatch-status', {
-                step: 'throwing-master-ball',
+                step: stepThrowName,
+                ball: targetBallName,
                 delay: throwDelay,
-                stock: masterStock
+                stock: targetStock
             });
 
             if (pendingLifecycleTimeoutId) {
@@ -4932,7 +5047,7 @@ function runAutoCatchLifecycle() {
                             activeThrowBtn.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' });
                         }
                     } catch (_) {}
-                    const targetEl = (masterRadio.id ? document.querySelector('label[for="' + masterRadio.id + '"]') : null) || masterRadio;
+                    const targetEl = (targetRadio.id ? document.querySelector('label[for="' + targetRadio.id + '"]') : null) || targetRadio;
                     simulateMouseMovement(targetEl, activeThrowBtn, () => {
                         dispatchHumanClick(activeThrowBtn, () => {
                             autoCatchStepInProgress = false;
@@ -7491,31 +7606,7 @@ function detectEvolveCard() {
             existingBanner.parentElement.removeChild(existingBanner);
         }
 
-        const submitBtn = modalContainer.querySelector('input[type="submit"], button[type="submit"], input[value*="Evolve" i], button.btn-primary');
-        if (allDuplicates && submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.style.opacity = '0.5';
-            submitBtn.style.cursor = 'not-allowed';
-        } else if (hasUnique && submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.style.opacity = '1';
-            submitBtn.style.cursor = 'pointer';
-        }
-
-        if (radios && radios.length > 0) {
-            for (let rIdx = 0; rIdx < radios.length; rIdx++) {
-                const rEl = radios[rIdx];
-                const matchingOpt = options.find(o => o.radioValue === rEl.value);
-                if (matchingOpt && (matchingOpt.isOwned || matchingOpt.hasMegaOwned)) {
-                    rEl.disabled = true;
-                    if (rEl.parentElement) {
-                        rEl.parentElement.style.opacity = '0.5';
-                        rEl.parentElement.title = 'Duplicate evolution - already owned in collection';
-                    }
-                }
-            }
-        }
-
+        // Strict Zero-DOM-Interference: Evolve card analysis is strictly read-only and never disables native buttons/radios or alters cursors
         return {
             isOpen: true,
             fullName: rawFullName,

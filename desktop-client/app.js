@@ -373,6 +373,8 @@ const ballSelectDex = document.getElementById('ballSelectDex');
 const ballRowWildVariants = document.getElementById('ballRowWildVariants');
 const ballSelectWildVariants = document.getElementById('ballSelectWildVariants');
 const ballFallbackPolicy = document.getElementById('ballFallbackPolicy');
+const autoCatchModeSelect = document.getElementById('autoCatchModeSelect');
+const catchModeHelpBadge = document.getElementById('catchModeHelpBadge');
 
 const btnPseudoAllVariants = document.getElementById('btnPseudoAllVariants');
 const btnPseudoVariantsOnly = document.getElementById('btnPseudoVariantsOnly');
@@ -1328,40 +1330,56 @@ function syncTargetModalInteractiveStates() {
     typesGridWrap.style.filter = isTypeActive ? 'none' : 'grayscale(1)';
   }
 
-  // 3. Smart Ball Routing Couplings
+  // 3. Smart Ball Routing Couplings & Dual Catch Mode (Option A vs Option B)
   const isAutoCatchMasterOn = config.settings && (config.settings.autoCatchMasterBall !== false);
   if (ballRoutingMasterNotice) {
     ballRoutingMasterNotice.style.display = isAutoCatchMasterOn ? 'none' : 'block';
   }
 
+  const activeCatchMode = autoCatchModeSelect ? autoCatchModeSelect.value : ((config.settings && config.settings.autoCatchMode) || 'master_only');
+  if (catchModeHelpBadge) {
+    if (activeCatchMode === 'master_only') {
+      catchModeHelpBadge.textContent = 'Option A: 100% instant capture via Master Ball. Pauses safely when stock is 0.';
+      catchModeHelpBadge.style.color = '#d29922';
+    } else {
+      catchModeHelpBadge.textContent = 'Option B: Custom balls per tier with automated break-free retry loop.';
+      catchModeHelpBadge.style.color = '#388bfd';
+    }
+  }
+
+  const isSmart = (activeCatchMode === 'smart_routing');
   const isLegOn = subClassicLegCheckbox?.checked || subUltraBeastsCheckbox?.checked || subParadoxCheckbox?.checked;
   const isPseudoOn = filterPseudoCheckbox ? filterPseudoCheckbox.checked : false;
   const isMegaOn = filterMegasCheckbox ? filterMegasCheckbox.checked : false;
   const isVarOn = filterVariantsCheckbox ? filterVariantsCheckbox.checked : false;
 
   if (ballRowLegendary) {
-    ballRowLegendary.style.opacity = isLegOn ? '1' : '0.4';
-    ballRowLegendary.style.pointerEvents = isLegOn ? 'auto' : 'none';
+    ballRowLegendary.style.opacity = (isSmart && isLegOn) ? '1' : '0.4';
+    ballRowLegendary.style.pointerEvents = (isSmart && isLegOn) ? 'auto' : 'none';
   }
   if (ballRowPseudo) {
-    ballRowPseudo.style.opacity = isPseudoOn ? '1' : '0.4';
-    ballRowPseudo.style.pointerEvents = isPseudoOn ? 'auto' : 'none';
+    ballRowPseudo.style.opacity = (isSmart && isPseudoOn) ? '1' : '0.4';
+    ballRowPseudo.style.pointerEvents = (isSmart && isPseudoOn) ? 'auto' : 'none';
   }
   if (ballRowMega) {
-    ballRowMega.style.opacity = isMegaOn ? '1' : '0.4';
-    ballRowMega.style.pointerEvents = isMegaOn ? 'auto' : 'none';
+    ballRowMega.style.opacity = (isSmart && isMegaOn) ? '1' : '0.4';
+    ballRowMega.style.pointerEvents = (isSmart && isMegaOn) ? 'auto' : 'none';
   }
   if (ballRowTypes) {
-    ballRowTypes.style.opacity = isTypeActive ? '1' : '0.4';
-    ballRowTypes.style.pointerEvents = isTypeActive ? 'auto' : 'none';
+    ballRowTypes.style.opacity = (isSmart && isTypeActive) ? '1' : '0.4';
+    ballRowTypes.style.pointerEvents = (isSmart && isTypeActive) ? 'auto' : 'none';
   }
   if (ballRowDex) {
-    ballRowDex.style.opacity = (dexMode !== 'standard') ? '1' : '0.4';
-    ballRowDex.style.pointerEvents = (dexMode !== 'standard') ? 'auto' : 'none';
+    ballRowDex.style.opacity = (isSmart && dexMode !== 'standard') ? '1' : '0.4';
+    ballRowDex.style.pointerEvents = (isSmart && dexMode !== 'standard') ? 'auto' : 'none';
   }
   if (ballRowWildVariants) {
-    ballRowWildVariants.style.opacity = isVarOn ? '1' : '0.4';
-    ballRowWildVariants.style.pointerEvents = isVarOn ? 'auto' : 'none';
+    ballRowWildVariants.style.opacity = (isSmart && isVarOn) ? '1' : '0.4';
+    ballRowWildVariants.style.pointerEvents = (isSmart && isVarOn) ? 'auto' : 'none';
+  }
+  if (ballFallbackPolicy && ballFallbackPolicy.parentElement) {
+    ballFallbackPolicy.parentElement.style.opacity = isSmart ? '1' : '0.4';
+    ballFallbackPolicy.parentElement.style.pointerEvents = isSmart ? 'auto' : 'none';
   }
 
   // 4. Delete button enabled only for custom user presets
@@ -1460,6 +1478,8 @@ function updateTargetUI() {
   if (ballSelectDex) ballSelectDex.value = ballRouting.dex || 'Ultra Ball';
   if (ballSelectWildVariants) ballSelectWildVariants.value = ballRouting.variants || 'Ultra Ball';
   if (ballFallbackPolicy) ballFallbackPolicy.value = fallbackPolicy;
+  const activeCatchMode = (config.settings && config.settings.autoCatchMode) || 'master_only';
+  if (autoCatchModeSelect) autoCatchModeSelect.value = activeCatchMode;
 
   updatePseudoBadge(activePseudoVariants, isPseudo);
   syncTargetModalInteractiveStates();
@@ -4816,6 +4836,8 @@ if (saveTargetsBtn) {
       variants: ballSelectWildVariants ? ballSelectWildVariants.value : 'Ultra Ball'
     };
     const activeFallback = ballFallbackPolicy ? ballFallbackPolicy.value : 'downgrade';
+    const activeCatchMode = autoCatchModeSelect ? autoCatchModeSelect.value : 'master_only';
+    config.settings.autoCatchMode = activeCatchMode;
 
     const selectedVars = [];
     variantIds.forEach(id => {
@@ -4889,9 +4911,16 @@ if (saveTargetsBtn) {
     updateTargetUI();
     closeTargetModal();
 
+
     delugeView.send('update-config', config.settings);
     syncHuntingState();
     updateStatus('Targets: ' + preset.toUpperCase() + ' applied', '#10b981');
+  });
+}
+
+if (autoCatchModeSelect) {
+  autoCatchModeSelect.addEventListener('change', () => {
+    syncTargetModalInteractiveStates();
   });
 }
 

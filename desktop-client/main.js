@@ -390,10 +390,10 @@ function setupSessionHardening(ses, config) {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
-    height: 860,
+    height: 1080,
     minWidth: 960,
     minHeight: 640,
-    title: 'DelugeRPG Client [Hardened]',
+    title: 'DelugeRPGrind',
     icon: path.join(__dirname, 'assets', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     backgroundColor: '#111418',
     webPreferences: {

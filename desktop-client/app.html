@@ -1220,8 +1220,8 @@
     #teamBuilderModal, #adsInspectorModal, #catchLogModal, #aiAssistantModal, #safetySettingsModal {
       flex: 1;
       width: 25%;
-      min-width: 320px;
-      max-width: 480px;
+      min-width: 456px;
+      max-width: 456px;
       height: 100%;
       display: none;
       flex-direction: column;
@@ -2090,6 +2090,14 @@
                   <span class="slider"></span>
                 </span>
               </button>
+              <button id="randomMapHopBtn" class="dropdown-item dropdown-toggle-item" title="Random Map Hopping: Automatically rotate to a random official DelugeRPG map during hunting">
+                <span class="dropdown-icon">&#8635;</span>
+                <span class="dropdown-label">Random Map Hopping</span>
+                <span class="switch">
+                  <input type="checkbox" id="randomMapHopBadge">
+                  <span class="slider"></span>
+                </span>
+              </button>
               <div id="autoStartDelayRow" style="padding: 2px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <label for="autoStartDelaySelect" style="font-size: 11px; color: #8eaad0; font-weight: 500;">Safety Delay:</label>
                 <select id="autoStartDelaySelect" class="clean-select" style="height: 24px; background-color: #070e1a; border: 1px solid #243856; color: #e0ecfa; border-radius: 4px; font-size: 11px;" title="Delay before auto-starting on maps to allow DelugeRPG scripts and captcha checks to settle">
@@ -2141,6 +2149,71 @@
                     <input type="number" id="safetyAutoStopMax" class="clean-num-input" min="1" max="180" value="30" style="width: 50px; height: 22px; font-size: 10.5px;">
                     <span style="width: 38px; display: inline-block; text-align: left; font-size: 9.5px; color: #8eaad0;">mins</span>
                   </div>
+                </div>
+              </div>
+
+              <!-- Random Map Rotation -->
+              <div style="background: #0b1424; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <span style="font-size: 10px; font-weight: 700; color: #c9d8ec; text-transform: uppercase; letter-spacing: 0.3px;">Random Map Rotation</span>
+                  <label class="switch">
+                    <input type="checkbox" id="safetyMapRotationToggle">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10.5px; color: #e0ecfa; margin-bottom: 5px;">
+                  <span style="color: #8eaad0;">Interval:</span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" id="safetyMapRotationMin" class="clean-num-input" min="1" max="180" value="10" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="color: #566e96; font-weight: 700;">-</span>
+                    <input type="number" id="safetyMapRotationMax" class="clean-num-input" min="1" max="180" value="30" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="width: 38px; display: inline-block; text-align: left; font-size: 9.5px; color: #8eaad0;">mins</span>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10.5px; color: #e0ecfa; margin-bottom: 5px;">
+                  <span style="color: #8eaad0;">Next Rotation:</span>
+                  <span id="safetyStatNextMapRotation" style="font-size: 10.5px; font-weight: 700; color: #38bdf8;">--</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; margin-bottom: 4px; padding-top: 4px; border-top: 1px solid #152238;">
+                  <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.3px;">Allowed Zones:</span>
+                  <div style="display: flex; gap: 4px;">
+                    <button type="button" id="safetyZonesSelectAllBtn" class="btn" style="padding: 1px 6px; font-size: 9px; height: 18px; box-shadow: none !important;">All</button>
+                    <button type="button" id="safetyZonesClearBtn" class="btn" style="padding: 1px 6px; font-size: 9px; height: 18px; box-shadow: none !important;">Clear</button>
+                  </div>
+                </div>
+                <div id="safetyMapZonesContainer" style="display: grid; grid-template-columns: 1fr 1fr; gap: 3px; font-size: 10px; color: #c9d8ec;">
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" class="safety-zone-checkbox" value="overworld" checked>
+                    <span>Overworld (25)</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" class="safety-zone-checkbox" value="snowcave" checked>
+                    <span>Shivering Cave (4)</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" class="safety-zone-checkbox" value="volcano" checked>
+                    <span>Magma Lagoon (4)</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" class="safety-zone-checkbox" value="rockcave" checked>
+                    <span>Sea Cave (4)</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" class="safety-zone-checkbox" value="pkmnmansion" checked>
+                    <span>Mystery Villa (4)</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" class="safety-zone-checkbox" value="pkmntower" checked>
+                    <span>Lost Souls (3)</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" class="safety-zone-checkbox" value="powerplant" checked>
+                    <span>Charged Chateau (3)</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" class="safety-zone-checkbox" value="unownruins" checked>
+                    <span>Lost Inscriptions (2)</span>
+                  </label>
                 </div>
               </div>
 
@@ -2282,7 +2355,7 @@
               <div class="dropdown-divider"></div>
               <div id="navVersionFooter" class="nav-version-footer">
                 <span class="nav-version-label">DelugeRPG Client</span>
-                <span id="navVersionBadge" class="nav-version-badge">v1.4.12</span>
+                <span id="navVersionBadge" class="nav-version-badge">v1.4.13</span>
               </div>
             </div>
           </div>
@@ -2302,6 +2375,7 @@
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; background: #0c1829; border: 1px solid #1a283e; border-radius: 4px; padding: 4px 6px;">
       <span style="font-size: 11px; font-weight: 700; color: #8b949e;">Preset:</span>
       <select id="targetPresetSelect" class="clean-select" style="flex: 1; height: 24px; font-size: 11px;">
+        <option value="custom">Custom (Manual Filters)</option>
         <option value="default_legendaries">Default: Legendaries Only</option>
         <option value="all_powerhouses">All Powerhouses (Leg + Pseudo + Megas)</option>
         <option value="shiny_hunters">Shiny &amp; Special Variants</option>
@@ -2362,15 +2436,34 @@
         </div>
       </div>
 
-      <!-- Tier 2: Mega Evolution Families & Rare Lines + Assigned Variants Badge -->
+      <!-- Tier 2: Mega Evolutions, G-Max Forms & Starters / Rare Lines -->
       <div class="filter-item">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-          <label class="filter-row" style="margin: 0;">
-            <input type="checkbox" id="filterMegasCheckbox" class="input" checked>
-            <span class="custom-checkbox"></span>
-            <span class="filter-label">Mega Evolutions &amp; Rare Lines</span>
-          </label>
-          <button type="button" id="megaTierVariantsBadge" class="quick-tag-btn" style="border-color: #243856; color: #388bfd;" title="Click to configure Mega / G-Max Tier Sprite Variants">All (10)</button>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <label class="filter-row" style="margin: 0;">
+              <input type="checkbox" id="filterMegasCheckbox" class="input" checked>
+              <span class="custom-checkbox"></span>
+              <span class="filter-label">Mega, G-Max &amp; Starters:</span>
+            </label>
+            <div style="display: flex; align-items: center; gap: 8px; margin-left: 14px;">
+              <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
+                <input type="checkbox" id="subMegasCheckbox" class="input" checked>
+                <span class="custom-checkbox"></span>
+                <span>Megas</span>
+              </label>
+              <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
+                <input type="checkbox" id="subGMaxCheckbox" class="input" checked>
+                <span class="custom-checkbox"></span>
+                <span>G-Max</span>
+              </label>
+              <label class="sub-inline-label" style="font-size: 11px; color: #e0ecfa;">
+                <input type="checkbox" id="subStartersCheckbox" class="input" checked>
+                <span class="custom-checkbox"></span>
+                <span>Starters</span>
+              </label>
+            </div>
+          </div>
+          <button type="button" id="megaTierVariantsBadge" class="quick-tag-btn" style="border-color: #243856; color: #388bfd;" title="Click to configure Mega / G-Max / Starter Tier Sprite Variants">All (10)</button>
         </div>
       </div>
 
@@ -2519,7 +2612,7 @@
       <!-- 2. Mega / G-Max & Rare Lines Tier Variants -->
       <div class="filter-item">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-          <span class="filter-label">Mega / G-Max &amp; Rare Lines Tier:</span>
+          <span class="filter-label">Mega, G-Max &amp; Starters Tier:</span>
           <div class="quick-btn-group">
             <button id="btnMegaAllVariants" type="button" class="quick-tag-btn">All (10)</button>
             <button id="btnMegaVariantsOnly" type="button" class="quick-tag-btn">Variants (9)</button>

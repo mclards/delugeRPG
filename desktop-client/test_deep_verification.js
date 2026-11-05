@@ -39,6 +39,7 @@ const clientFiles = [
   'ai_agent_bridge.js',
   'evolution_engine.js',
   'targets.js',
+  'maps_catalog.js',
   'config.json',
   'package.json',
   'app.html',
@@ -1396,6 +1397,136 @@ runTest('Strict Mega and Legendary Exclusion Guards & Per-Tier Variant Assignmen
   assert(simulateEncounter(blacklistCfg, 'A wild Mewtwo appeared!'), 'Mewtwo must NOT be blocked by "mew" in blacklist');
   assert.strictEqual(simulateEncounter(blacklistCfg, 'A wild Chrome Abra appeared!'), null, 'Blacklisted Abra must be skipped');
   assert(simulateEncounter(blacklistCfg, 'A wild Chrome Kadabra appeared!'), 'Kadabra must NOT be blocked by "abra" in blacklist');
+
+  // 4. Pure Starter vs Mega vs G-Max Sub-Tier Separation Audit
+  const allSubTiersOnCfg = {
+    targetPreset: 'custom',
+    findLegendaries: false,
+    findMegasAndGigantamax: true,
+    megaTierMegas: true,
+    megaTierGMax: true,
+    megaTierStarters: true,
+    findAnySpecialVariant: false,
+    enableVariantFilter: false
+  };
+  const startersOffMegasOnCfg = Object.assign({}, allSubTiersOnCfg, { megaTierStarters: false, megaTierMegas: true });
+  const megasOffStartersOnCfg = Object.assign({}, allSubTiersOnCfg, { megaTierStarters: true, megaTierMegas: false, megaTierGMax: false });
+  const gmaxOffMegasOnCfg = Object.assign({}, allSubTiersOnCfg, { megaTierGMax: false, megaTierMegas: true, megaTierStarters: false });
+  const gmaxOnMegasOffCfg = Object.assign({}, allSubTiersOnCfg, { megaTierGMax: true, megaTierMegas: false, megaTierStarters: false });
+
+  // Chespin & Kalos Starters: Strictly Starter, NEVER Mega!
+  const chespinAll = simulateEncounter(allSubTiersOnCfg, 'A wild Chespin appeared!');
+  assert(chespinAll, 'Chespin must be caught when Starters tier is ON');
+  assert.strictEqual(chespinAll.category, 'Starter', 'Chespin category must be Starter');
+  assert(chespinAll.name.includes('Starter: Chespin'), 'Chespin name must prefix Starter:');
+  assert.strictEqual(simulateEncounter(startersOffMegasOnCfg, 'A wild Chespin appeared!'), null, 'Chespin must NEVER be caught as Mega when Starters are OFF');
+  assert.strictEqual(simulateEncounter(startersOffMegasOnCfg, 'A wild Greninja appeared!'), null, 'Greninja must NEVER be caught as Mega when Starters are OFF');
+  assert.strictEqual(simulateEncounter(startersOffMegasOnCfg, 'A wild Froakie appeared!'), null, 'Froakie must NEVER be caught as Mega when Starters are OFF');
+
+  // True Megas: Caught when Megas ON, skipped when Megas OFF
+  const weedleMegas = simulateEncounter(startersOffMegasOnCfg, 'A wild Weedle appeared!');
+  assert(weedleMegas, 'Weedle must be caught when Megas are ON');
+  assert.strictEqual(weedleMegas.category, 'Mega Evolution', 'Weedle category must be Mega Evolution');
+  assert.strictEqual(simulateEncounter(megasOffStartersOnCfg, 'A wild Weedle appeared!'), null, 'Weedle must be skipped when Megas are OFF');
+
+  // Overlapping Multi-Tier Families
+  const charizardEncounter = simulateEncounter(megasOffStartersOnCfg, 'A wild Charizard appeared!');
+  assert(charizardEncounter, 'Charizard must be caught via Starter sub-tier');
+  assert.strictEqual(charizardEncounter.category, 'G-Max/Mega/Starter', 'Charizard category must be G-Max/Mega/Starter');
+
+  const treeckoEncounter = simulateEncounter(megasOffStartersOnCfg, 'A wild Treecko appeared!');
+  assert(treeckoEncounter, 'Treecko must be caught via Starter sub-tier');
+  assert.strictEqual(treeckoEncounter.category, 'Mega/Starter', 'Treecko category must be Mega/Starter');
+
+  // G-Max Sub-Tier Form Filtering
+  assert.strictEqual(simulateEncounter(gmaxOffMegasOnCfg, 'A wild G-Max Butterfree appeared!'), null, 'G-Max Butterfree must be skipped when G-Max is OFF');
+  const butterfreeGMax = simulateEncounter(gmaxOnMegasOffCfg, 'A wild G-Max Butterfree appeared!');
+  assert(butterfreeGMax, 'G-Max Butterfree must be caught when G-Max is ON');
+
+  // Rare lines without Megas
+  const slowkingEncounter = simulateEncounter(allSubTiersOnCfg, 'A wild Slowking appeared!');
+  assert(slowkingEncounter, 'Slowking must be caught via Rare Line');
+  assert.strictEqual(slowkingEncounter.category, 'Rare Line', 'Slowking category must be Rare Line');
+
+  // 5. app.js getCaughtPokemonKind & getCaughtPokemonKindBadge Auto-Heal & Category Precedence Audit
+  const kindStart = appJs.indexOf('function getCaughtPokemonKind(p) {');
+  const badgeStart = appJs.indexOf('function getCaughtPokemonKindBadge(p) {');
+  const badgeEnd = appJs.indexOf('function renderCatchLogUI() {');
+  assert(kindStart !== -1 && badgeStart !== -1 && badgeEnd !== -1, 'getCaughtPokemonKind and getCaughtPokemonKindBadge must exist in app.js');
+
+  const CATCH_STARTER_FAMILIES = TARGETS_DB.starters.map(s => s.toLowerCase());
+  const CATCH_MEGA_EVOLUTION_FAMILIES = TARGETS_DB.megas.map(m => m.toLowerCase());
+  const CATCH_GMAX_SPECIES = TARGETS_DB.gmaxSpecies.map(g => g.toLowerCase());
+  const CATCH_GMAX_MEGA_STARTER_FAMILIES = ['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise'];
+  const CATCH_MEGA_STARTER_FAMILIES = ['treecko', 'grovyle', 'sceptile', 'torchic', 'combusken', 'blaziken', 'mudkip', 'marshtomp', 'swampert'];
+  const CATCH_GMAX_STARTER_FAMILIES = ['grookey', 'thwackey', 'rillaboom', 'scorbunny', 'raboot', 'cinderace', 'sobble', 'drizzile', 'inteleon'];
+  const CATCH_MEGA_GMAX_FAMILIES = ['gastly', 'haunter', 'gengar'];
+  const CATCH_ULTRA_BEASTS = ['nihilego', 'buzzwole', 'pheromosa', 'xurkitree', 'celesteela', 'kartana', 'guzzlord', 'poipole', 'naganadel', 'stakataka', 'blacephalon'];
+  const CATCH_PARADOX_SPECIES = ['great tusk', 'scream tail', 'brute bonnet', 'flutter mane', 'slither wing', 'sandy shocks', 'iron treads', 'iron bundle', 'iron hands', 'iron jugulis', 'iron moth', 'iron thorns', 'roaring moon', 'iron valiant', 'walking wake', 'iron leaves', 'gouging fire', 'raging bolt', 'iron boulder', 'iron crown'];
+  const CATCH_MYTHICAL_SPECIES = ['mew', 'celebi', 'jirachi', 'deoxys', 'phione', 'manaphy', 'darkrai', 'shaymin', 'arceus', 'victini', 'keldeo', 'meloetta', 'genesect', 'diancie', 'hoopa', 'volcanion', 'magearna', 'marshadow', 'zeraora', 'meltan', 'melmetal', 'zarude', 'pecharunt'];
+  const CATCH_LEGENDARY_SPECIES = TARGETS_DB.legendaries.map(l => l.toLowerCase());
+  const CATCH_PSEUDO_LEGENDARIES = TARGETS_DB.pseudoLegendaries.map(p => p.toLowerCase());
+  const CATCH_DIRECT_MEGA_SPECIES = ['audino', 'diancie'];
+
+  const kindFn = new Function(
+    'CATCH_STARTER_FAMILIES', 'CATCH_MEGA_EVOLUTION_FAMILIES', 'CATCH_GMAX_SPECIES',
+    'CATCH_GMAX_MEGA_STARTER_FAMILIES', 'CATCH_MEGA_STARTER_FAMILIES', 'CATCH_GMAX_STARTER_FAMILIES',
+    'CATCH_MEGA_GMAX_FAMILIES', 'CATCH_ULTRA_BEASTS', 'CATCH_PARADOX_SPECIES', 'CATCH_MYTHICAL_SPECIES',
+    'CATCH_LEGENDARY_SPECIES', 'CATCH_PSEUDO_LEGENDARIES', 'CATCH_DIRECT_MEGA_SPECIES',
+    `${appJs.slice(kindStart, badgeStart)}; return getCaughtPokemonKind;`
+  )(
+    CATCH_STARTER_FAMILIES, CATCH_MEGA_EVOLUTION_FAMILIES, CATCH_GMAX_SPECIES,
+    CATCH_GMAX_MEGA_STARTER_FAMILIES, CATCH_MEGA_STARTER_FAMILIES, CATCH_GMAX_STARTER_FAMILIES,
+    CATCH_MEGA_GMAX_FAMILIES, CATCH_ULTRA_BEASTS, CATCH_PARADOX_SPECIES, CATCH_MYTHICAL_SPECIES,
+    CATCH_LEGENDARY_SPECIES, CATCH_PSEUDO_LEGENDARIES, CATCH_DIRECT_MEGA_SPECIES
+  );
+
+  const badgeFn = new Function(
+    'getCaughtPokemonKind',
+    `${appJs.slice(badgeStart, badgeEnd)}; return getCaughtPokemonKindBadge;`
+  )(kindFn);
+
+  // Even if historical catch entry has category: 'Mega Evolution', species precedence marks it as Starter!
+  assert.strictEqual(kindFn({ name: 'Chespin', category: 'Mega Evolution', fullName: 'Mega Line: Chespin (Lv 4)' }), 'Starter');
+  assert.strictEqual(kindFn({ name: 'DARK Chespin', category: 'Mega Evolution', fullName: 'DARK Mega Line: Chespin (Lv 13)' }), 'Starter');
+  assert.strictEqual(kindFn({ name: 'Greninja', category: 'Mega Evolution' }), 'Starter');
+  assert.strictEqual(kindFn({ name: 'Froakie', category: 'Wild Encounter' }), 'Starter');
+  assert.strictEqual(kindFn({ name: 'Fennekin', category: 'Mega Line' }), 'Starter');
+  assert.strictEqual(kindFn({ name: 'Chikorita', category: 'Starter' }), 'Starter');
+  assert.strictEqual(kindFn({ name: 'Charizard', category: 'G-Max/Mega/Starter' }), 'G-Max/Mega/Starter');
+  assert.strictEqual(kindFn({ name: 'Treecko', category: 'Mega/Starter' }), 'Mega/Starter');
+  assert.strictEqual(kindFn({ name: 'Grookey', category: 'G-Max/Starter' }), 'G-Max/Starter');
+  assert.strictEqual(kindFn({ name: 'Gengar', category: 'Mega/G-Max' }), 'Mega/G-Max');
+  assert.strictEqual(kindFn({ name: 'Slowking', category: 'Rare Line' }), 'Rare Line');
+  assert.strictEqual(kindFn({ name: 'Weedle', category: 'Mega Evolution' }), 'Mega Line');
+  assert.strictEqual(kindFn({ name: 'Mega Lopunny', category: 'Special Form' }), 'Mega');
+
+  // Badge HTML formatting checks: Starter badge must be Emerald Green (#34d399) and contain 'Starter'
+  const chespinBadge = badgeFn({ name: 'Chespin', category: 'Starter' });
+  assert(chespinBadge.includes('Starter'), 'Chespin badge text must be Starter');
+  assert(chespinBadge.includes('#34d399'), 'Starter badge color must be #34d399');
+  assert(chespinBadge.includes('box-shadow: none !important'), 'Badge must have box-shadow: none !important');
+
+  // 6. UI Clean Pokemon Name Verification (Zero redundant tier labels in name)
+  const formatStart = appJs.indexOf('function formatCleanPokemonName(rawName');
+  assert(formatStart !== -1, 'formatCleanPokemonName must exist in app.js');
+  const cleanFn = new Function(`${appJs.slice(formatStart, kindStart)}; return formatCleanPokemonName;`)();
+
+  assert.strictEqual(cleanFn('SHINY Starter: Rowlet'), 'SHINY Rowlet');
+  assert.strictEqual(cleanFn('METALLIC Mega/G-Max: Gastly'), 'METALLIC Gastly');
+  assert.strictEqual(cleanFn('DARK Mega/G-Max: Gastly'), 'DARK Gastly');
+  assert.strictEqual(cleanFn('Starter: Chespin (Lv 4)'), 'Chespin');
+  assert.strictEqual(cleanFn('DARK Starter: Chespin (Lv 13)'), 'DARK Chespin');
+  assert.strictEqual(cleanFn('Mega Line: Weedle (Lv 8)'), 'Weedle');
+  assert.strictEqual(cleanFn('MIRAGE Shuppet'), 'MIRAGE Shuppet');
+  assert.strictEqual(cleanFn('DARK Audino'), 'DARK Audino');
+  assert.strictEqual(cleanFn('Flutter Mane'), 'Flutter Mane');
+  assert.strictEqual(cleanFn('Mega Lopunny'), 'Mega Lopunny');
+  assert.strictEqual(cleanFn('G-Max Butterfree'), 'G-Max Butterfree');
+  assert.strictEqual(cleanFn('G-Max/Mega/Starter: Charizard'), 'Charizard');
+  assert.strictEqual(cleanFn('Mega/Starter: Treecko'), 'Treecko');
+  assert.strictEqual(cleanFn('G-Max/Starter: Grookey'), 'Grookey');
+  assert.strictEqual(cleanFn('Rare Line: Slowking'), 'Slowking');
 });
 
 // -----------------------------------------------------------------------------

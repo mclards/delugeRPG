@@ -50,7 +50,7 @@ const TARGETS = {
         "Gouging Fire", "Raging Bolt", "Iron Boulder", "Iron Crown"
     ],
 
-    // 2. All 46 Mega Evolution Families (Base, Middle, Final)
+    // 2. All 46 Mega Evolution Families (Base, Middle, Final) - Verified directly against DelugeRPG Dex
     megas: [
         // Gen 1 Megas
         "Bulbasaur", "Ivysaur", "Venusaur",
@@ -61,7 +61,9 @@ const TARGETS = {
         "Abra", "Kadabra", "Alakazam",
         "Slowpoke", "Slowbro",
         "Gastly", "Haunter", "Gengar",
+        "Onix", "Steelix",
         "Kangaskhan",
+        "Scyther", "Scizor",
         "Pinsir",
         "Magikarp", "Gyarados",
         "Aerodactyl",
@@ -69,8 +71,6 @@ const TARGETS = {
 
         // Gen 2 Megas
         "Mareep", "Flaaffy", "Ampharos",
-        "Onix", "Steelix",
-        "Scyther", "Scizor",
         "Heracross",
         "Houndour", "Houndoom",
         "Larvitar", "Pupitar", "Tyranitar",
@@ -101,17 +101,83 @@ const TARGETS = {
         "Riolu", "Lucario",
         "Snover", "Abomasnow",
 
-        // Gen 1-4 Mega Branches
-        "Slowking",
-        "Kleavor",
-        "Froslass",
-
-        // Gen 5 & 6 Megas & Future Legends Z-A Megas
+        // Gen 5 & 6 Megas
         "Audino",
-        "Diancie",
+        "Diancie"
+    ],
+
+    // 2b. All 32 Gigantamax Forms - Verified directly against DelugeRPG Dex
+    gmaxSpecies: [
+        "Venusaur", "Charizard", "Blastoise", "Butterfree", "Pikachu",
+        "Meowth", "Machamp", "Gengar", "Kingler", "Lapras",
+        "Eevee", "Snorlax", "Garbodor", "Melmetal", "Rillaboom",
+        "Cinderace", "Inteleon", "Corviknight", "Orbeetle", "Drednaw",
+        "Coalossal", "Flapple", "Appletun", "Sandaconda", "Toxtricity",
+        "Centiskorch", "Hatterene", "Grimmsnarl", "Alcremie", "Copperajah",
+        "Duraludon", "Urshifu"
+    ],
+
+    // 2c. All 27 Starter Lines Across Gen 1-9 (81 species) - Verified directly against DelugeRPG Dex
+    starters: [
+        // Gen 1 (G-Max/Mega/Starter)
+        "Bulbasaur", "Ivysaur", "Venusaur",
+        "Charmander", "Charmeleon", "Charizard",
+        "Squirtle", "Wartortle", "Blastoise",
+        // Gen 2
+        "Chikorita", "Bayleef", "Meganium",
+        "Cyndaquil", "Quilava", "Typhlosion",
+        "Totodile", "Croconaw", "Feraligatr",
+        // Gen 3 (Mega/Starter)
+        "Treecko", "Grovyle", "Sceptile",
+        "Torchic", "Combusken", "Blaziken",
+        "Mudkip", "Marshtomp", "Swampert",
+        // Gen 4
+        "Turtwig", "Grotle", "Torterra",
+        "Chimchar", "Monferno", "Infernape",
+        "Piplup", "Prinplup", "Empoleon",
+        // Gen 5
+        "Snivy", "Servine", "Serperior",
+        "Tepig", "Pignite", "Emboar",
+        "Oshawott", "Dewott", "Samurott",
+        // Gen 6
         "Chespin", "Quilladin", "Chesnaught",
         "Fennekin", "Braixen", "Delphox",
-        "Froakie", "Frogadier", "Greninja"
+        "Froakie", "Frogadier", "Greninja",
+        // Gen 7
+        "Rowlet", "Dartrix", "Decidueye",
+        "Litten", "Torracat", "Incineroar",
+        "Popplio", "Brionne", "Primarina",
+        // Gen 8 (G-Max/Starter)
+        "Grookey", "Thwackey", "Rillaboom",
+        "Scorbunny", "Raboot", "Cinderace",
+        "Sobble", "Drizzile", "Inteleon",
+        // Gen 9
+        "Sprigatito", "Floragato", "Meowscarada",
+        "Fuecoco", "Crocalor", "Skeledirge",
+        "Quaxly", "Quaxwell", "Quaquaval"
+    ],
+
+    // 2d. Rare Branch Lines without Megas
+        gmaxMegaStarters: [
+        "bulbasaur", "ivysaur", "venusaur",
+        "charmander", "charmeleon", "charizard",
+        "squirtle", "wartortle", "blastoise"
+    ],
+    megaStarters: [
+        "treecko", "grovyle", "sceptile",
+        "torchic", "combusken", "blaziken",
+        "mudkip", "marshtomp", "swampert"
+    ],
+    gmaxStarters: [
+        "grookey", "thwackey", "rillaboom",
+        "scorbunny", "raboot", "cinderace",
+        "sobble", "drizzile", "inteleon"
+    ],
+    megaGMax: [
+        "gastly", "haunter", "gengar"
+    ],
+    rareLines: [
+        "Slowking", "Kleavor", "Froslass"
     ],
 
     // 3. All 10 Pseudo-Legendary Families (600 BST 3-Stage Evolutionary Lines)

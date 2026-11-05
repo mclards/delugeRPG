@@ -62,6 +62,42 @@ runTest('config.json safety parameters integrity', () => {
   assert(typeof s.dailyCatchMin === 'number' && s.dailyCatchMin >= 1, 'dailyCatchMin must be >= 1');
   assert(typeof s.dailyCatchMax === 'number' && s.dailyCatchMax >= s.dailyCatchMin, 'dailyCatchMax >= dailyCatchMin');
   assert(s.antiBotEmergencyHalt === true, 'antiBotEmergencyHalt must be true');
+  assert(typeof s.mapRotationMinMinutes === 'number' && s.mapRotationMinMinutes >= 1, 'mapRotationMinMinutes must be >= 1');
+  assert(typeof s.mapRotationMaxMinutes === 'number' && s.mapRotationMaxMinutes >= s.mapRotationMinMinutes, 'mapRotationMaxMinutes >= mapRotationMinMinutes');
+});
+
+runTest('Official DelugeRPG Maps Catalog (49 maps) & random rotation engine audit', () => {
+  const mapsCatalog = require('./maps_catalog.js');
+  assert(Array.isArray(mapsCatalog.DELUGE_MAPS), 'DELUGE_MAPS must be an array');
+  assert.strictEqual(mapsCatalog.DELUGE_MAPS.length, 49, 'DELUGE_MAPS must contain exactly 49 official DelugeRPG maps');
+
+  const seenUrls = new Set();
+  mapsCatalog.DELUGE_MAPS.forEach(m => {
+    assert(m.id && typeof m.id === 'string', 'Map must have valid id');
+    assert(m.name && typeof m.name === 'string', 'Map must have valid name');
+    assert(m.title && typeof m.title === 'string', 'Map must have valid title');
+    assert(m.url && m.url.startsWith('/map/'), 'Map url must start with /map/');
+    assert(!seenUrls.has(m.url), `Duplicate map URL: ${m.url}`);
+    seenUrls.add(m.url);
+  });
+
+  const rand = mapsCatalog.getRandomDelugeMap('/map/overworld1');
+  assert(rand && rand.url !== '/map/overworld1', 'getRandomDelugeMap must exclude active map');
+
+  // Verify 8 DelugeRPG Zones
+  assert(Array.isArray(mapsCatalog.DELUGE_ZONES), 'DELUGE_ZONES must be an array');
+  assert.strictEqual(mapsCatalog.DELUGE_ZONES.length, 8, 'DELUGE_ZONES must contain exactly 8 official zones');
+  const zoneTotalMaps = mapsCatalog.DELUGE_ZONES.reduce((acc, z) => acc + z.count, 0);
+  assert.strictEqual(zoneTotalMaps, 49, 'Zone counts must sum to 49 maps');
+
+  // Verify zone-restricted random map selection
+  const volcanoPick = mapsCatalog.getRandomDelugeMap('/map/volcano1', ['volcano']);
+  assert(volcanoPick && volcanoPick.zone === 'volcano', 'Zone-restricted pick must belong to requested zone');
+  assert(volcanoPick.url !== '/map/volcano1', 'Zone-restricted pick must exclude active map');
+
+  const snowPick = mapsCatalog.getRandomDelugeMap('/map/snowcave1', ['snowcave']);
+  assert(snowPick && snowPick.zone === 'snowcave', 'Zone-restricted snowcave pick must belong to snowcave');
+  assert(snowPick.url !== '/map/snowcave1', 'Zone-restricted snowcave pick must exclude active map');
 });
 
 runTest('daily_safety_log.json structure and clean initialization', () => {
@@ -89,6 +125,15 @@ runTest('Docked Safety Panel HTML elements and CSS zero-glow verification', () =
   assert(appHtml.includes('id="silenceAlarmModalBtn"'), 'app.html must define silenceAlarmModalBtn');
   assert(appHtml.includes('id="captchaEmergencyBanner"'), 'app.html must define captchaEmergencyBanner');
   assert(appHtml.includes('id="silenceAlarmBtn"'), 'app.html must define silenceAlarmBtn');
+  assert(appHtml.includes('id="randomMapHopBtn"'), 'app.html must define randomMapHopBtn');
+  assert(appHtml.includes('id="randomMapHopBadge"'), 'app.html must define randomMapHopBadge');
+  assert(appHtml.includes('id="safetyMapRotationToggle"'), 'app.html must define safetyMapRotationToggle');
+  assert(appHtml.includes('id="safetyMapRotationMin"'), 'app.html must define safetyMapRotationMin');
+  assert(appHtml.includes('id="safetyMapRotationMax"'), 'app.html must define safetyMapRotationMax');
+  assert(appHtml.includes('id="safetyStatNextMapRotation"'), 'app.html must define safetyStatNextMapRotation');
+  assert(appHtml.includes('id="safetyZonesSelectAllBtn"'), 'app.html must define safetyZonesSelectAllBtn');
+  assert(appHtml.includes('id="safetyZonesClearBtn"'), 'app.html must define safetyZonesClearBtn');
+  assert(appHtml.includes('class="safety-zone-checkbox"'), 'app.html must define safety-zone-checkbox');
 
   // Verify CSS zero-glow
   const panelIdx = appHtml.indexOf('id="safetySettingsModal"');
@@ -123,6 +168,10 @@ runTest('app.js safety engine functions implementation', () => {
   assert(appJs.includes('function openSafetySettingsPanel()'), 'app.js must implement openSafetySettingsPanel');
   assert(appJs.includes('function closeSafetySettingsPanel()'), 'app.js must implement closeSafetySettingsPanel');
   assert(appJs.includes('function toggleSafetySettingsPanel()'), 'app.js must implement toggleSafetySettingsPanel');
+  assert(appJs.includes('function scheduleNextMapRotation('), 'app.js must implement scheduleNextMapRotation');
+  assert(appJs.includes('function canExecuteMapTransition()'), 'app.js must implement canExecuteMapTransition');
+  assert(appJs.includes('function executeMapRotation('), 'app.js must implement executeMapRotation');
+  assert(appJs.includes('function isMapRotationActive()'), 'app.js must implement isMapRotationActive');
 });
 
 runTest('handleMoveSuccess step counting and safety enforcement', () => {
@@ -161,6 +210,7 @@ const filesToAudit = [
   'app.html',
   'app.js',
   'game-preload.js',
+  'maps_catalog.js',
   'test_safety_limits.js'
 ];
 

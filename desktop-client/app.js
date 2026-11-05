@@ -7,6 +7,7 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 const teamEngine = require('./team_engine.js');
+const mapsCatalog = require('./maps_catalog.js');
 
 function deepMerge(target, source) {
   const output = Object.assign({}, target);
@@ -80,6 +81,7 @@ let config = {
     avoidDuplicates: true,
     autoStartOnMap: true,
     autoStartDelay: 3,
+    randomMapHopping: false,
     hideAdsCosmetically: true,
     autoCatchMasterBall: false,
     pvpCandidateTier: "ANY"
@@ -88,6 +90,9 @@ let config = {
     enableDeadManSwitch: true,
     autoStopMinMinutes: 5,
     autoStopMaxMinutes: 30,
+    enableMapRotation: false,
+    mapRotationMinMinutes: 10,
+    mapRotationMaxMinutes: 30,
     enableForcedBreaks: true,
     breakMinSteps: 50,
     breakMaxSteps: 200,
@@ -120,6 +125,7 @@ function loadLocalConfig() {
       avoidDuplicates: true,
       autoStartOnMap: true,
       autoStartDelay: 3,
+    randomMapHopping: false,
       hideAdsCosmetically: true,
       autoCatchMasterBall: false,
       pvpCandidateTier: "ANY"
@@ -128,6 +134,9 @@ function loadLocalConfig() {
       enableDeadManSwitch: true,
       autoStopMinMinutes: 5,
       autoStopMaxMinutes: 30,
+    enableMapRotation: false,
+    mapRotationMinMinutes: 10,
+    mapRotationMaxMinutes: 30,
       enableForcedBreaks: true,
       breakMinSteps: 50,
       breakMaxSteps: 200,
@@ -314,6 +323,8 @@ const avoidDupesBtn = document.getElementById('avoidDupesBtn');
 const avoidDupesBadge = document.getElementById('avoidDupesBadge');
 const autoStartMapBtn = document.getElementById('autoStartMapBtn');
 const autoStartMapBadge = document.getElementById('autoStartMapBadge');
+const randomMapHopBtn = document.getElementById('randomMapHopBtn');
+const randomMapHopBadge = document.getElementById('randomMapHopBadge');
 const autoStartDelayRow = document.getElementById('autoStartDelayRow');
 const autoStartDelaySelect = document.getElementById('autoStartDelaySelect');
 const hideAdsBtn = document.getElementById('hideAdsBtn');
@@ -343,6 +354,9 @@ const subClassicLegCheckbox = document.getElementById('subClassicLegCheckbox');
 const subUltraBeastsCheckbox = document.getElementById('subUltraBeastsCheckbox');
 const subParadoxCheckbox = document.getElementById('subParadoxCheckbox');
 const filterMegasCheckbox = document.getElementById('filterMegasCheckbox');
+const subMegasCheckbox = document.getElementById('subMegasCheckbox');
+const subGMaxCheckbox = document.getElementById('subGMaxCheckbox');
+const subStartersCheckbox = document.getElementById('subStartersCheckbox');
 const filterPseudoCheckbox = document.getElementById('filterPseudoCheckbox');
 const pseudoTierVariantsBadge = document.getElementById('pseudoTierVariantsBadge');
 const pseudoVariantsWrap = document.getElementById('pseudoVariantsWrap');
@@ -656,6 +670,9 @@ const aiQuickMovesBtn = document.getElementById('aiQuickMovesBtn');
 const aiInstantActionSlot = document.getElementById('aiInstantActionSlot');
 const aiHudActionBtn = document.getElementById('aiHudActionBtn');
 let activeAiBattleData = null;
+let currentMatchParticipants = new Set();
+let justSwitchedActivePokemon = new Set();
+let currentMatchSwitchCount = 0;
 let activeEvolveCardData = null;
 let lastAnnouncedEvolveSignature = null;
 let lastAnalyzedBattle = null;
@@ -698,6 +715,12 @@ const safetyStatTodayCatches = document.getElementById('safetyStatTodayCatches')
 const safetyAutoStopToggle = document.getElementById('safetyAutoStopToggle');
 const safetyAutoStopMin = document.getElementById('safetyAutoStopMin');
 const safetyAutoStopMax = document.getElementById('safetyAutoStopMax');
+const safetyMapRotationToggle = document.getElementById('safetyMapRotationToggle');
+const safetyMapRotationMin = document.getElementById('safetyMapRotationMin');
+const safetyMapRotationMax = document.getElementById('safetyMapRotationMax');
+const safetyStatNextMapRotation = document.getElementById('safetyStatNextMapRotation');
+const safetyZonesSelectAllBtn = document.getElementById('safetyZonesSelectAllBtn');
+const safetyZonesClearBtn = document.getElementById('safetyZonesClearBtn');
 const safetyBreakToggle = document.getElementById('safetyBreakToggle');
 const safetyBreakMinSteps = document.getElementById('safetyBreakMinSteps');
 const safetyBreakMaxSteps = document.getElementById('safetyBreakMaxSteps');
@@ -1120,7 +1143,31 @@ function updateAutoStartMapUI() {
     autoStartMapBadge.textContent = '';
     autoStartMapBadge.className = isAuto ? 'dropdown-switch switch-on dropdown-badge-on' : 'dropdown-switch switch-off dropdown-badge-off';
   }
-  if (autoStartMapBtn) {
+  if (randomMapHopBtn) {
+  randomMapHopBtn.addEventListener('click', () => {
+    if (!config.settings) config.settings = {};
+    if (!config.safety) config.safety = {};
+    const nextState = !((config.safety && config.safety.enableMapRotation) || config.settings.randomMapHopping);
+    config.settings.randomMapHopping = nextState;
+    config.safety.enableMapRotation = nextState;
+    saveLocalConfig();
+    updateRandomMapUI();
+    if (nextState && isRunning) {
+      scheduleNextMapRotation();
+    } else if (!nextState) {
+      if (mapRotationTimer) {
+        clearTimeout(mapRotationTimer);
+        mapRotationTimer = null;
+      }
+      nextMapRotationTime = null;
+      isMapRotationDue = false;
+    }
+    updateStatus('Random Map Hopping: ' + (nextState ? 'ON' : 'OFF'), '#10b981');
+    backendLog('Settings', 'Random Map Hopping toggled to ' + (nextState ? 'ON' : 'OFF'));
+  });
+}
+
+if (autoStartMapBtn) {
     autoStartMapBtn.title = isAuto
       ? `Auto-Start on Maps: ON (Begins hunting after ${delaySec}s safety delay when map is opened)`
       : 'Auto-Start on Maps: OFF (Stays paused until manual start)';
@@ -1131,6 +1178,32 @@ function updateAutoStartMapUI() {
   if (autoStartDelayRow) {
     autoStartDelayRow.style.opacity = isAuto ? '1' : '0.45';
     autoStartDelayRow.style.pointerEvents = isAuto ? 'auto' : 'none';
+  }
+}
+
+function updateRandomMapUI() {
+  const isEnabled = (config.safety && config.safety.enableMapRotation) || (config.settings && config.settings.randomMapHopping) || false;
+  const minMins = (config.safety && config.safety.mapRotationMinMinutes) || 10;
+  const maxMins = (config.safety && config.safety.mapRotationMaxMinutes) || 30;
+
+  if (randomMapHopBadge) {
+    randomMapHopBadge.checked = !!isEnabled;
+    randomMapHopBadge.textContent = '';
+    randomMapHopBadge.className = isEnabled ? 'dropdown-switch switch-on dropdown-badge-on' : 'dropdown-switch switch-off dropdown-badge-off';
+  }
+  if (randomMapHopBtn) {
+    randomMapHopBtn.title = isEnabled
+      ? `Random Map Hopping: ON (Rotates maps every ${minMins}-${maxMins} mins)`
+      : 'Random Map Hopping: OFF (Stays on current map)';
+  }
+  if (safetyMapRotationToggle) {
+    safetyMapRotationToggle.checked = !!isEnabled;
+  }
+  if (safetyMapRotationMin) {
+    safetyMapRotationMin.value = minMins;
+  }
+  if (safetyMapRotationMax) {
+    safetyMapRotationMax.value = maxMins;
   }
 }
 
@@ -1180,7 +1253,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.4.12';
+    let appVer = '1.4.13';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -1247,7 +1320,22 @@ function calculateTargetSummary(leg, megas, vars, enableLevel, levelMode, levelV
   }
   if (megas) {
     const megaBadge = Array.isArray(subOptions.megaVariants) ? (" [" + formatTierVariantsBadge(subOptions.megaVariants) + "]") : "";
-    parts.push("Tier 2: 107 Mega Lines" + megaBadge);
+    const isM = subOptions.megaTierMegas !== false;
+    const isG = subOptions.megaTierGMax !== false;
+    const isS = subOptions.megaTierStarters !== false;
+    if (isM && isG && isS) {
+      parts.push("Tier 2: Mega, G-Max & Starters" + megaBadge);
+    } else {
+      const subs = [];
+      if (isM) subs.push("Megas");
+      if (isG) subs.push("G-Max");
+      if (isS) subs.push("Starters");
+      parts.push(subs.length > 0 ? ("Tier 2: (" + subs.join(", ") + ")" + megaBadge) : "Tier 2: 0 Special");
+    }
+  }
+  if (subOptions.pseudo) {
+    const pseudoBadge = Array.isArray(subOptions.pseudoVariants) ? (" [" + formatTierVariantsBadge(subOptions.pseudoVariants) + "]") : "";
+    parts.push("10 Pseudo Lines" + pseudoBadge);
   }
   if (leg) {
     const classic = subOptions.classicLeg !== false;
@@ -1448,6 +1536,9 @@ function updateTargetUI() {
   if (subParadoxCheckbox) subParadoxCheckbox.checked = paradoxLeg;
 
   if (filterMegasCheckbox) filterMegasCheckbox.checked = isMega;
+  if (subMegasCheckbox) subMegasCheckbox.checked = isMega && (config.settings ? config.settings.megaTierMegas !== false : true);
+  if (subGMaxCheckbox) subGMaxCheckbox.checked = isMega && (config.settings ? config.settings.megaTierGMax !== false : true);
+  if (subStartersCheckbox) subStartersCheckbox.checked = isMega && (config.settings ? config.settings.megaTierStarters !== false : true);
   if (filterPseudoCheckbox) filterPseudoCheckbox.checked = isPseudo;
   if (filterTypesCheckbox) filterTypesCheckbox.checked = isType;
   const isVarActive = config.settings && (config.settings.enableVariantFilter !== undefined ? !!config.settings.enableVariantFilter : (config.settings.findAnySpecialVariant !== false));
@@ -1489,6 +1580,7 @@ function updateTargetUI() {
 
   if (legVariantsWrap) legVariantsWrap.classList.toggle('dimmed', !isLeg);
   if (megaVariantsWrap) megaVariantsWrap.classList.toggle('dimmed', !isMega);
+  if (pseudoVariantsWrap) pseudoVariantsWrap.classList.toggle('dimmed', !isPseudo);
   if (subVariantsWrap) subVariantsWrap.classList.toggle('dimmed', !isVarActive);
 
   variantIds.forEach(id => {
@@ -1551,9 +1643,14 @@ function updateTargetUI() {
       isLeg, isMega, isVarActive, isLevel, levelMode, levelVal, levelScope,
       {
         classicLeg, ubLeg, paradoxLeg,
+        pseudo: isPseudo,
+        pseudoVariants: activePseudoVariants,
         selectedVariants: activeVariants,
         legendaryVariants: activeLegVariants,
         megaVariants: activeMegaVariants,
+        megaTierMegas: config.settings ? config.settings.megaTierMegas !== false : true,
+        megaTierGMax: config.settings ? config.settings.megaTierGMax !== false : true,
+        megaTierStarters: config.settings ? config.settings.megaTierStarters !== false : true,
         customTargets,
         blacklist
       }
@@ -1574,6 +1671,22 @@ function updateTargetUI() {
   else if (isLeg && isMega && !isVarActive && !isLevel && legAll10 && megaAll10 && !hasCustom) presetKey = 'legend_megas';
   else if (isLeg && !isMega && !isVarActive && !isLevel && legAll10 && !hasCustom) presetKey = 'legendaries';
   else if (!isLeg && isMega && !isVarActive && !isLevel && megaAll10 && !hasCustom) presetKey = 'megas';
+
+  if (targetPresetSelect) {
+    if (config.settings && config.settings.targetProfiles) {
+      Object.keys(config.settings.targetProfiles).forEach(k => {
+        if (!targetPresetSelect.querySelector('option[value="' + k + '"]')) {
+          const opt = document.createElement('option');
+          opt.value = k;
+          opt.textContent = config.settings.targetProfiles[k].name || k;
+          targetPresetSelect.appendChild(opt);
+        }
+      });
+    }
+    const currentPreset = (config.settings && config.settings.targetPreset) || 'custom';
+    const optMatch = targetPresetSelect.querySelector('option[value="' + currentPreset + '"]');
+    targetPresetSelect.value = optMatch ? currentPreset : 'custom';
+  }
 
   const pills = [
     { btn: presetAllBtn, key: 'all' },
@@ -1712,9 +1825,14 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
       isLeg, isMega, isVar, isLevel, levelMode, levelVal, levelScope,
       {
         classicLeg: isClassic, ubLeg: isUB, paradoxLeg: isParadox,
+        pseudo: isPseudo,
+        pseudoVariants: selectedPseudoVars,
         selectedVariants: selectedVars,
         legendaryVariants: selectedLegVars,
         megaVariants: selectedMegaVars,
+        megaTierMegas: subMegasCheckbox ? subMegasCheckbox.checked : true,
+        megaTierGMax: subGMaxCheckbox ? subGMaxCheckbox.checked : true,
+        megaTierStarters: subStartersCheckbox ? subStartersCheckbox.checked : true,
         customTargets,
         blacklist
       }
@@ -1755,6 +1873,9 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
     config.settings.legendaryUltraBeasts = isLeg && isUB;
     config.settings.legendaryParadox = isLeg && isParadox;
     config.settings.findMegasAndGigantamax = isMega;
+    config.settings.megaTierMegas = subMegasCheckbox ? subMegasCheckbox.checked : true;
+    config.settings.megaTierGMax = subGMaxCheckbox ? subGMaxCheckbox.checked : true;
+    config.settings.megaTierStarters = subStartersCheckbox ? subStartersCheckbox.checked : true;
     config.settings.findPseudoLegendaries = isPseudo;
     config.settings.pseudoVariants = selectedPseudoVars;
     config.settings.enableTypeFilter = isType;
@@ -1787,6 +1908,7 @@ updateNetworkBadgeUI();
 updateSoundUI();
 updateTargetUI();
 updateAutoStartMapUI();
+updateRandomMapUI();
 updateHideAdsUI();
 updateAutoCatchUI();
 updateVersionUI();
@@ -1914,6 +2036,7 @@ function triggerSessionAutoStop(reason, statusMsg) {
 }
 
 function autoPauseOutsideMap(source = '') {
+  if (isMapRotatingNow) return;
   cancelPendingAutoStart('Navigated outside map');
   userManuallyPaused = false;
   if (isRunning) {
@@ -2100,6 +2223,9 @@ function toggleHunting() {
         rollNextBreakTargets();
       }
     }
+    if (isMapRotationActive()) {
+      scheduleNextMapRotation();
+    }
     updateSafetyTelemetryUI();
 
     try {
@@ -2142,6 +2268,12 @@ function toggleHunting() {
       sessionAutoStopTimer = null;
     }
     sessionAutoStopTime = null;
+    if (mapRotationTimer) {
+      clearTimeout(mapRotationTimer);
+      mapRotationTimer = null;
+    }
+    nextMapRotationTime = null;
+    isMapRotationDue = false;
     if (breakCountdownTimer) {
       clearInterval(breakCountdownTimer);
       breakCountdownTimer = null;
@@ -2642,6 +2774,14 @@ function scheduleNextStep(customDelay = null) {
       }
     }
 
+    // Map Rotation Guard: if map rotation interval expired, execute rotation safely!
+    if (isMapRotationActive() && (isMapRotationDue || (nextMapRotationTime && Date.now() >= nextMapRotationTime))) {
+      if (canExecuteMapTransition()) {
+        executeMapRotation('hunting_interval');
+        return;
+      }
+    }
+
     // 0. Check if resuming from a micro-pause or idle pause
     // After the pause, change to another direction and start fresh compulsory steps!
     if (isResumingFromMicroPause || isResumingFromIdlePause) {
@@ -2964,6 +3104,11 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
         rollNextBreakTargets();
       }
     }
+    if (isMapRotationActive()) {
+      if (!mapRotationTimer || !nextMapRotationTime) {
+        scheduleNextMapRotation();
+      }
+    }
     updateSafetyTelemetryUI();
 
     updateToggleButton();
@@ -3013,11 +3158,22 @@ function handleMapNavigation(url) {
       }
       syncHuntingState();
     } catch (_) {}
-    // Auto-start hunting only when guest preload has confirmed playable map DOM (guestReportsMap === true)
-    const shouldAutoStart = (config.settings && config.settings.autoStartOnMap !== false) || wasHuntingBeforeAutoCatch;
-    if (guestReportsMap && !isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
+    // Auto-start or resume hunting after map load or random map rotation
+    const shouldAutoStart = (config.settings && config.settings.autoStartOnMap !== false) || wasHuntingBeforeAutoCatch || wasHuntingBeforeMapRotation;
+    if (guestReportsMap && (wasHuntingBeforeMapRotation || (isMapRotatingNow && isRunning))) {
+      wasHuntingBeforeMapRotation = false;
+      isMapRotatingNow = false;
+      isRunning = true;
+      userManuallyPaused = false;
+      updateToggleButton();
+      const delaySec = (config.settings && config.settings.autoStartDelay) || 3;
+      updateStatus('Hunting (Map Rotated)', '#10b981');
+      backendLog('MapRotation', 'Arrival on new map confirmed. Resumed hunting.');
+      scheduleNextStep(delaySec * 1000);
+    } else if (guestReportsMap && !isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
       if (!autoStartTimer) {
         wasHuntingBeforeAutoCatch = false;
+        wasHuntingBeforeMapRotation = false;
         triggerDelayedAutoStart('Map opened');
       }
     }
@@ -3427,6 +3583,26 @@ delugeView.addEventListener('ipc-message', (event) => {
         teamActionStatus.style.color = '#f87171';
       }
     }
+    if (data.success && isBattleLoopRunning && teamBattleLoopCheck && teamBattleLoopCheck.checked && !isUnlockChallengeActive && !isCaptchaAlarmActive) {
+      if (teamActionStatus) {
+        teamActionStatus.textContent = 'Loop: Fresh team saved! Resuming battle in 1.5s...';
+        teamActionStatus.style.color = '#10b981';
+      }
+      setTimeout(() => {
+        if (!isBattleLoopRunning || !teamBattleLoopCheck || !teamBattleLoopCheck.checked || isUnlockChallengeActive || isCaptchaAlarmActive) return;
+        if (delugeView && typeof delugeView.send === 'function') {
+          delugeView.send('click-rematch-button');
+        }
+        setTimeout(() => {
+          if (battleOpponentBtn) battleOpponentBtn.click();
+        }, 600);
+      }, 1500);
+    }
+  }
+
+  if (event.channel === 'battle-exp-calibrated') {
+    const data = event.args[0] || {};
+    handleBattleExpCalibrated(data);
   }
 
   if (event.channel === 'scan-trainers-status') {
@@ -3457,7 +3633,8 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'battle-opponents-detected') {
     const data = event.args[0] || {};
-    if (data && Array.isArray(data.roster) && data.roster.length > 0) {
+    const isPostBattle = Boolean(data.isPostBattleScreen || data.isVictoryScreen || data.isDefeatScreen);
+    if (data && ((Array.isArray(data.roster) && data.roster.length > 0) || isPostBattle)) {
       handleLiveBattleOpponents(data);
       if (scanStatusBadge) {
         scanStatusBadge.textContent = `Captured ${data.trainerName}! (${data.roster.length} Pkmn)`;
@@ -3505,6 +3682,14 @@ delugeView.addEventListener('ipc-message', (event) => {
             battleAutoStepTimer = null;
           }
           isBattleAutoRunning = false;
+        } else if (data.action === 'click-rematch-button' && teamBattleLoopCheck && teamBattleLoopCheck.checked && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
+          if (battleOpponentBtn) battleOpponentBtn.click();
+        } else if (false) {
+          if (battleAutoStepTimer) {
+            clearTimeout(battleAutoStepTimer);
+            battleAutoStepTimer = null;
+          }
+          isBattleAutoRunning = false;
         } else if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
           if (battleAutoStepTimer) clearTimeout(battleAutoStepTimer);
           battleAutoStepTimer = setTimeout(() => {
@@ -3515,7 +3700,14 @@ delugeView.addEventListener('ipc-message', (event) => {
           }, 750);
         }
       } else {
-        teamActionStatus.textContent = data.action === 'select-lead-and-start' ? 'Battle Started!' : 'Move Cast!';
+        if (data.action === 'forfeit-battle') {
+          teamActionStatus.textContent = 'Forfeited! Preparing next loop...';
+          if (!isUnlockChallengeActive && !isCaptchaAlarmActive && teamBattleLoopCheck && teamBattleLoopCheck.checked && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
+            scheduleNextLoopBattle();
+          }
+        } else {
+          teamActionStatus.textContent = data.action === 'select-lead-and-start' ? 'Battle Started!' : 'Move Cast!';
+        }
         teamActionStatus.style.color = '#10b981';
         // Watchdog: If next turn does not schedule within 1200ms, request live battle state from webview
         if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isUnlockChallengeActive && !isCaptchaAlarmActive) {
@@ -3773,6 +3965,9 @@ delugeView.addEventListener('ipc-message', (event) => {
   if (event.channel === 'encounter-status') {
     const hasEnc = !!(event.args[0] && event.args[0].hasEncounter);
     isEncounterOnScreen = hasEnc;
+    if (!hasEnc && !isAutoCatchCountdownActive) {
+      targetEncounterActive = false;
+    }
   }
 
   if (event.channel === 'nav-status') {
@@ -3855,11 +4050,23 @@ delugeView.addEventListener('ipc-message', (event) => {
         backendLog('Encounter', 'Target / wild encounter resolved. Returned to clean map view.');
       }
 
-      const shouldAutoStart = (config.settings && config.settings.autoStartOnMap !== false) || wasHuntingBeforeAutoCatch;
-      if (!isRunning && !userManuallyPaused && !isEncounterOnScreen && !isUnlockChallengeActive && shouldAutoStart) {
-        if (!autoStartTimer) {
-          wasHuntingBeforeAutoCatch = false;
-          triggerDelayedAutoStart('Map presence confirmed by guest');
+      if (guestReportsMap && wasHuntingBeforeMapRotation && !isEncounterOnScreen) {
+        wasHuntingBeforeMapRotation = false;
+        isMapRotatingNow = false;
+        isRunning = true;
+        userManuallyPaused = false;
+        updateToggleButton();
+        const delaySec = (config.settings && config.settings.autoStartDelay) || 3;
+        updateStatus('Hunting (Map Rotated)', '#10b981');
+        backendLog('MapRotation', 'Arrival on new map confirmed by guest. Resumed hunting.');
+        scheduleNextStep(delaySec * 1000);
+      } else {
+        const shouldAutoStart = (config.settings && config.settings.autoStartOnMap !== false) || wasHuntingBeforeAutoCatch;
+        if (!isRunning && !userManuallyPaused && !isEncounterOnScreen && !isUnlockChallengeActive && shouldAutoStart) {
+          if (!autoStartTimer) {
+            wasHuntingBeforeAutoCatch = false;
+            triggerDelayedAutoStart('Map presence confirmed by guest');
+          }
         }
       }
     }
@@ -3867,18 +4074,27 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'target-found') {
     isStepPending = false;
+    isEncounterOnScreen = true;
+    targetEncounterActive = true;
+    lastTargetFoundTime = Date.now();
+
+    if (isMapRotationDue) {
+      backendLog('MapRotation', 'Target Pokemon detected at the exact same time map rotation was due! Deferring map rotation to catch target first.');
+    }
+
     if (!isRunning) {
       // STRICT SAFETY: Only react to screen targets during an active hunting session!
       return;
     }
 
     const data = event.args[0] || {};
-    const name = data.name || 'Rare Pokemon';
+    const rawName = data.name || 'Rare Pokemon';
+    const cleanFoundName = formatCleanPokemonName(rawName) || rawName;
     if (config.settings && config.settings.avoidDuplicates !== false && data.isDuplicate) {
-      backendLog('TargetDuplicate', `Skipping duplicate target encounter: ${name}`);
+      backendLog('TargetDuplicate', `Skipping duplicate target encounter: ${cleanFoundName}`);
       return;
     }
-    backendLog('TargetHalt', `TARGET HALT: ${name} (Category: ${data.category || 'Target'})`);
+    backendLog('TargetHalt', `TARGET HALT: ${cleanFoundName} (Category: ${data.category || 'Target'})`);
 
     // Halt movement immediately and cancel any pending auto-start
     cancelPendingAutoStart('Target encounter found');
@@ -3894,14 +4110,14 @@ delugeView.addEventListener('ipc-message', (event) => {
     isEncounterOnScreen = true;
     updateToggleButton();
 
-    updateStatus(`FOUND: ${name}!`, '#22c55e');
+    updateStatus(`FOUND: ${cleanFoundName}!`, '#22c55e');
 
     // Play alert sounds
     playSound(880, 0.8);
     setTimeout(() => playSound(1100, 0.8), 300);
 
     new Notification('Target Pokemon Found!', {
-      body: `${name} has appeared on the map! Ready for capture.`
+      body: `${cleanFoundName} has appeared on the map! Ready for capture.`
     });
   }
 
@@ -3947,16 +4163,22 @@ delugeView.addEventListener('ipc-message', (event) => {
       backendLog('AutoCatch', `Catch confirmed! Waiting ${data.delay}ms to click Return to Map.`);
     } else if (step === 'completed') {
       isAutoCatchCountdownActive = false;
-      const name = data.target || 'Target Pokemon';
+      const rawTarget = data.target || 'Target Pokemon';
+      const cleanTarget = formatCleanPokemonName(rawTarget) || rawTarget;
       const remainingStr = (typeof data.stockRemaining === 'number') ? ` (Remaining Stock: ${data.stockRemaining})` : '';
-      updateStatus(`Caught: ${name}! Resuming...`, '#22c55e');
-      backendLog('AutoCatch', `${name} successfully captured via Master Ball${remainingStr}.`);
+      updateStatus(`Caught: ${cleanTarget}! Resuming...`, '#22c55e');
+      backendLog('AutoCatch', `${cleanTarget} successfully captured via Master Ball${remainingStr}.`);
       userManuallyPaused = false;
       wasHuntingBeforeAutoCatch = true;
 
+      if (isMapRotationActive() && (isMapRotationDue || (nextMapRotationTime && Date.now() >= nextMapRotationTime))) {
+        isMapRotationDue = true;
+        backendLog('AutoCatch', 'Target captured. Map rotation scheduled to execute upon return to map.');
+      }
+
       recordCaughtPokemon(data.pokemon || {
-        name: name,
-        fullName: name,
+        name: cleanTarget,
+        fullName: rawTarget,
         variant: 'Normal',
         level: '?',
         sprite: '',
@@ -4024,7 +4246,9 @@ delugeView.addEventListener('dom-ready', () => {
   }
   const shouldAutoStart = config.settings && config.settings.autoStartOnMap !== false;
   if (isCurrentPageMap() && !isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
-    if (!autoStartTimer) {
+    if (isMapRotationActive() && (isMapRotationDue || (nextMapRotationTime && Date.now() >= nextMapRotationTime))) {
+      executeMapRotation('post_catch');
+    } else if (!autoStartTimer) {
       triggerDelayedAutoStart('Map loaded on dom-ready');
     }
   }
@@ -4240,10 +4464,12 @@ function refreshModalSummary() {
   if (filterLegendariesCheckbox) filterLegendariesCheckbox.checked = isLeg;
 
   const isMega = filterMegasCheckbox ? filterMegasCheckbox.checked : false;
+  const isPseudo = filterPseudoCheckbox ? filterPseudoCheckbox.checked : false;
   const isVar = filterVariantsCheckbox ? filterVariantsCheckbox.checked : false;
 
   if (legVariantsWrap) legVariantsWrap.classList.toggle('dimmed', !isLeg);
   if (megaVariantsWrap) megaVariantsWrap.classList.toggle('dimmed', !isMega);
+  if (pseudoVariantsWrap) pseudoVariantsWrap.classList.toggle('dimmed', !isPseudo);
   if (subVariantsWrap) subVariantsWrap.classList.toggle('dimmed', !isVar);
 
   const selectedVars = [];
@@ -4270,6 +4496,14 @@ function refreshModalSummary() {
     }
   });
 
+  const selectedPseudoVars = [];
+  pseudoVariantIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.checked) {
+      selectedPseudoVars.push(pseudoVariantMap[id]);
+    }
+  });
+
   if (legTierVariantsBadge) {
     legTierVariantsBadge.textContent = formatTierVariantsBadge(selectedLegVars, isLeg);
     legTierVariantsBadge.style.color = isLeg ? '#388bfd' : '#8eaad0';
@@ -4279,6 +4513,11 @@ function refreshModalSummary() {
     megaTierVariantsBadge.textContent = formatTierVariantsBadge(selectedMegaVars, isMega);
     megaTierVariantsBadge.style.color = isMega ? '#388bfd' : '#8eaad0';
     megaTierVariantsBadge.style.opacity = isMega ? '1' : '0.55';
+  }
+  if (pseudoTierVariantsBadge) {
+    pseudoTierVariantsBadge.textContent = formatTierVariantsBadge(selectedPseudoVars, isPseudo);
+    pseudoTierVariantsBadge.style.color = isPseudo ? '#388bfd' : '#8eaad0';
+    pseudoTierVariantsBadge.style.opacity = isPseudo ? '1' : '0.55';
   }
   if (wildTierVariantsBadge) {
     wildTierVariantsBadge.textContent = formatTierVariantsBadge(selectedVars, isVar);
@@ -4306,9 +4545,14 @@ function refreshModalSummary() {
       isLeg, isMega, isVar, isLevel, levelMode, levelVal, levelScope,
       {
         classicLeg, ubLeg, paradoxLeg,
+        pseudo: isPseudo,
+        pseudoVariants: selectedPseudoVars,
         selectedVariants: selectedVars,
         legendaryVariants: selectedLegVars,
         megaVariants: selectedMegaVars,
+        megaTierMegas: subMegasCheckbox ? subMegasCheckbox.checked : true,
+        megaTierGMax: subGMaxCheckbox ? subGMaxCheckbox.checked : true,
+        megaTierStarters: subStartersCheckbox ? subStartersCheckbox.checked : true,
         customTargets,
         blacklist
       }
@@ -4319,9 +4563,36 @@ function refreshModalSummary() {
 // Bind live change listeners to all target modal controls
 [
   filterLegendariesCheckbox, subClassicLegCheckbox, subUltraBeastsCheckbox, subParadoxCheckbox,
-  filterMegasCheckbox, filterVariantsCheckbox
+  filterMegasCheckbox, subMegasCheckbox, subGMaxCheckbox, subStartersCheckbox, filterPseudoCheckbox, filterVariantsCheckbox
 ].forEach(cb => {
   if (cb) cb.addEventListener('change', refreshModalSummary);
+});
+
+if (filterMegasCheckbox) {
+  filterMegasCheckbox.addEventListener('change', () => {
+    if (filterMegasCheckbox.checked) {
+      ensureMegaTierEnabled();
+    } else {
+      if (subMegasCheckbox) subMegasCheckbox.checked = false;
+      if (subGMaxCheckbox) subGMaxCheckbox.checked = false;
+      if (subStartersCheckbox) subStartersCheckbox.checked = false;
+    }
+    refreshModalSummary();
+  });
+}
+
+[subMegasCheckbox, subGMaxCheckbox, subStartersCheckbox].forEach(subEl => {
+  if (subEl) {
+    subEl.addEventListener('change', () => {
+      const anySub = (subMegasCheckbox && subMegasCheckbox.checked) ||
+        (subGMaxCheckbox && subGMaxCheckbox.checked) ||
+        (subStartersCheckbox && subStartersCheckbox.checked);
+      if (filterMegasCheckbox) {
+        filterMegasCheckbox.checked = anySub;
+      }
+      refreshModalSummary();
+    });
+  }
 });
 
 if (filterVariantsCheckbox) {
@@ -4355,6 +4626,14 @@ function ensureLegTierEnabled() {
 }
 
 function ensureMegaTierEnabled() {
+  const anySub = (subMegasCheckbox && subMegasCheckbox.checked) ||
+    (subGMaxCheckbox && subGMaxCheckbox.checked) ||
+    (subStartersCheckbox && subStartersCheckbox.checked);
+  if (!anySub) {
+    if (subMegasCheckbox) subMegasCheckbox.checked = true;
+    if (subGMaxCheckbox) subGMaxCheckbox.checked = true;
+    if (subStartersCheckbox) subStartersCheckbox.checked = true;
+  }
   if (filterMegasCheckbox) filterMegasCheckbox.checked = true;
 }
 
@@ -4440,6 +4719,24 @@ megaVariantIds.forEach(id => {
         ensureMegaTierEnabled();
       } else if (!anyChecked) {
         if (filterMegasCheckbox) filterMegasCheckbox.checked = false;
+      }
+      refreshModalSummary();
+    });
+  }
+});
+
+pseudoVariantIds.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('change', () => {
+      const anyChecked = pseudoVariantIds.some(vid => {
+        const vel = document.getElementById(vid);
+        return vel && vel.checked;
+      });
+      if (el.checked) {
+        if (filterPseudoCheckbox) filterPseudoCheckbox.checked = true;
+      } else if (!anyChecked) {
+        if (filterPseudoCheckbox) filterPseudoCheckbox.checked = false;
       }
       refreshModalSummary();
     });
@@ -4881,6 +5178,14 @@ if (saveTargetsBtn) {
     config.settings.legendaryParadox = paradoxLeg;
 
     config.settings.findMegasAndGigantamax = isMega;
+    config.settings.findPseudoLegendaries = isPseudo;
+    config.settings.pseudoVariants = selectedPseudoVars;
+    config.settings.enableTypeFilter = isType;
+    config.settings.selectedTypes = selectedTypesList;
+    config.settings.dexCompletionMode = activeDex;
+    config.settings.ballRouting = routingObj;
+    config.settings.ballFallbackPolicy = activeFallback;
+
     config.settings.findAnySpecialVariant = isVar;
     config.settings.enableVariantFilter = isVar;
     config.settings.selectedVariants = selectedVars;
@@ -4910,15 +5215,15 @@ if (saveTargetsBtn) {
     else if (isLeg && !isMega && !isVar && !isLevel && legAll10 && !hasCustom) preset = 'legendaries';
     else if (!isLeg && isMega && !isVar && !isLevel && megaAll10 && !hasCustom) preset = 'megas';
 
-    config.settings.targetPreset = preset;
+    const chosenPreset = targetPresetSelect ? targetPresetSelect.value : preset;
+    config.settings.targetPreset = chosenPreset;
     saveLocalConfig();
     updateTargetUI();
     closeTargetModal();
 
-
     delugeView.send('update-config', config.settings);
     syncHuntingState();
-    updateStatus('Targets: ' + preset.toUpperCase() + ' applied', '#10b981');
+    updateStatus('Targets: ' + chosenPreset.toUpperCase() + ' applied', '#10b981');
   });
 }
 
@@ -5072,6 +5377,7 @@ if (autoStartMapBtn) {
     }
     saveLocalConfig();
     updateAutoStartMapUI();
+updateRandomMapUI();
     updateStatus('Auto-Start on Maps: ' + (config.settings.autoStartOnMap ? 'ON' : 'OFF'), '#10b981');
   });
 }
@@ -5083,6 +5389,7 @@ if (autoStartDelaySelect) {
     config.settings.autoStartDelay = val;
     saveLocalConfig();
     updateAutoStartMapUI();
+updateRandomMapUI();
     updateStatus(`Auto-Start Delay: ${val}s (Captcha Safety)`, '#10b981');
     backendLog('Settings', `Auto-start map safety delay updated to ${val}s`);
   });
@@ -5952,7 +6259,10 @@ if (candidatePoolFilterSelect) {
 }
 
 function handleLiveBattleOpponents(data) {
-  if (!data || !Array.isArray(data.roster) || data.roster.length === 0) return;
+  if (!data) return;
+  const isPostBattle = Boolean(data.isPostBattleScreen || data.isVictoryScreen || data.isDefeatScreen);
+  if (!isPostBattle && (!Array.isArray(data.roster) || data.roster.length === 0)) return;
+  if (!Array.isArray(data.roster)) data.roster = [];
 
   // Mid-Battle Roster & Team Preservation
   if (data.isInActiveBattle && data.roster.length === 1) {
@@ -5983,10 +6293,13 @@ function handleLiveBattleOpponents(data) {
         return pClean === liveOppName || stripVar(pClean) === cleanLiveBase;
       });
       if (matchIdx !== -1) {
-        for (let i = 0; i < matchIdx; i++) {
-          prevRoster[i].isFainted = true;
-          prevRoster[i].hp = 0;
+        const prevActiveIdx = prevRoster.findIndex(p => p.isCurrentActive);
+        if (prevActiveIdx !== -1 && prevActiveIdx !== matchIdx) {
+          prevRoster[prevActiveIdx].isFainted = true;
+          prevRoster[prevActiveIdx].hp = 0;
         }
+        prevRoster.forEach(p => { p.isCurrentActive = false; });
+        prevRoster[matchIdx].isCurrentActive = true;
         prevRoster[matchIdx].hp = liveOpp.hp;
         prevRoster[matchIdx].maxHp = liveOpp.maxHp;
         prevRoster[matchIdx].level = liveOpp.level;
@@ -6034,10 +6347,8 @@ function handleLiveBattleOpponents(data) {
           return pClean === liveOppName || stripVar(pClean) === cleanLiveBase;
         });
         if (mIdx !== -1) {
-          for (let i = 0; i < mIdx; i++) {
-            fullRoster[i].isFainted = true;
-            fullRoster[i].hp = 0;
-          }
+          fullRoster.forEach(p => { p.isCurrentActive = false; });
+          fullRoster[mIdx].isCurrentActive = true;
           fullRoster[mIdx].hp = liveOpp.hp;
           fullRoster[mIdx].maxHp = liveOpp.maxHp;
           fullRoster[mIdx].level = liveOpp.level;
@@ -6054,26 +6365,119 @@ function handleLiveBattleOpponents(data) {
     }
   }
 
+  const matchesTeamEntryName = (uName, member) => {
+    if (!uName || !member || !member.name) return false;
+    const uLower = String(uName).toLowerCase().trim();
+    const mLower = String(member.name).toLowerCase().trim();
+    if (uLower === mLower) return true;
+    const mVar = (member.variant && member.variant !== 'Normal') ? (String(member.variant).toLowerCase().trim() + ' ') : '';
+    return mVar ? (uLower === mVar + mLower) : false;
+  };
+
+  // Enrich #switchpoke entries lacking DOM level numbers from known team/collection
+  if (Array.isArray(data.userTeam) && data.userTeam.length > 0) {
+    data.userTeam.forEach(u => {
+      if (!u || !u.name) return;
+      if (u.levelKnown === false) {
+        const knownMem = (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.find(m => matchesTeamEntryName(u.name, m))) ||
+                         (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.find(m => matchesTeamEntryName(u.name, m))) ||
+                         (Array.isArray(currentCollection) && currentCollection.find(c => matchesTeamEntryName(u.name, c)));
+        if (knownMem && typeof knownMem.level === 'number') {
+          u.level = knownMem.level;
+        }
+      }
+    });
+  }
+
   // Track and retain userTeam across preparation, challenge preview, and active battle screens
   if (Array.isArray(data.userTeam) && data.userTeam.length > 0) {
+    if ((data.isInActiveBattle || isPostBattle) && Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > data.userTeam.length) {
+      const isSameParty = data.userTeam.every(u => lastKnownUserTeam.some(m => matchesTeamEntryName(u.name, m)));
+      if (isSameParty) {
+        data.userTeam = lastKnownUserTeam.map((mem, idx) => {
+          const liveMatch = data.userTeam.find(u => matchesTeamEntryName(u.name, mem));
+          if (liveMatch) {
+            const merged = Object.assign({}, mem, liveMatch, { index: idx });
+            if (!data.isPreparationScreen && (mem.isFainted || (typeof mem.hp === 'number' && mem.hp <= 0))) {
+              merged.isFainted = true;
+              merged.hp = 0;
+            } else if (!liveMatch.isFainted && liveMatch.levelKnown === false) {
+              if (typeof mem.hp === 'number' && mem.hp > 0) merged.hp = mem.hp;
+              if (typeof mem.maxHp === 'number' && mem.maxHp > 0) merged.maxHp = mem.maxHp;
+            }
+            return merged;
+          }
+          if (data.userActivePokemon && matchesTeamEntryName(data.userActivePokemon.name, mem)) {
+            return Object.assign({}, mem, data.userActivePokemon, { index: idx });
+          }
+          if (data.isInActiveBattle) {
+            return Object.assign({}, mem, { hp: 0, isFainted: true, index: idx });
+          }
+          return Object.assign({}, mem, { index: idx });
+        });
+      }
+    }
     lastKnownUserTeam = data.userTeam;
+    const isFreshMatchPrep = Boolean(
+      data.isPreparationScreen &&
+      (!Array.isArray(data.roster) || !data.roster.some(p => p.isFainted || (typeof p.hp === 'number' && typeof p.maxHp === 'number' && p.maxHp > 0 && p.hp < p.maxHp))) &&
+      (!Array.isArray(data.userTeam) || !data.userTeam.some(u => u.isFainted || (typeof u.hp === 'number' && typeof u.maxHp === 'number' && u.maxHp > 0 && u.hp < u.maxHp)))
+    );
+    if (isFreshMatchPrep) {
+      currentMatchParticipants.clear();
+      justSwitchedActivePokemon.clear();
+      currentMatchSwitchCount = 0;
+    }
+    if (data.userActivePokemon && data.userActivePokemon.name) {
+      currentMatchParticipants.add(data.userActivePokemon.name.toLowerCase());
+    }
+    if (!isFreshMatchPrep) {
+      data.userTeam.forEach(u => {
+        if (!u || !u.name) return;
+        if (u.isFainted || (typeof u.hp === 'number' && typeof u.maxHp === 'number' && u.maxHp > 0 && u.hp < u.maxHp)) {
+          currentMatchParticipants.add(u.name.toLowerCase());
+        }
+      });
+    }
+    if (Array.isArray(data.participatingPokemon)) {
+      data.participatingPokemon.forEach(u => {
+        if (u && u.name) currentMatchParticipants.add(u.name.toLowerCase());
+      });
+    }
     if (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0) {
       let teamUpdated = false;
       lastRecommendedTeam.forEach(member => {
-        const found = data.userTeam.find(u => u.name && u.name.toLowerCase() === member.name.toLowerCase());
+        const found = data.userTeam.find(u => u && u.levelKnown !== false && matchesTeamEntryName(u.name, member));
         if (found && found.level && found.level !== member.level) {
           member.level = found.level;
           teamUpdated = true;
         }
       });
+      if (teamUpdated) {
+        let hasAssignedPrimary = false;
+        lastRecommendedTeam.forEach(member => {
+          if (member.isCarry) return;
+          if ((member.level || 0) >= 100) {
+            member.targetName = 'Maxed Graduate';
+            member.role = 'Graduated Lv 100';
+          } else if (!hasAssignedPrimary) {
+            member.targetName = 'Primary Trainee Partner';
+            member.role = 'Primary Trainee Duo (Lv ' + member.level + ')';
+            hasAssignedPrimary = true;
+          } else {
+            member.targetName = 'Trainee #' + member.slot;
+            member.role = 'Trainee EXP Receiver (Lv ' + member.level + ')';
+          }
+        });
+      }
       if (teamUpdated && teamResultContainer && teamResultContainer.style.display !== 'none') {
         renderTeamLineup(liveBattleOpponent || { name: 'Active Opponent' }, lastRecommendedTeam);
       }
     }
     if (Array.isArray(currentCollection) && currentCollection.length > 0) {
       data.userTeam.forEach(u => {
-        if (!u || !u.name || !u.level) return;
-        const match = currentCollection.find(c => c && c.name && c.name.toLowerCase() === u.name.toLowerCase());
+        if (!u || !u.name || !u.level || u.levelKnown === false) return;
+        const match = currentCollection.find(c => c && matchesTeamEntryName(u.name, c));
         if (match && typeof match.level === 'number' && u.level > match.level) {
           match.level = u.level;
         }
@@ -6119,95 +6523,127 @@ function handleLiveBattleOpponents(data) {
     backendLog('BATTLE_DETECTOR', `Opponent detected: ${data.trainerName} (${data.roster.length} Pokemon)`);
   }
 
-  // Auto-learn into gymLeadersData and persist to gym_leaders.json (skip for stalked player profiles)
-  if (gymLeadersData && data.trainerName && !data.isProfileStalk) {
+  // Empirical Battle EXP Telemetry Ingestion
+  if (data.isVictoryScreen && data.gainedExpPerPoke > 0) {
+    handleBattleExpCalibrated(data);
+  }
+
+  // Auto-learn into gymLeadersData and persist to gym_leaders.json
+  if (gymLeadersData && data.trainerName) {
     let targetTrainer = null;
     const cleanSearchName = data.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
     const curBattleUrl = (data.battleUrl || (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '').toLowerCase();
-    const allGroups = [
-      gymLeadersData.ULTIMATE_TRAINERS,
-      gymLeadersData.STRONG_TRAINERS,
-      gymLeadersData.VIP_TRAINERS,
-      gymLeadersData.STANDARD_TRAINERS
-    ];
 
-    // Priority 1: Match by battleUrl or npcId
-    for (const group of allGroups) {
-      if (!group) continue;
+    // Priority 1: Match by battleUrl or npcId across all groups and regions
+    for (const key of Object.keys(gymLeadersData)) {
+      const group = gymLeadersData[key];
+      if (!Array.isArray(group)) continue;
       targetTrainer = group.find(t => {
         return (t.battleUrl && curBattleUrl && curBattleUrl.includes(t.battleUrl.toLowerCase())) ||
                (t.npcId && data.npcId && t.npcId === data.npcId);
       });
       if (targetTrainer) break;
     }
-    if (!targetTrainer && gymLeadersData.GYM_LEAGUES) {
-      for (const reg in gymLeadersData.GYM_LEAGUES) {
-        targetTrainer = gymLeadersData.GYM_LEAGUES[reg].find(t => {
-          return t.battleUrl && curBattleUrl && curBattleUrl.includes(t.battleUrl.toLowerCase());
-        });
-        if (targetTrainer) break;
-      }
-    }
 
-    // Priority 2: Fallback to matching by trainer name
+    // Priority 2: Fallback to matching by trainer name across all groups and regions
     if (!targetTrainer) {
-      for (const group of allGroups) {
-        if (!group) continue;
+      for (const key of Object.keys(gymLeadersData)) {
+        const group = gymLeadersData[key];
+        if (!Array.isArray(group)) continue;
         targetTrainer = group.find(t => {
-          const cName = t.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const cName = (t.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
           return cName === cleanSearchName;
         });
         if (targetTrainer) break;
-      }
-      if (!targetTrainer && gymLeadersData.GYM_LEAGUES) {
-        for (const reg in gymLeadersData.GYM_LEAGUES) {
-          targetTrainer = gymLeadersData.GYM_LEAGUES[reg].find(t => {
-            const cName = t.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-            return cName === cleanSearchName;
-          });
-          if (targetTrainer) break;
-        }
       }
     }
 
     if (targetTrainer && !data.isVictoryScreen) {
       if (!Array.isArray(targetTrainer.roster)) targetTrainer.roster = [];
       let updated = false;
-      if (data.isPreparationScreen && Array.isArray(data.roster) && data.roster.length > 0 && data.roster.length <= 6) {
-        // Protect canonical 6-Pokemon rosters from partial preview truncation
-        if (!(targetTrainer.roster.length === 6 && data.roster.length < 6)) {
-          const cleanCurrent = targetTrainer.roster.map(p => `${p.name}_${p.level}`).join(',');
-          const cleanIncoming = data.roster.map(p => `${p.name}_${p.level}`).join(',');
-          if (cleanCurrent !== cleanIncoming) {
-            targetTrainer.roster = data.roster.map(p => ({
-              name: p.name,
-              types: p.types || ['Normal'],
-              level: p.level || targetTrainer.avgLevel || 50,
-              sprite: p.sprite || ''
-            }));
-            updated = true;
-          }
+
+      const formatIncomingMoves = (mList) => {
+        if (!Array.isArray(mList) || mList.length === 0) return [];
+        const out = [];
+        for (const m of mList) {
+          const rawName = typeof m === 'string' ? m : (m && m.name ? m.name : '');
+          if (!rawName) continue;
+          const cleanName = rawName.replace(/\s+and\s+dealt\s+\d+HP\s+Damage/i, '').trim();
+          if (!cleanName) continue;
+          const resolved = (teamEngine && typeof teamEngine.resolveMove === 'function')
+            ? teamEngine.resolveMove(cleanName)
+            : null;
+          const mType = (resolved && resolved.type) || (typeof m === 'object' && m.type ? m.type : 'Normal');
+          out.push({
+            name: (resolved && resolved.name) || cleanName,
+            type: mType
+          });
         }
-      } else {
-        for (const newPoke of data.roster) {
-          if (targetTrainer.roster.length >= 6) break;
-          const existing = targetTrainer.roster.find(p => p.name.toLowerCase() === newPoke.name.toLowerCase());
-          if (!existing) {
-            targetTrainer.roster.push({
-              name: newPoke.name,
-              types: newPoke.types || ['Normal'],
-              level: newPoke.level || targetTrainer.avgLevel || 50,
-              sprite: newPoke.sprite || ''
-            });
+        return out;
+      };
+
+      if (Array.isArray(data.roster) && data.roster.length > 0) {
+        for (let i = 0; i < data.roster.length; i++) {
+          const incPoke = data.roster[i];
+          if (!incPoke || !incPoke.name) continue;
+
+          let existing = targetTrainer.roster.find(p => p.name.toLowerCase() === incPoke.name.toLowerCase());
+          if (!existing && targetTrainer.roster.length === data.roster.length && targetTrainer.roster[i]) {
+            existing = targetTrainer.roster[i];
+          }
+
+          const incMoves = formatIncomingMoves(incPoke.moves);
+          const incTypes = incPoke.types && incPoke.types.length > 0 ? incPoke.types : null;
+
+          if (existing) {
+            if (incMoves.length > 0) {
+              if (!Array.isArray(existing.moves)) existing.moves = [];
+              const existingMoveNames = existing.moves.map(m => (m && m.name ? m.name : m).toLowerCase());
+              let moveAdded = false;
+              for (const nm of incMoves) {
+                if (!existingMoveNames.includes(nm.name.toLowerCase())) {
+                  existing.moves.push(nm);
+                  existingMoveNames.push(nm.name.toLowerCase());
+                  moveAdded = true;
+                }
+              }
+              if (moveAdded) {
+                existing.knownMoveTypes = Array.from(new Set(existing.moves.map(m => m.type).filter(Boolean)));
+                updated = true;
+              }
+            }
+            if (incPoke.level && existing.level !== incPoke.level) {
+              existing.level = incPoke.level;
+              updated = true;
+            }
+            if (incTypes && (!existing.types || existing.types.length === 0 || (existing.types.length === 1 && existing.types[0] === 'Normal' && incTypes[0] !== 'Normal'))) {
+              existing.types = incTypes;
+              updated = true;
+            }
+            if (incPoke.sprite && !existing.sprite) {
+              existing.sprite = incPoke.sprite;
+              updated = true;
+            }
+          } else if (targetTrainer.roster.length < 6) {
+            const newEntry = {
+              name: incPoke.name,
+              types: incTypes || ['Normal'],
+              level: incPoke.level || targetTrainer.avgLevel || 50,
+              sprite: incPoke.sprite || '',
+              moves: incMoves,
+              knownMoveTypes: Array.from(new Set(incMoves.map(m => m.type).filter(Boolean)))
+            };
+            targetTrainer.roster.push(newEntry);
             updated = true;
           }
         }
       }
+
       if (updated) {
         try {
           const gymPath = getWritableDataPath('gym_leaders.json');
           fs.writeFileSync(gymPath, JSON.stringify(gymLeadersData, null, 2), 'utf8');
-          backendLog('ROSTER_HARVESTER', `Updated ${targetTrainer.name} roster (${targetTrainer.roster.length}/6 known)`);
+          backendLog('ROSTER_HARVESTER', `Updated ${targetTrainer.name} roster attacks & data (${targetTrainer.roster.length}/6 known)`);
           populateGymTrainerSelect();
           if (targetLeader && targetLeader.name && targetLeader.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanSearchName) {
             targetLeader = targetTrainer;
@@ -7228,6 +7664,10 @@ function renderTeamLineup(leader, team) {
       } else {
         targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid #388bfd; border-radius:4px;">CARRY ANCHOR</span>';
       }
+    } else if (p.targetName === 'Backup Carry Anchor' || p.targetName === 'Secondary Safety Anchor') {
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#388bfd; background:rgba(56, 139, 253, 0.15); border:1px solid #388bfd; border-radius:4px;">BACKUP CARRY</span>';
+    } else if (!p.isCarry && (p.level || 0) >= 100) {
+      targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#10b981; background:rgba(16, 185, 129, 0.15); border:1px solid #10b981; border-radius:4px;">MAXED</span>';
     } else if (p.targetName === 'Primary Trainee Partner' || p.targetName === 'Primary Trainee') {
       targetBadgeHtml = '<span style="display:inline-block; padding:2px 6px; font-size:9.5px; font-weight:700; color:#2ea043; background:rgba(46, 160, 67, 0.15); border:1px solid #2ea043; border-radius:4px;">PRIMARY TRAINEE</span>';
     } else if (p.targetName === 'Lead Solo Sweeper' || p.targetName === 'Solo Sweeper') {
@@ -7342,13 +7782,32 @@ function executeTeamBuild(targetLeader) {
     const bestCarries = carryPoke ? teamEngine.buildBestTeam(targetLeader, [carryPoke]) : [];
     const carry = bestCarries.length > 0 ? bestCarries[0] : null;
 
-    // 2. Trainees filtered to prevent duplicate species with carry
-    const carrySpecies = carry ? teamEngine.getBaseSpecies(carry.name) : '';
-    const availableTrainees = trainees.filter(p => (!carry || p.id !== carry.id) && (!carrySpecies || teamEngine.getBaseSpecies(p.name) !== carrySpecies));
+    // Evaluate if opponent is a very strong 6/6 roster opponent that warrants 2 Carries for guaranteed victory
+    const needsDualCarries = Boolean(teamEngine.isVeryStrongOpponent && teamEngine.isVeryStrongOpponent(targetLeader) && collectionLvl100s.length >= 2);
+    let carry2 = null;
+    let carry2Poke = null;
+
+    if (needsDualCarries && carry) {
+      const carry1Species = teamEngine.getBaseSpecies(carry.name);
+      const carry2Candidate = rankedCarries.find(r => r.poke && r.poke.id !== carry.id && teamEngine.getBaseSpecies(r.poke.name) !== carry1Species);
+      carry2Poke = carry2Candidate ? carry2Candidate.poke : null;
+      if (carry2Poke) {
+        const bestCarries2 = teamEngine.buildBestTeam(targetLeader, [carry2Poke]);
+        carry2 = bestCarries2.length > 0 ? bestCarries2[0] : null;
+      }
+    }
+
+    // Trainees filtered to prevent duplicate species with carries
+    const carryIds = new Set([carry ? carry.id : null, carry2 ? carry2.id : null].filter(Boolean));
+    const carrySpeciesSet = new Set([
+      carry ? teamEngine.getBaseSpecies(carry.name) : null,
+      carry2 ? teamEngine.getBaseSpecies(carry2.name) : null
+    ].filter(Boolean));
+    const availableTrainees = trainees.filter(p => !carryIds.has(p.id) && !carrySpeciesSet.has(teamEngine.getBaseSpecies(p.name)));
 
     const hybridTeam = [];
 
-    // Slot 1: Unstoppable Max Level Carry Anchor (Always Level 100)
+    // Slot 1: Unstoppable Lead Carry Anchor (Always Level 100)
     if (carry) {
       const carryGuidance = (carryPoke && typeof teamEngine.getCarryMoveGuidance === 'function')
         ? teamEngine.getCarryMoveGuidance(carryPoke, targetLeader)
@@ -7371,52 +7830,77 @@ function executeTeamBuild(targetLeader) {
         targetName: 'Safety Anchor & Carry',
         role: isAtRisk ? 'Vulnerable Carry' : ('Solo Sweeper Carry (Lv ' + carry.level + ')'),
         score: carry.score,
-        isAtRisk: isAtRisk
+        isAtRisk: isAtRisk,
+        isCarry: true
       });
     }
 
-    // Slot 2: Primary Trainee Partner (The trainee that can defeat/sweep the most opponents alongside the carry)
-      const rankedPartners = typeof teamEngine.rankTraineePartners === 'function'
-        ? teamEngine.rankTraineePartners(availableTrainees, targetLeader)
-        : availableTrainees.map(t => ({ poke: t }));
+    // Slot 2: Secondary Carry Anchor (for very strong 6/6 roster opponents)
+    if (carry2) {
+      const carry2Guidance = (carry2Poke && typeof teamEngine.getCarryMoveGuidance === 'function')
+        ? teamEngine.getCarryMoveGuidance(carry2Poke, targetLeader)
+        : carry2.bestMove;
 
-      const primaryPartner = rankedPartners.length > 0 ? rankedPartners[0].poke : null;
+      hybridTeam.push({
+        slot: 2,
+        id: carry2.id,
+        name: carry2.name,
+        variant: carry2.variant,
+        level: carry2.level,
+        types: carry2.types,
+        sprite: carry2.sprite,
+        bestMove: carry2Guidance,
+        targetName: 'Backup Carry Anchor',
+        role: 'Backup Sweeper Carry (Lv ' + carry2.level + ')',
+        score: carry2.score || 950,
+        isCarry: true
+      });
+    }
 
-      if (primaryPartner) {
-        const partnerMove = teamEngine.getRosterWideBestAttack(primaryPartner, targetLeader);
-        hybridTeam.push({
-          slot: 2,
-          id: primaryPartner.id,
-          name: primaryPartner.name,
-          variant: primaryPartner.variant,
-          level: primaryPartner.level,
-          types: primaryPartner.types,
-          sprite: primaryPartner.sprite,
-          bestMove: partnerMove,
-          targetName: 'Primary Trainee Partner',
-          role: 'Primary Trainee Duo (Lv ' + primaryPartner.level + ')',
-          score: rankedPartners[0].score || 500
-        });
-      }
+    // Primary Trainee Partner
+    const rankedPartners = typeof teamEngine.rankTraineePartners === 'function'
+      ? teamEngine.rankTraineePartners(availableTrainees, targetLeader)
+      : availableTrainees.map(t => ({ poke: t }));
 
-      // Slots 3 to 6: Remaining trainees (ranked by matchup effectiveness against opponent)
-      const otherRankedTrainees = rankedPartners.slice(1).map(r => r.poke);
-      for (let i = 0; i < otherRankedTrainees.length && hybridTeam.length < 6; i++) {
-        const t = otherRankedTrainees[i];
-        hybridTeam.push({
-          slot: hybridTeam.length + 1,
-          id: t.id,
-          name: t.name,
-          variant: t.variant,
-          level: t.level,
-          types: t.types,
-          sprite: t.sprite,
-          bestMove: teamEngine.getRosterWideBestAttack(t, targetLeader),
-          targetName: 'Trainee #' + (hybridTeam.length + 1),
-          role: 'Trainee EXP Receiver (Lv ' + t.level + ')',
-          score: 100
-        });
-      }
+    const primaryPartner = rankedPartners.length > 0 ? rankedPartners[0].poke : null;
+
+    if (primaryPartner) {
+      const partnerMove = teamEngine.getRosterWideBestAttack(primaryPartner, targetLeader);
+      hybridTeam.push({
+        slot: hybridTeam.length + 1,
+        id: primaryPartner.id,
+        name: primaryPartner.name,
+        variant: primaryPartner.variant,
+        level: primaryPartner.level,
+        types: primaryPartner.types,
+        sprite: primaryPartner.sprite,
+        bestMove: partnerMove,
+        targetName: 'Primary Trainee Partner',
+        role: 'Primary Trainee Duo (Lv ' + primaryPartner.level + ')',
+        score: rankedPartners[0].score || 500,
+        isCarry: false
+      });
+    }
+
+    // Remaining trainees (ranked by matchup effectiveness against opponent)
+    const otherRankedTrainees = rankedPartners.slice(1).map(r => r.poke);
+    for (let i = 0; i < otherRankedTrainees.length && hybridTeam.length < 6; i++) {
+      const t = otherRankedTrainees[i];
+      hybridTeam.push({
+        slot: hybridTeam.length + 1,
+        id: t.id,
+        name: t.name,
+        variant: t.variant,
+        level: t.level,
+        types: t.types,
+        sprite: t.sprite,
+        bestMove: teamEngine.getRosterWideBestAttack(t, targetLeader),
+        targetName: 'Trainee #' + (hybridTeam.length + 1),
+        role: 'Trainee EXP Receiver (Lv ' + t.level + ')',
+        score: 100,
+        isCarry: false
+      });
+    }
 
       // Fill remaining slots up to 6 with high-level reserve anchors from collection
       if (hybridTeam.length < 6) {
@@ -7856,32 +8340,141 @@ function updateLoopCheckboxVisual() {
   }
 }
 
+function handleBattleExpCalibrated(data) {
+  if (!data || !data.trainerName) return;
+  const cleanSearchName = data.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  let targetTrainer = null;
+  if (gymLeadersData) {
+    for (const key of Object.keys(gymLeadersData)) {
+      const group = gymLeadersData[key];
+      if (!Array.isArray(group)) continue;
+      targetTrainer = group.find(t => {
+        const cName = (t.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return cName === cleanSearchName;
+      });
+      if (targetTrainer) break;
+    }
+  }
+
+  if (targetTrainer) {
+    targetTrainer.expYield = {
+      baselinePool: data.totalExpPool || (data.gainedExpPerPoke * (data.participantsCount || 2)),
+      lastGainedExp: data.gainedExpPerPoke,
+      lastCoinsWon: data.coinsWon || 0,
+      lastParticipantsCount: data.participantsCount || 2,
+      lastCalibratedAt: Date.now()
+    };
+    try {
+      const gymPath = getWritableDataPath('gym_leaders.json');
+      fs.writeFileSync(gymPath, JSON.stringify(gymLeadersData, null, 2), 'utf8');
+      backendLog('EXP_CALIBRATOR', 'Calibrated ' + targetTrainer.name + ': ' + data.gainedExpPerPoke + ' EXP/pkmn (' + (data.participantsCount || 2) + ' pkmn, pool: ' + targetTrainer.expYield.baselinePool + ')');
+    } catch (e) {
+      backendLog('EXP_CALIBRATOR', 'Failed saving exp calibration: ' + e.message);
+    }
+  }
+
+  if (Array.isArray(data.participatingPokemon) && data.participatingPokemon.length > 0 && Array.isArray(currentCollection)) {
+    let collUpdated = false;
+    data.participatingPokemon.forEach(u => {
+      if (!u || !u.name) return;
+      const uLower = String(u.name).toLowerCase().trim();
+      const match = currentCollection.find(c => {
+        if (!c || !c.name) return false;
+        const cLower = String(c.name).toLowerCase().trim();
+        if (uLower === cLower) return true;
+        const cVar = (c.variant && c.variant !== 'Normal') ? (String(c.variant).toLowerCase().trim() + ' ') : '';
+        return cVar ? (uLower === cVar + cLower) : false;
+      });
+      if (match) {
+        if (typeof u.level === 'number' && u.level > (match.level || 0)) {
+          match.level = u.level;
+          collUpdated = true;
+        }
+        if (typeof u.exp === 'number' && u.exp > (match.exp || 0)) {
+          match.exp = u.exp;
+          collUpdated = true;
+        }
+      }
+    });
+    if (collUpdated && typeof updateTrainerIntelStats === 'function') {
+      updateTrainerIntelStats();
+    }
+  }
+}
+
+function predictTrainerExpGain(trainer, candidateCount = 2, candidateLevel = 50) {
+  if (!trainer) return { predictedExp: 10000, isCalibrated: false, baselinePool: 20000 };
+  const count = Math.max(1, candidateCount || 2);
+
+  if (trainer.expYield && trainer.expYield.baselinePool) {
+    const base = trainer.expYield.baselinePool;
+    let lvlMultiplier = 1.0;
+    if (candidateLevel <= 20) lvlMultiplier = 1.15;
+    else if (candidateLevel <= 40) lvlMultiplier = 1.08;
+    else if (candidateLevel >= 80) lvlMultiplier = 0.95;
+
+    const predicted = Math.round((base / count) * lvlMultiplier);
+    return {
+      predictedExp: predicted,
+      isCalibrated: true,
+      baselinePool: base,
+      lastGainedExp: trainer.expYield.lastGainedExp || predicted
+    };
+  }
+
+  const oppCount = (trainer.roster && trainer.roster.length) || 6;
+  const oppAvgLvl = trainer.avgLevel || 50;
+  const estPool = Math.round(oppCount * oppAvgLvl * 60);
+  const predicted = Math.round(estPool / count);
+  return {
+    predictedExp: predicted,
+    isCalibrated: false,
+    baselinePool: estPool
+  };
+}
+
 function areAllTeamPokemonLevel100() {
-  // 1. Live Battling Team (Strict Source of Truth for Active Combat & Post-Battle Victory)
+  // Live participants from victory/battle screen (prioritized over stale sidebar recommendations)
   const battlingTeam = (activeAiBattleData && Array.isArray(activeAiBattleData.userTeam) && activeAiBattleData.userTeam.length > 0)
     ? activeAiBattleData.userTeam
-    : (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > 0 ? lastKnownUserTeam : null);
+    : [];
+  const liveRoster = (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > battlingTeam.length)
+    ? lastKnownUserTeam
+    : (battlingTeam.length > 0 ? battlingTeam : null);
 
-  if (battlingTeam && battlingTeam.length > 0) {
-    return battlingTeam.every(p => {
-      let lvl = (p && p.level !== undefined && p.level !== null) ? parseInt(p.level, 10) : NaN;
-      if (isNaN(lvl) && Array.isArray(currentCollection) && p && p.name) {
-        const match = currentCollection.find(c => c && c.name && c.name.toLowerCase() === p.name.toLowerCase());
-        if (match && match.level !== undefined && match.level !== null) lvl = parseInt(match.level, 10);
-      }
-      return !isNaN(lvl) && lvl >= 100;
-    });
+  // Source of Truth: The active live battling party (all 6 Pokemon), falling back to recommended team
+  const fullRoster = (liveRoster && liveRoster.length > 0)
+    ? liveRoster
+    : (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0 ? lastRecommendedTeam : null);
+
+  if (!fullRoster || fullRoster.length === 0) {
+    return false;
   }
 
-  // 2. Fallback ONLY if no battle has occurred yet and no active team has been observed
-  if (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0) {
-    return lastRecommendedTeam.every(p => {
-      const lvl = (p && p.level !== undefined && p.level !== null) ? parseInt(p.level, 10) : NaN;
-      return !isNaN(lvl) && lvl >= 100;
-    });
-  }
+  const liveParticipants = battlingTeam;
+  const matchName = (uName, mem) => {
+    if (!uName || !mem || !mem.name) return false;
+    const uLower = String(uName).toLowerCase().trim();
+    const mLower = String(mem.name).toLowerCase().trim();
+    if (uLower === mLower) return true;
+    const mVar = (mem.variant && mem.variant !== 'Normal') ? (String(mem.variant).toLowerCase().trim() + ' ') : '';
+    return mVar ? (uLower === mVar + mLower) : false;
+  };
 
-  return false;
+  // The loop only finishes when EVERY single member of the team roster reaches Level 100
+  return fullRoster.every(mem => {
+    let lvl = (mem && mem.level !== undefined && mem.level !== null) ? parseInt(mem.level, 10) : NaN;
+    if (liveParticipants.length > 0 && mem && mem.name) {
+      const found = liveParticipants.find(u => u && matchName(u.name, mem));
+      if (found && found.level) lvl = parseInt(found.level, 10);
+    }
+    if (isNaN(lvl) && Array.isArray(currentCollection) && mem && mem.name) {
+      const match = currentCollection.find(c => c && matchName(c.name, mem));
+      if (match && match.level !== undefined && match.level !== null) lvl = parseInt(match.level, 10);
+    }
+    return !isNaN(lvl) && lvl >= 100;
+  });
 }
 
 function scheduleNextLoopBattle() {
@@ -7892,7 +8485,6 @@ function scheduleNextLoopBattle() {
     return;
   }
   userManuallyPaused = false;
-  // If a loop transition is already active and counting down, DO NOT reset it!
   if (battleLoopTimer) return;
 
   // Highest priority: Captcha & security challenges halt immediately
@@ -7909,7 +8501,7 @@ function scheduleNextLoopBattle() {
     return;
   }
 
-  // Check goal: All team Pokemon are Level 100
+  // Check goal: All team Pokemon on current roster are Level 100
   if (areAllTeamPokemonLevel100()) {
     isBattleLoopRunning = false;
     if (teamBattleLoopCheck) teamBattleLoopCheck.checked = false;
@@ -7925,13 +8517,12 @@ function scheduleNextLoopBattle() {
   // Human randomized micro-rest between matches (2400ms - 3600ms) to avoid bot detection and server flooding
   const microRestMs = 2400 + Math.floor(Math.random() * 1200);
   if (teamActionStatus) {
-    teamActionStatus.textContent = `Loop: Micro-rest (${(microRestMs / 1000).toFixed(1)}s) before next match...`;
+    teamActionStatus.textContent = 'Loop: Micro-rest (' + (microRestMs / 1000).toFixed(1) + 's) before next match...';
     teamActionStatus.style.color = '#388bfd';
   }
 
   battleLoopTimer = setTimeout(() => {
     battleLoopTimer = null;
-    // Strict safety re-verification before executing click
     if (isUnlockChallengeActive || isCaptchaAlarmActive) {
       isBattleLoopRunning = false;
       return;
@@ -7954,6 +8545,16 @@ function scheduleNextLoopBattle() {
     // Arm auto battle for the incoming match
     isBattleAutoRunning = true;
 
+    // Reset post-battle screen markers so watchdog and loop recognize new state
+    if (activeAiBattleData) {
+      activeAiBattleData.isVictoryScreen = false;
+      activeAiBattleData.isPostBattleScreen = false;
+      activeAiBattleData.isDefeatScreen = false;
+      if (typeof currentMatchParticipants !== 'undefined') currentMatchParticipants.clear();
+      if (typeof justSwitchedActivePokemon !== 'undefined') justSwitchedActivePokemon.clear();
+      currentMatchSwitchCount = 0;
+    }
+
     if (teamActionStatus) {
       teamActionStatus.textContent = 'Loop: Entering next battle...';
       teamActionStatus.style.color = '#388bfd';
@@ -7964,12 +8565,20 @@ function scheduleNextLoopBattle() {
       delugeView.send('click-rematch-button');
     }
 
-    // Graceful fallback to battleOpponentBtn if in-game rematch link is unavailable
+    // Graceful fallback watchdog: If webview is STILL on the post-battle screen after 900ms, navigate directly
     setTimeout(() => {
+      if (isUnlockChallengeActive || isCaptchaAlarmActive || !teamBattleAutoCheck || !teamBattleAutoCheck.checked || !teamBattleLoopCheck || !teamBattleLoopCheck.checked) {
+        return;
+      }
       if (delugeView) {
         try {
           const cUrl = (delugeView.getURL && delugeView.getURL()) ? delugeView.getURL() : '';
-          if (cUrl.indexOf('/battle') === -1 || cUrl.indexOf('defeat') !== -1 || cUrl.indexOf('result') !== -1) {
+          const isStillPostBattle = Boolean(
+            (activeAiBattleData && (activeAiBattleData.isVictoryScreen || activeAiBattleData.isPostBattleScreen || activeAiBattleData.isDefeatScreen)) ||
+            (cUrl.indexOf('/battle') === -1 || cUrl.indexOf('defeat') !== -1 || cUrl.indexOf('result') !== -1)
+          );
+          if (isStillPostBattle) {
+            backendLog('LOOP_ENGINE', 'Post-battle screen still active; executing direct arena entry...');
             if (battleOpponentBtn) battleOpponentBtn.click();
           }
         } catch (_) {
@@ -7978,7 +8587,7 @@ function scheduleNextLoopBattle() {
       } else if (battleOpponentBtn) {
         battleOpponentBtn.click();
       }
-    }, 550);
+    }, 900);
   }, microRestMs);
 }
 
@@ -8211,6 +8820,43 @@ function loadDailyCatchLog() {
     if (loaded.date === todayKey) {
       dailyCatchData.date = todayKey;
       dailyCatchData.caught = Array.isArray(loaded.caught) ? loaded.caught : [];
+      let needsResave = false;
+      dailyCatchData.caught.forEach(p => {
+        if (p.name) {
+          const clean = formatCleanPokemonName(p.name);
+          if (clean && clean !== p.name) {
+            p.name = clean;
+            needsResave = true;
+          }
+        }
+        const newKind = getCaughtPokemonKind(p);
+        if (p.kind !== newKind) {
+          p.kind = newKind;
+          needsResave = true;
+        }
+        if (p.kind === 'Starter') {
+          if (p.category !== 'Starter') {
+            p.category = 'Starter';
+            needsResave = true;
+          }
+          if (p.fullName && p.fullName.includes('Mega Line:')) {
+            p.fullName = p.fullName.replace(/Mega Line:\s*/i, 'Starter: ');
+            needsResave = true;
+          }
+        } else if (p.kind === 'Rare Line') {
+          if (p.category !== 'Rare Line') {
+            p.category = 'Rare Line';
+            needsResave = true;
+          }
+          if (p.fullName && p.fullName.includes('Mega Line:')) {
+            p.fullName = p.fullName.replace(/Mega Line:\s*/i, 'Rare Line: ');
+            needsResave = true;
+          }
+        }
+      });
+      if (needsResave) {
+        saveDailyCatchLog();
+      }
       dailyCatchData.masterBallStock = (typeof loaded.masterBallStock === 'number') ? loaded.masterBallStock : null;
       dailyCatchData.masterBallUsedToday = (typeof loaded.masterBallUsedToday === 'number') ? loaded.masterBallUsedToday : 0;
       if (loaded.bagInventory && typeof loaded.bagInventory === 'object') {
@@ -8308,6 +8954,107 @@ const CATCH_DIRECT_MEGA_SPECIES = [
   'lucario', 'abomasnow', 'diancie', 'audino', 'kyogre', 'groudon'
 ];
 
+const CATCH_GMAX_MEGA_STARTER_FAMILIES = [
+  'bulbasaur', 'ivysaur', 'venusaur',
+  'charmander', 'charmeleon', 'charizard',
+  'squirtle', 'wartortle', 'blastoise'
+];
+
+const CATCH_MEGA_STARTER_FAMILIES = [
+  'treecko', 'grovyle', 'sceptile',
+  'torchic', 'combusken', 'blaziken',
+  'mudkip', 'marshtomp', 'swampert'
+];
+
+const CATCH_GMAX_STARTER_FAMILIES = [
+  'grookey', 'thwackey', 'rillaboom',
+  'scorbunny', 'raboot', 'cinderace',
+  'sobble', 'drizzile', 'inteleon'
+];
+
+const CATCH_MEGA_GMAX_FAMILIES = [
+  'gastly', 'haunter', 'gengar'
+];
+
+const CATCH_STARTER_FAMILIES = [
+  'bulbasaur', 'ivysaur', 'venusaur',
+  'charmander', 'charmeleon', 'charizard',
+  'squirtle', 'wartortle', 'blastoise',
+  'chikorita', 'bayleef', 'meganium',
+  'cyndaquil', 'quilava', 'typhlosion',
+  'totodile', 'croconaw', 'feraligatr',
+  'treecko', 'grovyle', 'sceptile',
+  'torchic', 'combusken', 'blaziken',
+  'mudkip', 'marshtomp', 'swampert',
+  'turtwig', 'grotle', 'torterra',
+  'chimchar', 'monferno', 'infernape',
+  'piplup', 'prinplup', 'empoleon',
+  'snivy', 'servine', 'serperior',
+  'tepig', 'pignite', 'emboar',
+  'oshawott', 'dewott', 'samurott',
+  'chespin', 'quilladin', 'chesnaught',
+  'fennekin', 'braixen', 'delphox',
+  'froakie', 'frogadier', 'greninja',
+  'rowlet', 'dartrix', 'decidueye',
+  'litten', 'torracat', 'incineroar',
+  'popplio', 'brionne', 'primarina',
+  'grookey', 'thwackey', 'rillaboom',
+  'scorbunny', 'raboot', 'cinderace',
+  'sobble', 'drizzile', 'inteleon',
+  'sprigatito', 'floragato', 'meowscarada',
+  'fuecoco', 'crocalor', 'skeledirge',
+  'quaxly', 'quaxwell', 'quaquaval'
+];
+
+const CATCH_GMAX_SPECIES = [
+  'venusaur', 'charizard', 'blastoise', 'butterfree', 'pikachu',
+  'meowth', 'machamp', 'gengar', 'kingler', 'lapras',
+  'eevee', 'snorlax', 'garbodor', 'melmetal', 'rillaboom',
+  'cinderace', 'inteleon', 'corviknight', 'orbeetle', 'drednaw',
+  'coalossal', 'flapple', 'appletun', 'sandaconda', 'toxtricity',
+  'centiskorch', 'hatterene', 'grimmsnarl', 'alcremie', 'copperajah',
+  'duraludon', 'urshifu'
+];
+
+const CATCH_MEGA_EVOLUTION_FAMILIES = [
+  'bulbasaur', 'ivysaur', 'venusaur',
+  'charmander', 'charmeleon', 'charizard',
+  'squirtle', 'wartortle', 'blastoise',
+  'weedle', 'kakuna', 'beedrill',
+  'pidgey', 'pidgeotto', 'pidgeot',
+  'abra', 'kadabra', 'alakazam',
+  'slowpoke', 'slowbro',
+  'gastly', 'haunter', 'gengar',
+  'kangaskhan',
+  'pinsir',
+  'magikarp', 'gyarados',
+  'aerodactyl',
+  'mareep', 'flaaffy', 'ampharos',
+  'onix', 'steelix',
+  'scyther', 'scizor',
+  'heracross',
+  'houndour', 'houndoom',
+  'treecko', 'grovyle', 'sceptile',
+  'torchic', 'combusken', 'blaziken',
+  'mudkip', 'marshtomp', 'swampert',
+  'ralts', 'kirlia', 'gardevoir', 'gallade',
+  'sableye',
+  'mawile',
+  'aron', 'lairon', 'aggron',
+  'meditite', 'medicham',
+  'electrike', 'manectric',
+  'carvanha', 'sharpedo',
+  'numel', 'camerupt',
+  'swablu', 'altaria',
+  'shuppet', 'banette',
+  'absol',
+  'snorunt', 'glalie',
+  'buneary', 'lopunny',
+  'riolu', 'lucario',
+  'snover', 'abomasnow',
+  'audino'
+];
+
 const CATCH_PSEUDO_LEGENDARIES = [
   'dratini', 'dragonair', 'dragonite',
   'larvitar', 'pupitar', 'tyranitar',
@@ -8321,26 +9068,45 @@ const CATCH_PSEUDO_LEGENDARIES = [
   'frigibax', 'arctibax', 'baxcalibur'
 ];
 
+function formatCleanPokemonName(rawName, keepLevel = false) {
+  if (!rawName || typeof rawName !== 'string') return '';
+  let str = rawName.trim();
+  if (!keepLevel) {
+    str = str.replace(/\s*\(Lv[.:\s]*\d+[^)]*\)\s*/gi, ' ').trim();
+  }
+  const tagRegex = /\b(?:G-Max\/Mega\/Starter|Mega\/Starter|G-Max\/Starter|Mega\/G-Max|Mega Line|G-Max Line|Rare Line|Special Form|Special Variant|Mega Evolution|Mega|G-Max|Gigantamax|Starter|Ultra Beast|Paradox Pokemon|Paradox|Legendary|Rare\/Legendary|Pseudo-Legendary|Pseudo|Dex Missing|Missing Dex|New Dex|New Variant|Dex Completionist|Custom Target|Type Match(?:\s*\([^)]*\))?|Elemental Type Match|Wild Encounter):\s*/gi;
+  for (let iter = 0; iter < 3; iter++) {
+    str = str.replace(tagRegex, '');
+  }
+  if (str !== 'Wild Encounter') {
+    str = str.replace(/^\bWild Encounter\b\s*/i, '');
+  }
+  return str.replace(/\s+/g, ' ').trim();
+}
+
 function getCaughtPokemonKind(p) {
   const name = typeof p === 'string' ? p : ((p && (p.name || p.fullName)) || '');
   const cat = (p && p.category) ? String(p.category).toLowerCase() : '';
   const lower = name.toLowerCase();
-  let base = name
-    .replace(/^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
-    .replace(/^(Mega|Primal|G-Max|Gigantamax)\s+/i, '')
-    .replace(/^(Alolan|Galarian|Hisuian|Paldean)\s+/i, '')
-    .replace(/\s*\([^)]*\)/g, '')
-    .replace(/-(Wash|Heat|Frost|Fan|Mow|Origin|Therian|Incarnate|Altered|Dusk-Mane|Dawn-Wings|Rapid-Strike|Single-Strike|Paldea|Hisui|Galar|Alola|Sky|Attack|Defense|Speed)$/i, '')
-    .replace(/\s+[XYZ]$/i, '')
-    .trim()
-    .toLowerCase();
 
-  if (lower.includes('g-max') || lower.includes('gigantamax') || cat.includes('gigantamax')) {
-    return 'Gigantamax';
+  let base = name;
+  for (let iter = 0; iter < 3; iter++) {
+    base = base
+      .replace(/^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
+      .replace(/^(G-Max\/Mega\/Starter|Mega\/Starter|G-Max\/Starter|Mega\/G-Max|Mega Line|Rare Line|Starter|G-Max Line|Special Form|Mega Evolution):\s+/i, '')
+      .replace(/^(Mega|Primal|G-Max|Gigantamax)\s+/i, '')
+      .replace(/^(Alolan|Galarian|Hisuian|Paldean)\s+/i, '')
+      .replace(/\s*\([^)]*\)/g, '')
+      .replace(/-(Wash|Heat|Frost|Fan|Mow|Origin|Therian|Incarnate|Altered|Dusk-Mane|Dawn-Wings|Rapid-Strike|Single-Strike|Paldea|Hisui|Galar|Alola|Sky|Attack|Defense|Speed)$/i, '')
+      .replace(/\s+[XYZ]$/i, '')
+      .trim();
   }
-  if (lower.includes('mega ') || lower.includes('primal ') || cat.includes('mega')) {
-    return 'Mega';
-  }
+  base = base.toLowerCase();
+
+  const isExplicitGMax = lower.includes('g-max') || lower.includes('gigantamax');
+  const isExplicitMega = lower.includes('mega ') || lower.includes('primal ');
+
+  // 1. Legendary / Mythical / Ultra Beast / Paradox priority
   if (cat.includes('ultra beast') || cat.includes('ultrabeast') || CATCH_ULTRA_BEASTS.includes(base)) {
     return 'Ultra Beast';
   }
@@ -8354,10 +9120,83 @@ function getCaughtPokemonKind(p) {
     return 'Legendary';
   }
   if (cat.includes('pseudo') || CATCH_PSEUDO_LEGENDARIES.includes(base)) {
+    if (isExplicitMega) return 'Mega';
     return 'Pseudo-Legendary';
   }
-  if (CATCH_DIRECT_MEGA_SPECIES.includes(base)) {
+
+  // 2. Triple Overlap: G-Max / Mega / Starter (Bulbasaur, Charmander, Squirtle lines)
+  if (CATCH_GMAX_MEGA_STARTER_FAMILIES.includes(base)) {
+    return 'G-Max/Mega/Starter';
+  }
+
+  // 3. Double Overlap: Mega / Starter (Treecko, Torchic, Mudkip lines)
+  if (CATCH_MEGA_STARTER_FAMILIES.includes(base)) {
+    return 'Mega/Starter';
+  }
+
+  // 4. Double Overlap: G-Max / Starter (Grookey, Scorbunny, Sobble lines)
+  if (CATCH_GMAX_STARTER_FAMILIES.includes(base)) {
+    return 'G-Max/Starter';
+  }
+
+  // 5. Double Overlap: Mega / G-Max (Gastly, Haunter, Gengar line)
+  if (CATCH_MEGA_GMAX_FAMILIES.includes(base)) {
+    return 'Mega/G-Max';
+  }
+
+  // 6. ALL NON-MEGA STARTER LINES (Gen 2, 4, 5, 6, 7, 9)
+  // Chespin, Quilladin, Chesnaught, Froakie, Frogadier, Greninja, Fennekin, Braixen, Delphox, Chikorita, Turtwig, etc.
+  // STRICTLY marked as 'Starter', NEVER 'Mega' or 'Mega Line' because they are not Megas!
+  if (CATCH_STARTER_FAMILIES.includes(base)) {
+    return 'Starter';
+  }
+
+  // 7. Rare branch lines without Megas (Slowking, Kleavor, Froslass)
+  if (['slowking', 'kleavor', 'froslass'].includes(base)) {
+    return 'Rare Line';
+  }
+
+  // 8. Explicit forms
+  if (isExplicitGMax) {
+    return 'G-Max';
+  }
+  if (isExplicitMega) {
     return 'Mega';
+  }
+
+  // 9. Pure Mega lines
+  if (CATCH_MEGA_EVOLUTION_FAMILIES.includes(base) || CATCH_DIRECT_MEGA_SPECIES.includes(base)) {
+    return 'Mega Line';
+  }
+
+  // 10. Pure G-Max family lines
+  if (CATCH_GMAX_SPECIES.includes(base)) {
+    return 'G-Max Line';
+  }
+
+  // 11. Category fallbacks
+  if (cat.includes('starter')) {
+    return 'Starter';
+  }
+  if (cat.includes('rare')) {
+    return 'Rare Line';
+  }
+  if (cat.includes('mega')) {
+    return 'Mega Line';
+  }
+  if (cat.includes('gigantamax') || cat.includes('g-max')) {
+    return 'G-Max';
+  }
+
+  if (cat.includes('dex')) {
+    return 'New Dex';
+  }
+  if (cat.includes('type')) {
+    return 'Type Match';
+  }
+  const hasVariant = /^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro)\s+/i.test(name);
+  if (hasVariant || cat.includes('variant')) {
+    return 'Variant';
   }
   return 'Common';
 }
@@ -8368,7 +9207,23 @@ function getCaughtPokemonKindBadge(p) {
   let border = '#1a283e';
   let color = '#8eaad0';
 
-  if (kind === 'Ultra Beast') {
+  if (kind === 'G-Max/Mega/Starter') {
+    bg = 'rgba(168, 85, 247, 0.15)';
+    border = '#a855f7';
+    color = '#c084fc';
+  } else if (kind === 'Mega/Starter') {
+    bg = 'rgba(99, 102, 241, 0.15)';
+    border = '#6366f1';
+    color = '#818cf8';
+  } else if (kind === 'G-Max/Starter') {
+    bg = 'rgba(249, 115, 22, 0.15)';
+    border = '#f97316';
+    color = '#fb923c';
+  } else if (kind === 'Mega/G-Max') {
+    bg = 'rgba(14, 165, 233, 0.15)';
+    border = '#0ea5e9';
+    color = '#38bdf8';
+  } else if (kind === 'Ultra Beast') {
     bg = 'rgba(63, 185, 80, 0.15)';
     border = '#3fb950';
     color = '#3fb950';
@@ -8384,18 +9239,46 @@ function getCaughtPokemonKindBadge(p) {
     bg = 'rgba(210, 153, 34, 0.15)';
     border = '#d29922';
     color = '#d29922';
-  } else if (kind === 'Gigantamax') {
-    bg = 'rgba(249, 115, 22, 0.15)';
-    border = '#f97316';
+  } else if (kind === 'Gigantamax' || kind === 'G-Max') {
+    bg = 'rgba(234, 88, 12, 0.15)';
+    border = '#ea580c';
     color = '#f97316';
+  } else if (kind === 'G-Max Line') {
+    bg = 'rgba(245, 158, 11, 0.15)';
+    border = '#f59e0b';
+    color = '#fbbf24';
   } else if (kind === 'Mega') {
     bg = 'rgba(56, 139, 253, 0.15)';
     border = '#388bfd';
     color = '#388bfd';
+  } else if (kind === 'Mega Line') {
+    bg = 'rgba(56, 189, 248, 0.15)';
+    border = '#38bdf8';
+    color = '#38bdf8';
+  } else if (kind === 'Starter') {
+    bg = 'rgba(16, 185, 129, 0.15)';
+    border = '#10b981';
+    color = '#34d399';
   } else if (kind === 'Pseudo-Legendary') {
     bg = 'rgba(45, 212, 191, 0.15)';
     border = '#2dd4bf';
     color = '#2dd4bf';
+  } else if (kind === 'Rare Line') {
+    bg = 'rgba(168, 85, 247, 0.15)';
+    border = '#a855f7';
+    color = '#c084fc';
+  } else if (kind === 'Variant') {
+    bg = 'rgba(244, 63, 94, 0.15)';
+    border = '#f43f5e';
+    color = '#fb7185';
+  } else if (kind === 'New Dex') {
+    bg = 'rgba(34, 197, 94, 0.15)';
+    border = '#22c55e';
+    color = '#4ade80';
+  } else if (kind === 'Type Match') {
+    bg = 'rgba(14, 165, 233, 0.15)';
+    border = '#0ea5e9';
+    color = '#38bdf8';
   }
 
   return `<span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: ${bg}; border: 1px solid ${border}; color: ${color}; font-weight: 600; box-shadow: none !important;">${kind}</span>`;
@@ -8451,7 +9334,7 @@ function renderCatchLogUI() {
         <div class="caught-card-thumb">${spriteTag}</div>
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-            <span style="font-size: 11.5px; font-weight: 700; color: #e0ecfa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
+            <span style="font-size: 11.5px; font-weight: 700; color: #e0ecfa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${formatCleanPokemonName(p.name || '') || (p.name || '')}</span>
             <span style="font-size: 9.5px; color: #8eaad0; font-weight: 600;">${p.timestamp || ''}</span>
           </div>
           <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
@@ -8468,6 +9351,9 @@ function renderCatchLogUI() {
 function recordCaughtPokemon(pokemon, remainingStock) {
   ensureTodayCatchLog();
   if (pokemon) {
+    if (pokemon.name) {
+      pokemon.name = formatCleanPokemonName(pokemon.name);
+    }
     if (!pokemon.kind) {
       pokemon.kind = getCaughtPokemonKind(pokemon);
     }
@@ -8741,7 +9627,8 @@ function toggleAiAssistantPanel() {
 }
 
 function updateLiveAiAssistantUI(battleData) {
-  if (!battleData || !Array.isArray(battleData.roster) || battleData.roster.length === 0) {
+  const isPostBattle = Boolean(battleData && (battleData.isPostBattleScreen || battleData.isVictoryScreen || battleData.isDefeatScreen));
+  if (!battleData || (!isPostBattle && (!Array.isArray(battleData.roster) || battleData.roster.length === 0))) {
     activeAiBattleData = null;
     renderAiAssistantUI();
     if (typeof updateTeamBuilderBattleAction === 'function') {
@@ -9849,7 +10736,26 @@ function computeAiBattleActionConfig(battleData, collection) {
       action: null
     };
   }
-  if (!battleData || !Array.isArray(battleData.roster) || battleData.roster.length === 0) {
+  if (!battleData) return null;
+
+  // Post-Battle Victory / Defeat Screen Gate: Always evaluate as complete even if roster array is empty
+  const isPostBattle = Boolean(
+    battleData.isVictoryScreen ||
+    battleData.isDefeatScreen ||
+    battleData.isPostBattleScreen
+  );
+  if (isPostBattle) {
+    const isDefeat = Boolean(battleData.isDefeatScreen);
+    return {
+      labelHtml: isDefeat ? '&#10003; Battle Finished (Defeat)' : '&#10003; Battle Complete',
+      hudText: isDefeat ? '&#10003; Defeat' : '&#10003; Complete',
+      disabled: true,
+      btnClass: 'btn',
+      action: null
+    };
+  }
+
+  if (!Array.isArray(battleData.roster) || battleData.roster.length === 0) {
     return null;
   }
   const analysis = aiAssistant ? aiAssistant.analyzeBattle(battleData, collection) : null;
@@ -9875,11 +10781,10 @@ function computeAiBattleActionConfig(battleData, collection) {
     analysis.hasBenchRadios
   );
 
-  const isBattleComplete = Boolean(
-    battleData.isVictoryScreen ||
-    battleData.isDefeatScreen ||
-    battleData.isPostBattleScreen ||
-    ((isOpponentTeamAllFainted || isUserTeamAllFainted) && !hasActiveBattleControls)
+  const isOppKO = Boolean(analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0));
+
+  const isBattleComplete = Boolean(isPostBattle ||
+    (isOpponentTeamAllFainted || isUserTeamAllFainted || (isOppKO && !hasActiveBattleControls)) && !hasActiveBattleControls
   );
 
   if (isBattleComplete) {
@@ -9893,16 +10798,73 @@ function computeAiBattleActionConfig(battleData, collection) {
     };
   }
 
-  if (analysis.hasContinueBtn || analysis.hasSkipSelectionBtn || analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0)) {
-    const isOppKO = Boolean(analysis.isActiveOpponentFainted || (analysis.activeOpponentHp !== undefined && analysis.activeOpponentHp <= 0));
-    const isBattlerAlive = !analysis.isActiveBattlerFainted && ((analysis.activeBattlerHp !== undefined) ? analysis.activeBattlerHp > 0 : true);
-    const isTrainingOnlyMode = Boolean(
-      teamBattleMode === 'NPC' &&
-      (teamRosterMode === 'TRAINING' || analysis.isTrainingTeam) &&
-      !analysis.isChallengeLocked &&
-      !battleData.isChallengePreview
+  const isTrainingOnlyMode = Boolean(
+    ((teamBattleMode === 'NPC' && teamRosterMode === 'TRAINING') || analysis.isTrainingTeam) &&
+    !analysis.isChallengeLocked &&
+    !battleData.isChallengePreview
+  );
+
+  const unparticipatedTrainees = (Array.isArray(battleData.userTeam) ? battleData.userTeam : []).filter(u => {
+    if (!u || !u.name) return false;
+    if (u.isFainted || (u.hp !== undefined && u.hp <= 0)) return false;
+    if (analysis.activeBattler && u.name.toLowerCase() === analysis.activeBattler.name.toLowerCase()) return false;
+    if ((u.level || 0) >= 100) return false;
+    if (typeof currentMatchParticipants !== 'undefined' && currentMatchParticipants.has(u.name.toLowerCase())) return false;
+    return true;
+  });
+  const capableUnparticipatedTrainees = unparticipatedTrainees.filter(u => (u.level || 0) >= 85);
+  const activeBattlerLvl = analysis.activeBattler ? (analysis.activeBattler.level || 100) : 100;
+  // When Primary Trainee is >= Lv 85 (near Lv 100 cap, e.g. Buneary Lv 94), allow tagging in the next trainee
+  // (even if < Lv 85, e.g. Chrome Weedle Lv 11) so surplus EXP above 100,000 is absorbed instead of wasted.
+  const relayTargetTrainees = (analysis.isHighLevelTrainee || activeBattlerLvl >= 85)
+    ? unparticipatedTrainees
+    : capableUnparticipatedTrainees;
+
+  const isBattlerAlive = !analysis.isActiveBattlerFainted && ((analysis.activeBattlerHp !== undefined) ? analysis.activeBattlerHp > 0 : true);
+  const needsPostFaintBenchSelect = Boolean(!isBattlerAlive && analysis.hasBenchRadios && !analysis.isPreparationScreen);
+
+  // Precision Tactical Forfeit: When Carry and all >= Lv 85 fighters are fainted and remaining babies cannot win,
+  // immediately click "Forfeit" and continue the Loop into the next battle without wasting time.
+  if (analysis.shouldForfeitBattle && analysis.hasForfeitBtn) {
+    return {
+      labelHtml: '&#9873; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Forfeit (Unwinnable - Next Loop)</span>',
+      hudText: 'Forfeit & Loop',
+      disabled: false,
+      btnClass: 'btn btn-danger',
+      action: () => {
+        executeAiBattleAction('forfeit-battle', {});
+      }
+    };
+  }
+
+  // Only render Continue or Skip Selection if the corresponding buttons are ACTUALLY visible in the DOM
+  // and we do not need to select a post-faint replacement from bench radios
+  if ((analysis.hasContinueBtn || analysis.hasSkipSelectionBtn) && !needsPostFaintBenchSelect) {
+    const shouldRelayBetweenKOs = Boolean(
+      isTrainingOnlyMode &&
+      isBattlerAlive &&
+      activeBattlerLvl >= 85 &&
+      relayTargetTrainees.length > 0 &&
+      currentMatchSwitchCount < 1 &&
+      analysis.hasSkipSelectionBtn &&
+      analysis.hasBenchRadios
     );
-    const useSkipSelection = Boolean(isTrainingOnlyMode && isBattlerAlive && (analysis.hasSkipSelectionBtn || isOppKO));
+
+    if (shouldRelayBetweenKOs) {
+      const nextTrainee = relayTargetTrainees[0];
+      const shortNext = formatCompactBattleName(nextTrainee.name);
+      return {
+        labelHtml: `&#9889; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Deploy ${escapeHtml(shortNext)} &amp; Continue</span>`,
+        hudText: `Deploy ${shortNext}`,
+        disabled: false,
+        btnClass: 'btn btn-accent',
+        action: () => {
+          executeAiBattleAction('select-lead-and-start', { pokemonName: nextTrainee.name, autoStart: true, isRelay: true });
+        }
+      };
+    }
+
+    const useSkipSelection = Boolean(isTrainingOnlyMode && isBattlerAlive && analysis.hasSkipSelectionBtn);
     const label = useSkipSelection
       ? 'Skip Selection & Continue'
       : (isOppKO ? 'Opponent KO - Continue' : 'Continue to Next Turn');
@@ -9917,7 +10879,7 @@ function computeAiBattleActionConfig(battleData, collection) {
     };
   }
 
-  if (analysis.hasBenchRadios && !analysis.hasAttackBtn) {
+  if (analysis.hasBenchRadios && !analysis.hasAttackBtn && !analysis.isPreparationScreen) {
     const nextName = analysis.nextAliveCounter || (analysis.bestActiveLead ? analysis.bestActiveLead.name : 'Next Counter');
     const shortNext = formatCompactBattleName(nextName);
     return {
@@ -9938,6 +10900,42 @@ function computeAiBattleActionConfig(battleData, collection) {
     const isBattlerAlive = !analysis.isActiveBattlerFainted && ((analysis.activeBattlerHp !== undefined) ? analysis.activeBattlerHp > 0 : true);
 
     if (isOpponentAlive && isBattlerAlive && (analysis.hasAttackBtn || (analysis.availableMoves && analysis.availableMoves.length > 0))) {
+      // Clean Single-Switch EXP Relay (>= Lv 85 Capable Trainees Only):
+      // Uses the in-battle "Switch Pokemon" button at most ONCE per match after the lead has participated,
+      // strictly gating out < Lv 85 babies and preventing back-and-forth switch spam.
+      const hasDefeatedAtLeastOneOpp = Boolean(
+        Array.isArray(battleData.roster) &&
+        battleData.roster.some(p => p.isFainted || (p.hp !== undefined && p.hp <= 0))
+      );
+      const isRecentlySwitchedIn = Boolean(
+        analysis.activeBattler &&
+        justSwitchedActivePokemon.has(analysis.activeBattler.name.toLowerCase())
+      );
+      const shouldMidBattleSwitch = Boolean(
+        isTrainingOnlyMode &&
+        (activeBattlerLvl >= 85 || analysis.isHighLevelTrainee) &&
+        (hasDefeatedAtLeastOneOpp || activeBattlerLvl >= 100) &&
+        relayTargetTrainees.length > 0 &&
+        currentMatchSwitchCount < 1 &&
+        analysis.hasSwitchBtn &&
+        analysis.hasBenchRadios &&
+        !isRecentlySwitchedIn
+      );
+
+      if (shouldMidBattleSwitch) {
+        const nextTrainee = relayTargetTrainees[0];
+        const shortNext = formatCompactBattleName(nextTrainee.name);
+        return {
+          labelHtml: `&#8635; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Switch to ${escapeHtml(shortNext)} (EXP Relay)</span>`,
+          hudText: `Switch: ${shortNext}`,
+          disabled: false,
+          btnClass: 'btn btn-accent',
+          action: () => {
+            executeAiBattleAction('switch-pokemon', { pokemonName: nextTrainee.name, autoStart: true, isSwitch: true });
+          }
+        };
+      }
+
       const moveObj = analysis.bestMoveObj;
       const rawMoveName = moveObj ? moveObj.name : (analysis.recommendedMove || 'Attack');
       const moveName = String(rawMoveName).split(' (')[0].split(' [')[0].trim() || 'Attack';
@@ -9956,6 +10954,7 @@ function computeAiBattleActionConfig(battleData, collection) {
         }
       };
     } else if (!isBattlerAlive) {
+      // Post-Faint Carry Deployment: Carry takes over cleanly and finishes the battle.
       const nextName = analysis.nextAliveCounter || 'Next Counter';
       const shortNext = formatCompactBattleName(nextName);
       return {
@@ -9993,18 +10992,23 @@ function computeAiBattleActionConfig(battleData, collection) {
           executeAiBattleAction('click-battle-button', {});
         }
       };
-    } else if (analysis.bestActiveLead) {
+    } else {
+      const fullLeadName = (analysis.bestActiveLead && analysis.bestActiveLead.name) ? analysis.bestActiveLead.name : '';
       const hasFaintedOpponents = Boolean(Array.isArray(battleData.roster) && battleData.roster.some(p => p.isFainted || (p.hp !== undefined && p.hp <= 0)));
       const deployActionLabel = hasFaintedOpponents ? 'Continue' : 'Start';
-      const fullLeadName = analysis.bestActiveLead.name;
-      const shortLeadName = formatCompactBattleName(fullLeadName);
+      const shortLeadName = fullLeadName ? formatCompactBattleName(fullLeadName) : 'Battle';
+      const btnText = fullLeadName ? `Deploy ${escapeHtml(shortLeadName)} &amp; ${deployActionLabel}` : 'Start Battle';
       return {
-        labelHtml: `&#9889; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Deploy ${escapeHtml(shortLeadName)} &amp; ${deployActionLabel}</span>`,
-        hudText: `Deploy &amp; ${deployActionLabel}`,
+        labelHtml: `&#9889; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${btnText}</span>`,
+        hudText: fullLeadName ? `Deploy &amp; ${deployActionLabel}` : 'Start Battle',
         disabled: false,
         btnClass: 'btn btn-accent',
         action: () => {
-          executeAiBattleAction('select-lead-and-start', { pokemonName: fullLeadName, autoStart: true });
+          if (fullLeadName) {
+            executeAiBattleAction('select-lead-and-start', { pokemonName: fullLeadName, autoStart: true });
+          } else {
+            executeAiBattleAction('click-battle-button', {});
+          }
         }
       };
     }
@@ -10239,6 +11243,19 @@ function executeAiBattleAction(action, payload) {
   if (teamActionStatus) {
     teamActionStatus.textContent = 'Applying...';
     teamActionStatus.style.color = '#388bfd';
+  }
+  if (action === 'switch-pokemon' && payload && payload.pokemonName) {
+    justSwitchedActivePokemon.add(payload.pokemonName.toLowerCase());
+    currentMatchParticipants.add(payload.pokemonName.toLowerCase());
+    currentMatchSwitchCount++;
+  } else if (action === 'select-lead-and-start' && payload && payload.pokemonName) {
+    currentMatchParticipants.add(payload.pokemonName.toLowerCase());
+    if (payload.isRelay) {
+      justSwitchedActivePokemon.add(payload.pokemonName.toLowerCase());
+      currentMatchSwitchCount++;
+    }
+  } else if (action === 'execute-battle-move') {
+    justSwitchedActivePokemon.clear();
   }
   if (teamBattleActionBtn) {
     teamBattleActionBtn.disabled = true;
@@ -10588,6 +11605,137 @@ function saveDailySafetyState() {
   } catch (_) {}
 }
 
+// --- Map Rotation Engine ---
+let mapRotationTimer = null;
+let nextMapRotationTime = null;
+let mapRotationTargetMins = 0;
+let isMapRotationDue = false;
+let isMapRotatingNow = false;
+let wasHuntingBeforeMapRotation = false;
+let targetEncounterActive = false;
+let lastTargetFoundTime = 0;
+
+function isMapRotationActive() {
+  const s = config.safety || {};
+  const c = config.settings || {};
+  return (s.enableMapRotation === true || c.randomMapHopping === true);
+}
+
+function scheduleNextMapRotation(customDelayMs = null) {
+  if (mapRotationTimer) {
+    clearTimeout(mapRotationTimer);
+    mapRotationTimer = null;
+  }
+  if (!isMapRotationActive()) {
+    nextMapRotationTime = null;
+    isMapRotationDue = false;
+    return;
+  }
+
+  const s = config.safety || {};
+  const minMins = Math.max(1, parseInt(s.mapRotationMinMinutes, 10) || 10);
+  const maxMins = Math.max(minMins, parseInt(s.mapRotationMaxMinutes, 10) || 30);
+  const targetMins = getRandomInRange(minMins, maxMins);
+  mapRotationTargetMins = targetMins;
+  const delayMs = customDelayMs !== null ? customDelayMs : targetMins * 60 * 1000;
+  nextMapRotationTime = Date.now() + delayMs;
+
+  mapRotationTimer = setTimeout(() => {
+    onMapRotationTimerTrigger();
+  }, delayMs);
+
+  backendLog('MapRotation', `Scheduled next random map rotation in ${targetMins} mins`);
+}
+
+function onMapRotationTimerTrigger() {
+  isMapRotationDue = true;
+  if (canExecuteMapTransition()) {
+    executeMapRotation('hunting_interval');
+  } else {
+    backendLog('MapRotation', 'Rotation timer fired, but client is busy. Queued for next safe map turn boundary or post-catch.');
+  }
+}
+
+function canExecuteMapTransition() {
+  if (!isRunning && !wasHuntingBeforeAutoCatch) return false;
+  if (!isCurrentPageMap()) return false;
+  if (isEncounterOnScreen) return false;
+  if (targetEncounterActive) return false;
+  if (isAutoCatchCountdownActive) return false;
+  if (wasHuntingBeforeAutoCatch) return false;
+  if (isGuestInputFocused) return false;
+  if (isUnlockChallengeActive) return false;
+  if (isCurrentPageBattle()) return false;
+  if (activeAiBattleData) return false;
+  if (isStepPending) return false;
+  if (isMapRotatingNow) return false;
+  if (lastTargetFoundTime && (Date.now() - lastTargetFoundTime < 30000)) return false;
+  return true;
+}
+
+function executeMapRotation(triggerReason = 'hunting_interval') {
+  if (!isMapRotationActive()) {
+    isMapRotationDue = false;
+    return;
+  }
+  if (isMapRotatingNow) return;
+
+  // STRICT TARGET PRIORITY: If an encounter is on screen or target detected at the same time, CATCH FIRST!
+  if (triggerReason !== 'post_catch' && !canExecuteMapTransition()) {
+    isMapRotationDue = true;
+    backendLog('MapRotation', `Target encounter detected / client busy [${triggerReason}]. Deferring map rotation: CATCH FIRST!`);
+    return;
+  }
+
+  wasHuntingBeforeMapRotation = isRunning;
+  isMapRotatingNow = true;
+  isMapRotationDue = false;
+
+  if (walkTimeout) {
+    clearTimeout(walkTimeout);
+    walkTimeout = null;
+  }
+
+  let curUrl = '';
+  try {
+    curUrl = (delugeView && typeof delugeView.getURL === 'function') ? delugeView.getURL() : '';
+  } catch (_) {}
+
+  const allowedZones = (config.safety && Array.isArray(config.safety.mapRotationZones) && config.safety.mapRotationZones.length > 0)
+    ? config.safety.mapRotationZones
+    : null;
+  const nextMap = mapsCatalog.getRandomDelugeMap(curUrl, allowedZones);
+  if (!nextMap) {
+    isMapRotatingNow = false;
+    return;
+  }
+
+  const targetUrl = 'https://www.delugerpg.com' + nextMap.url;
+  updateStatus(`Rotating: ${nextMap.title}...`, '#38bdf8');
+  backendLog('MapRotation', `Executing rotation to ${nextMap.title} (${nextMap.url}) [Trigger: ${triggerReason}]`);
+
+  wanderStepsLeft = 0;
+  currentDirectionKey = null;
+
+  try {
+    if (delugeView && typeof delugeView.loadURL === 'function') {
+      delugeView.loadURL(targetUrl).catch(() => {
+        if (delugeView) delugeView.src = targetUrl;
+      });
+    } else if (delugeView) {
+      delugeView.src = targetUrl;
+    }
+  } catch (err) {
+    backendLog('MapRotation', `Error navigating to ${targetUrl}: ${err.message}`);
+  }
+
+  setTimeout(() => {
+    isMapRotatingNow = false;
+  }, 3500);
+
+  scheduleNextMapRotation();
+}
+
 let sessionStartTime = null;
 let sessionAutoStopTime = null;
 let sessionAutoStopTargetMins = null;
@@ -10618,6 +11766,13 @@ function stopHuntingWithReason(reason = 'Safety limit reached', statusMsg = 'Pau
     sessionAutoStopTimer = null;
   }
   sessionAutoStopTime = null;
+  if (mapRotationTimer) {
+    clearTimeout(mapRotationTimer);
+    mapRotationTimer = null;
+  }
+  nextMapRotationTime = null;
+  isMapRotationDue = false;
+  isMapRotatingNow = false;
   if (breakCountdownTimer) {
     clearInterval(breakCountdownTimer);
     breakCountdownTimer = null;
@@ -10770,6 +11925,9 @@ function handleCaptchaEmergencyHalt(reason = 'Captcha challenge detected') {
   }
   isBattleAutoRunning = false;
   isBattleLoopRunning = false;
+  if (teamBattleAutoCheck) {
+    teamBattleAutoCheck.checked = false;
+  }
   if (teamBattleLoopCheck) {
     teamBattleLoopCheck.checked = false;
   }
@@ -10845,6 +12003,11 @@ function loadSafetySettingsIntoUI() {
   if (safetyAutoStopMin) safetyAutoStopMin.value = s.autoStopMinMinutes || 5;
   if (safetyAutoStopMax) safetyAutoStopMax.value = s.autoStopMaxMinutes || 30;
 
+  if (safetyMapRotationToggle) safetyMapRotationToggle.checked = (s.enableMapRotation === true || (config.settings && config.settings.randomMapHopping === true));
+  if (safetyMapRotationMin) safetyMapRotationMin.value = s.mapRotationMinMinutes || 10;
+  if (safetyMapRotationMax) safetyMapRotationMax.value = s.mapRotationMaxMinutes || 30;
+  updateRandomMapUI();
+
   if (safetyBreakToggle) safetyBreakToggle.checked = s.enableForcedBreaks !== false;
   if (safetyBreakMinSteps) safetyBreakMinSteps.value = s.breakMinSteps || 50;
   if (safetyBreakMaxSteps) safetyBreakMaxSteps.value = s.breakMaxSteps || 200;
@@ -10858,6 +12021,14 @@ function loadSafetySettingsIntoUI() {
   if (safetyDailyMaxCatches) safetyDailyMaxCatches.value = s.dailyCatchMax || 20;
 
   if (safetyAntiBotToggle) safetyAntiBotToggle.checked = s.antiBotEmergencyHalt !== false;
+
+  const defaultZones = ['overworld', 'snowcave', 'volcano', 'rockcave', 'pkmnmansion', 'pkmntower', 'powerplant', 'unownruins'];
+  const activeZones = (s && Array.isArray(s.mapRotationZones) && s.mapRotationZones.length > 0)
+    ? s.mapRotationZones
+    : defaultZones;
+  document.querySelectorAll('.safety-zone-checkbox').forEach(cb => {
+    cb.checked = activeZones.includes(cb.value);
+  });
 
   updateSafetyTelemetryUI();
 }
@@ -10881,6 +12052,38 @@ function saveSafetySettingsFromUI() {
   config.safety.enableDeadManSwitch = safetyAutoStopToggle ? safetyAutoStopToggle.checked : true;
   config.safety.autoStopMinMinutes = autoMin;
   config.safety.autoStopMaxMinutes = autoMax;
+
+  const rotMin = Math.max(1, parseInt(safetyMapRotationMin.value, 10) || 10);
+  const rotMax = Math.max(rotMin, parseInt(safetyMapRotationMax.value, 10) || 30);
+  const rotEnabled = safetyMapRotationToggle ? safetyMapRotationToggle.checked : false;
+
+  config.safety.enableMapRotation = rotEnabled;
+  config.safety.mapRotationMinMinutes = rotMin;
+  config.safety.mapRotationMaxMinutes = rotMax;
+  if (!config.settings) config.settings = {};
+  config.settings.randomMapHopping = rotEnabled;
+
+  const defaultZones = ['overworld', 'snowcave', 'volcano', 'rockcave', 'pkmnmansion', 'pkmntower', 'powerplant', 'unownruins'];
+  const checkedZones = [];
+  document.querySelectorAll('.safety-zone-checkbox').forEach(cb => {
+    if (cb.checked) checkedZones.push(cb.value);
+  });
+  config.safety.mapRotationZones = checkedZones.length > 0 ? checkedZones : defaultZones;
+
+  if (rotEnabled && isRunning) {
+    const timeRemainingMs = nextMapRotationTime ? (nextMapRotationTime - Date.now()) : 0;
+    if (!nextMapRotationTime || mapRotationTargetMins < rotMin || mapRotationTargetMins > rotMax || timeRemainingMs > (rotMax * 60 * 1000) || timeRemainingMs <= 0) {
+      scheduleNextMapRotation();
+    }
+  } else if (!rotEnabled) {
+    if (mapRotationTimer) {
+      clearTimeout(mapRotationTimer);
+      mapRotationTimer = null;
+    }
+    nextMapRotationTime = null;
+    isMapRotationDue = false;
+  }
+  updateRandomMapUI();
 
   config.safety.enableForcedBreaks = safetyBreakToggle ? safetyBreakToggle.checked : true;
   config.safety.breakMinSteps = bStepMin;
@@ -10932,8 +12135,35 @@ function saveSafetySettingsFromUI() {
     }, stopMins * 60 * 1000);
   }
 
+  if (!config.settings) config.settings = {};
+  if (avoidDupesBadge) {
+    config.settings.avoidDuplicates = avoidDupesBadge.checked;
+  }
+  if (autoCatchBadge) {
+    config.settings.autoCatchMasterBall = autoCatchBadge.checked;
+  }
+  if (autoStartMapBadge) {
+    config.settings.autoStartOnMap = autoStartMapBadge.checked;
+  }
+  if (autoStartDelaySelect) {
+    config.settings.autoStartDelay = parseInt(autoStartDelaySelect.value, 10) || 3;
+  }
+  if (walkModeSelect) {
+    config.settings.walkMode = walkModeSelect.value;
+  }
+  if (stepsPerDirInput) {
+    config.settings.stepsPerDirection = parseInt(stepsPerDirInput.value, 10) || 5;
+  }
+
   saveLocalConfig();
   loadSafetySettingsIntoUI();
+
+  try {
+    if (delugeView && typeof delugeView.send === 'function') {
+      delugeView.send('update-config', config.settings);
+    }
+  } catch (_) {}
+  syncHuntingState();
 
   if (safetyStatusChip) {
     safetyStatusChip.textContent = 'Saved';
@@ -10945,6 +12175,7 @@ function saveSafetySettingsFromUI() {
       }
     }, 1500);
   }
+  updateStatus('Safety and drawer settings saved', '#10b981');
 }
 
 function rerollSafetyTargets() {
@@ -10955,6 +12186,10 @@ function rerollSafetyTargets() {
   saveDailySafetyState();
 
   rollNextBreakTargets();
+
+  if (isRunning && isMapRotationActive()) {
+    scheduleNextMapRotation();
+  }
 
   if (isRunning && s.enableDeadManSwitch !== false) {
     const stopMins = getRandomInRange(s.autoStopMinMinutes || 5, s.autoStopMaxMinutes || 30);
@@ -11030,6 +12265,28 @@ function updateSafetyTelemetryUI() {
     safetyStatTodayCatches.textContent = `${curCatches} / ${maxCatches}`;
     safetyStatTodayCatches.style.color = (curCatches >= maxCatches) ? '#ef4444' : '#e0ecfa';
   }
+
+  // 5. Next map rotation countdown
+  if (safetyStatNextMapRotation) {
+    if (!isMapRotationActive()) {
+      safetyStatNextMapRotation.textContent = 'Disabled';
+      safetyStatNextMapRotation.style.color = '#8eaad0';
+    } else if (!isRunning) {
+      const minM = (s.mapRotationMinMinutes || 10);
+      const maxM = (s.mapRotationMaxMinutes || 30);
+      safetyStatNextMapRotation.textContent = `Ready (${minM}-${maxM}m)`;
+      safetyStatNextMapRotation.style.color = '#8eaad0';
+    } else if (nextMapRotationTime) {
+      const remainingMs = Math.max(0, nextMapRotationTime - Date.now());
+      const remMins = Math.floor(remainingMs / 60000);
+      const remSecs = Math.floor((remainingMs % 60000) / 1000);
+      safetyStatNextMapRotation.textContent = `${remMins}m ${remSecs < 10 ? '0' : ''}${remSecs}s`;
+      safetyStatNextMapRotation.style.color = (remainingMs === 0) ? '#10b981' : '#38bdf8';
+    } else {
+      safetyStatNextMapRotation.textContent = 'Scheduling...';
+      safetyStatNextMapRotation.style.color = '#38bdf8';
+    }
+  }
 }
 
 function openSafetySettingsPanel() {
@@ -11080,8 +12337,28 @@ if (switchTeamBuilderFromSafetyBtn) {
   });
 }
 if (saveSafetySettingsBtn) saveSafetySettingsBtn.addEventListener('click', saveSafetySettingsFromUI);
+// Wire up Safety Zone selection buttons
+if (safetyZonesSelectAllBtn) {
+  safetyZonesSelectAllBtn.addEventListener('click', () => {
+    document.querySelectorAll('.safety-zone-checkbox').forEach(cb => { cb.checked = true; });
+    saveSafetySettingsFromUI();
+  });
+}
+if (safetyZonesClearBtn) {
+  safetyZonesClearBtn.addEventListener('click', () => {
+    document.querySelectorAll('.safety-zone-checkbox').forEach(cb => { cb.checked = false; });
+    saveSafetySettingsFromUI();
+  });
+}
+document.querySelectorAll('.safety-zone-checkbox').forEach(cb => {
+  cb.addEventListener('change', () => {
+    saveSafetySettingsFromUI();
+  });
+});
+
 [
   safetyAutoStopToggle, safetyBreakToggle, safetyDailyToggle, safetyAntiBotToggle,
+  safetyMapRotationToggle, safetyMapRotationMin, safetyMapRotationMax,
   safetyAutoStopMin, safetyAutoStopMax,
   safetyBreakMinSteps, safetyBreakMaxSteps, safetyBreakMinDur, safetyBreakMaxDur,
   safetyDailyMinSteps, safetyDailyMaxSteps, safetyDailyMinCatches, safetyDailyMaxCatches

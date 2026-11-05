@@ -72,13 +72,13 @@ class DelugeAiAssistant {
     const trainerName = battleData.trainerName || 'Challenger';
     const oppRoster = battleData.roster;
     
-    // Select first alive (non-fainted, hp > 0) opponent
+    // Select active opponent on field (prioritizing isCurrentActive when NPC order is randomized)
     let activeOpp = null;
     if (Array.isArray(oppRoster) && oppRoster.length > 0) {
-      activeOpp = oppRoster.find(o => !o.isFainted && (o.hp === undefined || o.hp > 0));
-      if (!activeOpp) {
-        activeOpp = oppRoster[0];
-      }
+      activeOpp = oppRoster.find(o => o.isCurrentActive && !o.isFainted && (o.hp === undefined || o.hp > 0)) ||
+                  oppRoster.find(o => o.isCurrentActive) ||
+                  oppRoster.find(o => !o.isFainted && (o.hp === undefined || o.hp > 0)) ||
+                  oppRoster[0];
     } else {
       activeOpp = { name: 'Unknown', types: ['Normal'], level: 100 };
     }
@@ -140,7 +140,12 @@ class DelugeAiAssistant {
     const teamCandidates = Array.isArray(battleData.userTeam) ? battleData.userTeam.map((u, idx) => resolveCand(u, idx)) : [];
     if (battleData.userActivePokemon && battleData.userActivePokemon.name) {
       const actClean = battleData.userActivePokemon.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const matchedCand = teamCandidates.find(c => {
+      const actLvl = battleData.userActivePokemon.level;
+      const matchedCand = (actLvl ? teamCandidates.find(c => {
+        const cClean = (c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const fClean = formatPokemonFullName(c.variant, c.name).toLowerCase().replace(/[^a-z0-9]/g, '');
+        return (cClean === actClean || fClean === actClean) && c.level === actLvl;
+      }) : null) || teamCandidates.find(c => {
         const cClean = (c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const fClean = formatPokemonFullName(c.variant, c.name).toLowerCase().replace(/[^a-z0-9]/g, '');
         return cClean === actClean || fClean === actClean;
@@ -161,15 +166,22 @@ class DelugeAiAssistant {
     const isTrainingTeam = Boolean(
       teamCandidates.length >= 2 &&
       traineesInTeam.length > 0 &&
-      carriesInTeam.length > 0
+      (carriesInTeam.length > 0 || traineesInTeam.length >= 2)
     );
 
     let primaryTrainee = null;
+    let secondaryTrainee = null;
     let trainingCarry = null;
     let designatedTrainingBattler = null;
+    let isHighLevelTrainee = false;
 
     if (isTrainingTeam) {
       primaryTrainee = traineesInTeam[0] || null;
+      isHighLevelTrainee = Boolean(primaryTrainee && (primaryTrainee.level || 0) >= 85);
+      // When Primary Trainee is >= Lv 85 (close to Lv 100 cap, e.g. Lv 94 Buneary),
+      // designate the 2nd trainee (even if Lv 5-11 baby, e.g. Chrome Weedle) as the overflow EXP partner
+      // so surplus EXP above 100,000 is absorbed instead of wasted!
+      secondaryTrainee = isHighLevelTrainee ? (traineesInTeam[1] || null) : null;
       if (carriesInTeam.length === 1) {
         trainingCarry = carriesInTeam[0];
       } else if (carriesInTeam.length > 1) {
@@ -182,15 +194,41 @@ class DelugeAiAssistant {
           roster: oppRoster
         });
         trainingCarry = (rankedTeamCarries && rankedTeamCarries.length > 0) ? rankedTeamCarries[0].poke : poolToRank[0];
+      } else if (teamCandidates.length > 1) {
+        const otherAlive = teamCandidates.filter(c => c !== primaryTrainee && !c.isFainted && (c.hp === undefined || c.hp > 0));
+        const otherPool = otherAlive.length > 0 ? otherAlive : teamCandidates.filter(c => c !== primaryTrainee);
+        const sortedByLvl = [...(otherPool.length > 0 ? otherPool : teamCandidates)].sort((a, b) => (b.level || 0) - (a.level || 0));
+        trainingCarry = sortedByLvl[0];
       }
 
       const isPrimaryAlive = Boolean(primaryTrainee && !primaryTrainee.isFainted && (primaryTrainee.hp === undefined || primaryTrainee.hp > 0));
+      const isSecondaryAlive = Boolean(secondaryTrainee && !secondaryTrainee.isFainted && (secondaryTrainee.hp === undefined || secondaryTrainee.hp > 0));
+      const secondaryHasFainted = Boolean(secondaryTrainee && (secondaryTrainee.isFainted || (secondaryTrainee.hp !== undefined && secondaryTrainee.hp <= 0)));
       const isCarryAlive = Boolean(trainingCarry && !trainingCarry.isFainted && (trainingCarry.hp === undefined || trainingCarry.hp > 0));
+      const otherAliveTrainees = traineesInTeam.slice(1).filter(t => !t.isFainted && (t.hp === undefined || t.hp > 0));
+      const capableBenchTrainees = otherAliveTrainees.filter(t => (t.level || 0) >= 85);
 
-      if (isPrimaryAlive) {
+      // EXP Waste Avoidance & Carry Sweep Protocol:
+      // 1. Primary Trainee fights first while alive (unless Secondary Trainee already tagged in and fainted).
+      // 2. When Primary Trainee is >= Lv 85 (near Lv 100 cap) and faints before Secondary Trainee has participated,
+      //    deploy Secondary Trainee (traineesInTeam[1], regardless of level) for 1 turn so it enters the EXP pool!
+      // 3. Once Primary Trainee (and Secondary Trainee when Primary >= Lv 85) have participated/fainted,
+      //    Carry Anchor immediately sweeps the rest of the battle; Slots 4-6 babies are NEVER deployed while Carry is alive.
+      if (isPrimaryAlive && !secondaryHasFainted) {
         designatedTrainingBattler = primaryTrainee;
+      } else if (isHighLevelTrainee && isSecondaryAlive) {
+        designatedTrainingBattler = secondaryTrainee;
+      } else if (capableBenchTrainees.length > 0 && !secondaryHasFainted) {
+        designatedTrainingBattler = capableBenchTrainees[0];
       } else if (isCarryAlive) {
         designatedTrainingBattler = trainingCarry;
+      } else if (isPrimaryAlive) {
+        designatedTrainingBattler = primaryTrainee;
+      } else {
+        const aliveFallback = teamCandidates
+          .filter(c => !c.isFainted && (c.hp === undefined || c.hp > 0))
+          .sort((a, b) => (b.level || 0) - (a.level || 0));
+        designatedTrainingBattler = aliveFallback[0] || null;
       }
     }
 
@@ -257,6 +295,7 @@ class DelugeAiAssistant {
             isActive: isActive,
             counterName: fullName,
             counterTypes: cPoke.types || ['Normal'],
+            counterLevel: cPoke.level || 100,
             bestMoveName: bm ? bm.name : 'Attack',
             bestMoveType: bm ? bm.type : 'Normal',
             multiplier: bm ? bm.multiplier : 1.0,
@@ -373,10 +412,73 @@ class DelugeAiAssistant {
           if (aliveRoadmap) nextAliveCounter = aliveRoadmap.counterName;
         }
       }
+      const isCarryStillAlive = Boolean(trainingCarry && !trainingCarry.isFainted && (trainingCarry.hp === undefined || trainingCarry.hp > 0));
+      if (isTrainingTeam && designatedTrainingBattler) {
+        const desigFullName = formatPokemonFullName(designatedTrainingBattler.variant, designatedTrainingBattler.name);
+        const actFullName = formatPokemonFullName(activeBattler.variant, activeBattler.name);
+        if (isActiveBattlerFainted && desigFullName.toLowerCase() === actFullName.toLowerCase() && isCarryStillAlive) {
+          nextAliveCounter = formatPokemonFullName(trainingCarry.variant, trainingCarry.name);
+        } else {
+          nextAliveCounter = desigFullName;
+        }
+      } else {
+        // Against verified strong opponents with dual carries, ensure backup carry (Slot 2) is deployed if lead carry faints
+        if (Array.isArray(battleData.userTeam) && teamEngine.isVeryStrongOpponent && teamEngine.isVeryStrongOpponent({ name: trainerName, roster: oppRoster })) {
+          const aliveCarry = battleData.userTeam.find((u, idx) => {
+            if (idx !== 1) return false;
+            return !u.isFainted && (u.hp === undefined || u.hp > 0) && u.name !== activeBattler.name && (u.level || 0) >= 100;
+          });
+          if (aliveCarry && activeBattler && activeBattler.slotIndex === 0) {
+            nextAliveCounter = aliveCarry.name;
+          }
+        }
+      }
       if (!nextAliveCounter && Array.isArray(battleData.userTeam)) {
         const aliveBench = battleData.userTeam.find(u => !u.isFainted && (u.hp === undefined || u.hp > 0) && u.name !== activeBattler.name);
         if (aliveBench) nextAliveCounter = aliveBench.name;
       }
+
+      // Precision Tactical Forfeit Evaluation (Zero False Positives):
+      // Only triggers when ALL Carries and high-level fighters (>= Lv 85) are fainted,
+      // AND all remaining alive user Pokemon are hopelessly outmatched by the remaining opponent roster.
+      const aliveUserMembers = teamCandidates.filter(c => !c.isFainted && (c.hp === undefined || c.hp > 0));
+      const aliveOpponents = oppRoster.filter(o => !o.isFainted && (o.hp === undefined || o.hp > 0));
+      const remainingOppCount = Math.max(aliveOpponents.length, isActiveOppFainted ? 0 : 1);
+      const maxOppLvl = aliveOpponents.reduce((m, o) => Math.max(m, o.level || 100), activeOpp.level || 100);
+      const totalRemOppHp = aliveOpponents.length > 0
+        ? aliveOpponents.reduce((s, o) => s + (o.hp !== undefined ? o.hp : 400), 0)
+        : (isActiveOppFainted ? 0 : activeOppHp);
+      const allCapableFightersFainted = aliveUserMembers.length > 0 && aliveUserMembers.every(c => (c.level || 0) < 85);
+      const maxAliveUserLvl = aliveUserMembers.reduce((m, c) => Math.max(m, c.level || 1), 0);
+      const maxAliveUserHp = aliveUserMembers.reduce((m, c) => Math.max(m, c.hp || 100), 0);
+      const levelDeficit = maxOppLvl - maxAliveUserLvl;
+      const isChallLocked = Boolean(battleData.isChallengeLocked || battleData.isChallengePreview || battleData.isGmaxChallenge);
+
+      const allAliveOutmatched = aliveUserMembers.length > 0 && aliveUserMembers.every(cand => {
+        const cLvl = cand.level || 1;
+        const cHp = cand.hp || (cLvl * 4);
+        if (cLvl <= 50 && maxOppLvl >= 75 && totalRemOppHp >= 100) return true;
+        if (remainingOppCount >= 2 && (maxOppLvl - cLvl) >= 25) return true;
+        const vsActive = teamEngine.scoreVsSingleOpponent(cand, oppTypes, activeOpp.level || 100, activeOpp.moves, activeOppEnriched);
+        if ((maxOppLvl - cLvl) >= 20 && cHp <= 240 && totalRemOppHp >= 250 && (!vsActive.bestMove || vsActive.bestMove.effectiveness < 2.0 || vsActive.defensiveMultiplier >= 2.0)) {
+          return true;
+        }
+        return false;
+      });
+
+      const shouldForfeitBattle = Boolean(
+        !isChallLocked &&
+        remainingOppCount >= 1 &&
+        totalRemOppHp >= 80 &&
+        allCapableFightersFainted &&
+        levelDeficit >= 20 &&
+        allAliveOutmatched &&
+        (
+          (maxAliveUserLvl <= 50 && levelDeficit >= 35 && totalRemOppHp >= 100) ||
+          (remainingOppCount >= 2 && maxAliveUserLvl < 75 && levelDeficit >= 25) ||
+          (maxAliveUserHp <= 220 && totalRemOppHp >= 350 && levelDeficit >= 25)
+        )
+      );
 
       return {
         status: 'ACTIVE_BATTLE',
@@ -406,7 +508,13 @@ class DelugeAiAssistant {
         hasContinueBtn: Boolean(battleData.hasContinueBtn),
         hasSkipSelectionBtn: Boolean(battleData.hasSkipSelectionBtn),
         hasAttackBtn: Boolean(battleData.hasAttackBtn || availableMoves.length > 0),
+        hasSwitchBtn: Boolean(battleData.hasSwitchBtn),
+        hasBenchRadios: Boolean(battleData.hasBenchRadios),
+        hasForfeitBtn: Boolean(battleData.hasForfeitBtn),
+        shouldForfeitBattle: Boolean(shouldForfeitBattle),
         isTrainingTeam: Boolean(isTrainingTeam),
+        isHighLevelTrainee: Boolean(isHighLevelTrainee),
+        designatedTrainingBattler: designatedTrainingBattler,
         isPreparationScreen: false,
         isInActiveBattle: true,
         availableMoves: availableMoves,
@@ -450,7 +558,7 @@ class DelugeAiAssistant {
       bestActiveLead = {
         name: activeRoadmapMatch.counterName,
         types: activeRoadmapMatch.counterTypes,
-        level: 100,
+        level: activeRoadmapMatch.counterLevel || 100,
         recommendedMove: activeLeadBestMove
       };
     } else if (teamCandidates.length > 0) {
@@ -513,7 +621,11 @@ class DelugeAiAssistant {
       hasContinueBtn: Boolean(battleData.hasContinueBtn),
       hasSkipSelectionBtn: Boolean(battleData.hasSkipSelectionBtn),
       hasAttackBtn: false,
+      hasSwitchBtn: Boolean(battleData.hasSwitchBtn),
+      hasBenchRadios: Boolean(battleData.hasBenchRadios),
       isTrainingTeam: Boolean(isTrainingTeam),
+      isHighLevelTrainee: Boolean(isHighLevelTrainee),
+      designatedTrainingBattler: designatedTrainingBattler,
       isPreparationScreen: Boolean(battleData.isPreparationScreen),
       isInActiveBattle: false,
       isChallengeLocked: isChallengeLocked,

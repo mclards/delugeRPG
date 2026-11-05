@@ -23,17 +23,18 @@
     "avoidDuplicates": true,
     "autoStartOnMap": true,
     "autoStartDelay": 3,
+    "randomMapHopping": true,
     "hideAdsCosmetically": true,
     "autoCatchMasterBall": true,
     "pvpCandidateTier": "ANY",
-    "targetPreset": "legendaries",
+    "targetPreset": "custom",
     "findLegendaries": true,
-    "findMegasAndGigantamax": false,
+    "findMegasAndGigantamax": true,
     "findAnySpecialVariant": false,
     "enableLevelFilter": false,
     "levelFilterMode": "min",
     "levelFilterValue": 30,
-    "zoomFactor": 0.8,
+    "zoomFactor": 0.7,
     "levelFilterScope": "targets",
     "legendaryClassic": true,
     "legendaryUltraBeasts": true,
@@ -89,9 +90,10 @@
       "Ace Trainer Bryce",
       "Will",
       "Acerola",
-      "Sidney"
+      "Sidney",
+      "Wallace"
     ],
-    "findPseudoLegendaries": true,
+    "findPseudoLegendaries": false,
     "pseudoVariants": [
       "Normal",
       "Shiny",
@@ -116,22 +118,38 @@
       "variants": "Ultra Ball"
     },
     "ballFallbackPolicy": "downgrade",
-    "autoCatchMode": "master_only"
+    "autoCatchMode": "smart_routing",
+    "megaTierMegas": true,
+    "megaTierGMax": true,
+    "megaTierStarters": true
   },
   "safety": {
     "enableDeadManSwitch": true,
-    "autoStopMinMinutes": 45,
-    "autoStopMaxMinutes": 120,
+    "autoStopMinMinutes": 10,
+    "autoStopMaxMinutes": 30,
+    "enableMapRotation": true,
+    "mapRotationMinMinutes": 5,
+    "mapRotationMaxMinutes": 30,
     "enableForcedBreaks": true,
     "breakMinSteps": 50,
     "breakMaxSteps": 200,
     "breakMinDurationSec": 5,
-    "breakMaxDurationSec": 45,
+    "breakMaxDurationSec": 10,
     "enableDailyCeilings": true,
     "dailyStepMin": 5000,
     "dailyStepMax": 10000,
-    "dailyCatchMin": 25,
-    "dailyCatchMax": 35,
-    "antiBotEmergencyHalt": true
+    "dailyCatchMin": 100,
+    "dailyCatchMax": 150,
+    "antiBotEmergencyHalt": true,
+    "mapRotationZones": [
+      "overworld",
+      "snowcave",
+      "volcano",
+      "rockcave",
+      "pkmnmansion",
+      "pkmntower",
+      "powerplant",
+      "unownruins"
+    ]
   }
 }

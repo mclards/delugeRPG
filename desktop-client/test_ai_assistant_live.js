@@ -25,7 +25,7 @@ const mockBattle = {
   ]
 };
 
-const coll = JSON.parse(fs.readFileSync('user_collection.json', 'utf8'));
+const coll = JSON.parse(fs.readFileSync(path.join(__dirname, 'user_collection.json'), 'utf8'));
 const analysis = aiAssistant.analyzeBattle(mockBattle, coll);
 assert.strictEqual(analysis.status, 'ACTIVE_BATTLE');
 assert.strictEqual(analysis.trainerName, 'Veteran Shareef');
@@ -536,6 +536,121 @@ const trainingBattleTraineeFainted = {
 };
 const trainFaintedAnalysis = aiAssistant.analyzeBattle(trainingBattleTraineeFainted, coll);
 assert.strictEqual(trainFaintedAnalysis.bestActiveLead.name, 'Palkia (Origin)', 'When Primary Trainee (Dialga) faints, Carry (Palkia (Origin)) MUST finish the battle instead of switching to Chien-pao');
+assert.strictEqual(trainStartAnalysis.bestActiveLead.level, 76, 'Primary Trainee lead must report actual level 76 instead of hardcoded 100');
+assert.strictEqual(trainStartAnalysis.isHighLevelTrainee, false, 'Level 76 trainee must have isHighLevelTrainee === false');
+
+// Active Battle Post-Faint Carry Takeover & Level 100 Auto-Graduation Audit
+const activeTraineeFainted = {
+  trainerName: 'Veteran Tamaki',
+  isInActiveBattle: true,
+  hasContinueBtn: true,
+  hasBenchRadios: true,
+  hasAttackBtn: false,
+  userActivePokemon: { name: 'Dialga', types: ['Steel', 'Dragon'], level: 76, hp: 0, maxHp: 304, isFainted: true },
+  roster: trainingBattleTraineeFainted.roster,
+  userTeam: trainingBattleTraineeFainted.userTeam
+};
+const activeFaintedAnalysis = aiAssistant.analyzeBattle(activeTraineeFainted, coll);
+assert.strictEqual(activeFaintedAnalysis.isActiveBattlerFainted, true, 'Dialga must be detected as fainted in active battle');
+assert.strictEqual(activeFaintedAnalysis.nextAliveCounter, 'Palkia (Origin)', 'When Dialga faints in active battle, nextAliveCounter MUST be Carry Palkia (Origin)');
+
+const graduatedBattleStart = {
+  trainerName: 'Veteran Tamaki',
+  isPreparationScreen: true,
+  roster: trainingBattleStart.roster,
+  userTeam: [
+    { name: 'Palkia (Origin)', types: ['Water', 'Dragon'], level: 100, hp: 400, maxHp: 400, isFainted: false, index: 0 },
+    { name: 'Dialga', types: ['Steel', 'Dragon'], level: 100, hp: 400, maxHp: 400, isFainted: false, index: 1 },
+    { name: 'Chien-pao', types: ['Dark', 'Ice'], level: 88, hp: 352, maxHp: 352, isFainted: false, index: 2 },
+    { name: 'Negative Maschiff', types: ['Dark'], level: 15, hp: 60, maxHp: 60, isFainted: false, index: 3 }
+  ]
+};
+const graduatedAnalysis = aiAssistant.analyzeBattle(graduatedBattleStart, coll);
+assert.strictEqual(graduatedAnalysis.bestActiveLead.name, 'Chien-pao', 'Once Dialga graduates to Lv 100, next trainee (Chien-pao) MUST auto-promote to Primary Trainee');
+assert.strictEqual(graduatedAnalysis.isHighLevelTrainee, true, 'Level 88 Chien-pao must have isHighLevelTrainee === true');
+
+// High-Level Cap Relay (>= Lv 85) vs Baby Protection (< Lv 85) Audit
+const highLevelRelayBattle = {
+  trainerName: 'Veteran Tamaki',
+  isInActiveBattle: true,
+  hasContinueBtn: true,
+  hasBenchRadios: true,
+  hasAttackBtn: false,
+  userActivePokemon: { name: 'Dialga', types: ['Steel', 'Dragon'], level: 96, hp: 0, maxHp: 384, isFainted: true },
+  roster: trainingBattleTraineeFainted.roster,
+  userTeam: [
+    { name: 'Palkia (Origin)', types: ['Water', 'Dragon'], level: 100, hp: 400, maxHp: 400, isFainted: false, index: 0 },
+    { name: 'Dialga', types: ['Steel', 'Dragon'], level: 96, hp: 0, maxHp: 384, isFainted: true, index: 1 },
+    { name: 'Chien-pao', types: ['Dark', 'Ice'], level: 92, hp: 368, maxHp: 368, isFainted: false, index: 2 },
+    { name: 'Negative Maschiff', types: ['Dark'], level: 15, hp: 60, maxHp: 60, isFainted: false, index: 3 }
+  ]
+};
+const highLevelRelayAnalysis = aiAssistant.analyzeBattle(highLevelRelayBattle, coll);
+assert.strictEqual(highLevelRelayAnalysis.nextAliveCounter, 'Chien-pao', 'When Lv 96 Dialga faints, capable bench trainee Chien-pao (Lv 92 >= 85) MUST be deployed to absorb surplus EXP');
+
+// Sidney Scenario A: High-Level Primary Trainee (Buneary Lv 94) Faints -> Baby Secondary Trainee (Chrome Weedle Lv 11) Relays for 1 Turn -> Carry (Dark Buzzwole Lv 100) Sweeps
+const sidneyBunearyFainted = {
+  trainerName: 'Sidney',
+  isPreparationScreen: true,
+  roster: [
+    { name: 'Mightyena', types: ['Dark'], level: 100, hp: 400, maxHp: 400, isFainted: false },
+    { name: 'Shiftry', types: ['Grass', 'Dark'], level: 100, hp: 400, maxHp: 400, isFainted: false, isCurrentActive: true },
+    { name: 'Cacturne', types: ['Grass', 'Dark'], level: 100, hp: 400, maxHp: 400, isFainted: false },
+    { name: 'Sharpedo', types: ['Water', 'Dark'], level: 100, hp: 0, maxHp: 400, isFainted: true },
+    { name: 'Absol', types: ['Dark'], level: 100, hp: 400, maxHp: 400, isFainted: false }
+  ],
+  userTeam: [
+    { name: 'Dark Buzzwole', types: ['Bug', 'Fighting'], level: 100, hp: 400, maxHp: 400, isFainted: false, index: 0 },
+    { name: 'Buneary', types: ['Normal'], level: 94, hp: 0, maxHp: 376, isFainted: true, index: 1 },
+    { name: 'Chrome Weedle', types: ['Bug', 'Poison'], level: 11, hp: 60, maxHp: 60, isFainted: false, index: 2 },
+    { name: 'Negative Scyther', types: ['Bug', 'Flying'], level: 5, hp: 20, maxHp: 20, isFainted: false, index: 3 },
+    { name: 'Weedle', types: ['Bug', 'Poison'], level: 8, hp: 32, maxHp: 32, isFainted: false, index: 4 },
+    { name: 'Shiny Weedle', types: ['Bug', 'Poison'], level: 5, hp: 25, maxHp: 25, isFainted: false, index: 5 }
+  ]
+};
+const sidneyRelayAnalysis = aiAssistant.analyzeBattle(sidneyBunearyFainted, coll);
+assert.strictEqual(sidneyRelayAnalysis.bestActiveLead.name, 'Chrome Weedle', 'When Lv 94 Buneary (>= Lv 85) faints, Secondary Trainee Chrome Weedle (Lv 11) MUST be deployed for 1 turn so surplus EXP is not wasted');
+
+// Sidney Scenario B: After Secondary Trainee (Chrome Weedle Lv 11) ALSO Faints -> Carry (Dark Buzzwole Lv 100) Immediately Sweeps (Never deploys Slot 4-6 babies)
+const sidneyWeedleFaintedCarryAlive = {
+  trainerName: 'Sidney',
+  isInActiveBattle: true,
+  hasContinueBtn: true,
+  hasForfeitBtn: true,
+  userActivePokemon: { name: 'Chrome Weedle', types: ['Bug', 'Poison'], level: 11, hp: 0, maxHp: 60, isFainted: true },
+  roster: sidneyBunearyFainted.roster,
+  userTeam: [
+    { name: 'Dark Buzzwole', types: ['Bug', 'Fighting'], level: 100, hp: 400, maxHp: 400, isFainted: false, index: 0 },
+    { name: 'Buneary', types: ['Normal'], level: 94, hp: 0, maxHp: 376, isFainted: true, index: 1 },
+    { name: 'Chrome Weedle', types: ['Bug', 'Poison'], level: 11, hp: 0, maxHp: 60, isFainted: true, index: 2 },
+    { name: 'Negative Scyther', types: ['Bug', 'Flying'], level: 5, hp: 20, maxHp: 20, isFainted: false, index: 3 },
+    { name: 'Weedle', types: ['Bug', 'Poison'], level: 8, hp: 32, maxHp: 32, isFainted: false, index: 4 },
+    { name: 'Shiny Weedle', types: ['Bug', 'Poison'], level: 5, hp: 25, maxHp: 25, isFainted: false, index: 5 }
+  ]
+};
+const sidneyCarrySweepAnalysis = aiAssistant.analyzeBattle(sidneyWeedleFaintedCarryAlive, coll);
+assert.strictEqual(sidneyCarrySweepAnalysis.shouldForfeitBattle, false, 'Must NEVER forfeit while Carry (Dark Buzzwole Lv 100) is still alive');
+assert.strictEqual(sidneyCarrySweepAnalysis.nextAliveCounter, 'Dark Buzzwole', 'After Chrome Weedle faints, Carry (Dark Buzzwole) MUST deploy instead of Slot 4 Negative Scyther');
+
+// Sidney Scenario C: Precision Tactical Forfeit when BOTH Carry (Dark Buzzwole Lv 100) and Buneary (Lv 94) are Fainted and only Babies remain
+const sidneyCarryAndBunearyDead = {
+  trainerName: 'Sidney',
+  isInActiveBattle: true,
+  hasContinueBtn: true,
+  hasForfeitBtn: true,
+  userActivePokemon: { name: 'Chrome Weedle', types: ['Bug', 'Poison'], level: 11, hp: 0, maxHp: 60, isFainted: true },
+  roster: sidneyBunearyFainted.roster,
+  userTeam: [
+    { name: 'Dark Buzzwole', types: ['Bug', 'Fighting'], level: 100, hp: 0, maxHp: 400, isFainted: true, index: 0 },
+    { name: 'Buneary', types: ['Normal'], level: 94, hp: 0, maxHp: 376, isFainted: true, index: 1 },
+    { name: 'Chrome Weedle', types: ['Bug', 'Poison'], level: 11, hp: 0, maxHp: 60, isFainted: true, index: 2 },
+    { name: 'Negative Scyther', types: ['Bug', 'Flying'], level: 5, hp: 20, maxHp: 20, isFainted: false, index: 3 },
+    { name: 'Weedle', types: ['Bug', 'Poison'], level: 8, hp: 32, maxHp: 32, isFainted: false, index: 4 },
+    { name: 'Shiny Weedle', types: ['Bug', 'Poison'], level: 5, hp: 25, maxHp: 25, isFainted: false, index: 5 }
+  ]
+};
+const sidneyForfeitAnalysis = aiAssistant.analyzeBattle(sidneyCarryAndBunearyDead, coll);
+assert.strictEqual(sidneyForfeitAnalysis.shouldForfeitBattle, true, 'When Carry and Lv 94 Buneary are both fainted and only Lv 5-8 babies remain vs Lv 100 Sidney, shouldForfeitBattle MUST be true');
 
 console.log('  State 1 (Prep):     Deploy [Lead] & Start');
 console.log('  State 2 (Attack):   Attack with Wood Hammer (4.0x)');
@@ -606,6 +721,28 @@ assert(preloadJsFull.includes('isDefeatScreen: Boolean(isDefeat)'), 'game-preloa
 assert(preloadJsFull.includes("ipcRenderer.on('click-rematch-button'"), 'game-preload.js must support click-rematch-button');
 assert(preloadJsFull.includes('STEALTH_FOCUS_STYLE_ID'), 'game-preload.js must implement stealth focus outline suppression');
 assert(preloadJsFull.includes('applyCleanFocusOutline()'), 'game-preload.js must execute applyCleanFocusOutline');
+assert(preloadJsFull.includes('battle-exp-calibrated'), 'game-preload.js must emit battle-exp-calibrated on victory');
+assert(preloadJsFull.includes('gainedExpPerPoke'), 'game-preload.js must extract gainedExpPerPoke');
+assert(preloadJsFull.includes('totalExpPool'), 'game-preload.js must compute totalExpPool');
+
+assert(appJsFull.includes('function handleBattleExpCalibrated'), 'app.js must implement handleBattleExpCalibrated');
+assert(appJsFull.includes('function predictTrainerExpGain'), 'app.js must implement predictTrainerExpGain');
+assert(appJsFull.includes('isVeryStrongOpponent'), 'app.js must utilize isVeryStrongOpponent for dual carries');
+assert(appJsFull.includes('BACKUP CARRY'), 'app.js must render BACKUP CARRY badge for secondary carry anchor');
+
+// Verify Accuracy Gate: Ivy Cudgel (100% acc) chosen over Power Whip (85% acc) for Ogerpon
+const teEngine = require('./team_engine.js');
+const ogerponTest = {
+  name: 'Ogerpon (Wellspring Mask)',
+  types: ['Grass', 'Water'],
+  level: 100,
+  moves: [
+    { name: 'Ivy Cudgel', type: 'Grass' },
+    { name: 'Power Whip', type: 'Grass' }
+  ]
+};
+const ogerScore = teEngine.scoreVsSingleOpponent(ogerponTest, ['Water'], 100);
+assert.strictEqual(ogerScore.bestMove.name, 'Ivy Cudgel', 'Ogerpon must prioritize 100% accurate Ivy Cudgel over 85% accurate Power Whip');
 
 console.log('\n[PASS] AUDIT 11: Training Battle Loop Mode & Level 100 Detector Verified');
 

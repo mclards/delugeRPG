@@ -1095,6 +1095,7 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null, o
       if (m.isCharge) moveScore -= 130; // 2-turn charge moves waste turns
       if (m.isSuicide) moveScore -= 2500; // Never suicide
       if (m.isFixedDamage) moveScore -= 500; // Fixed-damage moves (40 HP) cannot 1-hit KO high-level opponents
+      if (m.accuracy && m.accuracy < 90) moveScore -= (90 - m.accuracy) * 4; // Inaccurate moves (<90% like 85% Power Whip) risk misses in multi-turn sweeps
       if (m.accuracy && m.accuracy < 75) moveScore -= (75 - m.accuracy) * 5; // Inaccurate moves leave carry defenseless
 
       if (moveScore > bestMoveScore) {
@@ -2084,7 +2085,8 @@ function canSoloTrainer(poke, trainer) {
       const eff = outgoingEffectiveness(poke, m.type, oppTypes, opp);
       const isStab = pokeTypes.includes(normalizeType(m.type));
       const recoilFactor = m.isRecoil ? 0.75 : 1.0;
-      const effPwr = m.power * eff * (isStab ? 1.5 : 1.0) * vMultipliers.offense * ((m.isRecharge || m.isCharge) ? 0.5 : 1.0) * recoilFactor * lvlRatio;
+      const accFactor = (m.accuracy && m.accuracy < 95) ? (m.accuracy / 100) : 1.0;
+      const effPwr = m.power * eff * (isStab ? 1.5 : 1.0) * vMultipliers.offense * ((m.isRecharge || m.isCharge) ? 0.5 : 1.0) * recoilFactor * accFactor * lvlRatio;
       if (effPwr > maxReliableEffPower) maxReliableEffPower = effPwr;
       if (eff > bestEff || (eff === bestEff && m.power > maxPower)) {
         bestEff = eff;
@@ -2408,7 +2410,27 @@ function buildGodSquadTeam(collection, tierFilter) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
+  function isVeryStrongOpponent(trainer) {
+  if (!trainer) return false;
+  const roster = Array.isArray(trainer.roster) ? trainer.roster : [];
+  if (roster.length < 6) return false;
+
+  const tier = (trainer.tier || '').toUpperCase();
+  if (tier === 'ULTIMATE' || tier === 'VIP' || tier === 'STRONG') return true;
+  if (trainer.isChallenge) return true;
+  let avgLvl = trainer.avgLevel;
+  if (typeof avgLvl !== 'number' && roster.length > 0) {
+    const total = roster.reduce((sum, p) => sum + (p.level || 50), 0);
+    avgLvl = Math.round(total / roster.length);
+  }
+  if (avgLvl && avgLvl >= 50) return true;
+
+  return false;
+}
+
+module.exports = {
+  isVeryStrongOpponent,
+
     TYPE_CHART,
     ALL_TYPES,
     typeChartDatabase,

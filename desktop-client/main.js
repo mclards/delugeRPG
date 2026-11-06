@@ -8,9 +8,14 @@ const fs = require('fs');
 // Ensure unified application name so userData path is canonical across dev, portable, and installer updates
 app.setName('delugerpg-desktop-client');
 
-// 1. Anti-Detection Switches
+// 1. Anti-Detection & Uninterrupted Background Processing Switches
 // Disable Chromium automation flags so navigator.webdriver is undefined natively
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+// Prevent Chromium from throttling timers, repaints, and loops when window is behind other windows or occluded
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 
 // 2. Standard Google Chrome Identity (Matching exact Chromium 142 engine without Electron signature)
 const CHROME_VERSION = (process.versions && process.versions.chrome) || '142.0.7444.52';
@@ -612,6 +617,11 @@ if (!gotTheLock) {
   // Register zoom shortcuts and security policies across all window frames, iframes and webviews
   app.on('web-contents-created', (event, contents) => {
     contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    try {
+      if (typeof contents.setBackgroundThrottling === 'function') {
+        contents.setBackgroundThrottling(false);
+      }
+    } catch (_) {}
     try {
       const currentCfg = loadConfig();
       if (currentCfg.network && currentCfg.network.useProxy && typeof contents.setWebRTCIPHandlingPolicy === 'function') {

@@ -13,6 +13,28 @@ if (window.location.hostname && !window.location.hostname.includes('delugerpg.co
 
 const { ipcRenderer, webFrame } = require('electron');
 
+// Ensure game, auto-hunt, and battle loops are never paused by document visibility or occlusion checks
+try {
+    Object.defineProperty(document, 'hidden', {
+        get: () => false,
+        configurable: true
+    });
+    Object.defineProperty(document, 'visibilityState', {
+        get: () => 'visible',
+        configurable: true
+    });
+    window.addEventListener('visibilitychange', (e) => {
+        if (e && typeof e.stopImmediatePropagation === 'function') {
+            e.stopImmediatePropagation();
+        }
+    }, true);
+    document.addEventListener('visibilitychange', (e) => {
+        if (e && typeof e.stopImmediatePropagation === 'function') {
+            e.stopImmediatePropagation();
+        }
+    }, true);
+} catch (_) {}
+
 // --- 1. ENVIRONMENT HYGIENE & STEALTH PRELOAD SESSION STORE ---
 let _internalAuthorizedClickFlag = false;
 let __delugeAutoCatchAuthorizedClick = false;

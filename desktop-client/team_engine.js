@@ -1095,8 +1095,8 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null, o
       if (m.isCharge) moveScore -= 130; // 2-turn charge moves waste turns
       if (m.isSuicide) moveScore -= 2500; // Never suicide
       if (m.isFixedDamage) moveScore -= 500; // Fixed-damage moves (40 HP) cannot 1-hit KO high-level opponents
-      if (m.accuracy && m.accuracy < 90) moveScore -= (90 - m.accuracy) * 4; // Inaccurate moves (<90% like 85% Power Whip) risk misses in multi-turn sweeps
-      if (m.accuracy && m.accuracy < 75) moveScore -= (75 - m.accuracy) * 5; // Inaccurate moves leave carry defenseless
+      if (m.accuracy && m.accuracy < 90) moveScore -= (90 - m.accuracy) * 5; // Inaccurate moves (<90% like 85% Power Whip) risk misses in multi-turn sweeps
+      if (m.accuracy && m.accuracy < 80) moveScore -= (80 - m.accuracy) * 8; // Highly inaccurate moves (70% Blizzard) leave carry defenseless
 
       if (moveScore > bestMoveScore) {
         bestMoveScore = moveScore;
@@ -1189,19 +1189,34 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null, o
   // Evaluate opponent's known moveset (e.g., from stalked player profile #viewuteam)
   if (Array.isArray(oppMoves) && oppMoves.length > 0) {
     let worstCovRisk = 0;
+    let hasSleepOrFreezeHazard = false;
     for (const rawM of oppMoves) {
       const rm = resolveMove(rawM);
-      if (!rm.isStatus && rm.power > 0 && rm.type) {
+      if (rm.isStatus) {
+        const mNameLower = (rm.name || '').toLowerCase();
+        if (/dark void|spore|hypnosis|sleep|sing|yawn|grass whistle|lovely kiss|freeze|glare|thunder wave|stun spore/.test(mNameLower)) {
+          hasSleepOrFreezeHazard = true;
+        }
+      } else if (rm.power > 0 && rm.type) {
         const covRisk = incomingEffectiveness(poke, rm.type, targetOpp);
         if (covRisk > worstCovRisk) worstCovRisk = covRisk;
       }
     }
     if (worstCovRisk >= 4.0) {
-      defScore -= 120; // Avoid getting 4x sniped by opponent's coverage move
+      defScore -= 350; // Fatal quad weakness to opponent's move
       if (worstCovRisk > worstDefRisk) worstDefRisk = worstCovRisk;
       resistsAll = false;
-    } else if (worstCovRisk >= 2.0 && worstDefRisk < 2.0) {
-      defScore -= 45; // Penalize 2x exposure to opponent's coverage move
+    } else if (worstCovRisk >= 2.0) {
+      defScore -= 160; // Fatal super-effective exposure to opponent's attack
+      if (worstCovRisk > worstDefRisk) worstDefRisk = worstCovRisk;
+      resistsAll = false;
+    }
+    if (hasSleepOrFreezeHazard) {
+      if (vMultipliers.statusImmune) {
+        defScore += 160; // Metallic walls status inflicters completely
+      } else {
+        defScore -= 120; // Non-metallic gets put to sleep / paralyzed on Turn 1
+      }
     }
   }
 
@@ -1757,10 +1772,24 @@ function buildBestTeam(trainer, collection, fullCollection = null) {
         ? diverseScored
         : scored;
 
-      pool.sort((a, b) => b.totalScore - a.totalScore);
+      // Defensive Tier Partitioning:
+      // A true Hard Counter must not take fatal super-effective damage (worstDefRisk >= 2.0) from the target!
+      // Tier 1: True Walls & Safe Counters (worstDefRisk <= 1.0, super-effective offense bestMove.multiplier >= 2.0, reliable accuracy)
+      // Tier 2: Resilient Tanks (worstDefRisk <= 1.0, neutral/STAB offense bestMove.multiplier >= 1.0)
+      // Tier 3: Offense trades without quad fatal weakness (worstDefRisk < 4.0)
+      // Tier 4: Fragile glass cannons (worstDefRisk >= 4.0)
+      const tier1 = pool.filter(s => s.worstDefRisk <= 1.0 && s.bestMove && s.bestMove.multiplier >= 2.0 && (!s.bestMove.accuracy || s.bestMove.accuracy >= 80));
+      const tier2 = pool.filter(s => s.worstDefRisk <= 1.0 && s.bestMove && s.bestMove.multiplier >= 1.0);
+      const tier3 = pool.filter(s => s.worstDefRisk < 4.0);
 
-      if (pool.length > 0) {
-        const best = pool[0];
+      const effectivePool = (tier1.length > 0)
+        ? tier1
+        : ((tier2.length > 0) ? tier2 : ((tier3.length > 0) ? tier3 : pool));
+
+      effectivePool.sort((a, b) => b.totalScore - a.totalScore);
+
+      if (effectivePool.length > 0) {
+        const best = effectivePool[0];
         chosenIds.add(best.pokemon.id);
         chosenSpecies.add(getBaseSpecies(best.pokemon.name));
 

@@ -613,46 +613,46 @@ const EVOLUTION_FAMILIES = {
 };
 
 // -----------------------------------------------------------------------------
-// 2. DELUGE BEST ATTACKS PER TYPE
+// 2. DELUGE BEST ATTACKS PER TYPE (SERVER-WIDE PEAK MOVES REGARDLESS OF COST)
 // -----------------------------------------------------------------------------
 const TOP_STAB_MOVES = {
-  Normal: ['Body Slam', 'Double-Edge', 'Hyper Voice', 'Return'],
-  Fire: ['Flamethrower', 'Fire Blast', 'Flare Blitz', 'Heat Wave'],
-  Water: ['Hydro Pump', 'Surf', 'Waterfall', 'Scald'],
-  Grass: ['Energy Ball', 'Leaf Blade', 'Wood Hammer', 'Power Whip'],
-  Electric: ['Thunderbolt', 'Thunder', 'Wild Charge', 'Discharge'],
-  Ice: ['Ice Beam', 'Blizzard', 'Icicle Crash', 'Triple Axel'],
-  Fighting: ['Close Combat', 'Aura Sphere', 'Superpower', 'Drain Punch'],
-  Poison: ['Sludge Bomb', 'Sludge Wave', 'Gunk Shot', 'Poison Jab'],
-  Ground: ['Earthquake', 'Earth Power', 'High Horsepower', 'Bonemerang'],
-  Flying: ['Brave Bird', 'Hurricane', 'Air Slash', 'Acrobatics'],
-  Psychic: ['Psychic', 'Psystrike', 'Psyshock', 'Extrasensory'],
-  Bug: ['Bug Buzz', 'Megahorn', 'X-Scissor', 'Attack Order'],
-  Rock: ['Stone Edge', 'Rock Slide', 'Power Gem', 'Head Smash'],
-  Ghost: ['Shadow Ball', 'Poltergeist', 'Shadow Claw', 'Hex'],
-  Dragon: ['Dragon Pulse', 'Draco Meteor', 'Dragon Claw', 'Outrage'],
-  Steel: ['Flash Cannon', 'Iron Head', 'Meteor Mash', 'Gigaton Hammer'],
-  Dark: ['Dark Pulse', 'Crunch', 'Foul Play', 'Knock Off'],
-  Fairy: ['Moonblast', 'Dazzling Gleam', 'Play Rough', 'Spirit Break']
+  Normal: ['Boomburst', 'Double-Edge', 'Extreme Speed', 'Hyper Voice', 'Body Slam'],
+  Fire: ['V-create', 'Eruption', 'Mind Blown', 'Blue Flare', 'Armor Cannon', 'Flare Blitz', 'Flamethrower'],
+  Water: ['Water Spout', 'Wave Crash', 'Origin Pulse', 'Steam Eruption', 'Surf', 'Waterfall'],
+  Grass: ['Leaf Storm', 'Solar Blade', 'Seed Flare', 'Wood Hammer', 'Energy Ball', 'Leaf Blade'],
+  Electric: ['Bolt Strike', 'Volt Tackle', 'Plasma Fists', 'Fusion Bolt', 'Thunderbolt'],
+  Ice: ['Glacial Lance', 'Triple Axel', 'Ice Beam', 'Icicle Crash', 'Ice Spinner'],
+  Fighting: ['Focus Punch', 'High Jump Kick', 'Close Combat', 'Superpower', 'Collision Course', 'Aura Sphere'],
+  Poison: ['Belch', 'Gunk Shot', 'Sludge Wave', 'Sludge Bomb', 'Poison Jab'],
+  Ground: ['Headlong Rush', 'Precipice Blades', 'Earthquake', 'Earth Power', 'High Horsepower'],
+  Flying: ['Dragon Ascent', 'Brave Bird', 'Aeroblast', 'Air Slash'],
+  Psychic: ['Psycho Boost', 'Psystrike', 'Photon Geyser', 'Psychic', 'Psyshock'],
+  Bug: ['Megahorn', 'First Impression', 'Bug Buzz', 'Attack Order', 'X-Scissor'],
+  Rock: ['Head Smash', 'Diamond Storm', 'Stone Edge', 'Power Gem', 'Rock Slide'],
+  Ghost: ['Astral Barrage', 'Shadow Force', 'Poltergeist', 'Moongeist Beam', 'Spectral Thief', 'Shadow Ball'],
+  Dragon: ['Dragon Energy', 'Draco Meteor', 'Clanging Scales', 'Core Enforcer', 'Dragon Pulse', 'Dragon Claw'],
+  Steel: ['Doom Desire', 'Double Iron Bash', 'Gigaton Hammer', 'Sunsteel Strike', 'Behemoth Blade', 'Iron Head', 'Flash Cannon'],
+  Dark: ['Hyperspace Fury', 'Fiery Wrath', 'Darkest Lariat', 'Wicked Blow', 'Dark Pulse', 'Crunch'],
+  Fairy: ['Light of Ruin', 'Fleur Cannon', 'Moonblast', 'Play Rough', 'Dazzling Gleam']
 };
 
 // Counters to cover weaknesses
 const WEAKNESS_COVERAGE_MAP = {
   Normal: 'Fighting',
-  Fire: 'Water',
-  Water: 'Electric',
+  Fire: 'Ground',
+  Water: 'Grass',
   Grass: 'Fire',
   Electric: 'Ground',
-  Ice: 'Fire',
-  Fighting: 'Flying',
+  Ice: 'Fighting',
+  Fighting: 'Fairy',
   Poison: 'Ground',
-  Ground: 'Water',
+  Ground: 'Ice',
   Flying: 'Electric',
-  Psychic: 'Dark',
+  Psychic: 'Ghost',
   Bug: 'Fire',
-  Rock: 'Water',
+  Rock: 'Fighting',
   Ghost: 'Dark',
-  Dragon: 'Ice',
+  Dragon: 'Fairy',
   Steel: 'Fire',
   Dark: 'Fighting',
   Fairy: 'Steel'
@@ -1165,7 +1165,7 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
 // -----------------------------------------------------------------------------
 const CANONICAL_SPECIES_MOVES = {
   ogerpon: ['Ivy Cudgel', 'Wood Hammer', 'Superpower', 'Play Rough'],
-  'brute bonnet': ['Seed Bomb', 'Sucker Punch', 'Close Combat', 'Spore'],
+  'brute bonnet': ['Seed Bomb', 'Sucker Punch', 'Close Combat', 'Leaf Storm'],
   victini: ['V-create', 'Fusion Flare', 'Zen Headbutt', 'Bolt Strike'],
   moltres: ['Flamethrower', 'Air Slash', 'Solar Beam', 'Fire Blast'],
   'galarian moltres': ['Fiery Wrath', 'Hurricane', 'Dark Pulse', 'Air Slash'],
@@ -1202,7 +1202,7 @@ const CANONICAL_SPECIES_MOVES = {
   kyogre: ['Origin Pulse', 'Water Spout', 'Ice Beam', 'Thunder'],
   groudon: ['Precipice Blades', 'Fire Punch', 'Earthquake', 'Stone Edge'],
   rayquaza: ['Dragon Ascent', 'Extreme Speed', 'Earthquake', 'V-create'],
-  dialga: ['Roar of Time', 'Flash Cannon', 'Dragon Pulse', 'Earth Power'],
+  dialga: ['Dragon Energy', 'Doom Desire', 'Dragon Pulse', 'Earth Power'],
   palkia: ['Spacial Rend', 'Hydro Pump', 'Dragon Pulse', 'Aura Sphere'],
   giratina: ['Shadow Force', 'Dragon Pulse', 'Earthquake', 'Aura Sphere'],
   arceus: ['Judgment', 'Extreme Speed', 'Earthquake', 'Shadow Ball'],
@@ -1214,14 +1214,14 @@ const CANONICAL_SPECIES_MOVES = {
   zygarde: ['Thousand Arrows', 'Core Enforcer', 'Outrage', 'Earthquake'],
   solgaleo: ['Sunsteel Strike', 'Zen Headbutt', 'Earthquake', 'Flare Blitz'],
   lunala: ['Moongeist Beam', 'Psychic', 'Ice Beam', 'Focus Blast'],
-  necrozma: ['Prismatic Laser', 'Photon Geyser', 'Earth Power', 'Dark Pulse'],
+  necrozma: ['Psycho Boost', 'Photon Geyser', 'Earth Power', 'Dark Pulse'],
   nihilego: ['Sludge Wave', 'Power Gem', 'Thunderbolt', 'Dazzling Gleam'],
   buzzwole: ['Close Combat', 'Leech Life', 'Ice Punch', 'Earthquake'],
   pheromosa: ['High Jump Kick', 'Bug Buzz', 'Ice Beam', 'U-turn'],
   kartana: ['Leaf Blade', 'Sacred Sword', 'Smart Strike', 'Night Slash'],
   celesteela: ['Heavy Slam', 'Flamethrower', 'Air Slash', 'Giga Drain'],
   blacephalon: ['Mind Blown', 'Shadow Ball', 'Fire Blast', 'Dark Pulse'],
-  stakataka: ['Gyro Ball', 'Stone Edge', 'Earthquake', 'Superpower'],
+  stakataka: ['Doom Desire', 'Stone Edge', 'Earthquake', 'Superpower'],
   darkrai: ['Dark Pulse', 'Dream Eater', 'Ice Beam', 'Sludge Bomb'],
   deoxys: ['Psycho Boost', 'Superpower', 'Shadow Ball', 'Thunderbolt'],
   genesect: ['Techno Blast', 'Bug Buzz', 'Iron Head', 'Flamethrower'],
@@ -1246,8 +1246,8 @@ const CANONICAL_SPECIES_MOVES = {
   blissey: ['Seismic Toss', 'Hyper Voice', 'Shadow Ball', 'Ice Beam'],
   corviknight: ['Brave Bird', 'Iron Head', 'Body Press', 'U-turn'],
   toxapex: ['Sludge Bomb', 'Scald', 'Venoshock', 'Hydro Pump'],
-  gliscor: ['Earthquake', 'Toxic', 'Ice Fang', 'Knock Off'],
-  ferrothorn: ['Power Whip', 'Gyro Ball', 'Body Press', 'Iron Head'],
+  gliscor: ['Earthquake', 'Dragon Ascent', 'Ice Fang', 'Knock Off'],
+  ferrothorn: ['Power Whip', 'Doom Desire', 'Body Press', 'Iron Head'],
   heatran: ['Magma Storm', 'Flash Cannon', 'Earth Power', 'Solar Beam'],
   landorus: ['Earthquake', 'Stone Edge', 'Superpower', 'Fly'],
   tornadus: ['Bleakwind Storm', 'Hurricane', 'Heat Wave', 'Focus Blast'],
@@ -1322,93 +1322,107 @@ function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []
     }
   }
 
-  let optimalMoves = [];
+  // -----------------------------------------------------------------------------
+  // SERVER-WIDE OPTIMAL DELUGE MOVESET RECOMMENDATION (REGARDLESS OF POKEDOLLAR COST)
+  // -----------------------------------------------------------------------------
+  // DelugeRPG allows purchasing any attack move from the server's Attack Relearner.
+  // We guarantee 4 peak-power, high-accuracy moves:
+  // Slot 1: Primary STAB (Highest power move matching types[0])
+  // Slot 2: Secondary STAB / Alternate STAB (Highest power move matching types[1] or 2nd primary)
+  // Slot 3: Anti-Weakness Coverage (Counter to Pokemon's worst defensive weakness)
+  // Slot 4: Universal Wallbreaker Coverage (Elite non-overlapping high-power attack)
 
-  if (canonicalKeyMoves && canonicalKeyMoves.length > 0) {
-    // Preserve any already equipped high-power, non-flawed moves that the user's Pokemon knows
-    const nonFlawedEquipped = (existingMoves || []).map(m => {
-      const raw = typeof m === 'string' ? m : (m && m.name ? m.name : '');
-      return raw.trim();
-    }).filter(m => {
-      if (!m) return false;
+  const nonFlawedEquipped = (existingMoves || []).map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : '')).trim()).filter(m => {
+    if (!m) return false;
+    const rm = teamEngine.resolveMove(m);
+    return !rm.isStatus && rm.power >= 85 && !rm.isOhko && !rm.isRecharge && !rm.isSuicide && !rm.isFixedDamage && (!rm.accuracy || rm.accuracy >= 80);
+  });
+
+  const canon = (canonicalKeyMoves || []).filter(m => {
+    const rm = teamEngine.resolveMove(m);
+    return !rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power >= 80 && (!rm.accuracy || rm.accuracy >= 80);
+  });
+
+  // Slot 1: Primary STAB
+  const pPool = (TOP_STAB_MOVES[primaryType] || ['Boomburst'])
+    .concat(canon.filter(m => teamEngine.resolveMove(m).type === primaryType))
+    .concat(nonFlawedEquipped.filter(m => teamEngine.resolveMove(m).type === primaryType));
+  pPool.sort((a, b) => teamEngine.resolveMove(b).power - teamEngine.resolveMove(a).power);
+  const move1Name = pPool.find(m => {
+    const rm = teamEngine.resolveMove(m);
+    return !rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power > 0 && (!rm.accuracy || rm.accuracy >= 80);
+  }) || (TOP_STAB_MOVES[primaryType] ? TOP_STAB_MOVES[primaryType][0] : 'Double-Edge');
+
+  // Slot 2: Secondary STAB or Alternate STAB
+  let move2Name;
+  if (secondaryType && TOP_STAB_MOVES[secondaryType]) {
+    const sPool = TOP_STAB_MOVES[secondaryType]
+      .concat(canon.filter(m => teamEngine.resolveMove(m).type === secondaryType))
+      .concat(nonFlawedEquipped.filter(m => teamEngine.resolveMove(m).type === secondaryType));
+    sPool.sort((a, b) => teamEngine.resolveMove(b).power - teamEngine.resolveMove(a).power);
+    move2Name = sPool.find(m => {
       const rm = teamEngine.resolveMove(m);
-      return !rm.isStatus && rm.power >= 65 && !rm.isOhko && !rm.isRecharge && !rm.isFixedDamage && (!rm.accuracy || rm.accuracy > 70);
-    });
-
-    const candPool = Array.from(new Set([...nonFlawedEquipped, ...canonicalKeyMoves]));
-    const evaluatedSelection = evaluateEvolutionMoveSelection(name, candPool, collection);
-    optimalMoves = (evaluatedSelection.recommendedMoves || []).slice(0, 4).map(m => {
-      const rm = teamEngine.resolveMove(m.name);
-      const isPrimaryStab = rm.type.toLowerCase() === primaryType.toLowerCase();
-      const isSecondaryStab = secondaryType && rm.type.toLowerCase() === secondaryType.toLowerCase();
-      let role = 'High-Power Coverage';
-      if (isPrimaryStab) role = 'Primary STAB';
-      else if (isSecondaryStab) role = 'Secondary STAB';
-      return {
-        name: m.name,
-        type: rm.type || m.type,
-        power: rm.power || m.power || 90,
-        category: rm.category || 'Special',
-        role: role
-      };
-    });
+      return m !== move1Name && !rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power > 0 && (!rm.accuracy || rm.accuracy >= 80);
+    }) || TOP_STAB_MOVES[secondaryType][0];
+  } else {
+    move2Name = pPool.find(m => {
+      const rm = teamEngine.resolveMove(m);
+      return m !== move1Name && !rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power > 0 && (!rm.accuracy || rm.accuracy >= 80);
+    }) || (TOP_STAB_MOVES[primaryType] && TOP_STAB_MOVES[primaryType][1]) || 'Earthquake';
   }
 
-  // Fallback to type STAB moves if canonical keyMoves unavailable or insufficient
-  if (!optimalMoves || optimalMoves.length < 4) {
-    const primaryStabList = TOP_STAB_MOVES[primaryType] || ['Body Slam', 'Double-Edge'];
-    const move1 = primaryStabList[0];
+  // Slot 3: Anti-Weakness Coverage
+  const topWeakness = (defProfile.quadWeaknesses && defProfile.quadWeaknesses[0]) || (defProfile.weaknesses && defProfile.weaknesses[0]);
+  const counterType = (topWeakness && WEAKNESS_COVERAGE_MAP[topWeakness]) ? WEAKNESS_COVERAGE_MAP[topWeakness] : (primaryType === 'Fire' ? 'Ground' : 'Fighting');
+  const cPool = (TOP_STAB_MOVES[counterType] || ['Close Combat'])
+    .concat(canon.filter(m => teamEngine.resolveMove(m).type === counterType))
+    .concat(nonFlawedEquipped.filter(m => teamEngine.resolveMove(m).type === counterType));
+  cPool.sort((a, b) => teamEngine.resolveMove(b).power - teamEngine.resolveMove(a).power);
+  const move3Name = cPool.find(m => {
+    const rm = teamEngine.resolveMove(m);
+    return m !== move1Name && m !== move2Name && !rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power > 0 && (!rm.accuracy || rm.accuracy >= 80);
+  }) || (TOP_STAB_MOVES[counterType] ? TOP_STAB_MOVES[counterType][0] : 'Close Combat');
 
-    let move2 = null;
-    if (secondaryType && TOP_STAB_MOVES[secondaryType]) {
-      move2 = TOP_STAB_MOVES[secondaryType][0];
-    } else {
-      move2 = primaryStabList[1] || 'Earthquake';
+  // Slot 4: Universal Wallbreaker Coverage
+  const eliteCandidates = [
+    'Earthquake', 'Close Combat', 'Glacial Lance', 'Moonblast',
+    'Thunderbolt', 'Astral Barrage', 'Dragon Energy', 'V-create',
+    'Boomburst', 'Headlong Rush', 'Dragon Ascent'
+  ].concat(canon);
+  const usedTypes = new Set([
+    teamEngine.resolveMove(move1Name).type,
+    teamEngine.resolveMove(move2Name).type,
+    teamEngine.resolveMove(move3Name).type
+  ]);
+  let move4Name = 'Earthquake';
+  for (const cand of eliteCandidates) {
+    const rm = teamEngine.resolveMove(cand);
+    if (!rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power > 0 &&
+        (!rm.accuracy || rm.accuracy >= 80) &&
+        !usedTypes.has(rm.type) &&
+        cand !== move1Name && cand !== move2Name && cand !== move3Name) {
+      move4Name = cand;
+      break;
     }
-
-    let move3 = 'Earthquake';
-    const topWeakness = defProfile.quadWeaknesses[0] || defProfile.weaknesses[0];
-    if (topWeakness && WEAKNESS_COVERAGE_MAP[topWeakness]) {
-      const counterType = WEAKNESS_COVERAGE_MAP[topWeakness];
-      const candidateMoves = TOP_STAB_MOVES[counterType];
-      if (candidateMoves && candidateMoves.length > 0) {
-        move3 = candidateMoves[0];
-      }
-    } else if (primaryType === 'Water') {
-      move3 = 'Ice Beam';
-    } else if (primaryType === 'Fire') {
-      move3 = 'Solar Beam';
-    } else if (primaryType === 'Grass') {
-      move3 = 'Rock Slide';
-    } else {
-      move3 = 'Earthquake';
-    }
-
-    let move4 = 'Earthquake';
-    const pool4 = ['Close Combat', 'Aura Sphere', 'Psychic', 'Shadow Ball', 'Thunderbolt', 'Ice Beam', 'Stone Edge'];
-    for (const cand of pool4) {
-      if (cand !== move1 && cand !== move2 && cand !== move3) {
-        move4 = cand;
-        break;
-      }
-    }
-
-    optimalMoves = [
-      { name: move1, type: primaryType, role: 'Primary STAB' },
-      { name: move2, type: secondaryType || primaryType, role: secondaryType ? 'Secondary STAB' : 'High-Power STAB' },
-      { name: move3, type: getMoveType(move3), role: 'Anti-Weakness Coverage' },
-      { name: move4, type: getMoveType(move4), role: 'Wallbreaker Coverage' }
-    ].map(m => {
-      const resolved = teamEngine.resolveMove(m.name);
-      return {
-        name: m.name,
-        type: resolved.type || m.type,
-        power: resolved.power || 90,
-        category: resolved.category || 'Special',
-        role: m.role
-      };
-    });
   }
+
+  const rawOptimalMoves = [
+    { name: move1Name, role: 'Primary STAB' },
+    { name: move2Name, role: secondaryType ? 'Secondary STAB' : 'High-Power STAB' },
+    { name: move3Name, role: 'Anti-Weakness Coverage' },
+    { name: move4Name, role: 'Universal Wallbreaker' }
+  ];
+
+  let optimalMoves = rawOptimalMoves.map(m => {
+    const rm = teamEngine.resolveMove(m.name);
+    return {
+      name: m.name,
+      type: rm.type || 'Normal',
+      power: rm.power || 90,
+      category: rm.category || 'Special',
+      role: m.role
+    };
+  });
 
   // Critique current moves with intelligent unequipped move recommendations
   const moveCritique = [];
@@ -2103,6 +2117,7 @@ function getMegaPokemonCollection(userCollection) {
 module.exports = {
   EVOLUTION_FAMILIES,
   TOP_STAB_MOVES,
+  WEAKNESS_COVERAGE_MAP,
   SPECIES_DEFAULT_TYPES,
   STAGE_TRANSITIONS,
   CANONICAL_SPECIES_MOVES,

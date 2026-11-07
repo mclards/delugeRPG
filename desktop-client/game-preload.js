@@ -335,7 +335,8 @@ const TARGETS = {
     ],
     specialVariants: [
         "shiny", "metallic", "ghostly", "dark", "shadow", "mirage", "chrome", "negative", "retro"
-    ]
+    ],
+    speciesTypes: {"abomasnow":["Grass","Ice"],"abra":["Psychic"],"absol":["Dark"],"accelgor":["Bug"],"aegislash":["Steel","Ghost"],"aegislash (blade form)":["Steel","Ghost"],"aerodactyl":["Rock","Flying"],"aggron":["Steel","Rock"],"alakazam":["Psychic"],"alcremie":["Fairy"],"alola cap pikachu":["Electric"],"alolan muk":["Poison","Dark"],"altaria":["Dragon","Flying"],"amaura":["Rock","Ice"],"ampharos":["Electric"],"annihilape":["Fighting","Ghost"],"appletun":["Grass","Dragon"],"applin":["Grass","Dragon"],"araquanid":["Water","Bug"],"arbok":["Poison"],"arcanine":["Fire"],"arceus":["Normal"],"arceus (ghost)":["Ghost"],"archeops":["Rock","Flying"],"arctibax":["Dragon","Ice"],"ariados":["Bug","Poison"],"armaldo":["Rock","Bug"],"aron":["Steel","Rock"],"arrokuda":["Water"],"articuno":["Ice","Flying"],"ash-greninja":["Water","Dark"],"audino":["Normal"],"aurorus":["Rock","Ice"],"avalugg":["Ice"],"azelf":["Psychic"],"azumarill":["Water","Fairy"],"bagon":["Dragon"],"banette":["Ghost"],"barbaracle":["Rock","Water"],"barboach":["Water","Ground"],"bastiodon":["Rock","Steel"],"baxcalibur":["Dragon","Ice"],"bayleef":["Grass"],"beartic":["Ice"],"beautifly":["Bug","Flying"],"beedrill":["Bug","Poison"],"beheeyem":["Psychic"],"beldum":["Steel","Psychic"],"bellibolt":["Electric"],"bewear":["Normal","Fighting"],"bisharp":["Dark","Steel"],"blacephalon":["Fire","Ghost"],"black kyurem":["Dragon","Ice"],"blastoise":["Water"],"blaziken":["Fire","Fighting"],"blipbug":["Bug"],"boldore":["Rock"],"bouffalant":["Normal"],"braixen":["Fire"],"braviary":["Normal","Flying"],"brionne":["Water"],"bronzong":["Steel","Psychic"],"brute bonnet":["Grass","Dark"],"bulbasaur":["Grass","Poison"],"buneary":["Normal"],"butterfree":["Bug","Flying"],"buzzwole":["Bug","Fighting"],"cacturne":["Grass","Dark"],"calyrex":["Psychic","Grass"],"calyrex (shadow rider)":["Psychic","Ghost"],"camerupt":["Fire","Ground"],"carracosta":["Water","Rock"],"carvanha":["Water","Dark"],"castform (rainy form)":["Water"],"caterpie":["Bug"],"celebi":["Psychic","Grass"],"celesteela":["Steel","Flying"],"centiskorch":["Fire","Bug"],"cetitan":["Ice"],"chandelure":["Ghost","Fire"],"charizard":["Fire","Flying"],"charjabug":["Bug","Electric"],"charmander":["Fire"],"charmeleon":["Fire"],"chatot":["Normal","Flying"],"cherubi":["Grass"],"chesnaught":["Grass","Fighting"],"chespin":["Grass"],"chi-yu":["Dark","Fire"],"chien-pao":["Dark","Ice"],"chikorita":["Grass"],"chimchar":["Fire"],"chinchou":["Water","Electric"],"chrome aerodactyl":["Rock","Flying"],"chrome beldum":["Steel","Psychic"],"chrome kangaskhan":["Normal"],"chrome landorus (incarnate)":["Ground","Flying"],"chrome lugia":["Psychic","Flying"],"chrome skuntank":["Poison","Dark"],"cinccino":["Normal"],"cinderace":["Fire"],"clawitzer":["Water"],"claydol":["Ground","Psychic"],"clefairy":["Fairy"],"clodsire":["Poison","Ground"],"cloyster":["Water","Ice"],"coalossal":["Rock","Fire"],"cobalion":["Steel","Fighting"],"cofagrigus":["Ghost"],"combusken":["Fire","Fighting"],"comfey":["Fairy"],"conkeldurr":["Fighting"],"copperajah":["Steel"],"corphish":["Water"],"corviknight":["Flying","Steel"],"cosmoem":["Psychic"],"cosmog":["Psychic"],"crabominable":["Fighting","Ice"],"crabrawler":["Fighting"],"cradily":["Rock","Grass"],"cranidos":["Rock"],"crawdaunt":["Water","Dark"],"cresselia":["Psychic"],"crobat":["Poison","Flying"],"crocalor":["Fire"],"croconaw":["Water"],"cryogonal":["Ice"],"cursola":["Ghost"],"cyndaquil":["Fire"],"dada zarude":["Dark","Grass"],"dark buzzwole":["Bug","Fighting"],"dark chesnaught":["Grass","Fighting"],"dark galarian moltres":["Dark","Flying"],"dark ho-oh":["Fire","Flying"],"dark hoopa (unbound)":["Psychic","Dark"],"dark iron crown":["Steel","Psychic"],"dark kartana":["Grass","Steel"],"dark koraidon":["Fighting","Dragon"],"dark mega latias":["Dragon","Psychic"],"dark mega sharpedo":["Water","Dark"],"dark meloetta (pirouette)":["Normal","Fighting"],"dark onix":["Rock","Ground"],"dark regigigas":["Normal"],"dark terapagos":["Normal"],"dark uxie":["Psychic"],"darkrai":["Dark"],"darmanitan":["Ice"],"dartrix":["Grass","Flying"],"decidueye":["Grass","Ghost"],"deino":["Dark","Dragon"],"delphox":["Fire","Psychic"],"deoxys":["Psychic"],"dewgong":["Water","Ice"],"dewott":["Water"],"dhelmise":["Ghost","Grass"],"dialga":["Steel","Dragon"],"diancie":["Rock","Fairy"],"dodrio":["Normal","Flying"],"doduo":["Normal","Flying"],"donphan":["Ground"],"dottler":["Bug","Psychic"],"dragalge":["Poison","Dragon"],"dragapult":["Dragon","Ghost"],"dragonair":["Dragon"],"dragonite":["Dragon","Flying"],"drakloak":["Dragon","Ghost"],"drapion":["Poison","Dark"],"dratini":["Dragon"],"drednaw":["Water","Rock"],"dreepy":["Dragon","Ghost"],"drifblim":["Ghost","Flying"],"drizzile":["Water"],"druddigon":["Dragon"],"dubwool":["Normal"],"dudunsparce":["Normal"],"dugtrio":["Ground"],"duraludon":["Steel","Dragon"],"dusclops":["Ghost"],"duskull":["Ghost"],"dustox":["Bug","Poison"],"dwebble":["Bug","Rock"],"eelektross":["Electric"],"eevee":["Normal"],"eiscue":["Ice"],"eldegoss":["Grass"],"electabuzz":["Electric"],"electivire":["Electric"],"electrike":["Electric"],"electrode":["Electric"],"emboar":["Fire","Fighting"],"emolga":["Electric","Flying"],"empoleon":["Water","Steel"],"enamorus":["Fairy","Flying"],"enamorus (therian)":["Fairy","Flying"],"entei":["Fire"],"escavalier":["Bug","Steel"],"espathra":["Psychic"],"espeon":["Psychic"],"eternatus":["Poison","Dragon"],"excadrill":["Ground","Steel"],"exeggutor":["Grass","Psychic"],"farfetch'd":["Normal","Flying"],"farigiraf":["Normal","Psychic"],"fennekin":["Fire"],"feraligatr":["Water"],"fezandipiti":["Poison","Fairy"],"flaaffy":["Electric"],"flamigo":["Flying","Fighting"],"flapple":["Grass","Dragon"],"flareon":["Fire"],"fletchinder":["Fire","Flying"],"floatzel":["Water"],"floragato":["Grass"],"florges":["Fairy"],"flutter mane":["Ghost","Fairy"],"flygon":["Ground","Dragon"],"forretress":["Bug","Steel"],"fraxure":["Dragon"],"frigibax":["Dragon","Ice"],"froakie":["Water"],"frogadier":["Water"],"froslass":["Ice","Ghost"],"frosmoth":["Ice","Bug"],"fuecoco":["Fire"],"g-max melmetal":["Steel"],"g-max urshifu":["Fighting","Dark"],"gabite":["Dragon","Ground"],"galarian corsola":["Ghost"],"galarian moltres":["Dark","Flying"],"galarian yamask":["Ground","Ghost"],"gallade":["Psychic","Fighting"],"garbodor":["Poison"],"garchomp":["Dragon","Ground"],"gardevoir":["Psychic","Fairy"],"gastly":["Ghost","Poison"],"gastrodon":["Water","Ground"],"genesect":["Bug","Steel"],"gengar":["Ghost","Poison"],"geodude":["Rock","Ground"],"ghostly audino":["Normal"],"ghostly cobalion":["Steel","Fighting"],"ghostly cosmog":["Psychic"],"ghostly gouging fire":["Fire","Dragon"],"ghostly iron boulder":["Rock","Psychic"],"ghostly mega charizard y":["Fire","Flying"],"ghostly mesprit":["Psychic"],"ghostly mudkip":["Water"],"ghostly pheromosa":["Bug","Fighting"],"ghostly regidrago":["Dragon"],"ghostly slowking":["Water","Psychic"],"ghostly snorunt":["Ice"],"ghostly tornadus (incarnate)":["Flying"],"ghostly wo-chien":["Dark","Grass"],"ghostly yveltal":["Dark","Flying"],"gible":["Dragon","Ground"],"gigalith":["Rock"],"girafarig":["Normal","Psychic"],"giratina":["Ghost","Dragon"],"glaceon":["Ice"],"glalie":["Ice"],"glastrier":["Ice"],"glimmora":["Rock","Poison"],"gogoat":["Grass"],"golbat":["Poison","Flying"],"goldeen":["Water"],"golem":["Rock","Ground"],"golurk":["Ground","Ghost"],"goodra":["Dragon"],"goomy":["Dragon"],"gossifleur":["Grass"],"gothitelle":["Psychic"],"gouging fire":["Fire","Dragon"],"gourgeist":["Ghost","Grass"],"granbull":["Fairy"],"grapploct":["Fighting"],"graveler":["Rock","Ground"],"great tusk":["Ground","Fighting"],"greninja":["Water","Dark"],"grimmsnarl":["Dark","Fairy"],"grookey":["Grass"],"grotle":["Grass"],"groudon":["Ground"],"grovyle":["Grass"],"growlithe":["Fire"],"guzzlord":["Dark","Dragon"],"gyarados":["Water","Flying"],"hakamo-o":["Dragon","Fighting"],"hariyama":["Fighting"],"hatterene":["Psychic","Fairy"],"haunter":["Ghost","Poison"],"hawlucha":["Fighting","Flying"],"haxorus":["Dragon"],"heatran":["Fire","Steel"],"heliolisk":["Electric","Normal"],"heracross":["Bug","Fighting"],"herdier":["Normal"],"hippowdon":["Ground"],"hitmonchan":["Fighting"],"hitmonlee":["Fighting"],"hitmontop":["Fighting"],"ho-oh":["Fire","Flying"],"honchkrow":["Dark","Flying"],"hoopa":["Psychic","Ghost"],"hoppip":["Grass","Flying"],"houndoom":["Dark","Fire"],"houndour":["Dark","Fire"],"houndstone":["Ghost"],"hydreigon":["Dark","Dragon"],"hypno":["Psychic"],"igglybuff":["Normal","Fairy"],"incineroar":["Fire","Dark"],"infernape":["Fire","Fighting"],"inteleon":["Water"],"iron boulder":["Rock","Psychic"],"iron bundle":["Ice","Water"],"iron crown":["Steel","Psychic"],"iron hands":["Fighting","Electric"],"iron jugulis":["Dark","Flying"],"iron leaves":["Grass","Psychic"],"iron moth":["Fire","Poison"],"iron thorns":["Rock","Electric"],"iron treads":["Ground","Steel"],"iron valiant":["Fairy","Fighting"],"ivysaur":["Grass","Poison"],"jangmo-o":["Dragon"],"jellicent":["Water","Ghost"],"jirachi":["Steel","Psychic"],"jolteon":["Electric"],"jumpluff":["Grass","Flying"],"jynx":["Ice","Psychic"],"kadabra":["Psychic"],"kakuna":["Bug","Poison"],"kangaskhan":["Normal"],"kartana":["Grass","Steel"],"keldeo":["Water","Fighting"],"kingambit":["Dark","Steel"],"kingdra":["Water","Dragon"],"kingler":["Water"],"kirlia":["Psychic","Fairy"],"kleavor":["Bug","Rock"],"klefki":["Steel","Fairy"],"klinklang":["Steel"],"koffing":["Poison"],"komala":["Normal"],"kommo-o":["Dragon","Fighting"],"koraidon":["Fighting","Dragon"],"krabby":["Water"],"krokorok":["Ground","Dark"],"krookodile":["Ground","Dark"],"kubfu":["Fighting"],"kyogre":["Water"],"kyurem":["Dragon","Ice"],"lairon":["Steel","Rock"],"landorus":["Ground","Flying"],"lapras":["Water","Ice"],"larvitar":["Rock","Ground"],"latias":["Dragon","Psychic"],"latios":["Dragon","Psychic"],"leafeon":["Grass"],"leavanny":["Bug","Grass"],"liepard":["Dark"],"lillipup":["Normal"],"linoone":["Normal"],"litten":["Fire"],"lombre":["Water","Grass"],"lopunny":["Normal"],"lucario":["Fighting","Steel"],"ludicolo":["Water","Grass"],"lugia":["Psychic","Flying"],"lunala":["Psychic","Ghost"],"lunatone":["Rock","Psychic"],"lurantis":["Grass"],"luvdisc":["Water"],"luxray":["Electric"],"lycanroc":["Rock"],"machamp":["Fighting"],"machoke":["Fighting"],"machop":["Fighting"],"magearna":["Steel","Fairy"],"magikarp":["Water"],"magmar":["Fire"],"magmortar":["Fire"],"magnemite":["Electric","Steel"],"magneton":["Electric","Steel"],"magnezone":["Electric","Steel"],"makuhita":["Fighting"],"malamar":["Dark","Psychic"],"manaphy":["Water"],"mandibuzz":["Dark","Flying"],"manectric":["Electric"],"mankey":["Fighting"],"mareep":["Electric"],"marowak":["Fire","Ghost"],"marshadow":["Fighting","Ghost"],"marshtomp":["Water","Ground"],"mawile":["Steel","Fairy"],"medicham":["Fighting","Psychic"],"meditite":["Fighting","Psychic"],"mega aerodactyl":["Rock","Flying"],"mega alakazam":["Psychic"],"mega audino":["Normal","Fairy"],"mega blastoise":["Water"],"mega charizard x":["Fire","Dragon"],"mega charizard y":["Fire","Flying"],"mega diancie":["Rock","Fairy"],"mega glalie":["Ice"],"mega houndoom":["Dark","Fire"],"mega kangaskhan":["Normal"],"mega latias":["Dragon","Psychic"],"mega latios":["Dragon","Psychic"],"mega manectric":["Electric"],"mega medicham":["Fighting","Psychic"],"mega metagross":["Steel","Psychic"],"mega mewtwo x":["Psychic","Fighting"],"mega mewtwo y":["Psychic"],"mega pinsir":["Bug","Flying"],"mega rayquaza":["Dragon","Flying"],"mega salamence":["Dragon","Flying"],"mega sceptile":["Grass","Dragon"],"mega scizor":["Bug","Steel"],"mega slowbro":["Water","Psychic"],"mega steelix":["Steel","Ground"],"mega swampert":["Water","Ground"],"mega venusaur":["Grass","Poison"],"meganium":["Grass"],"melmetal":["Steel"],"meloetta":["Normal","Psychic"],"meltan":["Steel"],"meowscarada":["Grass","Dark"],"meowstic":["Psychic"],"meowth":["Normal"],"mesprit":["Psychic"],"metagross":["Steel","Psychic"],"metallic bagon":["Dragon"],"metallic deoxys":["Psychic"],"metallic dialga":["Steel","Dragon"],"metallic eternamax eternatus":["Poison","Dragon"],"metallic galarian moltres":["Dark","Flying"],"metallic kubfu":["Fighting"],"metallic mega garchomp":["Dragon","Ground"],"metallic mega latias":["Dragon","Psychic"],"metallic melmetal":["Steel"],"metallic mudkip":["Water"],"metallic nihilego":["Rock","Poison"],"metallic raging bolt":["Electric","Dragon"],"metallic regirock":["Rock"],"metallic volcanion":["Fire","Water"],"metallic walking wake":["Water","Dragon"],"metallic white kyurem (overdrive)":["Dragon","Ice"],"metallic xerneas (neutral)":["Fairy"],"metallic xurkitree":["Electric"],"metang":["Steel","Psychic"],"metapod":["Bug"],"mew":["Psychic"],"mewtwo":["Psychic"],"mienfoo":["Fighting"],"mienshao":["Fighting"],"mightyena":["Dark"],"milotic":["Water"],"miltank":["Normal"],"mimikyu":["Ghost","Fairy"],"mimikyu (disguised form)":["Ghost","Fairy"],"mirage dialga (origin)":["Steel","Dragon"],"mirage enamorus (therian)":["Fairy","Flying"],"mirage kangaskhan":["Normal"],"mirage mega manectric":["Electric"],"mirage mega mewtwo x":["Psychic","Fighting"],"mirage pidove":["Normal","Flying"],"mirage raging bolt":["Electric","Dragon"],"mirage rayquaza":["Dragon","Flying"],"mirage skarmory":["Steel","Flying"],"miraidon":["Electric","Dragon"],"mismagius":["Ghost"],"moltres":["Fire","Flying"],"monferno":["Fire","Fighting"],"morpeko":["Electric","Dark"],"mr. mime":["Psychic","Fairy"],"mr. rime":["Ice","Psychic"],"mudkip":["Water"],"mudsdale":["Ground"],"muk":["Poison"],"munkidori":["Poison","Psychic"],"murkrow":["Dark","Flying"],"musharna":["Psychic"],"naganadel":["Poison","Dragon"],"necrozma":["Psychic"],"negative brute bonnet":["Grass","Dark"],"negative glastrier":["Ice"],"negative iron boulder":["Rock","Psychic"],"negative landorus (incarnate)":["Ground","Flying"],"negative mega abomasnow":["Grass","Ice"],"negative reshiram":["Dragon","Fire"],"negative terapagos":["Normal"],"negative yveltal":["Dark","Flying"],"nidoking":["Poison","Ground"],"nidoqueen":["Poison","Ground"],"nihilego":["Rock","Poison"],"ninetales":["Ice","Fairy"],"noctowl":["Normal","Flying"],"noivern":["Flying","Dragon"],"nosepass":["Rock"],"numel":["Fire","Ground"],"nymble":["Bug"],"obstagoon":["Dark","Normal"],"ogerpon":["Grass","Water"],"ogerpon (wellspring mask)":["Grass","Water"],"okidogi":["Poison","Fighting"],"onix":["Rock","Ground"],"orbeetle":["Bug","Psychic"],"oricorio":["Electric","Flying"],"oshawott":["Water"],"palkia":["Water","Dragon"],"palossand":["Ghost","Ground"],"palpitoad":["Water","Ground"],"pangoro":["Fighting","Dark"],"panpour":["Water"],"pansage":["Grass"],"pansear":["Fire"],"passimian":["Fighting"],"patrat":["Normal"],"pecharunt":["Poison","Ghost"],"pelipper":["Water","Flying"],"persian":["Normal"],"petilil":["Grass"],"phantump":["Ghost","Grass"],"pheromosa":["Bug","Fighting"],"phione":["Water"],"pichu":["Electric"],"pidgeot":["Normal","Flying"],"pidgeotto":["Normal","Flying"],"pidgey":["Normal","Flying"],"pidove":["Normal","Flying"],"pignite":["Fire","Fighting"],"pikachu":["Electric"],"piloswine":["Ice","Ground"],"pincurchin":["Electric"],"pinsir":["Bug"],"piplup":["Water"],"poipole":["Poison"],"poliwag":["Water"],"poliwrath":["Water","Fighting"],"ponyta":["Fire"],"popplio":["Water"],"primal groudon":["Ground","Fire"],"primal kyogre":["Water"],"primarina":["Water","Fairy"],"primeape":["Fighting"],"prinplup":["Water"],"probopass":["Rock","Steel"],"pupitar":["Rock","Ground"],"pyroar":["Fire","Normal"],"quagsire":["Water","Ground"],"quaquaval":["Water","Fighting"],"quaxly":["Water"],"quaxwell":["Water"],"quilava":["Fire"],"quilladin":["Grass"],"qwilfish":["Water","Poison"],"raboot":["Fire"],"raging bolt":["Electric","Dragon"],"raichu":["Electric"],"raikou":["Electric"],"ralts":["Psychic","Fairy"],"rapidash":["Fire"],"rayquaza":["Dragon","Flying"],"regice":["Ice"],"regidrago":["Dragon"],"regieleki":["Electric"],"regigigas":["Normal"],"regirock":["Rock"],"registeel":["Steel"],"remoraid":["Water"],"reshiram":["Dragon","Fire"],"retro glastrier":["Ice"],"retro iron boulder":["Rock","Psychic"],"reuniclus":["Psychic"],"rhydon":["Ground","Rock"],"rhyhorn":["Ground","Rock"],"rhyperior":["Ground","Rock"],"ribombee":["Bug","Fairy"],"rillaboom":["Grass"],"riolu":["Fighting"],"roaring moon":["Dragon","Dark"],"roselia":["Grass","Poison"],"roserade":["Grass","Poison"],"rowlet":["Grass","Flying"],"sableye":["Dark","Ghost"],"salamence":["Dragon","Flying"],"samurott":["Water"],"sandaconda":["Ground"],"sandy shocks":["Electric","Ground"],"sawk":["Fighting"],"sceptile":["Grass"],"scizor":["Bug","Steel"],"scorbunny":["Fire"],"scrafty":["Dark","Fighting"],"scream tail":["Fairy","Psychic"],"scyther":["Bug","Flying"],"seaking":["Water"],"sealeo":["Ice","Water"],"seel":["Water"],"seismitoad":["Water","Ground"],"serperior":["Grass"],"servine":["Grass"],"shadow buzzwole":["Bug","Fighting"],"shadow charmander":["Fire"],"shadow doduo":["Normal","Flying"],"shadow froakie":["Water"],"shadow gouging fire":["Fire","Dragon"],"shadow groudon":["Ground"],"shadow hoppip":["Grass","Flying"],"shadow mega latios":["Dragon","Psychic"],"shadow ogerpon (wellspring mask)":["Grass","Water"],"shadow raikou":["Electric"],"shadow rayquaza":["Dragon","Flying"],"shadow tapu fini":["Water","Fairy"],"shadow volcanion":["Fire","Water"],"shadow wo-chien":["Dark","Grass"],"sharpedo":["Water","Dark"],"shaymin":["Grass"],"shaymin (sky)":["Grass","Flying"],"shelgon":["Dragon"],"shellder":["Water"],"shiftry":["Grass","Dark"],"shiinotic":["Grass","Fairy"],"shiny meditite":["Fighting","Psychic"],"shiny mega metagross":["Steel","Psychic"],"shiny mega mewtwo x":["Psychic","Fighting"],"shiny tapu koko":["Electric","Fairy"],"shiny yveltal":["Dark","Flying"],"shuckle":["Bug","Rock"],"shuppet":["Ghost"],"sigilyph":["Psychic","Flying"],"silvally":["Normal"],"sirfetch'd":["Fighting"],"sirfetchd":["Fighting"],"skarmory":["Steel","Flying"],"skeledirge":["Fire","Ghost"],"skiploom":["Grass","Flying"],"skuntank":["Poison","Dark"],"slaking":["Normal"],"sliggoo":["Dragon"],"slither wing":["Bug","Fighting"],"slowbro":["Water","Psychic"],"slowking":["Water","Psychic"],"slowpoke":["Water","Psychic"],"slugma":["Fire"],"smeargle":["Normal"],"smoliv":["Grass","Normal"],"sneasel":["Dark","Ice"],"snivy":["Grass"],"snorlax":["Normal"],"snorunt":["Ice"],"snover":["Grass","Ice"],"sobble":["Water"],"solgaleo":["Psychic","Steel"],"solrock":["Rock","Psychic"],"spectrier":["Ghost"],"spinda":["Normal"],"spiritomb":["Ghost","Dark"],"sprigatito":["Grass"],"squirtle":["Water"],"stakataka":["Rock","Steel"],"staraptor":["Normal","Flying"],"starmie":["Water","Psychic"],"staryu":["Water"],"steelix":["Steel","Ground"],"stonjourner":["Rock"],"sudowoodo":["Rock"],"suicune":["Water"],"surskit":["Bug","Water"],"swablu":["Normal","Flying"],"swampert":["Water","Ground"],"swanna":["Water","Flying"],"swellow":["Normal","Flying"],"swoobat":["Psychic","Flying"],"sylveon":["Fairy"],"taillow":["Normal","Flying"],"talonflame":["Fire","Flying"],"tangela":["Grass"],"tapu bulu":["Grass","Fairy"],"tapu fini":["Water","Fairy"],"tapu koko":["Electric","Fairy"],"tapu lele":["Psychic","Fairy"],"tarountula":["Bug"],"tauros":["Normal"],"teddiursa":["Normal"],"tentacruel":["Water","Poison"],"tepig":["Fire"],"terapagos":["Normal"],"terrakion":["Rock","Fighting"],"throh":["Fighting"],"thundurus":["Electric","Flying"],"thundurus (therian)":["Electric","Flying"],"thwackey":["Grass"],"ting-lu":["Dark","Ground"],"tinkaton":["Fairy","Steel"],"togedemaru":["Electric","Steel"],"togekiss":["Fairy","Flying"],"torchic":["Fire"],"torkoal":["Fire"],"tornadus":["Flying"],"torracat":["Fire"],"torterra":["Grass","Ground"],"totodile":["Water"],"toucannon":["Normal","Flying"],"toxicroak":["Poison","Fighting"],"toxtricity":["Electric","Poison"],"tranquill":["Normal","Flying"],"treecko":["Grass"],"tropius":["Grass","Flying"],"tsareena":["Grass"],"turtonator":["Fire","Dragon"],"turtwig":["Grass"],"type null":["Normal"],"type: null":["Normal"],"typhlosion":["Fire"],"tyranitar":["Rock","Dark"],"tyrantrum":["Rock","Dragon"],"tyrunt":["Rock","Dragon"],"umbreon":["Dark"],"unfezant":["Normal","Flying"],"urshifu":["Fighting","Dark"],"uxie":["Psychic"],"vanillish":["Ice"],"vanilluxe":["Ice"],"veluza":["Water","Psychic"],"venomoth":["Bug","Poison"],"venusaur":["Grass","Poison"],"vespiquen":["Bug","Flying"],"victini":["Psychic","Fire"],"victreebel":["Grass","Poison"],"vigoroth":["Normal"],"vikavolt":["Bug","Electric"],"vileplume":["Grass","Poison"],"virizion":["Grass","Fighting"],"vivillon":["Bug","Flying"],"volcanion":["Fire","Water"],"volcarona":["Bug","Fire"],"voltorb":["Electric"],"wailord":["Water"],"walking wake":["Water","Dragon"],"walrein":["Ice","Water"],"wartortle":["Water"],"watchog":["Normal"],"wattrel":["Electric","Flying"],"weavile":["Dark","Ice"],"weedle":["Bug","Poison"],"weepinbell":["Grass","Poison"],"weezing":["Poison"],"whirlipede":["Bug","Poison"],"whiscash":["Water","Ground"],"white kyurem":["Dragon","Ice"],"wishiwashi (solo)":["Water"],"wo-chien":["Dark","Grass"],"wugtrio":["Water"],"xatu":["Psychic","Flying"],"xerneas":["Fairy"],"xerneas (neutral)":["Fairy"],"xurkitree":["Electric"],"yanmega":["Bug","Flying"],"yungoos":["Normal"],"yveltal":["Dark","Flying"],"zacian":["Fairy","Steel"],"zamazenta":["Fighting","Steel"],"zamazenta (hero)":["Fighting"],"zapdos":["Electric","Flying"],"zarude":["Dark","Grass"],"zebstrika":["Electric"],"zekrom":["Dragon","Electric"],"zeraora":["Electric"],"zoroark":["Dark"],"zweilous":["Dark","Dragon"],"zygarde":["Dragon","Ground"],"zygarde (complete forme)":["Dragon","Ground"]}
 };
 
 const LEGENDARY_LOWER = TARGETS.legendaries.map(l => l.toLowerCase());
@@ -2912,6 +2913,28 @@ function scanForTargets() {
                     if (!types.includes(typeName)) types.push(typeName);
                 }
             }
+            const typeBadges = encContainer.querySelectorAll('i[class*="tbtn-"], span[class*="type-"]');
+            for (let tb = 0; tb < typeBadges.length; tb++) {
+                const clsVal = (typeBadges[tb].className || '').toLowerCase();
+                const match = clsVal.match(/tbtn-([a-z]+)/i) || clsVal.match(/type-([a-z]+)/i);
+                if (match && match[1]) {
+                    const typeName = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+                    if (!types.includes(typeName)) types.push(typeName);
+                }
+            }
+        }
+        if (types.length === 0) {
+            const specName = extractEncounterSpeciesName();
+            if (specName) {
+                const clean = specName.toLowerCase().replace(/\s*\(.*\)/, '').trim();
+                const sDict = (typeof TARGETS !== 'undefined' && TARGETS.speciesTypes) ? TARGETS.speciesTypes : null;
+                if (sDict) {
+                    const found = sDict[specName.toLowerCase().trim()] || sDict[clean];
+                    if (Array.isArray(found)) {
+                        found.forEach(t => { if (!types.includes(t)) types.push(t); });
+                    }
+                }
+            }
         }
         return types;
     }
@@ -2975,23 +2998,11 @@ function scanForTargets() {
     if (config.enableTypeFilter && Array.isArray(config.selectedTypes) && config.selectedTypes.length > 0 && config.selectedTypes.length < 18) {
         const encTypes = extractEncounterTypes();
         const selectedTypesLower = config.selectedTypes.map(t => t.toLowerCase());
-        let hasTypeMatch = false;
-        if (encTypes.length > 0) {
-            hasTypeMatch = encTypes.some(t => selectedTypesLower.includes(t.toLowerCase()));
-        } else {
-            // Fallback: Check species name against known TARGETS lists if DOM type badges are not yet rendered
-            const specName = extractEncounterSpeciesName();
-            if (specName && typeof TARGETS !== 'undefined' && TARGETS.speciesTypes && TARGETS.speciesTypes[specName.toLowerCase()]) {
-                const sTypes = TARGETS.speciesTypes[specName.toLowerCase()];
-                hasTypeMatch = sTypes.some(t => selectedTypesLower.includes(t.toLowerCase()));
-            } else {
-                // If DOM is loading and type cannot be extracted, permit passage to prevent dropping valid targets
-                hasTypeMatch = true;
-            }
-        }
+        const hasTypeMatch = encTypes.some(t => selectedTypesLower.includes(t.toLowerCase()));
         if (!hasTypeMatch) {
             if (isNewEncounter) {
-                console.log('[TargetEngine] IGNORED: Encounter skipped (Types ' + (encTypes.join('/') || 'none') + ' do not match selected elemental types: ' + config.selectedTypes.join(', ') + ')');
+                const specName = extractEncounterSpeciesName();
+                console.log('[TargetEngine] IGNORED: Encounter skipped ("' + (specName || shortName) + '" types [' + (encTypes.join('/') || 'Unknown') + '] do not match selected elemental types: ' + config.selectedTypes.join(', ') + ')');
             }
             return;
         }
@@ -3330,7 +3341,7 @@ function scanForTargets() {
     }
 
     // 3.5 Tier: Elemental Types Filter
-    if (config.enableTypeFilter && Array.isArray(config.selectedTypes) && config.selectedTypes.length > 0) {
+    if (config.findAnySpecialVariant !== false && config.enableTypeFilter && Array.isArray(config.selectedTypes) && config.selectedTypes.length > 0) {
         const encTypes = extractEncounterTypes();
         const selectedTypesLower = config.selectedTypes.map(t => t.toLowerCase());
         const hasTypeMatch = encTypes.some(t => selectedTypesLower.includes(t.toLowerCase()));
@@ -6193,8 +6204,8 @@ function detectBattleOpponents(isManualCheck) {
                 const aEl = atkEls[a];
                 const aType = (aEl.type || '').toLowerCase();
                 if (aType === 'submit' || aType === 'button' || aType === 'hidden') continue;
-                if (aEl.name && /switch|pokeselect|spoke|team/i.test(aEl.name)) continue;
-                if (aEl.closest && (aEl.closest('#teamright') || aEl.closest('#switchpoke') || aEl.closest('.switchform') || aEl.closest('.switchpoke') || aEl.closest('[id*="switch" i]') || aEl.closest('[class*="switch" i]'))) {
+                if (aEl.name && /switch|pokeselect|spoke|team|item|bag/i.test(aEl.name)) continue;
+                if (aEl.closest && (aEl.closest('#teamright') || aEl.closest('#switchpoke') || aEl.closest('.switchform') || aEl.closest('.switchpoke') || aEl.closest('[id*="switch" i]') || aEl.closest('[class*="switch" i]') || aEl.closest('[id*="item" i]') || aEl.closest('[class*="item" i]') || aEl.closest('form[action*="item" i]'))) {
                     continue;
                 }
 
@@ -6230,6 +6241,7 @@ function detectBattleOpponents(isManualCheck) {
 
                 lbl = lbl.replace(/\s+/g, ' ').trim();
                 if (!lbl) continue;
+                if (/(potion|restore|antidote|awakening|heal|revive|elixir|ether)\b/i.test(lbl)) continue;
 
                 let mName = lbl;
                 const typeMatch = lbl.match(/^(.*?)\s*[\(\[]?([A-Za-z]+)[\)\]]?$/);
@@ -6525,7 +6537,74 @@ function detectBattleOpponents(isManualCheck) {
             }
             const hasForfeitBtn = Boolean(forfeitBtnEl);
 
-            const activeBattleSig = 'ACTIVE:' + trainerName + ':' + pokeName + '_' + hp + '_' + isFainted + ':' + (userActivePokemon ? userActivePokemon.name + '_' + userActivePokemon.hp + '_' + userActivePokemon.isFainted : '') + ':cnt=' + hasContinueBtn + ':skp=' + hasSkipSelectionBtn + ':atk=' + hasAttackBtn + ':sw=' + hasSwitchBtn + ':br=' + hasBenchRadios + ':ff=' + hasForfeitBtn + ':' + availableMoves.map(m => m.name).join(',');
+            // Battle Item Scanner (Full Restore, Potions, Heals)
+            const battleItems = [];
+            let fullRestoreCount = 0;
+            let hasFullRestore = false;
+            let hasUseItemBtn = false;
+            let useItemBtnEl = null;
+
+            // Direct check for Full Restore radio: input[type="radio"][value="fullrestore"] or name="selectitem"
+            const frDirectRadio = document.querySelector('input[type="radio"][name="selectitem"][value="fullrestore"], input[type="radio"][value="fullrestore" i], input[type="radio"][id*="restore" i]');
+
+            const allRadiosOnScreen = document.querySelectorAll('input[type="radio"]');
+            for (let ir = 0; ir < allRadiosOnScreen.length; ir++) {
+                const rEl = allRadiosOnScreen[ir];
+                if (rEl.name && /switch|pokeselect|spoke|team/i.test(rEl.name)) continue;
+                if (rEl.closest && (rEl.closest('#teamright') || rEl.closest('#switchpoke') || rEl.closest('.switchform') || rEl.closest('.switchpoke') || rEl.closest('[id*="switch" i]') || rEl.closest('[class*="switch" i]'))) continue;
+                
+                const rVal = (rEl.value || '').toLowerCase().trim();
+                const rParent = rEl.parentElement;
+                let rTxt = '';
+                if (rEl.labels && rEl.labels.length > 0) rTxt = rEl.labels[0].textContent;
+                else if (rParent && rParent.tagName.toLowerCase() === 'label') rTxt = rParent.textContent;
+                else if (rEl.nextSibling && rEl.nextSibling.nodeType === 3) rTxt = rEl.nextSibling.textContent;
+                else if (rParent && rParent.tagName.toLowerCase() === 'td') rTxt = rParent.textContent;
+                else if (rParent) rTxt = rParent.textContent;
+                rTxt = (rTxt || '').replace(/\s+/g, ' ').trim();
+
+                const isFr = (rEl === frDirectRadio) || rVal === 'fullrestore' || rVal.includes('fullrestore') || /full\s*restore/i.test(rTxt);
+                if (isFr) {
+                    const cntM = rTxt.match(/\((\d+)\)/);
+                    fullRestoreCount = cntM ? parseInt(cntM[1], 10) : (rEl.disabled ? 0 : 1);
+                    if (fullRestoreCount > 0 && !rEl.disabled) {
+                        hasFullRestore = true;
+                    }
+                    battleItems.push({
+                        name: 'Full Restore',
+                        count: fullRestoreCount,
+                        available: hasFullRestore,
+                        checked: Boolean(rEl.checked)
+                    });
+                }
+            }
+
+            if (!hasFullRestore && frDirectRadio && !frDirectRadio.disabled) {
+                const pageBodyTxt = document.body ? document.body.textContent : '';
+                const pageFrM = pageBodyTxt.match(/Full\s*Restore\s*\((\d+)\)/i);
+                if (pageFrM) {
+                    fullRestoreCount = parseInt(pageFrM[1], 10);
+                    if (fullRestoreCount > 0) hasFullRestore = true;
+                } else {
+                    fullRestoreCount = 1;
+                    hasFullRestore = true;
+                }
+            }
+
+            const itemSubmitBtns = document.querySelectorAll('input[type="submit"], input[type="button"], button, a.btn');
+            for (let ib = 0; ib < itemSubmitBtns.length; ib++) {
+                const iBtn = itemSubmitBtns[ib];
+                if (!isElementVisible(iBtn) || isCatchHoneypotTrap(iBtn)) continue;
+                const bTxt = ((iBtn.value || '') + ' ' + (iBtn.textContent || '')).toLowerCase().trim();
+                const bName = (iBtn.name || '').toLowerCase().trim();
+                if (bTxt === 'use item' || bTxt.includes('use item') || bName.startsWith('useitem')) {
+                    useItemBtnEl = iBtn;
+                    hasUseItemBtn = true;
+                    break;
+                }
+            }
+
+            const activeBattleSig = 'ACTIVE:' + trainerName + ':' + pokeName + '_' + hp + '_' + isFainted + ':' + (userActivePokemon ? userActivePokemon.name + '_' + userActivePokemon.hp + '_' + userActivePokemon.isFainted : '') + ':cnt=' + hasContinueBtn + ':skp=' + hasSkipSelectionBtn + ':atk=' + hasAttackBtn + ':sw=' + hasSwitchBtn + ':br=' + hasBenchRadios + ':ff=' + hasForfeitBtn + ':fr=' + fullRestoreCount + ':uib=' + hasUseItemBtn + ':' + availableMoves.map(m => m.name).join(',');
             if (!isManualCheck && activeBattleSig === lastBroadcastBattleSig) {
                 return;
             }
@@ -6581,6 +6660,10 @@ function detectBattleOpponents(isManualCheck) {
                 hasSwitchBtn: hasSwitchBtn,
                 hasBenchRadios: hasBenchRadios,
                 hasForfeitBtn: hasForfeitBtn,
+                hasFullRestore: hasFullRestore,
+                fullRestoreCount: fullRestoreCount,
+                hasUseItemBtn: hasUseItemBtn,
+                battleItems: battleItems,
                 isInActiveBattle: true,
                 isPreparationScreen: false,
                 battleUrl: window.location.pathname + window.location.search,
@@ -7456,6 +7539,78 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
                     });
                 }
             }
+        } else if (data.action === 'use-battle-item') {
+            const targetItemName = (data.itemName || 'Full Restore').toLowerCase().trim();
+            let targetRadio = document.querySelector('input[type="radio"][name="selectitem"][value="fullrestore"], input[type="radio"][value="fullrestore" i], input[type="radio"][value*="restore" i]');
+            if (!targetRadio) {
+                const allRadios = Array.from(document.querySelectorAll('input[type="radio"]'));
+                for (let r = 0; r < allRadios.length; r++) {
+                    const rad = allRadios[r];
+                    if (rad.name && /switch|pokeselect|spoke|team/i.test(rad.name)) continue;
+                    if (rad.closest && (rad.closest('#teamright') || rad.closest('#switchpoke') || rad.closest('.switchform') || rad.closest('.switchpoke'))) continue;
+                    const rVal = (rad.value || '').toLowerCase();
+                    const box = rad.closest ? (rad.closest('label, td, div') || rad.parentElement) : rad.parentElement;
+                    const lTxt = ((rad.labels && rad.labels[0] ? rad.labels[0].textContent : '') + ' ' + (box ? box.textContent : '') + ' ' + rVal).toLowerCase();
+                    if (lTxt.includes(targetItemName) || rVal === 'fullrestore') {
+                        targetRadio = rad;
+                        break;
+                    }
+                }
+            }
+
+            const proceedToUseItemSubmit = () => {
+                let useBtn = document.querySelector('input[type="submit"][name*="useitem" i], input[type="submit"][value*="Use Item" i], button[type="submit"][value*="Use Item" i], input[type="button"][value*="Use Item" i]');
+                if (!useBtn) {
+                    const allSubmit = Array.from(document.querySelectorAll('input[type="submit"], button[type="submit"], input[type="button"], button')).filter(el => {
+                        if (!el || !isElementVisible(el) || isCatchHoneypotTrap(el)) return false;
+                        const bTxt = ((el.value || '') + ' ' + (el.textContent || '')).toLowerCase().trim();
+                        const bName = (el.name || '').toLowerCase().trim();
+                        return bTxt === 'use item' || bTxt.includes('use item') || bName.startsWith('useitem') || bName.includes('useitem');
+                    });
+                    if (allSubmit.length > 0) useBtn = allSubmit[0];
+                }
+
+                const targetForm = useBtn ? (useBtn.form || (targetRadio ? targetRadio.form : null)) : (targetRadio ? targetRadio.form : null);
+
+                if (useBtn) {
+                    let formSubmitted = false;
+                    if (targetForm) {
+                        try { targetForm.addEventListener('submit', () => { formSubmitted = true; }, { capture: true, once: true }); } catch (_) {}
+                    }
+                    dispatchHumanClick(useBtn, () => {
+                        if (!formSubmitted && targetForm && typeof targetForm.requestSubmit === 'function') {
+                            setTimeout(() => {
+                                if (!formSubmitted && document.contains(targetForm)) {
+                                    try { targetForm.requestSubmit(useBtn); } catch (_) {}
+                                }
+                            }, 400);
+                        }
+                        ipcRenderer.sendToHost('ai-battle-action-status', {
+                            success: true,
+                            action: 'use-battle-item',
+                            item: data.itemName || 'Full Restore',
+                            message: 'Used ' + (data.itemName || 'Full Restore') + ' to recover HP.'
+                        });
+                    });
+                } else {
+                    ipcRenderer.sendToHost('ai-battle-action-status', {
+                        success: false,
+                        action: 'use-battle-item',
+                        message: 'Could not find Use Item button on screen'
+                    });
+                }
+            };
+
+            if (targetRadio && !targetRadio.checked) {
+                dispatchHumanClick(targetRadio, () => {
+                    targetRadio.checked = true;
+                    const humanPause = 140 + Math.floor(Math.random() * 80);
+                    setTimeout(proceedToUseItemSubmit, humanPause);
+                });
+            } else {
+                if (targetRadio) targetRadio.checked = true;
+                proceedToUseItemSubmit();
+            }
         }
     } catch (err) {
         console.warn('[AI Action Error]:', err);
@@ -8052,6 +8207,75 @@ function detectEvolveCard() {
                 modalContainer = document.querySelector('form[action*="evolve" i], form[action*="attack" i], #content, body');
             }
         }
+
+        // CASE 0: Change Attacks Screen (/pokemon/change_attack/<id> or Change Attacks form with 4 selects)
+        const changeAttackForm = document.querySelector('form[action*="change_attack" i], form[action*="attack" i]');
+        const selectDropdowns = changeAttackForm
+            ? Array.from(changeAttackForm.querySelectorAll('select'))
+            : Array.from(document.querySelectorAll('form select'));
+        const hasChangeAttackSubmit = Array.from(document.querySelectorAll('input[type="submit"], button')).some(b => /change attack/i.test(b.value || b.textContent || ''));
+
+        if (selectDropdowns.length >= 4 && (hasChangeAttackSubmit || /change_attack/i.test(window.location.pathname))) {
+            let pokeName = (lastClickedPokemonInfo && lastClickedPokemonInfo.name) || '';
+            const pathMatch = window.location.pathname.match(/change_attack\/([a-zA-Z0-9_\-]+)/i);
+            const pokeId = pathMatch ? pathMatch[1] : ((lastClickedPokemonInfo && lastClickedPokemonInfo.id) || '');
+
+            if (!pokeName) {
+                const spriteImg = document.querySelector('img[src*="/pokemon/"], img[src*="sprites"]');
+                if (spriteImg) {
+                    const alt = spriteImg.getAttribute('alt') || spriteImg.getAttribute('title');
+                    if (alt && alt.length > 2 && !/logo|icon|button/i.test(alt)) pokeName = alt.trim();
+                }
+            }
+            if (!pokeName) {
+                const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4, b, strong, .name, .pname, center'));
+                for (let hIdx = 0; hIdx < headings.length; hIdx++) {
+                    const txt = (headings[hIdx].textContent || '').trim();
+                    if (txt && txt.length >= 3 && txt.length <= 40 && !/your pokemon|change attacks|attackdex|price of attack/i.test(txt)) {
+                        if (/^[A-Za-z0-9\s\(\)\-]+$/.test(txt)) {
+                            pokeName = txt;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const currentMoves = selectDropdowns.slice(0, 4).map(sel => {
+                const opt = sel.options[sel.selectedIndex];
+                return opt ? opt.text.replace(/\s*\([^)]*\)/g, '').trim() : '';
+            }).filter(Boolean);
+
+            const availableMoves = Array.from(selectDropdowns[0].options).map(opt => ({
+                name: (opt.text || opt.value || '').replace(/\s*\([^)]*\)/g, '').trim(),
+                value: opt.value
+            }));
+
+            let pokeTypes = (lastClickedPokemonInfo && lastClickedPokemonInfo.types) || [];
+            if (pokeTypes.length === 0) {
+                const tBtns = document.querySelectorAll('i.tbtn, .tbtn, span.type, img[alt*="type" i]');
+                for (let j = 0; j < tBtns.length; j++) {
+                    const t = tBtns[j].getAttribute('title') || tBtns[j].getAttribute('alt') || tBtns[j].textContent.trim();
+                    if (t && pokeTypes.indexOf(t) === -1 && /^[A-Z][a-z]+$/.test(t)) pokeTypes.push(t);
+                }
+            }
+
+            return {
+                isOpen: true,
+                isMoveSelection: true,
+                isChangeAttackPage: true,
+                pokemonId: pokeId,
+                targetPokemon: pokeName || 'Active Pokemon',
+                fullName: pokeName || 'Active Pokemon',
+                level: (lastClickedPokemonInfo && lastClickedPokemonInfo.level) || 100,
+                types: pokeTypes,
+                currentChoices: currentMoves,
+                evolutionChoices: [],
+                duplicateChoices: [],
+                availableMoves: availableMoves,
+                options: []
+            };
+        }
+
         if (!modalContainer) return null;
 
         const titleEl = modalContainer.querySelector('#DMtitle, .modal-title, h1, h2, h3, h4');
@@ -8310,6 +8534,34 @@ function syncEvolveCardState(force) {
 ipcRenderer.on('apply-recommended-moves', (event, data) => {
     try {
         if (!data || !Array.isArray(data.recommendedMoves)) return;
+
+        // Check if on Change Attacks page with selects
+        const selects = Array.from(document.querySelectorAll('form select')).slice(0, 4);
+        if (selects.length >= 4) {
+            const recMoves = data.recommendedMoves;
+            for (let slot = 0; slot < 4; slot++) {
+                const targetMove = (recMoves[slot] || '').toLowerCase().trim();
+                const sel = selects[slot];
+                let matchedIdx = -1;
+
+                for (let optIdx = 0; optIdx < sel.options.length; optIdx++) {
+                    const opt = sel.options[optIdx];
+                    const optName = (opt.text || opt.value || '').replace(/\s*\([^)]*\)/g, '').toLowerCase().trim();
+                    if (optName === targetMove) {
+                        matchedIdx = optIdx;
+                        break;
+                    }
+                }
+
+                if (matchedIdx !== -1) {
+                    sel.selectedIndex = matchedIdx;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    sel.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+            return;
+        }
+
         const targetRec = new Set(data.recommendedMoves.map(n => n.toLowerCase().trim()));
         const targetDrop = new Set((data.dropMoves || []).map(n => n.toLowerCase().trim()));
 

@@ -10,6 +10,28 @@ try {
   skillsMap = {};
 }
 
+let speciesTypesDb = null;
+let normalizedSpeciesTypesMap = null;
+function getSpeciesTypesDb() {
+  if (speciesTypesDb) return speciesTypesDb;
+  try {
+    speciesTypesDb = require('./species_types_data.json') || {};
+  } catch (e) {
+    speciesTypesDb = {};
+  }
+  return speciesTypesDb;
+}
+
+function getNormalizedSpeciesTypesMap() {
+  if (normalizedSpeciesTypesMap) return normalizedSpeciesTypesMap;
+  const db = getSpeciesTypesDb();
+  normalizedSpeciesTypesMap = {};
+  for (const [k, v] of Object.entries(db)) {
+    normalizedSpeciesTypesMap[k.toLowerCase().replace(/[^a-z0-9]/g, '')] = v;
+  }
+  return normalizedSpeciesTypesMap;
+}
+
 let gymSpeciesTypesMap = null;
 function getGymSpeciesTypesMap() {
   if (gymSpeciesTypesMap) return gymSpeciesTypesMap;
@@ -617,45 +639,45 @@ const EVOLUTION_FAMILIES = {
 // -----------------------------------------------------------------------------
 const TOP_STAB_MOVES = {
   Normal: ['Boomburst', 'Double-Edge', 'Extreme Speed', 'Hyper Voice', 'Body Slam'],
-  Fire: ['V-create', 'Eruption', 'Mind Blown', 'Blue Flare', 'Armor Cannon', 'Flare Blitz', 'Flamethrower'],
+  Fire: ['V-create', 'Eruption', 'Blue Flare', 'Armor Cannon', 'Flare Blitz', 'Flamethrower'],
   Water: ['Water Spout', 'Wave Crash', 'Origin Pulse', 'Steam Eruption', 'Surf', 'Waterfall'],
-  Grass: ['Leaf Storm', 'Solar Blade', 'Seed Flare', 'Wood Hammer', 'Energy Ball', 'Leaf Blade'],
+  Grass: ['Leaf Storm', 'Seed Flare', 'Wood Hammer', 'Power Whip', 'Energy Ball', 'Leaf Blade'],
   Electric: ['Bolt Strike', 'Volt Tackle', 'Plasma Fists', 'Fusion Bolt', 'Thunderbolt'],
   Ice: ['Glacial Lance', 'Triple Axel', 'Ice Beam', 'Icicle Crash', 'Ice Spinner'],
   Fighting: ['Focus Punch', 'High Jump Kick', 'Close Combat', 'Superpower', 'Collision Course', 'Aura Sphere'],
   Poison: ['Belch', 'Gunk Shot', 'Sludge Wave', 'Sludge Bomb', 'Poison Jab'],
   Ground: ['Headlong Rush', 'Precipice Blades', 'Earthquake', 'Earth Power', 'High Horsepower'],
-  Flying: ['Dragon Ascent', 'Brave Bird', 'Aeroblast', 'Air Slash'],
-  Psychic: ['Psycho Boost', 'Psystrike', 'Photon Geyser', 'Psychic', 'Psyshock'],
+  Flying: ['Dragon Ascent', 'Brave Bird', 'Aeroblast', 'Bleakwind Storm', 'Hurricane'],
+  Psychic: ['Psycho Boost', 'Psystrike', 'Photon Geyser', 'Freezing Glare', 'Psychic', 'Psyshock'],
   Bug: ['Megahorn', 'First Impression', 'Bug Buzz', 'Attack Order', 'X-Scissor'],
-  Rock: ['Head Smash', 'Diamond Storm', 'Stone Edge', 'Power Gem', 'Rock Slide'],
-  Ghost: ['Astral Barrage', 'Shadow Force', 'Poltergeist', 'Moongeist Beam', 'Spectral Thief', 'Shadow Ball'],
-  Dragon: ['Dragon Energy', 'Draco Meteor', 'Clanging Scales', 'Core Enforcer', 'Dragon Pulse', 'Dragon Claw'],
-  Steel: ['Doom Desire', 'Double Iron Bash', 'Gigaton Hammer', 'Sunsteel Strike', 'Behemoth Blade', 'Iron Head', 'Flash Cannon'],
-  Dark: ['Hyperspace Fury', 'Fiery Wrath', 'Darkest Lariat', 'Wicked Blow', 'Dark Pulse', 'Crunch'],
+  Rock: ['Head Smash', 'Diamond Storm', 'Stone Edge', 'Power Gem'],
+  Ghost: ['Astral Barrage', 'Poltergeist', 'Moongeist Beam', 'Spectral Thief', 'Shadow Ball'],
+  Dragon: ['Dragon Energy', 'Draco Meteor', 'Clanging Scales', 'Core Enforcer', 'Spacial Rend', 'Dragon Pulse', 'Dragon Claw'],
+  Steel: ['Gigaton Hammer', 'Doom Desire', 'Double Iron Bash', 'Sunsteel Strike', 'Behemoth Blade', 'Iron Head', 'Flash Cannon'],
+  Dark: ['Hyperspace Fury', 'Wicked Blow', 'Fiery Wrath', 'Darkest Lariat', 'Dark Pulse', 'Crunch'],
   Fairy: ['Light of Ruin', 'Fleur Cannon', 'Moonblast', 'Play Rough', 'Dazzling Gleam']
 };
 
-// Counters to cover weaknesses
+// Counters to cover defensive weaknesses in priority order (strictly non-STAB)
 const WEAKNESS_COVERAGE_MAP = {
-  Normal: 'Fighting',
-  Fire: 'Ground',
-  Water: 'Grass',
-  Grass: 'Fire',
-  Electric: 'Ground',
-  Ice: 'Fighting',
-  Fighting: 'Fairy',
-  Poison: 'Ground',
-  Ground: 'Ice',
-  Flying: 'Electric',
-  Psychic: 'Ghost',
-  Bug: 'Fire',
-  Rock: 'Fighting',
-  Ghost: 'Dark',
-  Dragon: 'Fairy',
-  Steel: 'Fire',
-  Dark: 'Fighting',
-  Fairy: 'Steel'
+  Normal: ['Fighting'],
+  Fire: ['Ground', 'Water', 'Rock'],
+  Water: ['Grass', 'Electric'],
+  Grass: ['Fire', 'Ice', 'Flying', 'Bug'],
+  Electric: ['Ground'],
+  Ice: ['Fighting', 'Fire', 'Rock', 'Steel'],
+  Fighting: ['Fairy', 'Psychic', 'Flying'],
+  Poison: ['Ground', 'Psychic'],
+  Ground: ['Ice', 'Water', 'Grass'],
+  Flying: ['Electric', 'Ice', 'Rock'],
+  Psychic: ['Ghost', 'Dark', 'Bug'],
+  Bug: ['Fire', 'Flying', 'Rock'],
+  Rock: ['Fighting', 'Ground', 'Water', 'Steel'],
+  Ghost: ['Dark', 'Ghost'],
+  Dragon: ['Fairy', 'Ice', 'Dragon'],
+  Steel: ['Fire', 'Fighting', 'Ground'],
+  Dark: ['Fighting', 'Fairy', 'Bug'],
+  Fairy: ['Steel', 'Poison']
 };
 
 // -----------------------------------------------------------------------------
@@ -873,10 +895,32 @@ function resolvePokemonTypes(pokemonOrName, collection = []) {
   if (pokemonOrName && typeof pokemonOrName === 'object' && Array.isArray(pokemonOrName.types) && pokemonOrName.types.length > 0 && pokemonOrName.types[0] !== 'Normal') {
     return pokemonOrName.types;
   }
-  const rawName = typeof pokemonOrName === 'string' ? pokemonOrName : (pokemonOrName ? pokemonOrName.name : '');
+  const rawName = typeof pokemonOrName === 'string' ? pokemonOrName : (pokemonOrName ? (pokemonOrName.name || pokemonOrName.fullName) : '');
+  const rawClean = cleanSpeciesKey(rawName);
   const rc = cleanNameWithoutVariant(rawName);
+  const cleanRc = rawClean.replace(/\s*\([^)]*\)/g, '').trim();
+  const base = getBaseSpecies(rawName).toLowerCase().trim();
+  const cleanBase = base.replace(/^mega\s+/i, '').replace(/\s+mega$/i, '').trim();
 
-  // 1. Check STAGE_TRANSITIONS for specific branch/mega match (longest specific match)
+  const normRc = rc.replace(/[^a-z0-9]/g, '');
+  const normCleanRc = cleanRc.replace(/[^a-z0-9]/g, '');
+  const normBase = base.replace(/[^a-z0-9]/g, '');
+  const normCleanBase = cleanBase.replace(/[^a-z0-9]/g, '');
+
+  // 1. Direct query against comprehensive 896-species database with full regional & form priority
+  const stDb = getSpeciesTypesDb();
+  const stNorm = getNormalizedSpeciesTypesMap();
+
+  if (stDb[rawClean]) return stDb[rawClean];
+  if (stNorm[normRc]) return stNorm[normRc];
+  if (stDb[cleanRc]) return stDb[cleanRc];
+  if (stNorm[normCleanRc]) return stNorm[normCleanRc];
+  if (stDb[base]) return stDb[base];
+  if (stNorm[normBase]) return stNorm[normBase];
+  if (stDb[cleanBase]) return stDb[cleanBase];
+  if (stNorm[normCleanBase]) return stNorm[normCleanBase];
+
+  // 2. Check STAGE_TRANSITIONS for specific branch/mega match (longest specific match)
   let bestStageMatch = null;
   let bestStageLen = 0;
   for (const k of Object.keys(STAGE_TRANSITIONS)) {
@@ -891,27 +935,25 @@ function resolvePokemonTypes(pokemonOrName, collection = []) {
   }
   if (bestStageMatch && bestStageMatch.types) return bestStageMatch.types;
 
-  const base = getBaseSpecies(rawName).toLowerCase();
-  const cleanBase = base.replace(/^mega\s+/i, '').replace(/\s+mega$/i, '').trim();
-
-  // 2. Check SPECIES_DEFAULT_TYPES
+  // 3. Check SPECIES_DEFAULT_TYPES
+  if (SPECIES_DEFAULT_TYPES[rawClean]) return SPECIES_DEFAULT_TYPES[rawClean];
+  if (SPECIES_DEFAULT_TYPES[cleanRc]) return SPECIES_DEFAULT_TYPES[cleanRc];
   if (SPECIES_DEFAULT_TYPES[base]) return SPECIES_DEFAULT_TYPES[base];
   if (SPECIES_DEFAULT_TYPES[cleanBase]) return SPECIES_DEFAULT_TYPES[cleanBase];
 
-  // 3. Check EVOLUTION_FAMILIES
+  // 4. Check EVOLUTION_FAMILIES
   const fam = findFamily(base) || findFamily(cleanBase);
   if (fam) {
-    const matchBranch = fam.branches.find(b => b.name.toLowerCase() === base || b.name.toLowerCase() === cleanBase);
+    const matchBranch = fam.branches && fam.branches.find(b => b.name.toLowerCase() === base || b.name.toLowerCase() === cleanBase);
     if (matchBranch && matchBranch.types) return matchBranch.types;
-    if (fam.base.toLowerCase() === base || fam.base.toLowerCase() === cleanBase) {
-      if (fam.branches && fam.branches.length > 0 && fam.branches[0].types) return fam.branches[0].types;
-    }
-    if (Array.isArray(fam.stages) && fam.stages.some(s => s.toLowerCase() === base || s.toLowerCase() === cleanBase)) {
-      if (fam.branches && fam.branches.length > 0 && fam.branches[0].types) return fam.branches[0].types;
+    if (fam.base.toLowerCase() !== base && fam.base.toLowerCase() !== cleanBase) {
+      if (Array.isArray(fam.stages) && fam.stages.some(s => s.toLowerCase() === base || s.toLowerCase() === cleanBase)) {
+        if (fam.branches && fam.branches.length > 0 && fam.branches[0].types) return fam.branches[0].types;
+      }
     }
   }
 
-  // 4. Check collection
+  // 5. Check collection
   if (Array.isArray(collection) && collection.length > 0) {
     const cClean = cleanName(rawName);
     const matched = collection.find(p => {
@@ -923,17 +965,26 @@ function resolvePokemonTypes(pokemonOrName, collection = []) {
     }
   }
 
-  // 4.5. Check gym leaders database canonical types
+  // 6. Check gym leaders database canonical types
   const gymMap = getGymSpeciesTypesMap();
+  if (gymMap[rawClean]) return gymMap[rawClean];
+  if (gymMap[cleanRc]) return gymMap[cleanRc];
   if (gymMap[base]) return gymMap[base];
   if (gymMap[cleanBase]) return gymMap[cleanBase];
 
-  // 5. Return existing object types if any
+  // 7. Return existing object types if any
   if (pokemonOrName && typeof pokemonOrName === 'object' && Array.isArray(pokemonOrName.types) && pokemonOrName.types.length > 0) {
     return pokemonOrName.types;
   }
 
   return ['Normal'];
+}
+
+function cleanSpeciesKey(n) {
+  if (!n) return '';
+  return String(n).toLowerCase()
+    .replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|retro|chrome|negative)\s+/i, '')
+    .trim();
 }
 
 function cleanNameWithoutVariant(n) {
@@ -1167,8 +1218,8 @@ const CANONICAL_SPECIES_MOVES = {
   ogerpon: ['Ivy Cudgel', 'Wood Hammer', 'Superpower', 'Play Rough'],
   'brute bonnet': ['Seed Bomb', 'Sucker Punch', 'Close Combat', 'Leaf Storm'],
   victini: ['V-create', 'Fusion Flare', 'Zen Headbutt', 'Bolt Strike'],
-  moltres: ['Flamethrower', 'Air Slash', 'Solar Beam', 'Fire Blast'],
-  'galarian moltres': ['Fiery Wrath', 'Hurricane', 'Dark Pulse', 'Air Slash'],
+  moltres: ['V-create', 'Dragon Ascent', 'Flamethrower', 'Earthquake'],
+  'galarian moltres': ['Fiery Wrath', 'Dragon Ascent', 'Dark Pulse', 'Hurricane'],
   zapdos: ['Thunderbolt', 'Drill Peck', 'Heat Wave', 'Volt Switch'],
   'galarian zapdos': ['Thunderous Kick', 'Close Combat', 'Brave Bird', 'Stomp'],
   articuno: ['Ice Beam', 'Air Slash', 'Freeze-Dry', 'Blizzard'],
@@ -1204,16 +1255,16 @@ const CANONICAL_SPECIES_MOVES = {
   rayquaza: ['Dragon Ascent', 'Extreme Speed', 'Earthquake', 'V-create'],
   dialga: ['Dragon Energy', 'Doom Desire', 'Dragon Pulse', 'Earth Power'],
   palkia: ['Spacial Rend', 'Hydro Pump', 'Dragon Pulse', 'Aura Sphere'],
-  giratina: ['Shadow Force', 'Dragon Pulse', 'Earthquake', 'Aura Sphere'],
+  giratina: ['Astral Barrage', 'Dragon Energy', 'Earthquake', 'Aura Sphere'],
   arceus: ['Judgment', 'Extreme Speed', 'Earthquake', 'Shadow Ball'],
   reshiram: ['Blue Flare', 'Fusion Flare', 'Dragon Pulse', 'Earth Power'],
-  zekrom: ['Bolt Strike', 'Fusion Bolt', 'Outrage', 'Dragon Claw'],
+  zekrom: ['Bolt Strike', 'Fusion Bolt', 'Dragon Energy', 'Dragon Claw'],
   kyurem: ['Ice Beam', 'Dragon Pulse', 'Earth Power', 'Freeze-Dry'],
-  xerneas: ['Moonblast', 'Thunderbolt', 'Psychic', 'Focus Blast'],
+  xerneas: ['Light of Ruin', 'Moonblast', 'Thunderbolt', 'Psychic'],
   yveltal: ['Oblivion Wing', 'Dark Pulse', 'Sucker Punch', 'Heat Wave'],
-  zygarde: ['Thousand Arrows', 'Core Enforcer', 'Outrage', 'Earthquake'],
+  zygarde: ['Thousand Arrows', 'Core Enforcer', 'Earthquake', 'Dragon Energy'],
   solgaleo: ['Sunsteel Strike', 'Zen Headbutt', 'Earthquake', 'Flare Blitz'],
-  lunala: ['Moongeist Beam', 'Psychic', 'Ice Beam', 'Focus Blast'],
+  lunala: ['Moongeist Beam', 'Psychic', 'Ice Beam', 'Aura Sphere'],
   necrozma: ['Psycho Boost', 'Photon Geyser', 'Earth Power', 'Dark Pulse'],
   nihilego: ['Sludge Wave', 'Power Gem', 'Thunderbolt', 'Dazzling Gleam'],
   buzzwole: ['Close Combat', 'Leech Life', 'Ice Punch', 'Earthquake'],
@@ -1228,7 +1279,7 @@ const CANONICAL_SPECIES_MOVES = {
   marshadow: ['Spectral Thief', 'Close Combat', 'Shadow Sneak', 'Ice Punch'],
   zeraora: ['Plasma Fists', 'Close Combat', 'Knock Off', 'Fire Punch'],
   snorlax: ['Body Slam', 'Earthquake', 'Heavy Slam', 'Crunch'],
-  dragonite: ['Outrage', 'Extreme Speed', 'Earthquake', 'Fire Punch'],
+  dragonite: ['Dragon Energy', 'Dragon Claw', 'Extreme Speed', 'Earthquake'],
   tyranitar: ['Stone Edge', 'Crunch', 'Earthquake', 'Fire Punch'],
   metagross: ['Meteor Mash', 'Zen Headbutt', 'Earthquake', 'Bullet Punch'],
   salamence: ['Dragon Claw', 'Fly', 'Earthquake', 'Fire Blast'],
@@ -1243,17 +1294,30 @@ const CANONICAL_SPECIES_MOVES = {
   baxcalibur: ['Glaive Rush', 'Icicle Crash', 'Earthquake', 'Dragon Claw'],
   volcarona: ['Bug Buzz', 'Fiery Dance', 'Giga Drain', 'Psychic'],
   hydreigon: ['Draco Meteor', 'Dark Pulse', 'Flash Cannon', 'Fire Blast'],
-  blissey: ['Seismic Toss', 'Hyper Voice', 'Shadow Ball', 'Ice Beam'],
+  blissey: ['Boomburst', 'Hyper Voice', 'Shadow Ball', 'Ice Beam'],
   corviknight: ['Brave Bird', 'Iron Head', 'Body Press', 'U-turn'],
   toxapex: ['Sludge Bomb', 'Scald', 'Venoshock', 'Hydro Pump'],
   gliscor: ['Earthquake', 'Dragon Ascent', 'Ice Fang', 'Knock Off'],
   ferrothorn: ['Power Whip', 'Doom Desire', 'Body Press', 'Iron Head'],
-  heatran: ['Magma Storm', 'Flash Cannon', 'Earth Power', 'Solar Beam'],
-  landorus: ['Earthquake', 'Stone Edge', 'Superpower', 'Fly'],
-  tornadus: ['Bleakwind Storm', 'Hurricane', 'Heat Wave', 'Focus Blast'],
-  thundurus: ['Wildbolt Storm', 'Thunderbolt', 'Sludge Wave', 'Focus Blast'],
+  heatran: ['Magma Storm', 'Flash Cannon', 'Earth Power', 'Eruption'],
+  landorus: ['Earthquake', 'Headlong Rush', 'Stone Edge', 'Superpower'],
+  tornadus: ['Bleakwind Storm', 'Hurricane', 'Heat Wave', 'Sludge Wave'],
+  thundurus: ['Wildbolt Storm', 'Thunderbolt', 'Sludge Wave', 'Psychic'],
   enamorus: ['Springtide Storm', 'Moonblast', 'Earth Power', 'Mystical Fire']
 };
+
+function isFlawlessMove(m) {
+  if (!m) return false;
+  const rm = (teamEngine && typeof teamEngine.resolveMove === 'function')
+    ? teamEngine.resolveMove(m)
+    : null;
+  if (!rm || rm.power <= 0) return false;
+  if (rm.isStatus || rm.isRecharge || rm.isCharge || rm.isLocking || rm.isOhko || rm.isSuicide || rm.isFixedDamage) {
+    return false;
+  }
+  if (rm.accuracy && rm.accuracy < 80) return false;
+  return true;
+}
 
 function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []) {
   let name = '';
@@ -1335,12 +1399,12 @@ function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []
   const nonFlawedEquipped = (existingMoves || []).map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : '')).trim()).filter(m => {
     if (!m) return false;
     const rm = teamEngine.resolveMove(m);
-    return !rm.isStatus && rm.power >= 85 && !rm.isOhko && !rm.isRecharge && !rm.isSuicide && !rm.isFixedDamage && (!rm.accuracy || rm.accuracy >= 80);
+    return isFlawlessMove(m) && rm.power >= 85;
   });
 
   const canon = (canonicalKeyMoves || []).filter(m => {
     const rm = teamEngine.resolveMove(m);
-    return !rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power >= 80 && (!rm.accuracy || rm.accuracy >= 80);
+    return isFlawlessMove(m) && rm.power >= 80;
   });
 
   // Slot 1: Primary STAB
@@ -1348,10 +1412,7 @@ function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []
     .concat(canon.filter(m => teamEngine.resolveMove(m).type === primaryType))
     .concat(nonFlawedEquipped.filter(m => teamEngine.resolveMove(m).type === primaryType));
   pPool.sort((a, b) => teamEngine.resolveMove(b).power - teamEngine.resolveMove(a).power);
-  const move1Name = pPool.find(m => {
-    const rm = teamEngine.resolveMove(m);
-    return !rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power > 0 && (!rm.accuracy || rm.accuracy >= 80);
-  }) || (TOP_STAB_MOVES[primaryType] ? TOP_STAB_MOVES[primaryType][0] : 'Double-Edge');
+  const move1Name = pPool.find(m => isFlawlessMove(m)) || (TOP_STAB_MOVES[primaryType] ? TOP_STAB_MOVES[primaryType][0] : 'Double-Edge');
 
   // Slot 2: Secondary STAB or Alternate STAB
   let move2Name;
@@ -1360,51 +1421,72 @@ function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []
       .concat(canon.filter(m => teamEngine.resolveMove(m).type === secondaryType))
       .concat(nonFlawedEquipped.filter(m => teamEngine.resolveMove(m).type === secondaryType));
     sPool.sort((a, b) => teamEngine.resolveMove(b).power - teamEngine.resolveMove(a).power);
-    move2Name = sPool.find(m => {
-      const rm = teamEngine.resolveMove(m);
-      return m !== move1Name && !rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power > 0 && (!rm.accuracy || rm.accuracy >= 80);
-    }) || TOP_STAB_MOVES[secondaryType][0];
+    move2Name = sPool.find(m => m !== move1Name && isFlawlessMove(m)) || TOP_STAB_MOVES[secondaryType][0];
   } else {
-    move2Name = pPool.find(m => {
-      const rm = teamEngine.resolveMove(m);
-      return m !== move1Name && !rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power > 0 && (!rm.accuracy || rm.accuracy >= 80);
-    }) || (TOP_STAB_MOVES[primaryType] && TOP_STAB_MOVES[primaryType][1]) || 'Earthquake';
+    move2Name = pPool.find(m => m !== move1Name && isFlawlessMove(m)) || (TOP_STAB_MOVES[primaryType] && TOP_STAB_MOVES[primaryType][1]) || 'Earthquake';
   }
 
   // Slot 3: Anti-Weakness Coverage
-  const topWeakness = (defProfile.quadWeaknesses && defProfile.quadWeaknesses[0]) || (defProfile.weaknesses && defProfile.weaknesses[0]);
-  const counterType = (topWeakness && WEAKNESS_COVERAGE_MAP[topWeakness]) ? WEAKNESS_COVERAGE_MAP[topWeakness] : (primaryType === 'Fire' ? 'Ground' : 'Fighting');
+  const weaknesses = (defProfile.quadWeaknesses && defProfile.quadWeaknesses.length > 0)
+    ? defProfile.quadWeaknesses
+    : (defProfile.weaknesses || []);
+
+  let counterType = null;
+  for (const w of weaknesses) {
+    const candidateCounters = Array.isArray(WEAKNESS_COVERAGE_MAP[w])
+      ? WEAKNESS_COVERAGE_MAP[w]
+      : [WEAKNESS_COVERAGE_MAP[w]];
+    for (const c of candidateCounters) {
+      if (c && c !== primaryType && c !== secondaryType && TOP_STAB_MOVES[c]) {
+        counterType = c;
+        break;
+      }
+    }
+    if (counterType) break;
+  }
+  if (!counterType) {
+    counterType = (primaryType === 'Fire' ? 'Ground' : 'Fighting');
+  }
+
   const cPool = (TOP_STAB_MOVES[counterType] || ['Close Combat'])
     .concat(canon.filter(m => teamEngine.resolveMove(m).type === counterType))
     .concat(nonFlawedEquipped.filter(m => teamEngine.resolveMove(m).type === counterType));
   cPool.sort((a, b) => teamEngine.resolveMove(b).power - teamEngine.resolveMove(a).power);
-  const move3Name = cPool.find(m => {
-    const rm = teamEngine.resolveMove(m);
-    return m !== move1Name && m !== move2Name && !rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power > 0 && (!rm.accuracy || rm.accuracy >= 80);
-  }) || (TOP_STAB_MOVES[counterType] ? TOP_STAB_MOVES[counterType][0] : 'Close Combat');
+  const move3Name = cPool.find(m => m !== move1Name && m !== move2Name && isFlawlessMove(m))
+    || (TOP_STAB_MOVES[counterType] ? TOP_STAB_MOVES[counterType][0] : 'Close Combat');
 
   // Slot 4: Universal Wallbreaker Coverage
-  const eliteCandidates = [
-    'Earthquake', 'Close Combat', 'Glacial Lance', 'Moonblast',
-    'Thunderbolt', 'Astral Barrage', 'Dragon Energy', 'V-create',
-    'Boomburst', 'Headlong Rush', 'Dragon Ascent'
-  ].concat(canon);
   const usedTypes = new Set([
     teamEngine.resolveMove(move1Name).type,
     teamEngine.resolveMove(move2Name).type,
     teamEngine.resolveMove(move3Name).type
   ]);
-  let move4Name = 'Earthquake';
-  for (const cand of eliteCandidates) {
-    const rm = teamEngine.resolveMove(cand);
-    if (!rm.isStatus && !rm.isRecharge && !rm.isOhko && !rm.isSuicide && rm.power > 0 &&
-        (!rm.accuracy || rm.accuracy >= 80) &&
-        !usedTypes.has(rm.type) &&
-        cand !== move1Name && cand !== move2Name && cand !== move3Name) {
-      move4Name = cand;
+
+  const eliteWallbreakers = [
+    'Earthquake', 'Close Combat', 'Glacial Lance', 'V-create',
+    'Gigaton Hammer', 'Dragon Energy', 'Astral Barrage', 'Bolt Strike',
+    'Water Spout', 'Boomburst', 'Headlong Rush', 'Dragon Ascent', 'Light of Ruin'
+  ];
+
+  let move4Name = null;
+  for (const cm of canon) {
+    const rm = teamEngine.resolveMove(cm);
+    if (isFlawlessMove(cm) && !usedTypes.has(rm.type) && cm !== move1Name && cm !== move2Name && cm !== move3Name) {
+      move4Name = cm;
       break;
     }
   }
+
+  if (!move4Name) {
+    for (const cand of eliteWallbreakers) {
+      const rm = teamEngine.resolveMove(cand);
+      if (isFlawlessMove(cand) && !usedTypes.has(rm.type) && cand !== move1Name && cand !== move2Name && cand !== move3Name) {
+        move4Name = cand;
+        break;
+      }
+    }
+  }
+  if (!move4Name) move4Name = 'Earthquake';
 
   const rawOptimalMoves = [
     { name: move1Name, role: 'Primary STAB' },
@@ -1457,6 +1539,13 @@ function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []
           move: rm.name,
           flaw: 'Turn-Skip Recharge penalty (halves effective DPS)',
           recommendation: `Replace with consistent ${repMove.name}`
+        });
+      } else if (rm.isCharge) {
+        moveCritique.push({
+          slot: idx + 1,
+          move: rm.name,
+          flaw: '2-Turn Charge Move (wastes full preparation turn)',
+          recommendation: `Replace with instant ${repMove.name}`
         });
       } else if (rm.isLocking) {
         moveCritique.push({
@@ -1659,7 +1748,8 @@ function evaluateEvolutionMoveSelection(pokemonOrName, availableMovesInput = [],
     const isOhko = resolved ? resolved.isOhko : Boolean(skill && skill.special && skill.special.mechanic === 'ohko');
     const isFixed = resolved ? resolved.isFixedDamage : Boolean(skill && skill.special && skill.special.mechanic === 'fixed_damage');
     const isSuicide = resolved ? resolved.isSuicide : /explosion|self\-destruct|misty explosion/i.test(clean);
-    const isRecharge = resolved ? (resolved.isRecharge || resolved.isCharge) : /hyper beam|giga impact|blast burn|frenzy plant|hydro cannon/i.test(clean);
+    const isRecharge = resolved ? (resolved.isRecharge || resolved.isCharge) : /hyper beam|giga impact|blast burn|frenzy plant|hydro cannon|solar beam/i.test(clean);
+    const isLocking = resolved ? resolved.isLocking : /outrage|thrash|petal dance/i.test(clean);
 
     if (!resolved && !skill) {
       if (/thrash/i.test(clean)) { power = 120; type = 'Normal'; }
@@ -1697,6 +1787,9 @@ function evaluateEvolutionMoveSelection(pokemonOrName, availableMovesInput = [],
     } else if (isRecharge) {
       effectiveScore = (power * 0.5) * (accuracy / 100);
       flawReason = 'Turn-skip / recharge penalty (wastes 1 full turn)';
+    } else if (isLocking) {
+      effectiveScore = (power * 0.6) * (accuracy / 100);
+      flawReason = 'Self-locking move (forces 2-3 turn lock and confusion)';
     } else {
       let accFactor = accuracy / 100;
       if (accuracy <= 70) {
@@ -1708,8 +1801,13 @@ function evaluateEvolutionMoveSelection(pokemonOrName, availableMovesInput = [],
       if (isStab) {
         effectiveScore *= 1.5;
       }
-      if (topWeakness && WEAKNESS_COVERAGE_MAP && WEAKNESS_COVERAGE_MAP[topWeakness] === type) {
-        effectiveScore *= 1.25;
+      if (topWeakness && WEAKNESS_COVERAGE_MAP) {
+        const counters = Array.isArray(WEAKNESS_COVERAGE_MAP[topWeakness])
+          ? WEAKNESS_COVERAGE_MAP[topWeakness]
+          : [WEAKNESS_COVERAGE_MAP[topWeakness]];
+        if (counters.includes(type)) {
+          effectiveScore *= 1.25;
+        }
       }
     }
 

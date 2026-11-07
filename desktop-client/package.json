@@ -1,6 +1,6 @@
 {
   "name": "delugerpg-desktop-client",
-  "version": "1.4.15",
+  "version": "1.4.16",
   "description": "Standalone Stealth Desktop Client for DelugeRPG",
   "main": "main.js",
   "scripts": {
@@ -64,6 +64,7 @@
       "daily_catch_log.json",
       "daily_safety_log.json",
       "favorite_trainers.json",
+      "species_types_data.json",
       "config.json",
       "assets/**/*"
     ],

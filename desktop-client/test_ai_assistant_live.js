@@ -746,7 +746,207 @@ assert.strictEqual(ogerScore.bestMove.name, 'Ivy Cudgel', 'Ogerpon must prioriti
 
 console.log('\n[PASS] AUDIT 11: Training Battle Loop Mode & Level 100 Detector Verified');
 
-// 12. AUDIT 100% 7-BIT CLEAN ASCII
+// 12. AUDIT: Full Restore Tactical Decision Engine (Useless vs Chance)
+const bridgeEngine = require('./ai_agent_bridge.js');
+
+// Test Case 1: Offensive 1-Shot KO Priority (Dark Slither Wing vs Sidney's Cacturne)
+// Slither Wing is at 111/400 HP with Megahorn (4x STAB Bug). Cacturne is Grass/Dark.
+// Player attacks first in DelugeRPG. Megahorn OHKOs Cacturne immediately with ZERO damage taken.
+// Full Restore is UNNEEDED and must NOT be wasted!
+const battleDataSlitherWing = {
+  isInActiveBattle: true,
+  trainerName: 'Sidney',
+  hasAttackBtn: true,
+  hasUseItemBtn: true,
+  hasFullRestore: true,
+  fullRestoreCount: 22,
+  userActivePokemon: {
+    name: 'Dark Slither Wing',
+    types: ['Bug', 'Fighting'],
+    level: 100,
+    hp: 111,
+    maxHp: 400
+  },
+  roster: [
+    {
+      name: 'Cacturne',
+      types: ['Grass', 'Dark'],
+      level: 50,
+      hp: 400,
+      maxHp: 400,
+      isCurrentActive: true,
+      moves: [
+        { name: 'Feint Attack', type: 'Dark', power: 60 },
+        { name: 'Sucker Punch', type: 'Dark', power: 70 },
+        { name: 'Payback', type: 'Dark', power: 50 },
+        { name: 'Needle Arm', type: 'Grass', power: 60 }
+      ]
+    }
+  ],
+  availableMoves: [
+    { name: 'Megahorn', type: 'Bug', rawLabel: 'Megahorn (Bug)' },
+    { name: 'Focus Punch', type: 'Fighting', rawLabel: 'Focus Punch (Fighting)' }
+  ]
+};
+const analysisSlitherWing = bridgeEngine.analyzeBattle(battleDataSlitherWing, []);
+assert.strictEqual(analysisSlitherWing.shouldUseFullRestore, false, 'Slither Wing must attack with Megahorn to 1-shot Cacturne instead of wasting Full Restore');
+assert(analysisSlitherWing.fullRestoreReason.includes('can finish off') || analysisSlitherWing.fullRestoreReason.includes('unneeded'), 'Reason must state Slither Wing can finish off Cacturne with Megahorn');
+
+// Test Case 1b: Survival Chance with Non-OHKO Move (Carry in fatal danger survives and sweeps)
+// Slither Wing is at 50/400 HP, cannot 1-shot Cacturne with Tackle (Normal), Cacturne deals 83 HP incoming damage.
+// Attacking would cause Slither Wing to faint. Full Restore heals to 400 HP, survives with 317 HP, and sweeps!
+const battleDataSlitherWingHeal = Object.assign({}, battleDataSlitherWing, {
+  userActivePokemon: Object.assign({}, battleDataSlitherWing.userActivePokemon, { hp: 50 }),
+  availableMoves: [{ name: 'Tackle', type: 'Normal', rawLabel: 'Tackle (Normal)' }]
+});
+const analysisSlitherWingHeal = bridgeEngine.analyzeBattle(battleDataSlitherWingHeal, []);
+assert.strictEqual(analysisSlitherWingHeal.shouldUseFullRestore, true, 'Slither Wing must use Full Restore when cannot 1-shot and in fatal danger');
+assert(analysisSlitherWingHeal.fullRestoreReason.includes('Survive and win'), 'Reason must explain survival advantage');
+
+// Test Case 5: Full Health (400/400 HP) -> Attack immediately, do not waste Full Restore
+const battleDataFullHp = Object.assign({}, battleDataSlitherWing, {
+  userActivePokemon: Object.assign({}, battleDataSlitherWing.userActivePokemon, { hp: 400 })
+});
+const analysisFullHp = bridgeEngine.analyzeBattle(battleDataFullHp, []);
+assert.strictEqual(analysisFullHp.shouldUseFullRestore, false, 'Must NOT use Full Restore when HP is healthy (400/400)');
+
+// Test Case 2: Useless Item (Opponent deals fatal OHKO >= Max HP even from 100% full health)
+// Player cannot 1-shot KO. Opponent's attack deals >= 400 HP damage. Full Restore is useless!
+const battleDataUselessItem = {
+  isInActiveBattle: true,
+  trainerName: 'Boss Challenger',
+  hasAttackBtn: true,
+  hasUseItemBtn: true,
+  hasFullRestore: true,
+  fullRestoreCount: 15,
+  userActivePokemon: {
+    name: 'Toxapex',
+    types: ['Poison', 'Water'],
+    level: 100,
+    hp: 40,
+    maxHp: 400
+  },
+  roster: [
+    {
+      name: 'Mewtwo',
+      types: ['Psychic'],
+      level: 100,
+      hp: 400,
+      maxHp: 400,
+      isCurrentActive: true,
+      moves: [
+        { name: 'Psystrike', type: 'Psychic', power: 100 }
+      ]
+    }
+  ],
+  availableMoves: [
+    { name: 'Poison Jab', type: 'Poison', rawLabel: 'Poison Jab (Poison)' }
+  ]
+};
+const analysisUselessItem = bridgeEngine.analyzeBattle(battleDataUselessItem, []);
+assert.strictEqual(analysisUselessItem.shouldUseFullRestore, false, 'Full Restore must NOT be used when opponent deals fatal OHKO damage >= Max HP');
+assert(analysisUselessItem.canOpponentOneShotFromFull, 'canOpponentOneShotFromFull must be true');
+assert(analysisUselessItem.fullRestoreReason.includes('Full Restore is useless'), 'Reason must explain item is useless');
+
+// Test Case 3: Survival Chance (Proceed to use Full Restore)
+// Player is low (50/400 HP), cannot 1-shot KO, but survives opponent counter-attack (incoming damage < 400 HP) after healing.
+const battleDataSurviveChance = {
+  isInActiveBattle: true,
+  trainerName: 'Elite Trainer',
+  hasAttackBtn: true,
+  hasUseItemBtn: true,
+  hasFullRestore: true,
+  fullRestoreCount: 10,
+  userActivePokemon: {
+    name: 'Snorlax',
+    types: ['Normal'],
+    level: 100,
+    hp: 50,
+    maxHp: 400
+  },
+  roster: [
+    {
+      name: 'Gengar',
+      types: ['Ghost', 'Poison'],
+      level: 100,
+      hp: 400,
+      maxHp: 400,
+      isCurrentActive: true,
+      moves: [
+        { name: 'Sludge Bomb', type: 'Poison', power: 90 }
+      ]
+    }
+  ],
+  availableMoves: [
+    { name: 'Body Slam', type: 'Normal', rawLabel: 'Body Slam (Normal)' }
+  ]
+};
+const analysisSurviveChance = bridgeEngine.analyzeBattle(battleDataSurviveChance, []);
+assert.strictEqual(analysisSurviveChance.shouldUseFullRestore, true, 'Full Restore MUST be used when healing ensures survival and victory');
+assert(analysisSurviveChance.fullRestoreReason.includes('Survive and win'), 'Reason must highlight survival advantage');
+
+// Test Case 4: Item count is 0
+const battleDataZeroItems = Object.assign({}, battleDataSurviveChance, { fullRestoreCount: 0, hasFullRestore: false });
+const analysisZeroItems = bridgeEngine.analyzeBattle(battleDataZeroItems, []);
+assert.strictEqual(analysisZeroItems.shouldUseFullRestore, false, 'Must NOT use Full Restore when item count is 0');
+
+// Test Case 6: Strict Carry-Only Guard (Trainee must NEVER use Full Restore)
+// In a training team with Carry (Slither Wing) and Trainees (Lunatone, Cranidos),
+// if Trainee is on field with low HP (20/100 HP), Full Restore is strictly blocked!
+const battleDataTraineeActive = {
+  isInActiveBattle: true,
+  trainerName: 'Sidney',
+  hasAttackBtn: true,
+  hasUseItemBtn: true,
+  hasFullRestore: true,
+  fullRestoreCount: 22,
+  userActivePokemon: {
+    name: 'Ghostly Lunatone',
+    types: ['Rock', 'Psychic'],
+    level: 27,
+    hp: 20,
+    maxHp: 108
+  },
+  userTeam: [
+    { name: 'Dark Slither Wing', level: 100, types: ['Bug', 'Fighting'], hp: 400, maxHp: 400 },
+    { name: 'Ghostly Lunatone', level: 27, types: ['Rock', 'Psychic'], hp: 20, maxHp: 108 },
+    { name: 'Metallic Cranidos', level: 23, types: ['Rock'], hp: 92, maxHp: 92 }
+  ],
+  roster: [
+    {
+      name: 'Cacturne',
+      types: ['Grass', 'Dark'],
+      level: 50,
+      hp: 400,
+      maxHp: 400,
+      isCurrentActive: true,
+      moves: [{ name: 'Needle Arm', type: 'Grass', power: 60 }]
+    }
+  ],
+  availableMoves: [{ name: 'Rock Throw', type: 'Rock', rawLabel: 'Rock Throw (Rock)' }]
+};
+const analysisTrainee = bridgeEngine.analyzeBattle(battleDataTraineeActive, []);
+assert.strictEqual(analysisTrainee.shouldUseFullRestore, false, 'Trainee must NEVER consume Full Restore');
+assert.strictEqual(analysisTrainee.isCarryBattler, false, 'Trainee is not a Carry');
+assert(analysisTrainee.fullRestoreReason.includes('strictly reserved for Carry'), 'Reason must state strictly reserved for Carry');
+
+// Test Case 7: Match Item Limit Guard (Max 1 Full Restore per Battle)
+// Even if Carry is low on health and survives, if 1 item was already used this match, conserved!
+const battleDataMatchLimit = Object.assign({}, battleDataSurviveChance, { currentMatchItemCount: 1 });
+const analysisMatchLimit = bridgeEngine.analyzeBattle(battleDataMatchLimit, []);
+assert.strictEqual(analysisMatchLimit.shouldUseFullRestore, false, 'Must NOT use Full Restore when match item limit (1) reached');
+assert(analysisMatchLimit.fullRestoreReason.includes('Match limit reached'), 'Reason must state match limit reached');
+
+// Test Case 8: Consecutive Turn Lockout Guard (Anti-Infinite Heal Loop)
+// Item was used on previous turn, Carry must attack to progress battle instead of spamming items!
+const battleDataConsecutive = Object.assign({}, battleDataSurviveChance, { lastTurnUsedItem: true });
+const analysisConsecutive = bridgeEngine.analyzeBattle(battleDataConsecutive, []);
+assert.strictEqual(analysisConsecutive.shouldUseFullRestore, false, 'Must NOT use Full Restore on consecutive turns');
+assert(analysisConsecutive.fullRestoreReason.includes('consecutive lockout'), 'Reason must state consecutive lockout');
+
+console.log('\n[PASS] AUDIT 12: Full Restore Tactical Decision Engine (Useless vs Chance) Verified');
+
+// 13. AUDIT 100% 7-BIT CLEAN ASCII
 const filesToCheck = ['app.html', 'app.js', 'ai_agent_bridge.js', 'evolution_engine.js', 'team_engine.js', 'ml_combat_engine.py', 'package.json', 'game-preload.js'];
 filesToCheck.forEach(f => {
   const content = fs.readFileSync(f, 'utf8');
@@ -756,7 +956,7 @@ filesToCheck.forEach(f => {
     }
   }
 });
-console.log('\n[PASS] AUDIT 12: 100% 7-bit Clean ASCII Integrity Verified Across All Files');
+console.log('\n[PASS] AUDIT 13: 100% 7-bit Clean ASCII Integrity Verified Across All Files');
 
 console.log('\n================================================================');
 console.log('   ALL LIVE AI ASSISTANT & COPILOT AUDITS PASSED PERFECTLY     ');

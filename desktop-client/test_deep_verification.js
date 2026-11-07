@@ -50,6 +50,7 @@ const clientFiles = [
   'favorite_trainers.json',
   'skills_database.json',
   'type_chart_database.json',
+  'species_types_data.json',
   'test_client.js',
   'test_duplicate_and_catch.js',
   'test_buttons_verification.js',

@@ -211,7 +211,16 @@ const TARGETS = {
     // 4. Special Sprite Variants
     specialVariants: [
         "shiny", "metallic", "ghostly", "dark", "shadow", "mirage", "chrome", "negative", "retro"
-    ]
+    ],
+
+    // 5. Canonical Species Elemental Types Database (Cross-Tier Qualifier)
+    speciesTypes: (function() {
+        try {
+            return require('./species_types_data.json');
+        } catch (e) {
+            return {};
+        }
+    })()
 };
 
 if (typeof module !== 'undefined' && module.exports) {

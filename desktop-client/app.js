@@ -674,6 +674,8 @@ let activeAiBattleData = null;
 let currentMatchParticipants = new Set();
 let justSwitchedActivePokemon = new Set();
 let currentMatchSwitchCount = 0;
+let currentMatchItemCount = 0;
+let lastTurnActionType = null;
 let activeEvolveCardData = null;
 let lastAnnouncedEvolveSignature = null;
 let lastAnalyzedBattle = null;
@@ -1254,7 +1256,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.4.15';
+    let appVer = '1.4.16';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -1416,13 +1418,13 @@ function syncTargetModalInteractiveStates() {
   // 2. Elemental Types Filter Master Toggle
   const isTypeActive = filterTypesCheckbox ? filterTypesCheckbox.checked : false;
   if (typeQuickGroup) {
-    typeQuickGroup.style.opacity = isTypeActive ? '1' : '0.4';
-    typeQuickGroup.style.pointerEvents = isTypeActive ? 'auto' : 'none';
+    typeQuickGroup.style.opacity = '1';
+    typeQuickGroup.style.pointerEvents = 'auto';
   }
   if (typesGridWrap) {
-    typesGridWrap.style.opacity = isTypeActive ? '1' : '0.4';
-    typesGridWrap.style.pointerEvents = isTypeActive ? 'auto' : 'none';
-    typesGridWrap.style.filter = isTypeActive ? 'none' : 'grayscale(1)';
+    typesGridWrap.style.opacity = '1';
+    typesGridWrap.style.pointerEvents = 'auto';
+    typesGridWrap.style.filter = 'none';
   }
 
   // 3. Smart Ball Routing Couplings & Dual Catch Mode (Option A vs Option B)
@@ -1498,8 +1500,10 @@ function updateTargetUI() {
   const isMega = config.settings && config.settings.findMegasAndGigantamax !== false;
   const isPseudo = config.settings && (config.settings.findPseudoLegendaries !== false);
   const isVar = config.settings && config.settings.findAnySpecialVariant !== false;
-  const isType = config.settings && !!config.settings.enableTypeFilter;
   const activeTypes = (config.settings && Array.isArray(config.settings.selectedTypes)) ? config.settings.selectedTypes : [];
+  const isType = (config.settings && config.settings.enableTypeFilter !== undefined)
+    ? !!config.settings.enableTypeFilter
+    : (activeTypes.length > 0 && activeTypes.length < 18);
   const activeDexMode = (config.settings && config.settings.dexCompletionMode) || 'standard';
   const ballRouting = (config.settings && config.settings.ballRouting) || {
     legendaries: 'Master Ball', pseudo: 'Ultra Ball', megas: 'Ultra Ball', types: 'Ultra Ball', dex: 'Ultra Ball', variants: 'Ultra Ball'
@@ -1656,6 +1660,8 @@ function updateTargetUI() {
         megaTierMegas: config.settings ? config.settings.megaTierMegas !== false : true,
         megaTierGMax: config.settings ? config.settings.megaTierGMax !== false : true,
         megaTierStarters: config.settings ? config.settings.megaTierStarters !== false : true,
+        enableTypeFilter: isType,
+        selectedTypes: activeTypes,
         customTargets,
         blacklist
       }
@@ -1838,6 +1844,8 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
         megaTierMegas: subMegasCheckbox ? subMegasCheckbox.checked : true,
         megaTierGMax: subGMaxCheckbox ? subGMaxCheckbox.checked : true,
         megaTierStarters: subStartersCheckbox ? subStartersCheckbox.checked : true,
+        enableTypeFilter: isType,
+        selectedTypes: selectedTypesList,
         customTargets,
         blacklist
       }
@@ -4549,6 +4557,7 @@ function refreshModalSummary() {
   document.querySelectorAll('.type-chip-input:checked').forEach(inp => {
     selectedTypesList.push(inp.id.replace('type_', ''));
   });
+  const isTypeActive = (filterTypesCheckbox ? filterTypesCheckbox.checked : false) || (selectedTypesList.length > 0 && selectedTypesList.length < 18);
 
   if (targetSummaryText) {
     targetSummaryText.textContent = calculateTargetSummary(
@@ -4563,7 +4572,7 @@ function refreshModalSummary() {
         megaTierMegas: subMegasCheckbox ? subMegasCheckbox.checked : true,
         megaTierGMax: subGMaxCheckbox ? subGMaxCheckbox.checked : true,
         megaTierStarters: subStartersCheckbox ? subStartersCheckbox.checked : true,
-        enableTypeFilter: filterTypesCheckbox ? filterTypesCheckbox.checked : false,
+        enableTypeFilter: isTypeActive,
         selectedTypes: selectedTypesList,
         customTargets,
         blacklist
@@ -4575,7 +4584,8 @@ function refreshModalSummary() {
 // Bind live change listeners to all target modal controls
 [
   filterLegendariesCheckbox, subClassicLegCheckbox, subUltraBeastsCheckbox, subParadoxCheckbox,
-  filterMegasCheckbox, subMegasCheckbox, subGMaxCheckbox, subStartersCheckbox, filterPseudoCheckbox, filterVariantsCheckbox
+  filterMegasCheckbox, subMegasCheckbox, subGMaxCheckbox, subStartersCheckbox, filterPseudoCheckbox,
+  filterVariantsCheckbox, filterTypesCheckbox
 ].forEach(cb => {
   if (cb) cb.addEventListener('change', refreshModalSummary);
 });
@@ -4829,8 +4839,8 @@ if (btnPseudoChromeOnly) {
 
 if (btnAllTypes) {
   btnAllTypes.addEventListener('click', () => {
-    if (filterTypesCheckbox) filterTypesCheckbox.checked = true;
     document.querySelectorAll('.type-chip-input').forEach(inp => inp.checked = true);
+    if (filterTypesCheckbox) filterTypesCheckbox.checked = false;
     refreshModalSummary();
     syncTargetModalInteractiveStates();
   });
@@ -4838,6 +4848,7 @@ if (btnAllTypes) {
 if (btnClearTypes) {
   btnClearTypes.addEventListener('click', () => {
     document.querySelectorAll('.type-chip-input').forEach(inp => inp.checked = false);
+    if (filterTypesCheckbox) filterTypesCheckbox.checked = false;
     refreshModalSummary();
     syncTargetModalInteractiveStates();
   });
@@ -4845,8 +4856,9 @@ if (btnClearTypes) {
 
 document.querySelectorAll('.type-chip-input').forEach(inp => {
   inp.addEventListener('change', () => {
-    if (inp.checked && filterTypesCheckbox && !filterTypesCheckbox.checked) {
-      filterTypesCheckbox.checked = true;
+    const checkedCount = document.querySelectorAll('.type-chip-input:checked').length;
+    if (filterTypesCheckbox) {
+      filterTypesCheckbox.checked = (checkedCount > 0 && checkedCount < 18);
     }
     syncTargetModalInteractiveStates();
     refreshModalSummary();
@@ -5144,7 +5156,11 @@ if (saveTargetsBtn) {
     const isMega = filterMegasCheckbox ? filterMegasCheckbox.checked : false;
     const isPseudo = filterPseudoCheckbox ? filterPseudoCheckbox.checked : false;
     const isVar = filterVariantsCheckbox ? filterVariantsCheckbox.checked : false;
-    const isType = filterTypesCheckbox ? filterTypesCheckbox.checked : false;
+    const selectedTypesList = [];
+    document.querySelectorAll('.type-chip-input:checked').forEach(inp => {
+      selectedTypesList.push(inp.id.replace('type_', ''));
+    });
+    const isType = (filterTypesCheckbox ? filterTypesCheckbox.checked : false) || (selectedTypesList.length > 0 && selectedTypesList.length < 18);
 
     const selectedPseudoVars = [];
     pseudoVariantIds.forEach(id => {
@@ -5152,11 +5168,6 @@ if (saveTargetsBtn) {
       if (el && el.checked) {
         selectedPseudoVars.push(pseudoVariantMap[id]);
       }
-    });
-
-    const selectedTypesList = [];
-    document.querySelectorAll('.type-chip-input:checked').forEach(inp => {
-      selectedTypesList.push(inp.id.replace('type_', ''));
     });
 
     const activeDex = dexCompletionMode ? dexCompletionMode.value : 'standard';
@@ -6460,6 +6471,8 @@ function handleLiveBattleOpponents(data) {
       currentMatchParticipants.clear();
       justSwitchedActivePokemon.clear();
       currentMatchSwitchCount = 0;
+      currentMatchItemCount = 0;
+      lastTurnActionType = null;
     }
     if (data.userActivePokemon && data.userActivePokemon.name) {
       currentMatchParticipants.add(data.userActivePokemon.name.toLowerCase());
@@ -6553,7 +6566,12 @@ function handleLiveBattleOpponents(data) {
   const isNewOpponent = (lastLoggedBattleOpponentSig !== oppSig);
   if (isNewOpponent) {
     lastLoggedBattleOpponentSig = oppSig;
+    currentMatchItemCount = 0;
+    lastTurnActionType = null;
     backendLog('BATTLE_DETECTOR', `Opponent detected: ${data.trainerName} (${data.roster.length} Pokemon)`);
+  }
+  if (data.hasFullRestore || (typeof data.fullRestoreCount === 'number' && data.fullRestoreCount > 0)) {
+    backendLog('BATTLE_ITEM', `Full Restore sensor: count=${data.fullRestoreCount}, usable=${data.hasFullRestore}, hasUseBtn=${data.hasUseItemBtn}`);
   }
 
   // Empirical Battle EXP Telemetry Ingestion
@@ -8586,6 +8604,8 @@ function scheduleNextLoopBattle() {
       if (typeof currentMatchParticipants !== 'undefined') currentMatchParticipants.clear();
       if (typeof justSwitchedActivePokemon !== 'undefined') justSwitchedActivePokemon.clear();
       currentMatchSwitchCount = 0;
+      currentMatchItemCount = 0;
+      lastTurnActionType = null;
     }
 
     if (teamActionStatus) {
@@ -9714,11 +9734,11 @@ function handleEvolveMoveSelection(card) {
 
   // 1. Update AI Assistant Header Badges
   if (aiBattleOpponentBadge) {
-    aiBattleOpponentBadge.textContent = `Evolve Moves: ${pName}`;
+    aiBattleOpponentBadge.textContent = card.isChangeAttackPage ? `Change Moves: ${pName}` : `Evolve Moves: ${pName}`;
     aiBattleOpponentBadge.style.color = '#388bfd';
   }
   if (aiStatusChip) {
-    aiStatusChip.textContent = 'Move Advisor Active';
+    aiStatusChip.textContent = card.isChangeAttackPage ? 'Optimal Relearner Moves' : 'Move Advisor Active';
     aiStatusChip.style.color = '#10b981';
   }
 
@@ -9805,13 +9825,14 @@ function handleEvolveMoveSelection(card) {
     autoPickBtn.id = 'aiAutoSelectMovesBtn';
     autoPickBtn.className = 'btn btn-accent';
     autoPickBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
-    autoPickBtn.innerHTML = '&#9876; Auto-Select Recommended Moves';
+    autoPickBtn.innerHTML = '&#9876; Auto-Select Best 4 Moves in Game';
     autoPickBtn.addEventListener('click', () => {
       if (delugeView && typeof delugeView.send === 'function') {
         delugeView.send('apply-recommended-moves', {
           recommendedMoves: evalResult.recommendedMoves.map(m => m.name),
           dropMoves: evalResult.dropMoves.map(m => m.name),
-          slot1: evalResult.slotOrder[0]
+          slot1: evalResult.slotOrder[0],
+          isChangeAttackPage: !!card.isChangeAttackPage
         });
         updateStatus('Optimal moves applied to DelugeRPG form!', '#238636');
       }
@@ -10294,7 +10315,8 @@ function selectPokemonForMoves(poke) {
           delugeView.send('apply-recommended-moves', {
             recommendedMoves: top4Names,
             dropMoves: dropNames,
-            slot1: top4Names[0] || null
+            slot1: top4Names[0] || null,
+            isChangeAttackPage: !!(activeEvolveCardData && activeEvolveCardData.isChangeAttackPage)
           });
           updateStatus('Applied recommended 4 moves to game form!', '#10b981');
         }
@@ -10791,6 +10813,8 @@ function computeAiBattleActionConfig(battleData, collection) {
   if (!Array.isArray(battleData.roster) || battleData.roster.length === 0) {
     return null;
   }
+  battleData.currentMatchItemCount = currentMatchItemCount;
+  battleData.lastTurnUsedItem = (lastTurnActionType === 'use-battle-item');
   const analysis = aiAssistant ? aiAssistant.analyzeBattle(battleData, collection) : null;
   if (!analysis || analysis.status === 'IDLE') return null;
 
@@ -10965,6 +10989,20 @@ function computeAiBattleActionConfig(battleData, collection) {
           btnClass: 'btn btn-accent',
           action: () => {
             executeAiBattleAction('switch-pokemon', { pokemonName: nextTrainee.name, autoStart: true, isSwitch: true });
+          }
+        };
+      }
+
+      if (analysis.shouldUseFullRestore && analysis.hasUseItemBtn && currentMatchItemCount < 1 && lastTurnActionType !== 'use-battle-item') {
+        const frCount = typeof analysis.fullRestoreCount === 'number' ? analysis.fullRestoreCount : 1;
+        backendLog('AI_TACTIC', `Full Restore triggered: ${analysis.fullRestoreReason}`);
+        return {
+          labelHtml: `&#128138; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Use Full Restore (${frCount} left)</span>`,
+          hudText: `Item: Full Restore (${frCount})`,
+          disabled: false,
+          btnClass: 'btn btn-accent',
+          action: () => {
+            executeAiBattleAction('use-battle-item', { itemName: 'Full Restore' });
           }
         };
       }
@@ -11289,6 +11327,12 @@ function executeAiBattleAction(action, payload) {
     }
   } else if (action === 'execute-battle-move') {
     justSwitchedActivePokemon.clear();
+    lastTurnActionType = 'execute-battle-move';
+  } else if (action === 'use-battle-item') {
+    justSwitchedActivePokemon.clear();
+    currentMatchItemCount++;
+    lastTurnActionType = 'use-battle-item';
+    backendLog('BOT_ACTION', `execute-battle-action: use-battle-item (${payload && payload.itemName ? payload.itemName : 'Full Restore'}) (match item count: ${currentMatchItemCount})`);
   }
   if (teamBattleActionBtn) {
     teamBattleActionBtn.disabled = true;

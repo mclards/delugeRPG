@@ -391,7 +391,7 @@ class DelugeAiAssistant {
       const moveRecommendation = bestMove ? (bestMove.rawLabel || bestMove.name) : 'Best Attack';
       const moveClean = bestMove ? bestMove.name : 'Attack';
       const moveEffText = bestMove ? `${bestMove.multiplier}x vs ${activeOpp.name}` : `vs ${activeOpp.name}`;
-      const tacticalCallout = `Active Battler: ${activeBattler.name} using ${moveClean} (${moveEffText}).`;
+      let tacticalCallout = `Active Battler: ${activeBattler.name} using ${moveClean} (${moveEffText}).`;
 
       const activeOppHp = (activeOpp.hp !== undefined) ? activeOpp.hp : 100;
       const activeOppMaxHp = (activeOpp.maxHp !== undefined) ? activeOpp.maxHp : 100;
@@ -480,6 +480,135 @@ class DelugeAiAssistant {
         )
       );
 
+      // -------------------------------------------------------------
+      // Full Restore Tactical Decision Engine (Useless vs Chance)
+      // -------------------------------------------------------------
+      const hasFullRestoreItem = Boolean(battleData.hasFullRestore && (battleData.fullRestoreCount === undefined || battleData.fullRestoreCount > 0));
+      const fullRestoreCount = typeof battleData.fullRestoreCount === 'number' ? battleData.fullRestoreCount : (hasFullRestoreItem ? 1 : 0);
+      const hasUseItemBtn = Boolean(battleData.hasUseItemBtn);
+
+      // 1. Initiative Check: Can the player 1-shot KO the opponent right now?
+      // DelugeRPG grants player first strike. If bestMove finishes the opponent immediately,
+      // attacking avoids ALL incoming damage and saves the item.
+      const canPlayerKoFirst = Boolean(
+        bestMove &&
+        bestMove.canKoCurrentHp &&
+        (bestMove.accuracy === undefined || bestMove.accuracy >= 80) &&
+        !bestMove.isCharge &&
+        !bestMove.isRecharge
+      );
+
+      // 2. Incoming Damage Estimation:
+      // Evaluate opponent's known moves (or worst-case 100-power STAB attacks) against activeBattler.
+      let maxIncomingDamage = 0;
+      let worstIncomingMoveName = 'Attack';
+      const oppVarMult = teamEngine.getVariantMultipliers(activeOppEnriched.variant);
+      const battlerVarMult = teamEngine.getVariantMultipliers(activeBattler.variant);
+      const oppLvlRatio = (activeBattler.level && activeBattler.level > 0)
+        ? ((activeOppEnriched.level || 100) / activeBattler.level)
+        : 1.0;
+
+      const candOppMoves = [];
+      if (Array.isArray(activeOpp.moves) && activeOpp.moves.length > 0) {
+        candOppMoves.push(...activeOpp.moves);
+      }
+      for (const oType of oppTypes) {
+        candOppMoves.push({ name: `${oType} Attack`, type: oType, power: 100 });
+      }
+      candOppMoves.push({ name: 'Neutral Attack', type: 'Normal', power: 90 });
+
+      for (const rawM of candOppMoves) {
+        const resolvedM = teamEngine.resolveMove(rawM);
+        if (resolvedM.isStatus || resolvedM.power <= 0) continue;
+        const incEff = teamEngine.incomingEffectiveness(activeBattler, resolvedM.type, activeOppEnriched);
+        const normOppTypes = oppTypes.map(teamEngine.normalizeType);
+        const isStab = normOppTypes.includes(teamEngine.normalizeType(resolvedM.type));
+        const effectivePower = resolvedM.power * incEff * (isStab ? 1.5 : 1.0) * (oppVarMult.offense || 1.0);
+        const scaledDmg = (effectivePower * oppLvlRatio) / (battlerVarMult.hp || 1.0);
+        const estDmg = Math.round((scaledDmg / 180) * activeBattlerMaxHp);
+        if (estDmg > maxIncomingDamage) {
+          maxIncomingDamage = estDmg;
+          worstIncomingMoveName = resolvedM.name;
+        }
+      }
+
+      // 3. Useless Item Analysis:
+      // If the opponent can defeat the Pokemon in one move even from 100% full Max HP (damage >= Max HP),
+      // using Full Restore is completely useless (the Pokemon faints on that same turn anyway).
+      const canOpponentOneShotFromFull = (maxIncomingDamage >= Math.round(activeBattlerMaxHp * 0.95));
+
+      // 4. Strict Carry-Only Evaluation:
+      // Full Restore must strictly and exclusively be used on the Carry.
+      // Trainees, low-level babies, and non-carry party members must NEVER consume Full Restores.
+      let isCarryBattler = false;
+      const normalizeCleanName = (raw) => String(raw || '').toLowerCase().replace(/^your\s+/i, '').replace(/[^a-z0-9]/g, '');
+      const battlerLvl = activeBattler.level || 1;
+      const battlerClean = normalizeCleanName(activeBattler.name);
+
+      if (isTrainingTeam) {
+        // In a training team, only the designated Carry (Level >= 100 anchor) qualifies
+        const carryClean = trainingCarry ? normalizeCleanName(trainingCarry.name) : '';
+        const carryFullNameClean = trainingCarry ? normalizeCleanName(formatPokemonFullName(trainingCarry.variant, trainingCarry.name)) : '';
+        isCarryBattler = Boolean(
+          trainingCarry &&
+          battlerLvl >= 100 &&
+          (
+            (trainingCarry.id && activeBattler.id && trainingCarry.id === activeBattler.id) ||
+            (activeBattler.slotIndex !== undefined && trainingCarry.slotIndex !== undefined && activeBattler.slotIndex === trainingCarry.slotIndex) ||
+            (carryClean && (battlerClean === carryClean || battlerClean.includes(carryClean) || carryClean.includes(battlerClean))) ||
+            (carryFullNameClean && (battlerClean === carryFullNameClean || battlerClean.includes(carryFullNameClean) || carryFullNameClean.includes(battlerClean)))
+          )
+        );
+      } else {
+        // Non-training team: Must be Level 100 and a designated Carry Anchor / Slot 1 or 2
+        const isSlotCarry = (activeBattler.slotIndex === 0 || activeBattler.slotIndex === 1);
+        isCarryBattler = (battlerLvl >= 100 && isSlotCarry) || (battlerLvl >= 100 && teamCandidates.every(c => (c.level || 0) >= 100));
+      }
+
+      // 5. Match-Level Item Guards:
+      // Prevent infinite heal stall and limit consumption to at most 1 Full Restore per match.
+      const hasUsedItemThisMatch = Boolean(battleData.currentMatchItemCount && battleData.currentMatchItemCount >= 1);
+      const hasUsedItemLastTurn = Boolean(battleData.lastTurnUsedItem);
+
+      // 6. Current HP Danger Analysis:
+      // Genuine danger: current HP is lower than incoming damage (will faint without healing),
+      // OR in red zone (HP <= 25% Max HP) within 1.5x incoming damage.
+      const isCurrentHpInDanger = (activeBattlerHp <= maxIncomingDamage) ||
+        (activeBattlerHp <= Math.round(activeBattlerMaxHp * 0.25) && activeBattlerHp <= Math.round(maxIncomingDamage * 1.5));
+
+      // 7. Chance Analysis:
+      // The Pokemon has a chance to survive the incoming attack after using Full Restore (damage < Max HP).
+      const hasChanceToSurviveAfterFullRestore = !canOpponentOneShotFromFull && (maxIncomingDamage < activeBattlerMaxHp);
+
+      let shouldUseFullRestore = false;
+      let fullRestoreReason = '';
+
+      if (hasFullRestoreItem && hasUseItemBtn && !isActiveBattlerFainted) {
+        if (!isCarryBattler) {
+          shouldUseFullRestore = false;
+          fullRestoreReason = `Full Restore strictly reserved for Carry (${trainingCarry ? trainingCarry.name : 'Carry Anchor'}); active battler ${activeBattler.name} (Lv ${activeBattler.level || '?'}) is a trainee`;
+        } else if (hasUsedItemThisMatch) {
+          shouldUseFullRestore = false;
+          fullRestoreReason = `Full Restore conserved: Match limit reached (max 1 Full Restore per battle)`;
+        } else if (hasUsedItemLastTurn) {
+          shouldUseFullRestore = false;
+          fullRestoreReason = `Full Restore consecutive lockout: Item used last turn, Carry must attack this turn to progress combat`;
+        } else if (canPlayerKoFirst) {
+          shouldUseFullRestore = false;
+          fullRestoreReason = `Full Restore unneeded: ${activeBattler.name} can finish off ${activeOpp.name} with ${bestMove.name} (${bestMove.multiplier || 1}x) on this turn`;
+        } else if (canOpponentOneShotFromFull) {
+          shouldUseFullRestore = false;
+          fullRestoreReason = `Full Restore is useless: Opponent deals fatal ${maxIncomingDamage} HP damage (>= Max HP ${activeBattlerMaxHp}) in one move`;
+        } else if (isCurrentHpInDanger && hasChanceToSurviveAfterFullRestore) {
+          shouldUseFullRestore = true;
+          const projectedSurvivingHp = Math.max(0, activeBattlerMaxHp - maxIncomingDamage);
+          fullRestoreReason = `Survive and win: Heal Carry (${activeBattler.name}) to ${activeBattlerMaxHp} HP, absorb opponent's ${worstIncomingMoveName} (${maxIncomingDamage} HP), and survive with ${projectedSurvivingHp} HP`;
+          tacticalCallout = `Full Restore Advantage: Heal Carry (${activeBattler.name}) to ${activeBattlerMaxHp} HP to survive ${worstIncomingMoveName} (${maxIncomingDamage} HP) with ${projectedSurvivingHp} HP left.`;
+        } else {
+          fullRestoreReason = `Carry HP is safe (${activeBattlerHp}/${activeBattlerMaxHp} HP, takes ${maxIncomingDamage} HP); Full Restore conserved`;
+        }
+      }
+
       return {
         status: 'ACTIVE_BATTLE',
         trainerName: trainerName,
@@ -512,6 +641,14 @@ class DelugeAiAssistant {
         hasBenchRadios: Boolean(battleData.hasBenchRadios),
         hasForfeitBtn: Boolean(battleData.hasForfeitBtn),
         shouldForfeitBattle: Boolean(shouldForfeitBattle),
+        hasFullRestore: hasFullRestoreItem,
+        fullRestoreCount: fullRestoreCount,
+        hasUseItemBtn: hasUseItemBtn,
+        shouldUseFullRestore: shouldUseFullRestore,
+        fullRestoreReason: fullRestoreReason,
+        isCarryBattler: Boolean(isCarryBattler),
+        maxIncomingDamage: maxIncomingDamage,
+        canOpponentOneShotFromFull: canOpponentOneShotFromFull,
         isTrainingTeam: Boolean(isTrainingTeam),
         isHighLevelTrainee: Boolean(isHighLevelTrainee),
         designatedTrainingBattler: designatedTrainingBattler,

@@ -426,6 +426,7 @@ const presetMegaBtn = document.getElementById('presetMegaBtn');
 const presetVarBtn = document.getElementById('presetVarBtn');
 const presetShinyBtn = document.getElementById('presetShinyBtn');
 const presetLegMegaBtn = document.getElementById('presetLegMegaBtn');
+const tabTypesBtn = document.getElementById('tabTypesBtn');
 const tabVariantsBtn = document.getElementById('tabVariantsBtn');
 const legTierVariantsBadge = document.getElementById('legTierVariantsBadge');
 const megaTierVariantsBadge = document.getElementById('megaTierVariantsBadge');
@@ -1370,6 +1371,10 @@ function calculateTargetSummary(leg, megas, vars, enableLevel, levelMode, levelV
     } else if (hasNormal && specialCount > 0) {
       parts.push("Wild: [Normal + " + specialCount + "]");
     }
+  }
+
+  if (subOptions.enableTypeFilter && Array.isArray(subOptions.selectedTypes) && subOptions.selectedTypes.length > 0 && subOptions.selectedTypes.length < 18) {
+    parts.push("Types: [" + subOptions.selectedTypes.join(", ") + "]");
   }
 
   if (enableLevel) {
@@ -4540,6 +4545,11 @@ function refreshModalSummary() {
   const levelVal = levelValueInput ? (parseInt(levelValueInput.value, 10) || 50) : 50;
   const levelScope = levelScopeSelect ? levelScopeSelect.value : 'targets';
 
+  const selectedTypesList = [];
+  document.querySelectorAll('.type-chip-input:checked').forEach(inp => {
+    selectedTypesList.push(inp.id.replace('type_', ''));
+  });
+
   if (targetSummaryText) {
     targetSummaryText.textContent = calculateTargetSummary(
       isLeg, isMega, isVar, isLevel, levelMode, levelVal, levelScope,
@@ -4553,6 +4563,8 @@ function refreshModalSummary() {
         megaTierMegas: subMegasCheckbox ? subMegasCheckbox.checked : true,
         megaTierGMax: subGMaxCheckbox ? subGMaxCheckbox.checked : true,
         megaTierStarters: subStartersCheckbox ? subStartersCheckbox.checked : true,
+        enableTypeFilter: filterTypesCheckbox ? filterTypesCheckbox.checked : false,
+        selectedTypes: selectedTypesList,
         customTargets,
         blacklist
       }
@@ -4744,13 +4756,24 @@ pseudoVariantIds.forEach(id => {
 });
 
 function switchToVariantsTab() {
-  const targetTab2 = document.getElementById('targetTab2');
-  if (targetTab2) targetTab2.checked = true;
+  const targetTabVariants = document.getElementById('targetTab3') || document.getElementById('targetTab2');
+  if (targetTabVariants) targetTabVariants.checked = true;
   document.querySelectorAll('.modal-tab-btn').forEach(b => {
     b.classList.toggle('active', b.getAttribute('data-tab') === 'tabVariants');
   });
   document.querySelectorAll('.modal-tab-content').forEach(c => {
     c.classList.toggle('active', c.id === 'tabVariants');
+  });
+}
+
+function switchToTypesTab() {
+  const targetTabTypes = document.getElementById('targetTab2');
+  if (targetTabTypes) targetTabTypes.checked = true;
+  document.querySelectorAll('.modal-tab-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-tab') === 'tabTypes');
+  });
+  document.querySelectorAll('.modal-tab-content').forEach(c => {
+    c.classList.toggle('active', c.id === 'tabTypes');
   });
 }
 
@@ -4819,6 +4842,16 @@ if (btnClearTypes) {
     syncTargetModalInteractiveStates();
   });
 }
+
+document.querySelectorAll('.type-chip-input').forEach(inp => {
+  inp.addEventListener('change', () => {
+    if (inp.checked && filterTypesCheckbox && !filterTypesCheckbox.checked) {
+      filterTypesCheckbox.checked = true;
+    }
+    syncTargetModalInteractiveStates();
+    refreshModalSummary();
+  });
+});
 
 if (filterTypesCheckbox) {
   filterTypesCheckbox.addEventListener('change', () => {

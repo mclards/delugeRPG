@@ -2970,6 +2970,33 @@ function scanForTargets() {
     }
 
     // D. Match against Tab 1 Target Tiers:
+    // D0. Elemental Types Qualifier Gate (Cross-Tier Intersection):
+    // When elemental type filtering is active and specific types are chosen, encounters MUST possess at least one matching element.
+    if (config.enableTypeFilter && Array.isArray(config.selectedTypes) && config.selectedTypes.length > 0 && config.selectedTypes.length < 18) {
+        const encTypes = extractEncounterTypes();
+        const selectedTypesLower = config.selectedTypes.map(t => t.toLowerCase());
+        let hasTypeMatch = false;
+        if (encTypes.length > 0) {
+            hasTypeMatch = encTypes.some(t => selectedTypesLower.includes(t.toLowerCase()));
+        } else {
+            // Fallback: Check species name against known TARGETS lists if DOM type badges are not yet rendered
+            const specName = extractEncounterSpeciesName();
+            if (specName && typeof TARGETS !== 'undefined' && TARGETS.speciesTypes && TARGETS.speciesTypes[specName.toLowerCase()]) {
+                const sTypes = TARGETS.speciesTypes[specName.toLowerCase()];
+                hasTypeMatch = sTypes.some(t => selectedTypesLower.includes(t.toLowerCase()));
+            } else {
+                // If DOM is loading and type cannot be extracted, permit passage to prevent dropping valid targets
+                hasTypeMatch = true;
+            }
+        }
+        if (!hasTypeMatch) {
+            if (isNewEncounter) {
+                console.log('[TargetEngine] IGNORED: Encounter skipped (Types ' + (encTypes.join('/') || 'none') + ' do not match selected elemental types: ' + config.selectedTypes.join(', ') + ')');
+            }
+            return;
+        }
+    }
+
     // 0. Dex Completionist Mode (Auto-target unowned Dex species or variants)
     if (config.dexCompletionMode && config.dexCompletionMode !== 'standard' && ownStatus) {
         const preferredDexBall = (config.ballRouting && config.ballRouting.dex) || 'Ultra Ball';

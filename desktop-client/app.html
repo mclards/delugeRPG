@@ -1474,6 +1474,26 @@
     .tab-container-4 .tab--3:checked ~ .indicator { left: 50%; }
     .tab-container-4 .tab--4:checked ~ .indicator { left: 75%; }
 
+    /* 5-Tab Full-Width Variant (Target Modal) */
+    .tab-container-5 {
+      width: 100%;
+    }
+    .tab-container-5 .tab_label {
+      flex: 1;
+      width: 20%;
+      height: 24px;
+      font-size: 10.5px;
+    }
+    .tab-container-5 .indicator {
+      width: calc(20% - 2px);
+      height: 24px;
+    }
+    .tab-container-5 .tab--1:checked ~ .indicator { left: 2px; }
+    .tab-container-5 .tab--2:checked ~ .indicator { left: 20%; }
+    .tab-container-5 .tab--3:checked ~ .indicator { left: 40%; }
+    .tab-container-5 .tab--4:checked ~ .indicator { left: 60%; }
+    .tab-container-5 .tab--5:checked ~ .indicator { left: 80%; }
+
     /* 6-Tab Full-Width Variant (Ads Inspector Filter Tabs) */
     .tab-container-6 {
       width: 100%;
@@ -2386,18 +2406,21 @@
     </div>
 
     <!-- Segmented Navigation Tabs -->
-    <div class="tab-container tab-container-4" style="margin-bottom: 10px;">
+    <div class="tab-container tab-container-5" style="margin-bottom: 10px;">
       <input type="radio" name="targetModalTab" id="targetTab1" class="tab tab--1" checked />
       <label class="tab_label modal-tab-btn active" for="targetTab1" data-tab="tabSpecies">Tiers</label>
 
       <input type="radio" name="targetModalTab" id="targetTab2" class="tab tab--2" />
-      <label class="tab_label modal-tab-btn" for="targetTab2" id="tabVariantsBtn" data-tab="tabVariants">Variants</label>
+      <label class="tab_label modal-tab-btn" for="targetTab2" id="tabTypesBtn" data-tab="tabTypes">Types</label>
 
       <input type="radio" name="targetModalTab" id="targetTab3" class="tab tab--3" />
-      <label class="tab_label modal-tab-btn" for="targetTab3" data-tab="tabBallRouting">Smart Balls</label>
+      <label class="tab_label modal-tab-btn" for="targetTab3" id="tabVariantsBtn" data-tab="tabVariants">Variants</label>
 
       <input type="radio" name="targetModalTab" id="targetTab4" class="tab tab--4" />
-      <label class="tab_label modal-tab-btn" for="targetTab4" data-tab="tabCustom">Blacklist</label>
+      <label class="tab_label modal-tab-btn" for="targetTab4" data-tab="tabBallRouting">Smart Balls</label>
+
+      <input type="radio" name="targetModalTab" id="targetTab5" class="tab tab--5" />
+      <label class="tab_label modal-tab-btn" for="targetTab5" data-tab="tabCustom">Blacklist</label>
 
       <div class="indicator"></div>
     </div>
@@ -2499,41 +2522,6 @@
         <input type="text" id="customTargetInput" class="input-field" placeholder="Comma-separated (e.g. Ditto, Eevee, Lucario, Gengar, Bagon, Dratini)">
       </div>
 
-      <!-- Elemental Types Filter -->
-      <div class="filter-item" id="typesFilterItem">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-          <label class="filter-row" style="margin: 0;">
-            <input type="checkbox" id="filterTypesCheckbox" class="input">
-            <span class="custom-checkbox"></span>
-            <span class="filter-label">&#9889; Elemental Types</span>
-          </label>
-          <div class="quick-btn-group" id="typeQuickGroup" style="opacity: 0.4; pointer-events: none;">
-            <button id="btnAllTypes" type="button" class="quick-tag-btn">All (18)</button>
-            <button id="btnClearTypes" type="button" class="quick-tag-btn">Clear</button>
-          </div>
-        </div>
-        <div id="typesGridWrap" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; opacity: 0.4; pointer-events: none;">
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Normal" class="input type-chip-input"><span class="custom-checkbox"></span><span>Normal</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Fire" class="input type-chip-input"><span class="custom-checkbox"></span><span>Fire</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Water" class="input type-chip-input"><span class="custom-checkbox"></span><span>Water</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Grass" class="input type-chip-input"><span class="custom-checkbox"></span><span>Grass</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Electric" class="input type-chip-input"><span class="custom-checkbox"></span><span>Electric</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Ice" class="input type-chip-input"><span class="custom-checkbox"></span><span>Ice</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Fighting" class="input type-chip-input"><span class="custom-checkbox"></span><span>Fighting</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Poison" class="input type-chip-input"><span class="custom-checkbox"></span><span>Poison</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Ground" class="input type-chip-input"><span class="custom-checkbox"></span><span>Ground</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Flying" class="input type-chip-input"><span class="custom-checkbox"></span><span>Flying</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Psychic" class="input type-chip-input"><span class="custom-checkbox"></span><span>Psychic</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Bug" class="input type-chip-input"><span class="custom-checkbox"></span><span>Bug</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Rock" class="input type-chip-input"><span class="custom-checkbox"></span><span>Rock</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Ghost" class="input type-chip-input"><span class="custom-checkbox"></span><span>Ghost</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Dragon" class="input type-chip-input"><span class="custom-checkbox"></span><span>Dragon</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Steel" class="input type-chip-input"><span class="custom-checkbox"></span><span>Steel</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Dark" class="input type-chip-input"><span class="custom-checkbox"></span><span>Dark</span></label>
-          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Fairy" class="input type-chip-input"><span class="custom-checkbox"></span><span>Fairy</span></label>
-        </div>
-      </div>
-
       <!-- Encounter Rules -->
       <div class="filter-group-title">Encounter Rules</div>
 
@@ -2582,7 +2570,44 @@
 
     </div>
 
-    <!-- TAB 2: PER-TIER SPRITE VARIANTS SELECTOR (CHECKBOX-BASED) -->
+    <!-- TAB 2: ELEMENTAL TYPES QUALIFIER (CHECKBOX-BASED) -->
+    <div id="tabTypes" class="modal-tab-content">
+      <div class="filter-item" id="typesFilterItem">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <label class="filter-row" style="margin: 0;">
+            <input type="checkbox" id="filterTypesCheckbox" class="input">
+            <span class="custom-checkbox"></span>
+            <span class="filter-label" style="font-weight: 700;">&#9889; Filter by Elemental Types</span>
+          </label>
+          <div class="quick-btn-group" id="typeQuickGroup" style="opacity: 0.4; pointer-events: none;">
+            <button id="btnAllTypes" type="button" class="quick-tag-btn">All (18)</button>
+            <button id="btnClearTypes" type="button" class="quick-tag-btn">Clear</button>
+          </div>
+        </div>
+        <div id="typesGridWrap" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; opacity: 0.4; pointer-events: none;">
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Normal" class="input type-chip-input"><span class="custom-checkbox"></span><span>Normal</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Fire" class="input type-chip-input"><span class="custom-checkbox"></span><span>Fire</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Water" class="input type-chip-input"><span class="custom-checkbox"></span><span>Water</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Grass" class="input type-chip-input"><span class="custom-checkbox"></span><span>Grass</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Electric" class="input type-chip-input"><span class="custom-checkbox"></span><span>Electric</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Ice" class="input type-chip-input"><span class="custom-checkbox"></span><span>Ice</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Fighting" class="input type-chip-input"><span class="custom-checkbox"></span><span>Fighting</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Poison" class="input type-chip-input"><span class="custom-checkbox"></span><span>Poison</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Ground" class="input type-chip-input"><span class="custom-checkbox"></span><span>Ground</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Flying" class="input type-chip-input"><span class="custom-checkbox"></span><span>Flying</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Psychic" class="input type-chip-input"><span class="custom-checkbox"></span><span>Psychic</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Bug" class="input type-chip-input"><span class="custom-checkbox"></span><span>Bug</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Rock" class="input type-chip-input"><span class="custom-checkbox"></span><span>Rock</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Ghost" class="input type-chip-input"><span class="custom-checkbox"></span><span>Ghost</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Dragon" class="input type-chip-input"><span class="custom-checkbox"></span><span>Dragon</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Steel" class="input type-chip-input"><span class="custom-checkbox"></span><span>Steel</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Dark" class="input type-chip-input"><span class="custom-checkbox"></span><span>Dark</span></label>
+          <label class="variant-cell" style="padding: 2px 4px; font-size: 10px;"><input type="checkbox" id="type_Fairy" class="input type-chip-input"><span class="custom-checkbox"></span><span>Fairy</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: PER-TIER SPRITE VARIANTS SELECTOR (CHECKBOX-BASED) -->
     <div id="tabVariants" class="modal-tab-content">
       <!-- 1. Legendaries & Special Tier Variants -->
       <div class="filter-item">

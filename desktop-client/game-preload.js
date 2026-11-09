@@ -5640,6 +5640,86 @@ function parsePokemonFromTrainerProfile(html) {
     const pokemons = [];
     if (!html) return pokemons;
 
+    try {
+        if (typeof DOMParser !== 'undefined') {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            if (doc && typeof extractRosterFromProfileDocument === 'function') {
+                const domRoster = extractRosterFromProfileDocument(doc);
+                if (Array.isArray(domRoster) && domRoster.length > 0) {
+                    return domRoster;
+                }
+            }
+            if (doc) {
+                const candidateCards = doc.querySelectorAll('.viewpoketable, .viewuteammember, .indbox, .pokemon, .battlelistitem, div[class*="typeclr-"], div[style*="background"]');
+                const seen = new Set();
+                for (let i = 0; i < candidateCards.length; i++) {
+                    const card = candidateCards[i];
+                    const img = card.querySelector('img');
+                    const tBtns = card.querySelectorAll('i.tbtn, .tbtn, span.type');
+                    if (!img || tBtns.length === 0) continue;
+                    if (card.querySelectorAll('i.tbtn').length > 3) continue; // skip outer container wrapping multiple pokemon
+
+                    let pName = '';
+                    const nameEl = card.querySelector('h4, .name, .smallcaps, .nnfield, [data-name], b');
+                    if (nameEl && !/^(?:moves|level|type)\b/i.test((nameEl.textContent || '').trim())) {
+                        pName = (nameEl.getAttribute('data-name') || nameEl.textContent || '').trim();
+                    }
+                    if (!pName && img) {
+                        pName = (img.getAttribute('alt') || img.getAttribute('title') || '').trim();
+                    }
+                    if (!pName) {
+                        const lines = (card.textContent || '').split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+                        for (let l = 0; l < lines.length; l++) {
+                            if (!/^(?:moves|level|team|trainer)\b/i.test(lines[l]) && !/^level:\s*\d+/i.test(lines[l])) {
+                                pName = lines[l];
+                                break;
+                            }
+                        }
+                    }
+                    if (!pName) continue;
+                    const key = pName.toLowerCase() + '_' + pokemons.length;
+                    if (seen.has(card)) continue;
+                    seen.add(card);
+
+                    const types = [];
+                    for (let j = 0; j < tBtns.length; j++) {
+                        let t = tBtns[j].getAttribute('title') || tBtns[j].textContent.trim();
+                        if (!t) {
+                            const cm = (tBtns[j].className || '').match(/tbtn-([a-z]+)/i);
+                            if (cm && cm[1].toLowerCase() !== 'mini') t = cm[1];
+                        }
+                        if (t) {
+                            const normT = t.trim().charAt(0).toUpperCase() + t.trim().slice(1).toLowerCase();
+                            if (types.indexOf(normT) === -1) types.push(normT);
+                        }
+                    }
+
+                    let level = 100;
+                    const lm = (card.textContent || '').match(/Level:\s*([0-9,]+)/i);
+                    if (lm) {
+                        const parsedLvl = parseInt(lm[1].replace(/,/g, ''), 10);
+                        if (!isNaN(parsedLvl)) level = parsedLvl;
+                    }
+
+                    const moves = typeof extractMovesFromCardElement === 'function' ? extractMovesFromCardElement(card) : [];
+                    const sprite = img ? (img.getAttribute('src') || '') : '';
+                    if (key) {
+                        pokemons.push({
+                            name: pName,
+                            types: types.length > 0 ? types : ['Normal'],
+                            level: level,
+                            sprite: sprite,
+                            moves: moves
+                        });
+                    }
+                    if (pokemons.length >= 6) break;
+                }
+                if (pokemons.length > 0) return pokemons;
+            }
+        }
+    } catch (_) {}
+
     const vpPattern = /<div class="viewpoketable[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?:<\/div>|<div class="viewpoketable|<\/div>\s*<hr)/g;
     let match;
     while ((match = vpPattern.exec(html)) !== null) {
@@ -5662,111 +5742,131 @@ function parsePokemonFromTrainerProfile(html) {
         const lvlMatch = block.match(/<b>Level:<\/b>\s*(\d+)/i);
         if (lvlMatch) level = parseInt(lvlMatch[1], 10);
 
+        const moves = [];
+        const mvPattern = /<div class="attk"[^>]*>([\s\S]*?)<\/div>/i.exec(block);
+        if (mvPattern && mvPattern[1]) {
+            const subDivs = mvPattern[1].match(/<div[^>]*>([^<]+)<\/div>/ig) || [];
+            for (let s = 0; s < subDivs.length; s++) {
+                const mTxt = subDivs[s].replace(/<[^>]+>/g, '').trim();
+                if (mTxt && moves.indexOf(mTxt) === -1) moves.push(mTxt);
+            }
+        }
+
         pokemons.push({
             name: name,
             types: types.length > 0 ? types : ['Normal'],
             level: level,
-            sprite: sprite
+            sprite: sprite,
+            moves: moves
         });
-    }
-
-    if (pokemons.length === 0) {
-        const pokePattern = /<div class="pokemon"[^>]*>([\s\S]*?)<\/div>/g;
-        let pMatch;
-        while ((pMatch = pokePattern.exec(html)) !== null) {
-            const block = pMatch[1];
-            const spanMatch = block.match(/<span class="smallcaps">([^<]+)<\/span>/i);
-            const name = spanMatch ? spanMatch[1].trim() : '';
-            if (!name) continue;
-
-            const types = [];
-            const tPattern = /<i class="tbtn tbtn-([a-z]+)" title="([^"]+)"/ig;
-            let tMatch;
-            while ((tMatch = tPattern.exec(block)) !== null) {
-                types.push(tMatch[2].trim());
-            }
-
-            const imgMatch = block.match(/src="([^"]+\.png)"/i);
-            const sprite = imgMatch ? imgMatch[1] : '';
-
-            pokemons.push({
-                name: name,
-                types: types.length > 0 ? types : ['Normal'],
-                level: 100,
-                sprite: sprite
-            });
-        }
     }
 
     return pokemons;
 }
 
+let isTrainerRosterSyncActive = false;
+let abortTrainerRosterSync = false;
+
+ipcRenderer.on('abort-scan-trainer-rosters', () => {
+    if (isTrainerRosterSyncActive) {
+        abortTrainerRosterSync = true;
+    }
+});
+
 ipcRenderer.on('start-scan-trainer-rosters', async (event, data) => {
+    if (isTrainerRosterSyncActive) {
+        abortTrainerRosterSync = true;
+        return;
+    }
+    isTrainerRosterSyncActive = true;
+    abortTrainerRosterSync = false;
+
     try {
         const trainers = data && data.trainers ? data.trainers : [];
         if (trainers.length === 0) {
-            ipcRenderer.sendToHost('scan-trainers-status', { step: 'probe-failed', message: 'No trainers found to scan.' });
+            ipcRenderer.sendToHost('scan-trainers-status', { step: 'probe-failed', message: 'No trainers found to sync.' });
             return;
         }
 
-        ipcRenderer.sendToHost('scan-trainers-status', { step: 'probing', message: 'Testing trainer profile endpoint (/npc/5141)...' });
-
-        let probeRes = await fetch('/npc/5141', { credentials: 'include' });
-        let probeHtml = await probeRes.text();
-        let parsedProbe = parsePokemonFromTrainerProfile(probeHtml);
-
-        if (parsedProbe.length === 0) {
-            await new Promise(r => setTimeout(r, getGaussianDelay(850, 150, 600)));
-            probeRes = await fetch('/npc/5145', { credentials: 'include' });
-            probeHtml = await probeRes.text();
-            parsedProbe = parsePokemonFromTrainerProfile(probeHtml);
-        }
-
-        if (parsedProbe.length === 0) {
-            console.log('[PokePreload] Probe check: /npc/ pages do not expose pokemon teams.');
-            ipcRenderer.sendToHost('scan-trainers-status', {
-                step: 'probe-failed',
-                message: 'DelugeRPG /npc/ profile pages do not show team rosters. Rosters are automatically captured as you battle!'
-            });
-            return;
-        }
-
-        console.log('[PokePreload] Probe passed! Starting human-like harvest of ' + trainers.length + ' trainers...');
-        ipcRenderer.sendToHost('scan-trainers-status', { step: 'probe-passed', total: trainers.length });
+        let updatedCount = 0;
+        ipcRenderer.sendToHost('scan-trainers-status', {
+            step: 'started',
+            total: trainers.length,
+            message: 'Syncing 0/' + trainers.length + ' trainers...'
+        });
 
         for (let i = 0; i < trainers.length; i++) {
+            if (abortTrainerRosterSync) {
+                ipcRenderer.sendToHost('scan-trainers-status', {
+                    step: 'aborted',
+                    current: i,
+                    total: trainers.length,
+                    updatedCount: updatedCount,
+                    message: 'Stopped (' + updatedCount + ' synced)'
+                });
+                return;
+            }
+            if (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) {
+                abortTrainerRosterSync = true;
+                ipcRenderer.sendToHost('unlock-detected', { path: window.location.pathname || '', url: window.location.href || '' });
+                ipcRenderer.sendToHost('scan-trainers-status', {
+                    step: 'aborted',
+                    current: i,
+                    total: trainers.length,
+                    updatedCount: updatedCount,
+                    message: 'Paused (Security Check)'
+                });
+                return;
+            }
+
             const tr = trainers[i];
-            const delay = Math.floor(1800 + Math.random() * 800);
-            await new Promise(r => setTimeout(r, delay));
+            if (!tr || !tr.npcId) continue;
 
             ipcRenderer.sendToHost('scan-trainers-status', {
                 step: 'harvesting',
                 current: i + 1,
                 total: trainers.length,
+                updatedCount: updatedCount,
                 trainerName: tr.name
             });
 
             try {
                 const res = await fetch('/npc/' + tr.npcId, { credentials: 'include' });
-                const html = await res.text();
-                const pokes = parsePokemonFromTrainerProfile(html);
-                if (pokes.length > 0) {
-                    ipcRenderer.sendToHost('battle-opponents-detected', {
-                        trainerName: tr.name,
-                        npcId: tr.npcId,
-                        trainerTitle: tr.name + "'s Team",
-                        roster: pokes
-                    });
+                if (res && res.ok) {
+                    const html = await res.text();
+                    const pokes = parsePokemonFromTrainerProfile(html);
+                    if (pokes.length > 0) {
+                        updatedCount++;
+                        ipcRenderer.sendToHost('trainer-profile-synced', {
+                            trainerName: tr.name,
+                            npcId: tr.npcId,
+                            groupKey: tr.groupKey || null,
+                            roster: pokes
+                        });
+                    }
                 }
             } catch (err) {
                 console.warn('[PokePreload] Error fetching trainer ' + tr.name + ':', err);
             }
+
+            if (i < trainers.length - 1 && !abortTrainerRosterSync) {
+                const delay = getGaussianDelay(950, 220, 650);
+                await new Promise(r => setTimeout(r, delay));
+            }
         }
 
-        ipcRenderer.sendToHost('scan-trainers-status', { step: 'completed', message: 'All trainers scanned successfully!' });
+        ipcRenderer.sendToHost('scan-trainers-status', {
+            step: 'completed',
+            total: trainers.length,
+            updatedCount: updatedCount,
+            message: updatedCount + '/' + trainers.length + ' Trainers Synced'
+        });
     } catch (err) {
         console.error('[PokePreload] Scan trainer error:', err);
         ipcRenderer.sendToHost('scan-trainers-status', { step: 'error', message: err.message });
+    } finally {
+        isTrainerRosterSyncActive = false;
+        abortTrainerRosterSync = false;
     }
 });
 
@@ -7049,40 +7149,33 @@ function detectBattleOpponents(isManualCheck) {
 
         // Mode 4: NPC Profile Page (/npc/*)
         if (path.indexOf('/npc/') !== -1) {
-            const h1 = document.querySelector('h1');
-            const trainerName = h1 ? h1.textContent.replace(/^NPC:?\s*/i, '').trim() : '';
-            const pItems = document.querySelectorAll('.viewpoketable, .battlelistitem, .pokemon');
-            if (trainerName && pItems.length > 0) {
-                const roster = [];
-                for (let i = 0; i < pItems.length; i++) {
-                    const el = pItems[i];
-                    const nameEl = el.querySelector('h4, .smallcaps, .batname span');
-                    const pName = nameEl ? nameEl.textContent.trim() : '';
-                    if (!pName) continue;
-                    const types = [];
-                    const tBtns = el.querySelectorAll('i.tbtn');
-                    for (let j = 0; j < tBtns.length; j++) {
-                        const t = tBtns[j].getAttribute('title');
-                        if (t && types.indexOf(t) === -1) types.push(t);
-                    }
-                    const img = el.querySelector('img');
-                    roster.push({
-                        name: pName,
-                        types: types.length > 0 ? types : ['Normal'],
-                        level: 100,
-                        sprite: img ? (img.getAttribute('src') || '') : ''
-                    });
-                }
-                if (roster.length > 0) {
-                    const battleUrl = window.location.pathname.replace('/npc/', '/battle/trainer/');
-                    ipcRenderer.sendToHost('battle-opponents-detected', {
-                        trainerName: trainerName,
-                        trainerTitle: trainerName,
-                        roster: roster,
-                        battleUrl: battleUrl,
-                        isManualCheck: !!isManualCheck
-                    });
-                }
+            const h1 = document.querySelector('h1, .title, #title');
+            let trainerName = h1 ? h1.textContent.replace(/^NPC:?\s*/i, '').trim() : '';
+            if (!trainerName) {
+                const bodyTxt = document.body ? (document.body.textContent || '') : '';
+                const tm = bodyTxt.match(/Trainer\s+Name:\s*([^\r\n]+)/i);
+                if (tm) trainerName = tm[1].trim();
+            }
+            const roster = typeof extractRosterFromProfileDocument === 'function'
+                ? extractRosterFromProfileDocument(document)
+                : [];
+            if (trainerName && roster.length > 0) {
+                const npcIdMatch = path.match(/\/npc\/(\d+)/i);
+                const battleUrl = window.location.pathname.replace('/npc/', '/battle/trainer/');
+                ipcRenderer.sendToHost('trainer-profile-synced', {
+                    trainerName: trainerName,
+                    npcId: npcIdMatch ? parseInt(npcIdMatch[1], 10) : null,
+                    roster: roster
+                });
+                ipcRenderer.sendToHost('battle-opponents-detected', {
+                    trainerName: trainerName,
+                    trainerTitle: trainerName,
+                    npcId: npcIdMatch ? parseInt(npcIdMatch[1], 10) : null,
+                    roster: roster,
+                    isPreparationScreen: true,
+                    battleUrl: battleUrl,
+                    isManualCheck: !!isManualCheck
+                });
             }
         }
 
@@ -8821,11 +8914,11 @@ function detectEvolveCard() {
             };
         }
 
-        const match = bodyText.match(/Your\s+(?:level\s+(\d+)\s+)?([A-Za-z0-9\s\(\)\-]+?)\s+can evolve into/i);
+        const match = bodyText.match(/Your[ \t]+(?:level[ \t]+(\d+)[ \t]+)?([A-Za-z0-9\(\)\-][A-Za-z0-9 \t\(\)\-':.]*?)[ \t]+can evolve into/i);
         if (!match) return null;
 
         const level = match[1] ? parseInt(match[1], 10) : 50;
-        const rawFullName = match[2].trim();
+        const rawFullName = match[2].replace(/^Pokemon\s+Your\s+(?:level\s+\d+\s+)?/i, '').trim();
         const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
 
         let variant = 'Normal';
@@ -8857,12 +8950,15 @@ function detectEvolveCard() {
                 if (!labelText || /^(evolve|close|cancel|submit|evolutionary)/i.test(labelText)) {
                     continue;
                 }
+                if (/\bg-?max\b/i.test(labelText) || /g-?max\s*challenge/i.test(labelText)) {
+                    continue;
+                }
 
                 const optMatch = labelText.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
                 const optName = optMatch ? optMatch[1].trim() : labelText;
                 const optReq = optMatch && optMatch[2] ? optMatch[2].trim() : '';
 
-                if (/^(evolve|close|cancel|submit|evolutionary)/i.test(optName)) {
+                if (/^(evolve|close|cancel|submit|evolutionary)/i.test(optName) || /\bg-?max\b/i.test(optName)) {
                     continue;
                 }
 
@@ -8902,11 +8998,12 @@ function detectEvolveCard() {
                     continue;
                 }
                 if (afterPrompt) {
-                    if (/^(?:evolve|close|cancel|submit|evolutionary)$/i.test(line)) break;
+                    if (/^(?:evolve|close|cancel|submit|evolutionary|pokedex|pokemon|homepage|news|update log|about|mobile)/i.test(line)) break;
+                    if (/\bg-?max\b/i.test(line) || /g-?max\s*challenge/i.test(line)) continue;
                     const m = line.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
                     if (m) {
                         const optName = m[1].trim();
-                        if (/^(?:evolve|close|cancel|submit|evolutionary)/i.test(optName)) continue;
+                        if (optName.length < 3 || /^(?:evolve|close|cancel|submit|evolutionary|ad|homepage|news|about|mobile)/i.test(optName) || /\bg-?max\b/i.test(optName)) continue;
                         const optFullName = (variant !== 'Normal' && !optName.match(VARIANT_PREFIX_REGEX))
                             ? `${variant} ${optName}`
                             : optName;
@@ -8930,6 +9027,8 @@ function detectEvolveCard() {
                 }
             }
         }
+
+        if (options.length === 0) return null;
 
         let types = [];
         let moves = [];

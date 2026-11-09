@@ -24,10 +24,11 @@
 * **Never View Large JSON Databases:** Query `gym_leaders.json`, `user_collection.json`, and `pokemon_moves_db.json` via compact `node -e` one-liners instead of `view_file`.
 * **Concise Responses & Single-Pass Edits:** Batch related edits cleanly and keep user-facing summaries brief and high-signal.
 
-## 5. Verification Gate
+## 5. Verification Gate & Explicit Build Policy
 * Always run the deep verification suite before completing any turn:
   ```powershell
   cd d:\PROJECTS_IO\delugeRPG\desktop-client
   node test_deep_verification.js
   ```
-* All 115 tests across all 9 verification pipelines (including sub-suites) must pass with zero failures.
+* All 115+ tests across all 9 verification pipelines (including sub-suites) must pass with zero failures.
+* **No Unsolicited Installer Builds:** Never run `electron-builder` or build `.exe` installers unless the user explicitly commands to build/publish a release.

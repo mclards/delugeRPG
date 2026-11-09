@@ -558,6 +558,10 @@ const scanPokesBtn = document.getElementById('scanPokesBtn');
 const scanTrainersBtn = document.getElementById('scanTrainersBtn');
 const scanStatusDot = document.getElementById('scanStatusDot');
 const scanStatusBadge = document.getElementById('scanStatusBadge');
+const syncTrainersBtn = document.getElementById('syncTrainersBtn');
+const syncTrainersStatusDot = document.getElementById('syncTrainersStatusDot');
+const syncTrainersStatusBadge = document.getElementById('syncTrainersStatusBadge');
+let isTrainerRosterSyncRunning = false;
 const teamCategorySelect = document.getElementById('teamCategorySelect');
 const teamTrainerSelect = document.getElementById('teamTrainerSelect');
 const favTrainerBtn = document.getElementById('favTrainerBtn');
@@ -3681,27 +3685,55 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'scan-trainers-status') {
     const data = event.args[0] || {};
-    if (scanStatusBadge) {
-      if (data.step === 'probing') {
-        scanStatusBadge.textContent = data.message || 'Testing /npc/ endpoint...';
-        scanStatusBadge.style.color = '#388bfd';
-      } else if (data.step === 'probe-failed') {
-        scanStatusBadge.textContent = `${currentCollection ? currentCollection.length : 0} Pokemon Synced`;
-        scanStatusBadge.style.color = '#8eaad0';
-        if (activeBattleStatusMsg) {
-          activeBattleStatusMsg.style.color = '#8eaad0';
-          activeBattleStatusMsg.textContent = 'Auto-recording is active in live battles!';
+    if (data.step === 'started' || data.step === 'probing' || data.step === 'harvesting') {
+      isTrainerRosterSyncRunning = true;
+      if (syncTrainersBtn) syncTrainersBtn.innerHTML = '&#9632; Stop Sync';
+      if (syncTrainersStatusDot) syncTrainersStatusDot.style.background = '#388bfd';
+      if (syncTrainersStatusBadge) {
+        syncTrainersStatusBadge.style.color = '#388bfd';
+        if (data.step === 'harvesting') {
+          syncTrainersStatusBadge.textContent = `Syncing ${data.current}/${data.total} (${data.trainerName})...`;
+        } else {
+          syncTrainersStatusBadge.textContent = data.message || 'Starting trainer sync...';
         }
-      } else if (data.step === 'harvesting') {
-        scanStatusBadge.textContent = `Harvesting ${data.current}/${data.total} (${data.trainerName})...`;
-        scanStatusBadge.style.color = '#388bfd';
-      } else if (data.step === 'completed') {
-        scanStatusBadge.textContent = 'All trainers harvested!';
-        scanStatusBadge.style.color = '#238636';
-      } else if (data.step === 'error') {
-        scanStatusBadge.textContent = 'Harvest error';
-        scanStatusBadge.style.color = '#f87171';
       }
+    } else if (data.step === 'completed') {
+      isTrainerRosterSyncRunning = false;
+      if (syncTrainersBtn) syncTrainersBtn.innerHTML = '&#8635; Sync Trainers';
+      if (syncTrainersStatusDot) syncTrainersStatusDot.style.background = '#10b981';
+      if (syncTrainersStatusBadge) {
+        syncTrainersStatusBadge.style.color = '#10b981';
+        syncTrainersStatusBadge.textContent = data.message || `${data.updatedCount || 0} Trainers Synced`;
+      }
+      if (typeof updateCategoryFilterCounts === 'function') updateCategoryFilterCounts();
+      if (typeof populateGymTrainerSelect === 'function') populateGymTrainerSelect();
+      if (typeof updateTrainerIntelStats === 'function') updateTrainerIntelStats();
+    } else if (data.step === 'aborted') {
+      isTrainerRosterSyncRunning = false;
+      if (syncTrainersBtn) syncTrainersBtn.innerHTML = '&#8635; Sync Trainers';
+      if (syncTrainersStatusDot) syncTrainersStatusDot.style.background = '#f59e0b';
+      if (syncTrainersStatusBadge) {
+        syncTrainersStatusBadge.style.color = '#f59e0b';
+        syncTrainersStatusBadge.textContent = data.message || 'Sync stopped';
+      }
+      if (typeof updateCategoryFilterCounts === 'function') updateCategoryFilterCounts();
+      if (typeof populateGymTrainerSelect === 'function') populateGymTrainerSelect();
+      if (typeof updateTrainerIntelStats === 'function') updateTrainerIntelStats();
+    } else if (data.step === 'probe-failed' || data.step === 'error') {
+      isTrainerRosterSyncRunning = false;
+      if (syncTrainersBtn) syncTrainersBtn.innerHTML = '&#8635; Sync Trainers';
+      if (syncTrainersStatusDot) syncTrainersStatusDot.style.background = '#f87171';
+      if (syncTrainersStatusBadge) {
+        syncTrainersStatusBadge.style.color = '#f87171';
+        syncTrainersStatusBadge.textContent = data.message || 'Sync error';
+      }
+    }
+  }
+
+  if (event.channel === 'trainer-profile-synced') {
+    const data = event.args[0] || {};
+    if (data && data.npcId && Array.isArray(data.roster) && data.roster.length > 0) {
+      handleTrainerProfileSynced(data);
     }
   }
 
@@ -7035,7 +7067,9 @@ function loadTeamBuilderData() {
         teamCategorySelect.value = savedCategory;
       }
       const activeCategory = (teamCategorySelect && teamCategorySelect.value) ? teamCategorySelect.value : 'ALL';
+      updateCategoryFilterCounts();
       populateGymTrainerSelect(activeCategory);
+      updateTrainerIntelStats();
       if (config && config.settings && config.settings.lastSelectedTrainer && teamTrainerSelect) {
         const targetVal = config.settings.lastSelectedTrainer;
         if (teamTrainerSelect.querySelector(`option[value="${targetVal}"]`)) {
@@ -7760,6 +7794,42 @@ if (scanPokesBtn) {
   });
 }
 
+function updateCategoryFilterCounts() {
+  if (!teamCategorySelect || !gymLeadersData) return;
+  const regions = ['KANTO', 'JOHTO', 'HOENN', 'SINNOH', 'UNOVA', 'KALOS', 'ALOLA', 'GALAR', 'PALDEA'];
+  const tiers = ['VIP_TRAINERS', 'ULTIMATE_TRAINERS', 'STRONG_TRAINERS', 'STANDARD_TRAINERS'];
+  let gymTotal = 0;
+  regions.forEach(reg => {
+    const arr = Array.isArray(gymLeadersData[reg]) ? gymLeadersData[reg] : [];
+    gymTotal += arr.length;
+    const opt = teamCategorySelect.querySelector(`option[value="${reg}"]`);
+    if (opt) {
+      const regLabel = reg.charAt(0) + reg.slice(1).toLowerCase();
+      opt.textContent = `${regLabel} League (${arr.length} Leaders)`;
+    }
+  });
+  let totalOpps = gymTotal;
+  const tierLabels = {
+    VIP_TRAINERS: 'VIP Trainers',
+    ULTIMATE_TRAINERS: 'Ultimate Trainers',
+    STRONG_TRAINERS: 'Strong Trainers',
+    STANDARD_TRAINERS: 'Standard Trainers'
+  };
+  tiers.forEach(tier => {
+    const arr = Array.isArray(gymLeadersData[tier]) ? gymLeadersData[tier] : [];
+    totalOpps += arr.length;
+    const opt = teamCategorySelect.querySelector(`option[value="${tier}"]`);
+    if (opt) {
+      opt.textContent = `${tierLabels[tier]} (${arr.length})`;
+    }
+  });
+  const allOpt = teamCategorySelect.querySelector('option[value="ALL"]');
+  if (allOpt) allOpt.textContent = `All Opponents (${totalOpps})`;
+  const gymOpt = teamCategorySelect.querySelector('option[value="GYM_LEAGUES"]');
+  if (gymOpt) gymOpt.textContent = `All Gym Leagues (${gymTotal} Leaders)`;
+  updateCategoryFavoritesCount();
+}
+
 function updateTrainerIntelStats() {
   if (!gymLeadersData) return;
   let gymTotal = 0, gymKnown = 0;
@@ -7782,6 +7852,10 @@ function updateTrainerIntelStats() {
       }
     }
   }
+  if (syncTrainersStatusBadge && !isTrainerRosterSyncRunning) {
+    syncTrainersStatusBadge.style.color = '#c9d8ec';
+    syncTrainersStatusBadge.textContent = `${oppKnown} Trainers Synced`;
+  }
   if (modalRosterCountBadge) {
     modalRosterCountBadge.textContent = `${gymKnown}/${gymTotal} Gyms (${Math.round((gymKnown / (gymTotal || 1)) * 100)}%) - ${oppKnown}/${oppTotal} Total`;
   }
@@ -7791,9 +7865,198 @@ function updateTrainerIntelStats() {
   if (totalTile) totalTile.textContent = `${oppKnown} / ${oppTotal}`;
 }
 
+function stopAllActivitiesForSafety(reasonText) {
+  if (isRunning) {
+    toggleHunting();
+  } else {
+    isAutoCatchCountdownActive = false;
+    userManuallyPaused = true;
+    wasHuntingBeforeAutoCatch = false;
+    if (battleAutoStepTimer) {
+      clearTimeout(battleAutoStepTimer);
+      battleAutoStepTimer = null;
+    }
+    isBattleAutoRunning = false;
+    cancelPendingAutoStart(reasonText || 'Paused for Trainer Roster Sync');
+    if (walkTimeout) {
+      clearTimeout(walkTimeout);
+      walkTimeout = null;
+    }
+    try {
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('abort-autocatch');
+      }
+    } catch (_) {}
+    updateToggleButton();
+  }
+  const autoChk = document.getElementById('teamBattleAutoCheck');
+  if (autoChk && autoChk.checked) {
+    autoChk.checked = false;
+  }
+  if (reasonText) {
+    updateStatus(reasonText, '#388bfd');
+  }
+}
+
+function getTrainersForActiveCategoryFilter() {
+  if (!gymLeadersData) return [];
+  const categoryFilter = (teamCategorySelect && teamCategorySelect.value) ? teamCategorySelect.value : 'ALL';
+  const allGroups = [
+    'VIP_TRAINERS', 'ULTIMATE_TRAINERS', 'STRONG_TRAINERS', 'STANDARD_TRAINERS',
+    'KANTO', 'JOHTO', 'HOENN', 'SINNOH', 'UNOVA', 'KALOS', 'ALOLA', 'GALAR', 'PALDEA'
+  ];
+  const favList = getFavoriteTrainersList();
+  const seenNpcIds = new Set();
+  const list = [];
+
+  for (const groupKey of allGroups) {
+    const trainers = gymLeadersData[groupKey];
+    if (!Array.isArray(trainers)) continue;
+    if (categoryFilter === 'GYM_LEAGUES' && groupKey.endsWith('_TRAINERS')) continue;
+    if (categoryFilter !== 'ALL' && categoryFilter !== 'FAVORITES' && categoryFilter !== 'GYM_LEAGUES' && categoryFilter !== 'GMAX_CHALLENGE') {
+      if (groupKey !== categoryFilter) continue;
+    }
+    for (const tr of trainers) {
+      if (!tr || !tr.npcId) continue;
+      if (categoryFilter === 'FAVORITES' && !favList.includes(tr.name)) continue;
+      const npcKey = String(tr.npcId);
+      if (seenNpcIds.has(npcKey)) continue;
+      seenNpcIds.add(npcKey);
+      list.push({
+        name: tr.name,
+        npcId: tr.npcId,
+        groupKey: groupKey
+      });
+    }
+  }
+  return list;
+}
+
+function handleTrainerProfileSynced(data) {
+  if (!gymLeadersData || !data || !data.npcId || !Array.isArray(data.roster) || data.roster.length === 0) return;
+  const targetId = String(data.npcId);
+  let anyChanged = false;
+
+  const formatMoves = (mList) => {
+    if (!Array.isArray(mList) || mList.length === 0) return [];
+    const out = [];
+    const seen = new Set();
+    for (const m of mList) {
+      const rawName = typeof m === 'string' ? m : (m && m.name ? m.name : '');
+      const cleanName = String(rawName || '').trim();
+      if (!cleanName || /^moves\b/i.test(cleanName)) continue;
+      const lower = cleanName.toLowerCase();
+      if (seen.has(lower)) continue;
+      seen.add(lower);
+      const resolved = (teamEngine && typeof teamEngine.resolveMove === 'function')
+        ? teamEngine.resolveMove(cleanName)
+        : null;
+      out.push({
+        name: (resolved && resolved.name) || cleanName,
+        type: (resolved && resolved.type) || (typeof m === 'object' && m.type ? m.type : 'Normal'),
+        power: (resolved && resolved.power) || 40,
+        category: (resolved && resolved.category) || 'Physical'
+      });
+    }
+    return out;
+  };
+
+  const formattedRoster = [];
+  let levelSum = 0;
+  for (let i = 0; i < data.roster.length; i++) {
+    const p = data.roster[i];
+    if (!p || !p.name) continue;
+    const moves = formatMoves(p.moves);
+    const pokeLvl = Number(p.level) || 100;
+    levelSum += pokeLvl;
+    const pokeTypes = (Array.isArray(p.types) && p.types.length > 0) ? p.types : ['Normal'];
+    formattedRoster.push({
+      name: p.name,
+      types: pokeTypes,
+      level: pokeLvl,
+      hp: p.hp || 100,
+      maxHp: p.maxHp || 100,
+      isFainted: false,
+      sprite: p.sprite || '',
+      moves: moves,
+      knownMoveTypes: Array.from(new Set(moves.map(m => m.type).filter(Boolean)))
+    });
+  }
+
+  if (formattedRoster.length === 0) return;
+  const computedAvgLvl = Math.round(levelSum / formattedRoster.length);
+
+  for (const key of Object.keys(gymLeadersData)) {
+    const group = gymLeadersData[key];
+    if (!Array.isArray(group)) continue;
+    for (const tr of group) {
+      if (String(tr.npcId) === targetId || (tr.battleUrl && tr.battleUrl.endsWith('/' + targetId))) {
+        tr.roster = formattedRoster.map(item => Object.assign({}, item));
+        if (computedAvgLvl > 0 && computedAvgLvl < 100) {
+          tr.avgLevel = computedAvgLvl;
+        } else if (!tr.avgLevel) {
+          tr.avgLevel = computedAvgLvl;
+        }
+        anyChanged = true;
+      }
+    }
+  }
+
+  if (anyChanged) {
+    try {
+      const gymPath = getWritableDataPath('gym_leaders.json');
+      fs.writeFileSync(gymPath, JSON.stringify(gymLeadersData, null, 2), 'utf8');
+      const devGymPath = path.join(__dirname, 'gym_leaders.json');
+      if (devGymPath !== gymPath && fs.existsSync(devGymPath)) {
+        fs.writeFileSync(devGymPath, JSON.stringify(gymLeadersData, null, 2), 'utf8');
+      }
+    } catch (e) {
+      backendLog('TRAINER_SYNC', `Failed saving gym_leaders.json: ${e.message}`);
+    }
+    updateCategoryFilterCounts();
+    populateGymTrainerSelect();
+    if (teamTrainerSelect && teamTrainerSelect.value) {
+      const info = getSelectedTrainerInfo();
+      if (info && info.leader && String(info.leader.npcId) === targetId && Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0) {
+        if (typeof buildAndRenderTeam === 'function') {
+          buildAndRenderTeam();
+        }
+      }
+    }
+  }
+}
+
 function probeTrainerRostersDirectly(targetTrainers) {
   if (!delugeView) return;
   delugeView.send('start-scan-trainer-rosters', { trainers: targetTrainers });
+}
+
+if (syncTrainersBtn) {
+  syncTrainersBtn.addEventListener('click', () => {
+    if (!delugeView) return;
+    if (isTrainerRosterSyncRunning) {
+      delugeView.send('abort-scan-trainer-rosters');
+      return;
+    }
+    stopAllActivitiesForSafety('Paused all activities for Trainer Roster Sync');
+    const targetTrainers = getTrainersForActiveCategoryFilter();
+    if (targetTrainers.length === 0) {
+      if (syncTrainersStatusDot) syncTrainersStatusDot.style.background = '#f87171';
+      if (syncTrainersStatusBadge) {
+        syncTrainersStatusBadge.style.color = '#f87171';
+        syncTrainersStatusBadge.textContent = 'No trainers in filter';
+      }
+      return;
+    }
+    isTrainerRosterSyncRunning = true;
+    syncTrainersBtn.innerHTML = '&#9632; Stop Sync';
+    if (syncTrainersStatusDot) syncTrainersStatusDot.style.background = '#388bfd';
+    if (syncTrainersStatusBadge) {
+      syncTrainersStatusBadge.style.color = '#388bfd';
+      syncTrainersStatusBadge.textContent = `Syncing 0/${targetTrainers.length}...`;
+    }
+    probeTrainerRostersDirectly(targetTrainers);
+  });
 }
 
 if (scanTrainersBtn) {
@@ -10238,7 +10501,7 @@ function handleEvolveCardDetected(card) {
     }
 
     const nextAnalysis = (card.toPokemon && aiAssistant) ? aiAssistant.analyzeEvolutionPath(card.toPokemon, currentCollection) : null;
-    const canEvolveFurther = nextAnalysis && nextAnalysis.bestBranch && !nextAnalysis.bestBranch.isDuplicate;
+    const canEvolveFurther = nextAnalysis && nextAnalysis.bestBranch && !nextAnalysis.bestBranch.isDuplicate && !/\bg-?max\b/i.test(nextAnalysis.bestBranch.name);
 
     if (aiInstantActionSlot) {
       aiInstantActionSlot.innerHTML = '';

@@ -394,6 +394,9 @@ runTest('Segmented Sliding Tab Component (.tab-container) & Unified Scan Box Cap
   assert(appHtml.includes('class="scan-box-unified-bar"'), 'Team Builder must use unified scan-box-unified-bar capsule');
   assert(appHtml.includes('id="scanStatusDot"'), 'Team Builder unified bar must include scanStatusDot');
   assert(appHtml.includes('id="scanStatusBadge"'), 'Team Builder unified bar must include scanStatusBadge');
+  assert(appHtml.includes('id="syncTrainersBtn"'), 'Team Builder must include syncTrainersBtn capsule');
+  assert(appHtml.includes('id="syncTrainersStatusDot"'), 'Team Builder must include syncTrainersStatusDot');
+  assert(appHtml.includes('id="syncTrainersStatusBadge"'), 'Team Builder must include syncTrainersStatusBadge');
   assert(!appHtml.includes('id="scanTrainersBtn"'), 'Separate Trainer Intel button must be removed from app.html');
 });
 

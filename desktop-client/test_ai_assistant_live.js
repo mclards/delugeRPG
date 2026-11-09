@@ -1012,13 +1012,15 @@ assert.strictEqual(ownMelmetal.isOwned, true, 'Melmetal Normal must be detected 
 assert.strictEqual(ownMelmetal.hasGmaxOwned, true, 'Melmetal Normal must have hasGmaxOwned = true');
 assert(ownMelmetal.summaryLabel.indexOf('(G-MAX)') !== -1, 'Summary label must indicate G-MAX');
 
-// Test 5: Evolve-ready box list deduplication
+// Test 5: Evolve-ready box list deduplication & G-Max exclusion
 const readyPokes = evolutionEngine.getEvolveReadyPokemon([
   { id: 'm3', name: 'Normal Meltan', variant: 'Normal', level: 100 },
-  { id: 'm1', name: 'Normal Melmetal', variant: 'Normal', level: 100, canEvolve: false },
+  { id: 'm1', name: 'Normal Melmetal', variant: 'Normal', level: 100, canEvolve: true },
+  { id: 'c1', name: 'Chrome Cinderace', variant: 'Chrome', level: 100, canEvolve: true },
   { id: 'gm1', name: 'Normal G-Max Melmetal', variant: 'Normal', level: 100 }
 ]);
-assert.strictEqual(readyPokes.length, 1, 'Meltan is evolve-ready');
+assert.strictEqual(readyPokes.length, 1, 'Only Meltan is evolve-ready (G-Max-only Melmetal and Chrome Cinderace must be excluded)');
+assert.strictEqual(readyPokes[0].name, 'Normal Meltan', 'Remaining evolve-ready Pokemon must be Normal Meltan');
 assert.strictEqual(readyPokes[0].hasUnique, false, 'Meltan has no unique branches because Normal Melmetal is owned');
 
 // Test 6: G-Max Challenge Post-Battle DOM regex

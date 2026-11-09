@@ -1067,8 +1067,9 @@ function findFamily(speciesOrName) {
     }
   }
 
-  // Construct dynamic family from STAGE_TRANSITIONS for all 554 DelugeRPG evolving species
-  const trList = STAGE_TRANSITIONS[cleanNoVar] || STAGE_TRANSITIONS[base];
+  // Construct dynamic family from STAGE_TRANSITIONS for all 554 DelugeRPG evolving species (excluding G-Max Challenge forms)
+  const rawTrList = STAGE_TRANSITIONS[cleanNoVar] || STAGE_TRANSITIONS[base];
+  const trList = Array.isArray(rawTrList) ? rawTrList.filter(t => !/\bg-?max\b/i.test(t.name)) : null;
   if (Array.isArray(trList) && trList.length > 0) {
     const capBase = raw.replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|retro|chrome|negative)\s+/i, '').trim() || base;
     return {
@@ -1189,7 +1190,8 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
     variant = (vMatch[1].toLowerCase() === 'ghost') ? 'Ghostly' : (vMatch[1].charAt(0).toUpperCase() + vMatch[1].slice(1).toLowerCase());
   }
 
-  const directTransitions = STAGE_TRANSITIONS[cleanNoVar] || STAGE_TRANSITIONS[baseName.toLowerCase()] || [];
+  const directTransitions = (STAGE_TRANSITIONS[cleanNoVar] || STAGE_TRANSITIONS[baseName.toLowerCase()] || [])
+    .filter(t => !/\bg-?max\b/i.test(t.name));
   const directSet = new Set(directTransitions.map(t => t.name.toLowerCase()));
 
   let rawBranches = family && Array.isArray(family.branches) ? family.branches.slice() : [];
@@ -1201,11 +1203,11 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
         for (let i = 0; i <= sIdx; i++) earlierSet.add(family.stages[i].toLowerCase());
       }
     }
-    rawBranches = rawBranches.filter(b => !earlierSet.has(b.name.toLowerCase()));
+    rawBranches = rawBranches.filter(b => !earlierSet.has(b.name.toLowerCase()) && !/\bg-?max\b/i.test(b.name));
   }
   if (rawBranches.length === 0 || !EVOLUTION_FAMILIES[cleanNoVar]) {
     for (const tr of directTransitions) {
-      if (tr.name.toLowerCase() !== cleanNoVar && !rawBranches.some(b => b.name.toLowerCase() === tr.name.toLowerCase())) {
+      if (tr.name.toLowerCase() !== cleanNoVar && !/\bg-?max\b/i.test(tr.name) && !rawBranches.some(b => b.name.toLowerCase() === tr.name.toLowerCase())) {
         rawBranches.push({
           name: tr.name,
           minLevel: tr.minLevel || 20,
@@ -2526,6 +2528,7 @@ function getEvolveReadyPokemon(userCollection) {
       }
       for (const tr of filteredTransitions) {
         if (tr.name.toLowerCase() === cleanNoVariant || tr.name.toLowerCase() === baseSpecies) continue;
+        if (/\bg-?max\b/i.test(tr.name)) continue; // Exclude G-Max Challenge evolutions from Box Evolve list
         const minLvl = (tr.mega || tr.gmax) ? 100 : Math.max(20, tr.minLevel || 20);
         if ((poke.level || 1) < minLvl) {
           continue; // Strict level enforcement: under-leveled Pokemon can NEVER evolve
@@ -2559,6 +2562,7 @@ function getEvolveReadyPokemon(userCollection) {
         } else {
           for (const br of fam.branches) {
             if (br.name.toLowerCase() === baseSpecies) continue;
+            if (/\bg-?max\b/i.test(br.name)) continue; // Exclude G-Max Challenge evolutions from Box Evolve list
             const minLvl = (br.mega || br.gmax) ? 100 : Math.max(20, br.minLevel || 30);
             if ((poke.level || 1) < minLvl) {
               continue; // Strict level enforcement: under-leveled Pokemon can NEVER evolve

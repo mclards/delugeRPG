@@ -271,6 +271,9 @@ assert(sliggooAnalysis && sliggooAnalysis.bestBranch && sliggooAnalysis.bestBran
 const preloadSrc = fs.readFileSync('game-preload.js', 'utf8');
 const detectBlock = preloadSrc.slice(preloadSrc.indexOf('function detectEvolveCard()'), preloadSrc.indexOf('function syncEvolveCardState('));
 assert(detectBlock.includes('const VARIANT_PREFIX_REGEX ='), 'detectEvolveCard must define VARIANT_PREFIX_REGEX in local scope');
+assert(preloadSrc.includes('function checkPendingAutoEvolve()'), 'game-preload.js must define checkPendingAutoEvolve');
+assert(preloadSrc.includes('window.location.href = `/pokemon/evolve/${pokeId}`'), 'game-preload.js must handle off-screen evolve fallback navigation');
+assert(preloadSrc.includes('window.location.href = `/pokemon/change_attack/${pokeId}`'), 'game-preload.js must handle off-screen change attack fallback navigation');
 console.log('  Variant Evolve Modal & Dynamic Family Audit -> Dark Weedle & 554-species path coverage verified');
 
 // E. Test chat AI copilot responses

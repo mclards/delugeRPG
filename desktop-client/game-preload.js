@@ -8568,6 +8568,10 @@ function clickModalCloseButton(container) {
         dispatchHumanClick(btn);
         return true;
     }
+    if (window.location.pathname.indexOf('/evolve') !== -1 || window.location.pathname.indexOf('/change_attack') !== -1) {
+        window.location.href = '/pokemon';
+        return true;
+    }
     return false;
 }
 
@@ -9154,6 +9158,60 @@ ipcRenderer.on('sync-current-pokemon-page', () => {
     autoSyncCurrentPokemonPage();
 });
 
+function checkPendingAutoEvolve() {
+    try {
+        const raw = sessionStorage.getItem('deluge_auto_evolve_target');
+        if (!raw) return;
+        const pending = JSON.parse(raw);
+        if (!pending || !pending.id || (Date.now() - (pending.timestamp || 0) > 20000)) {
+            sessionStorage.removeItem('deluge_auto_evolve_target');
+            return;
+        }
+
+        const openCard = detectEvolveCard();
+        if (openCard && openCard.isOpen && !openCard.isMoveSelection && !openCard.isComplete) {
+            const targetBranch = (pending.targetBranch || '').toLowerCase();
+            const dModal = document.getElementById('DModal');
+            const dmBody = document.getElementById('DMbody');
+            const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, div[id*="modal" i], form[action*="evolve" i], #content, body');
+            if (modalContainer) {
+                const radios = Array.from(modalContainer.querySelectorAll('input[type="radio"]'));
+                let matchedRadio = null;
+                if (targetBranch && radios.length > 0) {
+                    const cleanTarget = targetBranch.replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i, '').trim();
+                    for (let rIdx = 0; rIdx < radios.length; rIdx++) {
+                        const rText = getRadioOptionText(radios[rIdx], modalContainer).toLowerCase();
+                        if (rText.includes(targetBranch) || (cleanTarget && rText.includes(cleanTarget))) {
+                            matchedRadio = radios[rIdx];
+                            break;
+                        }
+                    }
+                }
+                if (!matchedRadio && radios.length === 1) {
+                    matchedRadio = radios[0];
+                }
+                if (matchedRadio) {
+                    sessionStorage.removeItem('deluge_auto_evolve_target');
+                    if (!matchedRadio.checked) {
+                        humanClickElementVerified(matchedRadio, { skipScroll: true });
+                    }
+                    const stepDelay = (typeof getGaussianDelay === 'function') ? getGaussianDelay(260, 65, 160) : 240;
+                    setTimeout(() => clickModalEvolveButton(modalContainer), stepDelay);
+                    return;
+                }
+            }
+        }
+
+        const link = document.querySelector(`a[href*="/pokemon/evolve/${pending.id}"]`) ||
+                     document.querySelector(`a.evolve[href*="${pending.id}"]`);
+        if (link) {
+            sessionStorage.removeItem('deluge_auto_evolve_target');
+            dispatchHumanClick(link);
+            return;
+        }
+    } catch (_) {}
+}
+
 ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
     try {
         const pokeId = data && data.pokemonId;
@@ -9178,7 +9236,7 @@ ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
             if (!pokeName || openName === pokeName || openName.includes(pokeName) || pokeName.includes(openName)) {
                 const dModal = document.getElementById('DModal');
                 const dmBody = document.getElementById('DMbody');
-                const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, div[id*="modal" i]');
+                const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, div[id*="modal" i], form[action*="evolve" i], #content, body');
                 if (modalContainer) {
                     const radios = Array.from(modalContainer.querySelectorAll('input[type="radio"]'));
                     let matchedRadio = null;
@@ -9231,6 +9289,49 @@ ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
             }
         }
 
+        // Pokemon link is not on the currently displayed page.
+        // Attempt synthetic a.evolve trigger on current page, or fallback to direct evolve navigation
+        if (pokeId) {
+            try {
+                sessionStorage.setItem('deluge_auto_evolve_target', JSON.stringify({
+                    id: pokeId,
+                    name: data.name || '',
+                    targetBranch: targetBranchRaw,
+                    timestamp: Date.now()
+                }));
+            } catch (_) {}
+
+            const parentContainer = document.getElementById('viewpokes') || document.querySelector('.prow') || document.body;
+            if (parentContainer) {
+                const syntheticLink = document.createElement('a');
+                syntheticLink.className = 'evolve';
+                syntheticLink.href = `/pokemon/evolve/${pokeId}`;
+                syntheticLink.setAttribute('data-pkid', pokeId);
+                syntheticLink.style.cssText = 'position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: auto;';
+                parentContainer.appendChild(syntheticLink);
+
+                const clickEvt = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                });
+                syntheticLink.dispatchEvent(clickEvt);
+
+                setTimeout(() => {
+                    try {
+                        if (syntheticLink.parentNode) syntheticLink.parentNode.removeChild(syntheticLink);
+                    } catch (_) {}
+                }, 1200);
+            }
+
+            setTimeout(() => {
+                const checkCard = detectEvolveCard();
+                if (checkCard && checkCard.isOpen) return;
+                window.location.href = `/pokemon/evolve/${pokeId}`;
+            }, 450);
+            return;
+        }
+
         if (window.location.pathname.indexOf('/pokemon') === -1) {
             window.location.href = '/pokemon';
         }
@@ -9263,6 +9364,38 @@ ipcRenderer.on('trigger-change-attack', (event, data) => {
                     }
                 }
             }
+        }
+
+        if (pokeId) {
+            const parentContainer = document.getElementById('viewpokes') || document.querySelector('.prow') || document.body;
+            if (parentContainer) {
+                const syntheticLink = document.createElement('a');
+                syntheticLink.className = 'chgattack';
+                syntheticLink.href = `/pokemon/change_attack/${pokeId}`;
+                syntheticLink.setAttribute('data-pkid', pokeId);
+                syntheticLink.style.cssText = 'position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: auto;';
+                parentContainer.appendChild(syntheticLink);
+
+                const clickEvt = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                });
+                syntheticLink.dispatchEvent(clickEvt);
+
+                setTimeout(() => {
+                    try {
+                        if (syntheticLink.parentNode) syntheticLink.parentNode.removeChild(syntheticLink);
+                    } catch (_) {}
+                }, 1200);
+            }
+
+            setTimeout(() => {
+                const checkCard = detectEvolveCard();
+                if (checkCard && checkCard.isOpen) return;
+                window.location.href = `/pokemon/change_attack/${pokeId}`;
+            }, 450);
+            return;
         }
 
         if (window.location.pathname.indexOf('/pokemon') === -1) {
@@ -9357,7 +9490,10 @@ function autoSyncCurrentPokemonPage() {
 setInterval(() => {
     syncEvolveCardState(false);
     autoSyncCurrentPokemonPage();
+    checkPendingAutoEvolve();
 }, 500);
+
+setTimeout(() => checkPendingAutoEvolve(), 200);
 
 window.addEventListener('click', () => {
     const path = (window.location.pathname || '').toLowerCase();

@@ -10667,7 +10667,7 @@ function selectEvolvePokemon(poke, branch) {
                 triggerBtn.disabled = false;
                 triggerBtn.innerHTML = `&#129516; Evolve into ${escapeHtml(targetName)}`;
               }
-            }, 4000);
+            }, 6000);
           }
         });
       }

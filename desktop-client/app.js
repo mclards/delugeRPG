@@ -90,6 +90,9 @@ let config = {
     enableDeadManSwitch: true,
     autoStopMinMinutes: 5,
     autoStopMaxMinutes: 30,
+    enableMovementSpeed: true,
+    movementSpeedMinSec: 1.7,
+    movementSpeedMaxSec: 2.8,
     enableMapRotation: false,
     mapRotationMinMinutes: 10,
     mapRotationMaxMinutes: 30,
@@ -134,6 +137,9 @@ function loadLocalConfig() {
       enableDeadManSwitch: true,
       autoStopMinMinutes: 5,
       autoStopMaxMinutes: 30,
+      enableMovementSpeed: true,
+      movementSpeedMinSec: 1.7,
+      movementSpeedMaxSec: 2.8,
     enableMapRotation: false,
     mapRotationMinMinutes: 10,
     mapRotationMaxMinutes: 30,
@@ -718,6 +724,9 @@ const safetyStatTodayCatches = document.getElementById('safetyStatTodayCatches')
 const safetyAutoStopToggle = document.getElementById('safetyAutoStopToggle');
 const safetyAutoStopMin = document.getElementById('safetyAutoStopMin');
 const safetyAutoStopMax = document.getElementById('safetyAutoStopMax');
+const safetySpeedToggle = document.getElementById('safetySpeedToggle');
+const safetySpeedMin = document.getElementById('safetySpeedMin');
+const safetySpeedMax = document.getElementById('safetySpeedMax');
 const safetyMapRotationToggle = document.getElementById('safetyMapRotationToggle');
 const safetyMapRotationMin = document.getElementById('safetyMapRotationMin');
 const safetyMapRotationMax = document.getElementById('safetyMapRotationMax');
@@ -1256,7 +1265,7 @@ function updateAutoCatchUI() {
 
 function updateVersionUI() {
   if (navVersionBadge) {
-    let appVer = '1.4.16';
+    let appVer = '1.4.20';
     try {
       const pkg = require('./package.json');
       if (pkg && pkg.version) appVer = pkg.version;
@@ -1497,7 +1506,11 @@ function updateTargetUI() {
   const paradoxLeg = isLegConfig && (config.settings.legendaryParadox !== false);
   const isLeg = isLegConfig && (classicLeg || ubLeg || paradoxLeg);
 
-  const isMega = config.settings && config.settings.findMegasAndGigantamax !== false;
+  const isMegaConfig = config.settings && config.settings.findMegasAndGigantamax !== false;
+  const subM = isMegaConfig && (config.settings ? config.settings.megaTierMegas !== false : true);
+  const subG = isMegaConfig && (config.settings ? config.settings.megaTierGMax !== false : true);
+  const subS = isMegaConfig && (config.settings ? config.settings.megaTierStarters !== false : true);
+  const isMega = isMegaConfig && (subM || subG || subS);
   const isPseudo = config.settings && (config.settings.findPseudoLegendaries !== false);
   const isVar = config.settings && config.settings.findAnySpecialVariant !== false;
   const activeTypes = (config.settings && Array.isArray(config.settings.selectedTypes)) ? config.settings.selectedTypes : [];
@@ -1545,9 +1558,9 @@ function updateTargetUI() {
   if (subParadoxCheckbox) subParadoxCheckbox.checked = paradoxLeg;
 
   if (filterMegasCheckbox) filterMegasCheckbox.checked = isMega;
-  if (subMegasCheckbox) subMegasCheckbox.checked = isMega && (config.settings ? config.settings.megaTierMegas !== false : true);
-  if (subGMaxCheckbox) subGMaxCheckbox.checked = isMega && (config.settings ? config.settings.megaTierGMax !== false : true);
-  if (subStartersCheckbox) subStartersCheckbox.checked = isMega && (config.settings ? config.settings.megaTierStarters !== false : true);
+  if (subMegasCheckbox) subMegasCheckbox.checked = subM;
+  if (subGMaxCheckbox) subGMaxCheckbox.checked = subG;
+  if (subStartersCheckbox) subStartersCheckbox.checked = subS;
   if (filterPseudoCheckbox) filterPseudoCheckbox.checked = isPseudo;
   if (filterTypesCheckbox) filterTypesCheckbox.checked = isType;
   const isVarActive = config.settings && (config.settings.enableVariantFilter !== undefined ? !!config.settings.enableVariantFilter : (config.settings.findAnySpecialVariant !== false));
@@ -1775,6 +1788,9 @@ function applyTargetPreset(presetKey, saveImmediately = true) {
   if (subParadoxCheckbox) subParadoxCheckbox.checked = isLeg && isParadox;
 
   if (filterMegasCheckbox) filterMegasCheckbox.checked = isMega;
+  if (subMegasCheckbox) subMegasCheckbox.checked = isMega;
+  if (subGMaxCheckbox) subGMaxCheckbox.checked = isMega;
+  if (subStartersCheckbox) subStartersCheckbox.checked = isMega;
   if (filterVariantsCheckbox) filterVariantsCheckbox.checked = isVar;
 
   if (legVariantsWrap) legVariantsWrap.classList.toggle('dimmed', !isLeg);
@@ -2303,23 +2319,38 @@ function toggleHunting() {
   }
 }
 
-// Hardened Gaussian Human Reaction Delays with Fatigue Drift
+// Hardened Gaussian Human Reaction Delays with Fatigue Drift & Configurable Speed Bounds
 function getHardenedHumanDelay() {
-  const base = config.settings.baseDelay || 2100;
-  const jitter = config.settings.jitter || 550;
-  const floor = config.settings.minSafetyFloor || 1700;
+  let minMs = 1700;
+  let maxMs = 2800;
+  const s = config.safety || {};
+  if (s.enableMovementSpeed !== false && typeof s.movementSpeedMinSec === 'number' && typeof s.movementSpeedMaxSec === 'number' && s.movementSpeedMinSec > 0 && s.movementSpeedMaxSec > 0) {
+    minMs = Math.round(Math.min(s.movementSpeedMinSec, s.movementSpeedMaxSec) * 1000);
+    maxMs = Math.round(Math.max(s.movementSpeedMinSec, s.movementSpeedMaxSec) * 1000);
+  } else if (config.settings && config.settings.baseDelay) {
+    const base = config.settings.baseDelay || 2100;
+    const jitter = config.settings.jitter || 550;
+    const floor = config.settings.minSafetyFloor || 1700;
+    minMs = Math.max(floor, base - Math.round(jitter / 2));
+    maxMs = Math.max(minMs + 200, base + Math.round(jitter / 2));
+  }
+
+  // True Gaussian distribution centered at midpoint between minMs and maxMs
+  const mean = (minMs + maxMs) / 2;
+  const range = Math.max(100, maxMs - minMs);
+  const stdDev = range / 4;
 
   // Box-Muller transform for true Gaussian distribution
   const u1 = Math.random();
   const u2 = Math.random();
   const randStdNormal = Math.sqrt(-2.0 * Math.log(u1 || 0.0001)) * Math.sin(2.0 * Math.PI * u2);
 
-  // Slow human fatigue drift (-120ms to +150ms over time)
-  driftAccumulator += (Math.random() - 0.48) * 20;
-  driftAccumulator = Math.max(-120, Math.min(180, driftAccumulator));
+  // Slow human fatigue drift (-60ms to +80ms over time)
+  driftAccumulator += (Math.random() - 0.48) * 15;
+  driftAccumulator = Math.max(-60, Math.min(80, driftAccumulator));
 
-  const calculatedDelay = Math.round(base + (randStdNormal * (jitter / 2)) + driftAccumulator);
-  return Math.max(floor, calculatedDelay);
+  const calculatedDelay = Math.round(mean + (randStdNormal * stdDev) + driftAccumulator);
+  return Math.max(minMs, Math.min(maxMs, calculatedDelay));
 }
 
 // Direction Selection & Obstacle Avoidance
@@ -3206,6 +3237,13 @@ delugeView.addEventListener('did-navigate-in-page', (event) => {
 delugeView.addEventListener('did-finish-load', () => {
   const url = (delugeView && delugeView.getURL()) || '';
   handleMapNavigation(url);
+  if (url && (url.indexOf('/battle') !== -1 || url.indexOf('/challenge') !== -1)) {
+    setTimeout(() => {
+      if (delugeView && typeof delugeView.send === 'function') {
+        delugeView.send('check-battle-opponents');
+      }
+    }, 200);
+  }
   if (isManualReloadInProgress) {
     isManualReloadInProgress = false;
     if (manualReloadUnlockTimer) {
@@ -3474,21 +3512,44 @@ delugeView.addEventListener('ipc-message', (event) => {
     const data = event.args[0] || {};
     if (Array.isArray(data.pokemons) && data.pokemons.length > 0 && Array.isArray(currentCollection)) {
       let changed = false;
+      let selectedEvolvedAway = false;
       data.pokemons.forEach(livePoke => {
         const existing = currentCollection.find(p => p.id === livePoke.id || (p.name === livePoke.name && p.level === livePoke.level));
         if (existing) {
-          if (existing.canEvolve !== livePoke.canEvolve || existing.evolveUrl !== livePoke.evolveUrl || existing.inTeam !== livePoke.inTeam) {
+          if (selectedEvoPoke && existing.id === selectedEvoPoke.id && livePoke.name && livePoke.name !== selectedEvoPoke.name) {
+            selectedEvolvedAway = true;
+          }
+          if (
+            (livePoke.name && existing.name !== livePoke.name) ||
+            (livePoke.level && existing.level !== livePoke.level) ||
+            existing.canEvolve !== livePoke.canEvolve ||
+            existing.evolveUrl !== livePoke.evolveUrl ||
+            existing.inTeam !== livePoke.inTeam
+          ) {
+            if (livePoke.name) existing.name = livePoke.name;
+            if (livePoke.level) existing.level = livePoke.level;
+            if (Array.isArray(livePoke.types) && livePoke.types.length > 0) existing.types = livePoke.types;
+            if (Array.isArray(livePoke.moves) && livePoke.moves.length > 0) existing.moves = livePoke.moves;
+            if (livePoke.sprite) existing.sprite = livePoke.sprite;
             existing.canEvolve = livePoke.canEvolve;
             existing.evolveUrl = livePoke.evolveUrl;
             existing.inTeam = livePoke.inTeam;
             changed = true;
           }
+        } else {
+          currentCollection.push(livePoke);
+          changed = true;
         }
       });
+      if (selectedEvolvedAway) {
+        activeEvolveCardData = null;
+        selectedEvoPoke = null;
+      }
       if (changed) {
         try {
           fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
         } catch (_) {}
+        syncUserCollectionToGuest();
         if (aiAssistantModal && aiAssistantModal.style.display === 'flex' && typeof renderEvolutionDecisionMakerUI === 'function') {
           renderEvolutionDecisionMakerUI();
         }
@@ -3696,7 +3757,7 @@ delugeView.addEventListener('ipc-message', (event) => {
           }
           isBattleAutoRunning = false;
         } else if (data.action === 'click-rematch-button' && teamBattleLoopCheck && teamBattleLoopCheck.checked && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
-          if (battleOpponentBtn) battleOpponentBtn.click();
+          if (!isGMaxChallengeModeActive() && battleOpponentBtn) battleOpponentBtn.click();
         } else if (false) {
           if (battleAutoStepTimer) {
             clearTimeout(battleAutoStepTimer);
@@ -3719,7 +3780,7 @@ delugeView.addEventListener('ipc-message', (event) => {
             scheduleNextLoopBattle();
           }
         } else {
-          teamActionStatus.textContent = data.action === 'select-lead-and-start' ? 'Battle Started!' : 'Move Cast!';
+          teamActionStatus.textContent = data.action === 'select-lead-and-start' ? 'Battle Started!' : (data.action === 'click-rematch-button' ? 'Next Battle Loading...' : 'Move Cast!');
         }
         teamActionStatus.style.color = '#10b981';
         // Watchdog: If next turn does not schedule within 1200ms, request live battle state from webview
@@ -3924,6 +3985,13 @@ delugeView.addEventListener('ipc-message', (event) => {
     const trustedTag = data.isTrusted ? 'USER' : 'BOT';
     backendLog('USER_CLICK', `[${trustedTag}] Clicked: ${data.desc || 'element'} on ${data.path || '/'}`);
     updateActionFeedback((data.desc || 'action').slice(0, 16) + ' (sent)', 'sent');
+    if (data.path && (data.path.indexOf('/battle') !== -1 || data.path.indexOf('/challenge') !== -1)) {
+      setTimeout(() => {
+        if (delugeView && typeof delugeView.send === 'function') {
+          delugeView.send('check-battle-opponents');
+        }
+      }, 350);
+    }
     if (isStepPending && data.path && data.path.indexOf('/map') !== -1) {
       backendLog('ACTION_AUDIT', 'Notice: User clicked while an automated step was pending on DelugeRPG server. DelugeRPG may ignore input until previous step completes.');
     }
@@ -4617,6 +4685,20 @@ if (filterMegasCheckbox) {
   }
 });
 
+[subClassicLegCheckbox, subUltraBeastsCheckbox, subParadoxCheckbox].forEach(subEl => {
+  if (subEl) {
+    subEl.addEventListener('change', () => {
+      const anySub = (subClassicLegCheckbox && subClassicLegCheckbox.checked) ||
+        (subUltraBeastsCheckbox && subUltraBeastsCheckbox.checked) ||
+        (subParadoxCheckbox && subParadoxCheckbox.checked);
+      if (filterLegendariesCheckbox) {
+        filterLegendariesCheckbox.checked = anySub;
+      }
+      refreshModalSummary();
+    });
+  }
+});
+
 if (filterVariantsCheckbox) {
   filterVariantsCheckbox.addEventListener('change', () => {
     if (filterVariantsCheckbox.checked) {
@@ -4893,6 +4975,9 @@ const BUILT_IN_PRESETS = {
     legendaryParadox: true,
     findPseudoLegendaries: false,
     findMegasAndGigantamax: false,
+    megaTierMegas: false,
+    megaTierGMax: false,
+    megaTierStarters: false,
     findAnySpecialVariant: false,
     enableTypeFilter: false,
     dexCompletionMode: 'standard'
@@ -4904,6 +4989,9 @@ const BUILT_IN_PRESETS = {
     legendaryParadox: true,
     findPseudoLegendaries: true,
     findMegasAndGigantamax: true,
+    megaTierMegas: true,
+    megaTierGMax: true,
+    megaTierStarters: true,
     findAnySpecialVariant: false,
     enableTypeFilter: false,
     dexCompletionMode: 'standard'
@@ -4915,6 +5003,9 @@ const BUILT_IN_PRESETS = {
     legendaryParadox: true,
     findPseudoLegendaries: true,
     findMegasAndGigantamax: true,
+    megaTierMegas: true,
+    megaTierGMax: true,
+    megaTierStarters: true,
     findAnySpecialVariant: true,
     enableVariantFilter: true,
     enableTypeFilter: false,
@@ -4927,6 +5018,9 @@ const BUILT_IN_PRESETS = {
     legendaryParadox: true,
     findPseudoLegendaries: true,
     findMegasAndGigantamax: true,
+    megaTierMegas: true,
+    megaTierGMax: true,
+    megaTierStarters: true,
     findAnySpecialVariant: false,
     enableTypeFilter: false,
     dexCompletionMode: 'unowned_species'
@@ -4936,11 +5030,26 @@ const BUILT_IN_PRESETS = {
 function applyNamedPreset(presetKey) {
   const p = BUILT_IN_PRESETS[presetKey] || (config.settings && config.settings.targetProfiles && config.settings.targetProfiles[presetKey]);
   if (!p) return;
-  if (subClassicLegCheckbox) subClassicLegCheckbox.checked = p.legendaryClassic !== false;
-  if (subUltraBeastsCheckbox) subUltraBeastsCheckbox.checked = p.legendaryUltraBeasts !== false;
-  if (subParadoxCheckbox) subParadoxCheckbox.checked = p.legendaryParadox !== false;
+  const isClassic = p.legendaryClassic !== false;
+  const isUB = p.legendaryUltraBeasts !== false;
+  const isParadox = p.legendaryParadox !== false;
+  const isLeg = (p.findLegendaries !== false) && (isClassic || isUB || isParadox);
+  if (subClassicLegCheckbox) subClassicLegCheckbox.checked = isClassic;
+  if (subUltraBeastsCheckbox) subUltraBeastsCheckbox.checked = isUB;
+  if (subParadoxCheckbox) subParadoxCheckbox.checked = isParadox;
+  if (filterLegendariesCheckbox) filterLegendariesCheckbox.checked = isLeg;
+
+  const isMegaPreset = p.findMegasAndGigantamax !== false;
+  const subM = isMegaPreset && (p.megaTierMegas !== false);
+  const subG = isMegaPreset && (p.megaTierGMax !== false);
+  const subS = isMegaPreset && (p.megaTierStarters !== false);
+  const isMega = isMegaPreset && (subM || subG || subS);
+  if (filterMegasCheckbox) filterMegasCheckbox.checked = isMega;
+  if (subMegasCheckbox) subMegasCheckbox.checked = subM;
+  if (subGMaxCheckbox) subGMaxCheckbox.checked = subG;
+  if (subStartersCheckbox) subStartersCheckbox.checked = subS;
+
   if (filterPseudoCheckbox) filterPseudoCheckbox.checked = p.findPseudoLegendaries !== false;
-  if (filterMegasCheckbox) filterMegasCheckbox.checked = p.findMegasAndGigantamax !== false;
   if (filterVariantsCheckbox) filterVariantsCheckbox.checked = !!p.findAnySpecialVariant;
   if (filterTypesCheckbox) filterTypesCheckbox.checked = !!p.enableTypeFilter;
   if (dexCompletionMode) dexCompletionMode.value = p.dexCompletionMode || 'standard';
@@ -4962,11 +5071,15 @@ if (savePresetBtn) {
     config.settings.targetProfiles = config.settings.targetProfiles || {};
     config.settings.targetProfiles[cleanKey] = {
       name: name,
+      findLegendaries: filterLegendariesCheckbox?.checked,
       legendaryClassic: subClassicLegCheckbox?.checked,
       legendaryUltraBeasts: subUltraBeastsCheckbox?.checked,
       legendaryParadox: subParadoxCheckbox?.checked,
       findPseudoLegendaries: filterPseudoCheckbox?.checked,
       findMegasAndGigantamax: filterMegasCheckbox?.checked,
+      megaTierMegas: subMegasCheckbox?.checked,
+      megaTierGMax: subGMaxCheckbox?.checked,
+      megaTierStarters: subStartersCheckbox?.checked,
       findAnySpecialVariant: filterVariantsCheckbox?.checked,
       enableTypeFilter: filterTypesCheckbox?.checked,
       dexCompletionMode: dexCompletionMode?.value || 'standard'
@@ -5153,7 +5266,11 @@ if (saveTargetsBtn) {
     const isLeg = (classicLeg || ubLeg || paradoxLeg);
     if (filterLegendariesCheckbox) filterLegendariesCheckbox.checked = isLeg;
 
-    const isMega = filterMegasCheckbox ? filterMegasCheckbox.checked : false;
+    const subM = subMegasCheckbox ? subMegasCheckbox.checked : false;
+    const subG = subGMaxCheckbox ? subGMaxCheckbox.checked : false;
+    const subS = subStartersCheckbox ? subStartersCheckbox.checked : false;
+    const isMega = (filterMegasCheckbox ? filterMegasCheckbox.checked : false) && (subM || subG || subS);
+    if (filterMegasCheckbox) filterMegasCheckbox.checked = isMega;
     const isPseudo = filterPseudoCheckbox ? filterPseudoCheckbox.checked : false;
     const isVar = filterVariantsCheckbox ? filterVariantsCheckbox.checked : false;
     const selectedTypesList = [];
@@ -5222,6 +5339,9 @@ if (saveTargetsBtn) {
     config.settings.legendaryParadox = paradoxLeg;
 
     config.settings.findMegasAndGigantamax = isMega;
+    config.settings.megaTierMegas = subM;
+    config.settings.megaTierGMax = subG;
+    config.settings.megaTierStarters = subS;
     config.settings.findPseudoLegendaries = isPseudo;
     config.settings.pseudoVariants = selectedPseudoVars;
     config.settings.enableTypeFilter = isType;
@@ -5251,13 +5371,16 @@ if (saveTargetsBtn) {
     const legAll10 = selectedLegVars.length === 10;
     const megaAll10 = selectedMegaVars.length === 10;
 
+    const subLegAll = classicLeg && ubLeg && paradoxLeg;
+    const subMegaAll = subM && subG && subS;
+
     let preset = 'custom';
-    if (isLeg && isMega && isVar && !isLevel && hasNormal && specialCount === 9 && legAll10 && megaAll10 && !hasCustom) preset = 'all';
-    else if (isLeg && isMega && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) preset = 'shinies';
+    if (isLeg && subLegAll && isMega && subMegaAll && isVar && !isLevel && hasNormal && specialCount === 9 && legAll10 && megaAll10 && !hasCustom) preset = 'all';
+    else if (isLeg && subLegAll && isMega && subMegaAll && isVar && !isLevel && !hasNormal && isShinyOnly && !hasCustom) preset = 'shinies';
     else if (!isLeg && !isMega && isVar && !isLevel && !hasNormal && specialCount === 9 && !hasCustom) preset = 'variants';
-    else if (isLeg && isMega && !isVar && !isLevel && legAll10 && megaAll10 && !hasCustom) preset = 'legend_megas';
-    else if (isLeg && !isMega && !isVar && !isLevel && legAll10 && !hasCustom) preset = 'legendaries';
-    else if (!isLeg && isMega && !isVar && !isLevel && megaAll10 && !hasCustom) preset = 'megas';
+    else if (isLeg && subLegAll && isMega && subMegaAll && !isVar && !isLevel && legAll10 && megaAll10 && !hasCustom) preset = 'legend_megas';
+    else if (isLeg && subLegAll && !isMega && !isVar && !isLevel && legAll10 && !hasCustom) preset = 'legendaries';
+    else if (!isLeg && isMega && subMegaAll && !isVar && !isLevel && megaAll10 && !hasCustom) preset = 'megas';
 
     const chosenPreset = targetPresetSelect ? targetPresetSelect.value : preset;
     config.settings.targetPreset = chosenPreset;
@@ -5946,7 +6069,9 @@ function getActiveCandidates() {
     filtered = filtered.filter(p => !teamEngine.isAlreadyGmax(p));
   }
   if (teamRosterMode === 'TRAINING') {
-    return filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
+    const trainees = filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
+    if (trainees.length > 0) return trainees;
+    return (currentCollection || []).filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
   }
   // Maxed or Strongest Possible Team Mode:
   // Prioritize Level 100 powerhouses so trainees are never picked.
@@ -6580,38 +6705,44 @@ function handleLiveBattleOpponents(data) {
   }
 
   // Auto-learn into gymLeadersData and persist to gym_leaders.json
-  if (gymLeadersData && data.trainerName) {
-    let targetTrainer = null;
-    const cleanSearchName = data.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const curBattleUrl = (data.battleUrl || (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '').toLowerCase();
+  const curBattleUrl = (data.battleUrl || (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '').toLowerCase();
+  const isNpcBattle = curBattleUrl.includes('/battle/trainer/') || curBattleUrl.includes('/battle/gym/') || curBattleUrl.includes('/npc/');
 
-    // Priority 1: Match by battleUrl or npcId across all groups and regions
+  if (gymLeadersData && data.trainerName && !data.isProfileStalk && isNpcBattle) {
+    const matchedTrainers = [];
+    const cleanSearchName = data.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let dataNpcId = data.npcId ? String(data.npcId) : null;
+    if (!dataNpcId && curBattleUrl) {
+      const mId = curBattleUrl.match(/\/(?:battle\/(?:trainer|gym)|npc)\/(\d+)/i);
+      if (mId) dataNpcId = mId[1];
+    }
+
+    // Priority 1: Match by npcId or battleUrl across all groups and regions
     for (const key of Object.keys(gymLeadersData)) {
       const group = gymLeadersData[key];
       if (!Array.isArray(group)) continue;
-      targetTrainer = group.find(t => {
-        return (t.battleUrl && curBattleUrl && curBattleUrl.includes(t.battleUrl.toLowerCase())) ||
-               (t.npcId && data.npcId && t.npcId === data.npcId);
+      const found = group.filter(t => {
+        return (dataNpcId && (String(t.npcId) === dataNpcId || (t.battleUrl && t.battleUrl.endsWith('/' + dataNpcId)))) ||
+               (t.battleUrl && curBattleUrl && curBattleUrl.includes(t.battleUrl.toLowerCase()));
       });
-      if (targetTrainer) break;
+      if (found.length > 0) matchedTrainers.push(...found);
     }
 
     // Priority 2: Fallback to matching by trainer name across all groups and regions
-    if (!targetTrainer) {
+    if (matchedTrainers.length === 0) {
       for (const key of Object.keys(gymLeadersData)) {
         const group = gymLeadersData[key];
         if (!Array.isArray(group)) continue;
-        targetTrainer = group.find(t => {
+        const found = group.filter(t => {
           const cName = (t.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
           return cName === cleanSearchName;
         });
-        if (targetTrainer) break;
+        if (found.length > 0) matchedTrainers.push(...found);
       }
     }
 
-    if (targetTrainer && !data.isVictoryScreen) {
-      if (!Array.isArray(targetTrainer.roster)) targetTrainer.roster = [];
-      let updated = false;
+    if (matchedTrainers.length > 0 && !data.isVictoryScreen) {
+      let anyUpdated = false;
 
       const formatIncomingMoves = (mList) => {
         if (!Array.isArray(mList) || mList.length === 0) return [];
@@ -6619,87 +6750,135 @@ function handleLiveBattleOpponents(data) {
         for (const m of mList) {
           const rawName = typeof m === 'string' ? m : (m && m.name ? m.name : '');
           if (!rawName) continue;
-          const cleanName = rawName.replace(/\s+and\s+dealt\s+\d+HP\s+Damage/i, '').trim();
-          if (!cleanName) continue;
+          let cleanName = rawName.replace(/\s+(?:and\s+dealt|and\s+it\s+was|and\s+missed|but\s+it\s+missed|and\s+restored|and\s+fainted|and\s+critical|and\s+it\s+had).*$/i, '').trim();
+          cleanName = cleanName.replace(/\s+on\s+[A-Za-z0-9\s'-]+$/i, '').trim();
+          if (!cleanName || cleanName.toLowerCase().startsWith('max potion')) continue;
           const resolved = (teamEngine && typeof teamEngine.resolveMove === 'function')
             ? teamEngine.resolveMove(cleanName)
             : null;
           const mType = (resolved && resolved.type) || (typeof m === 'object' && m.type ? m.type : 'Normal');
           out.push({
             name: (resolved && resolved.name) || cleanName,
-            type: mType
+            type: mType,
+            power: (resolved && resolved.power) || 40,
+            category: (resolved && resolved.category) || 'Physical'
           });
         }
         return out;
       };
 
-      if (Array.isArray(data.roster) && data.roster.length > 0) {
-        for (let i = 0; i < data.roster.length; i++) {
-          const incPoke = data.roster[i];
-          if (!incPoke || !incPoke.name) continue;
+      for (const targetTrainer of matchedTrainers) {
+        if (!Array.isArray(targetTrainer.roster)) targetTrainer.roster = [];
+        let updated = false;
 
-          let existing = targetTrainer.roster.find(p => p.name.toLowerCase() === incPoke.name.toLowerCase());
-          if (!existing && targetTrainer.roster.length === data.roster.length && targetTrainer.roster[i]) {
-            existing = targetTrainer.roster[i];
-          }
+        if (Array.isArray(data.roster) && data.roster.length > 0) {
+          if (data.isPreparationScreen) {
+            // Authoritative server roster synchronization on pre-battle screen
+            const syncedRoster = [];
+            for (let i = 0; i < data.roster.length; i++) {
+              const incPoke = data.roster[i];
+              if (!incPoke || !incPoke.name) continue;
+              const incMoves = formatIncomingMoves(incPoke.moves);
+              const incTypes = incPoke.types && incPoke.types.length > 0 ? incPoke.types : null;
+              let existing = targetTrainer.roster.find(p => p.name.toLowerCase() === incPoke.name.toLowerCase());
 
-          const incMoves = formatIncomingMoves(incPoke.moves);
-          const incTypes = incPoke.types && incPoke.types.length > 0 ? incPoke.types : null;
-
-          if (existing) {
-            if (incMoves.length > 0) {
-              if (!Array.isArray(existing.moves)) existing.moves = [];
-              const existingMoveNames = existing.moves.map(m => (m && m.name ? m.name : m).toLowerCase());
-              let moveAdded = false;
-              for (const nm of incMoves) {
-                if (!existingMoveNames.includes(nm.name.toLowerCase())) {
-                  existing.moves.push(nm);
-                  existingMoveNames.push(nm.name.toLowerCase());
-                  moveAdded = true;
+              if (existing) {
+                if (incMoves.length > 0) {
+                  existing.moves = existing.moves || [];
+                  const existingMoveNames = existing.moves.map(m => (m && m.name ? m.name : m).toLowerCase());
+                  for (const nm of incMoves) {
+                    if (!existingMoveNames.includes(nm.name.toLowerCase())) {
+                      existing.moves.push(nm);
+                      existingMoveNames.push(nm.name.toLowerCase());
+                      updated = true;
+                    }
+                  }
+                  existing.knownMoveTypes = Array.from(new Set(existing.moves.map(m => m.type).filter(Boolean)));
                 }
-              }
-              if (moveAdded) {
-                existing.knownMoveTypes = Array.from(new Set(existing.moves.map(m => m.type).filter(Boolean)));
+                if (incPoke.level && existing.level !== incPoke.level) {
+                  existing.level = incPoke.level;
+                  updated = true;
+                }
+                if (incTypes && (!existing.types || existing.types.length === 0 || (existing.types.length === 1 && existing.types[0] === 'Normal' && incTypes[0] !== 'Normal'))) {
+                  existing.types = incTypes;
+                  updated = true;
+                }
+                if (incPoke.sprite && existing.sprite !== incPoke.sprite) {
+                  existing.sprite = incPoke.sprite;
+                  updated = true;
+                }
+                syncedRoster.push(existing);
+              } else {
+                syncedRoster.push({
+                  name: incPoke.name,
+                  types: incTypes || ['Normal'],
+                  level: incPoke.level || targetTrainer.avgLevel || 50,
+                  hp: incPoke.hp || 100,
+                  maxHp: incPoke.maxHp || 100,
+                  isFainted: false,
+                  sprite: incPoke.sprite || '',
+                  moves: incMoves,
+                  knownMoveTypes: Array.from(new Set(incMoves.map(m => m.type).filter(Boolean)))
+                });
                 updated = true;
               }
             }
-            if (incPoke.level && existing.level !== incPoke.level) {
-              existing.level = incPoke.level;
+            if (syncedRoster.length > 0 && (syncedRoster.length !== targetTrainer.roster.length || updated)) {
+              targetTrainer.roster = syncedRoster;
               updated = true;
             }
-            if (incTypes && (!existing.types || existing.types.length === 0 || (existing.types.length === 1 && existing.types[0] === 'Normal' && incTypes[0] !== 'Normal'))) {
-              existing.types = incTypes;
-              updated = true;
+          } else {
+            // Mid-battle turn: only update existing species in targetTrainer.roster
+            for (let i = 0; i < data.roster.length; i++) {
+              const incPoke = data.roster[i];
+              if (!incPoke || !incPoke.name) continue;
+              let existing = targetTrainer.roster.find(p => p.name.toLowerCase() === incPoke.name.toLowerCase());
+              if (existing) {
+                const incMoves = formatIncomingMoves(incPoke.moves);
+                if (incMoves.length > 0) {
+                  existing.moves = existing.moves || [];
+                  const existingMoveNames = existing.moves.map(m => (m && m.name ? m.name : m).toLowerCase());
+                  let moveAdded = false;
+                  for (const nm of incMoves) {
+                    if (!existingMoveNames.includes(nm.name.toLowerCase())) {
+                      existing.moves.push(nm);
+                      existingMoveNames.push(nm.name.toLowerCase());
+                      moveAdded = true;
+                    }
+                  }
+                  if (moveAdded) {
+                    existing.knownMoveTypes = Array.from(new Set(existing.moves.map(m => m.type).filter(Boolean)));
+                    updated = true;
+                  }
+                }
+                if (incPoke.sprite && !existing.sprite) {
+                  existing.sprite = incPoke.sprite;
+                  updated = true;
+                }
+              }
             }
-            if (incPoke.sprite && !existing.sprite) {
-              existing.sprite = incPoke.sprite;
-              updated = true;
-            }
-          } else if (targetTrainer.roster.length < 6) {
-            const newEntry = {
-              name: incPoke.name,
-              types: incTypes || ['Normal'],
-              level: incPoke.level || targetTrainer.avgLevel || 50,
-              sprite: incPoke.sprite || '',
-              moves: incMoves,
-              knownMoveTypes: Array.from(new Set(incMoves.map(m => m.type).filter(Boolean)))
-            };
-            targetTrainer.roster.push(newEntry);
-            updated = true;
           }
         }
+        if (updated) anyUpdated = true;
       }
 
-      if (updated) {
+      if (anyUpdated) {
         try {
           const gymPath = getWritableDataPath('gym_leaders.json');
           fs.writeFileSync(gymPath, JSON.stringify(gymLeadersData, null, 2), 'utf8');
-          backendLog('ROSTER_HARVESTER', `Updated ${targetTrainer.name} roster attacks & data (${targetTrainer.roster.length}/6 known)`);
+          const devGymPath = path.join(__dirname, 'gym_leaders.json');
+          if (devGymPath !== gymPath && fs.existsSync(devGymPath)) {
+            fs.writeFileSync(devGymPath, JSON.stringify(gymLeadersData, null, 2), 'utf8');
+          }
+          const primaryTrainer = matchedTrainers[0];
+          backendLog('ROSTER_HARVESTER', `Updated ${primaryTrainer.name} roster attacks & data (${primaryTrainer.roster.length}/6 known)`);
           populateGymTrainerSelect();
-          if (targetLeader && targetLeader.name && targetLeader.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanSearchName) {
-            targetLeader = targetTrainer;
-            if (typeof buildAndRenderTeam === 'function') {
-              buildAndRenderTeam();
+          if (teamTrainerSelect && teamTrainerSelect.value && primaryTrainer) {
+            const curVal = teamTrainerSelect.value;
+            if (curVal.includes(cleanSearchName) || (primaryTrainer.npcId && curVal.includes(String(primaryTrainer.npcId)))) {
+              if (typeof buildAndRenderTeam === 'function') {
+                buildAndRenderTeam();
+              }
             }
           }
         } catch (e) {
@@ -6748,40 +6927,35 @@ function handleLiveBattleOpponents(data) {
   }
 }
 
-function recordLearnedOpponentMove(trainerName, pokemonName, moveName) {
+function recordLearnedOpponentMove(trainerName, pokemonName, moveName, trainerNpcId = null) {
   if (!pokemonName || !moveName) return;
 
-  let moveType = null;
-  try {
-    const skillsDb = require('./skills_database.json');
-    const moveKey = moveName.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const found = skillsDb.moves && (skillsDb.moves[moveKey] || Object.values(skillsDb.moves).find(m => m.name && m.name.toLowerCase() === moveName.toLowerCase()));
-    if (found && found.type) {
-      moveType = found.type;
-    }
-  } catch (_) {}
+  let cleanMove = String(moveName).replace(/\s+(?:and\s+dealt|and\s+it\s+was|and\s+missed|but\s+it\s+missed|and\s+restored|and\s+fainted|and\s+critical|and\s+it\s+had).*$/i, '').trim();
+  cleanMove = cleanMove.replace(/\s+on\s+[A-Za-z0-9\s'-]+$/i, '').trim();
+  if (!cleanMove || cleanMove.toLowerCase().startsWith('max potion')) return;
 
-  if (!moveType && typeof teamEngine !== 'undefined' && typeof teamEngine.resolveMove === 'function') {
-    const resolved = teamEngine.resolveMove(moveName);
-    if (resolved && resolved.type && resolved.type !== 'Normal') {
-      moveType = resolved.type;
-    }
-  }
-
-  if (!moveType) moveType = 'Normal';
+  const resolved = (teamEngine && typeof teamEngine.resolveMove === 'function')
+    ? teamEngine.resolveMove(cleanMove)
+    : null;
+  const resolvedName = (resolved && resolved.name) || cleanMove;
+  const moveType = (resolved && resolved.type) || 'Normal';
+  const movePower = (resolved && resolved.power) || 40;
+  const moveCat = (resolved && resolved.category) || 'Physical';
 
   let didUpdate = false;
   if (gymLeadersData && typeof gymLeadersData === 'object') {
     Object.values(gymLeadersData).forEach(list => {
       if (!Array.isArray(list)) return;
       list.forEach(t => {
-        const matchesTrainer = !trainerName || (t.name && t.name.toLowerCase() === trainerName.toLowerCase());
+        const matchesTrainer = trainerNpcId
+          ? (String(t.npcId) === String(trainerNpcId) || (t.battleUrl && t.battleUrl.endsWith('/' + trainerNpcId)))
+          : (!trainerName || (t.name && t.name.toLowerCase() === trainerName.toLowerCase()));
         if (matchesTrainer && Array.isArray(t.roster)) {
           t.roster.forEach(p => {
             if (p.name && p.name.toLowerCase() === pokemonName.toLowerCase()) {
               p.moves = p.moves || [];
-              if (!p.moves.some(m => m.name && m.name.toLowerCase() === moveName.toLowerCase())) {
-                p.moves.push({ name: moveName, type: moveType });
+              if (!p.moves.some(m => (m && m.name ? m.name : m).toLowerCase() === resolvedName.toLowerCase())) {
+                p.moves.push({ name: resolvedName, type: moveType, power: movePower, category: moveCat });
                 didUpdate = true;
               }
               p.knownMoveTypes = p.knownMoveTypes || [];
@@ -6800,8 +6974,8 @@ function recordLearnedOpponentMove(trainerName, pokemonName, moveName) {
     liveBattleOpponent.roster.forEach(p => {
       if (p.name && p.name.toLowerCase() === pokemonName.toLowerCase()) {
         p.moves = p.moves || [];
-        if (!p.moves.some(m => m.name && m.name.toLowerCase() === moveName.toLowerCase())) {
-          p.moves.push({ name: moveName, type: moveType });
+        if (!p.moves.some(m => (m && m.name ? m.name : m).toLowerCase() === resolvedName.toLowerCase())) {
+          p.moves.push({ name: resolvedName, type: moveType, power: movePower, category: moveCat });
         }
         p.knownMoveTypes = p.knownMoveTypes || [];
         if (!p.knownMoveTypes.includes(moveType)) {
@@ -7116,7 +7290,6 @@ function populateGymTrainerSelect(categoryFilter = null) {
     opt.style.cssText = 'color: #79c0ff; background: #070e1a; font-weight: 700;';
     liveGroup.appendChild(opt);
     teamTrainerSelect.appendChild(liveGroup);
-    matchCount++;
   }
 
   const favList = getFavoriteTrainersList();
@@ -7776,58 +7949,38 @@ function executeTeamBuild(targetLeader) {
   }
 
   if (teamRosterMode === 'TRAINING') {
-    const effectivePool = getEffectiveFilteredPool(currentCollection || [], teamPoolFilter);
-    const trainees = effectivePool.filter(p => (p.level || 100) < 100);
-    const lvl100Pokes = effectivePool.filter(p => (p.level || 0) === 100);
-    const highLvlPokes = effectivePool.filter(p => (p.level || 0) >= 70);
+    // 1. Identify all trainees (< Lv 100) across the user's entire collection
+    const allBoxTrainees = (currentCollection || []).filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
 
-    if (trainees.length === 0) {
-      const filterLabels = {
-        ANY: 'training candidates (< Lv 100)',
-        GMAX: 'G-Max training candidates (< Lv 100)',
-        MEGA: 'Mega training candidates (< Lv 100)',
-        GMAX_MEGA: 'G-Max & Mega training candidates (< Lv 100)',
-        LEGENDARY: 'Legendary training candidates (< Lv 100)',
-        ULTRABEAST: 'Ultra Beast training candidates (< Lv 100)',
-        PARADOX: 'Paradox training candidates (< Lv 100)',
-        COMMON: 'Common training candidates (< Lv 100)'
-      };
-      const label = filterLabels[teamPoolFilter] || 'training candidates (< Lv 100)';
+    // If the entire collection has 0 Pokemon under Lv 100, prompt user to switch to Maxed mode
+    if (allBoxTrainees.length === 0) {
       if (teamResultContainer) teamResultContainer.style.display = 'block';
       if (teamResultList) {
-        teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:rgba(244, 238, 232, 0.5); font-size:10px;">Switch to <b>Maxed Team</b> or switch pool filter to <b>Any</b>.</span></div>`;
+        teamResultList.innerHTML = '<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">All Pokemon in your collection are Level 100!<br><span style="color:rgba(244, 238, 232, 0.5); font-size:10px;">Switch to <b>Maxed Team</b> mode.</span></div>';
       }
       if (teamActionRow) teamActionRow.style.display = 'none';
       return;
     }
 
-    // 1. Pick carry defense-first: A carry must GUARANTEE the survival of the low-level trainees.
-    // First, try Level 100s from the user's selected candidate pool that can solo the trainer;
-    // If none can solo, search the ENTIRE collection for a Level 100 capable of soloing the trainer;
+    // 2. Pick carry defense-first from the ENTIRE collection (Carry does NOT depend on candidate pool filter):
+    // A carry must GUARANTEE the survival of the low-level trainees.
+    // First, search the ENTIRE collection for a Level 100 capable of soloing the trainer;
     // If none can strictly solo, rank all collection Level 100s by lead-safety & survivability.
-    // This ensures a low-level team is NEVER led by a fragile or under-leveled Pokemon that dies first!
     const collectionLvl100s = (currentCollection || []).filter(p => (p.level || 0) === 100);
     const collectionHighLvls = (currentCollection || []).filter(p => (p.level || 0) >= 70);
 
     let rankedCarries = [];
-    if (lvl100Pokes.length > 0) {
-      const poolSoloers = lvl100Pokes.filter(p => teamEngine.canSoloTrainer(p, targetLeader));
-      if (poolSoloers.length > 0) {
-        rankedCarries = teamEngine.rankCarries(poolSoloers, targetLeader);
-      }
-    }
-    if (rankedCarries.length === 0 && collectionLvl100s.length > 0) {
+    if (collectionLvl100s.length > 0) {
       const allSoloers = collectionLvl100s.filter(p => teamEngine.canSoloTrainer(p, targetLeader));
       if (allSoloers.length > 0) {
         rankedCarries = teamEngine.rankCarries(allSoloers, targetLeader);
+      } else {
+        rankedCarries = teamEngine.rankCarries(collectionLvl100s, targetLeader);
       }
     }
-    if (rankedCarries.length === 0 && collectionLvl100s.length > 0) {
-      rankedCarries = teamEngine.rankCarries(collectionLvl100s, targetLeader);
-    }
     if (rankedCarries.length === 0) {
-      const fallbackPool = highLvlPokes.length > 0 ? highLvlPokes : collectionHighLvls;
-      rankedCarries = teamEngine.rankCarries(fallbackPool.length > 0 ? fallbackPool : (currentCollection || []), targetLeader);
+      const fallbackPool = collectionHighLvls.length > 0 ? collectionHighLvls : (currentCollection || []);
+      rankedCarries = teamEngine.rankCarries(fallbackPool, targetLeader);
     }
     const carryPoke = rankedCarries.length > 0 ? rankedCarries[0].poke : null;
     const bestCarries = carryPoke ? teamEngine.buildBestTeam(targetLeader, [carryPoke]) : [];
@@ -7848,18 +8001,14 @@ function executeTeamBuild(targetLeader) {
       }
     }
 
-    // Trainees filtered to prevent duplicate species with carries
-    const carryIds = new Set([carry ? carry.id : null, carry2 ? carry2.id : null].filter(Boolean));
-    const carrySpeciesSet = new Set([
-      carry ? teamEngine.getBaseSpecies(carry.name) : null,
-      carry2 ? teamEngine.getBaseSpecies(carry2.name) : null
-    ].filter(Boolean));
-    const availableTrainees = trainees.filter(p => !carryIds.has(p.id) && !carrySpeciesSet.has(teamEngine.getBaseSpecies(p.name)));
-
     const hybridTeam = [];
+    const usedIds = new Set();
+    const usedSpecies = new Set();
 
     // Slot 1: Unstoppable Lead Carry Anchor (Always Level 100)
     if (carry) {
+      usedIds.add(carry.id);
+      usedSpecies.add(teamEngine.getBaseSpecies(carry.name));
       const carryGuidance = (carryPoke && typeof teamEngine.getCarryMoveGuidance === 'function')
         ? teamEngine.getCarryMoveGuidance(carryPoke, targetLeader)
         : carry.bestMove;
@@ -7888,6 +8037,8 @@ function executeTeamBuild(targetLeader) {
 
     // Slot 2: Secondary Carry Anchor (for very strong 6/6 roster opponents)
     if (carry2) {
+      usedIds.add(carry2.id);
+      usedSpecies.add(teamEngine.getBaseSpecies(carry2.name));
       const carry2Guidance = (carry2Poke && typeof teamEngine.getCarryMoveGuidance === 'function')
         ? teamEngine.getCarryMoveGuidance(carry2Poke, targetLeader)
         : carry2.bestMove;
@@ -7908,14 +8059,25 @@ function executeTeamBuild(targetLeader) {
       });
     }
 
-    // Primary Trainee Partner
-    const rankedPartners = typeof teamEngine.rankTraineePartners === 'function'
-      ? teamEngine.rankTraineePartners(availableTrainees, targetLeader)
-      : availableTrainees.map(t => ({ poke: t }));
+    // 3. Trainees matching the selected candidate pool filter (e.g. G-Max Only, Mega Only, etc.)
+    const effectivePool = getEffectiveFilteredPool(currentCollection || [], teamPoolFilter);
+    const filterTrainees = effectivePool.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
+    const carryIds = new Set([carry ? carry.id : null, carry2 ? carry2.id : null].filter(Boolean));
+    const carrySpeciesSet = new Set([
+      carry ? teamEngine.getBaseSpecies(carry.name) : null,
+      carry2 ? teamEngine.getBaseSpecies(carry2.name) : null
+    ].filter(Boolean));
+    const availableMatching = filterTrainees.filter(p => !carryIds.has(p.id) && !carrySpeciesSet.has(teamEngine.getBaseSpecies(p.name)));
 
-    const primaryPartner = rankedPartners.length > 0 ? rankedPartners[0].poke : null;
+    const rankedMatching = (typeof teamEngine.rankTraineePartners === 'function')
+      ? teamEngine.rankTraineePartners(availableMatching, targetLeader)
+      : availableMatching.map(t => ({ poke: t }));
 
-    if (primaryPartner) {
+    let hasPrimaryTrainee = false;
+    if (rankedMatching.length > 0 && hybridTeam.length < 6) {
+      const primaryPartner = rankedMatching[0].poke;
+      usedIds.add(primaryPartner.id);
+      usedSpecies.add(teamEngine.getBaseSpecies(primaryPartner.name));
       const partnerMove = teamEngine.getRosterWideBestAttack(primaryPartner, targetLeader);
       hybridTeam.push({
         slot: hybridTeam.length + 1,
@@ -7928,15 +8090,21 @@ function executeTeamBuild(targetLeader) {
         bestMove: partnerMove,
         targetName: 'Primary Trainee Partner',
         role: 'Primary Trainee Duo (Lv ' + primaryPartner.level + ')',
-        score: rankedPartners[0].score || 500,
+        score: rankedMatching[0].score || 500,
         isCarry: false
       });
+      hasPrimaryTrainee = true;
     }
 
-    // Remaining trainees (ranked by matchup effectiveness against opponent)
-    const otherRankedTrainees = rankedPartners.slice(1).map(r => r.poke);
-    for (let i = 0; i < otherRankedTrainees.length && hybridTeam.length < 6; i++) {
-      const t = otherRankedTrainees[i];
+    const otherMatching = rankedMatching.slice(1).map(r => r.poke);
+    // 3a. Add unique species from filter-matching trainees
+    for (let i = 0; i < otherMatching.length && hybridTeam.length < 6; i++) {
+      const t = otherMatching[i];
+      if (usedIds.has(t.id)) continue;
+      const sp = teamEngine.getBaseSpecies(t.name);
+      if (usedSpecies.has(sp)) continue;
+      usedIds.add(t.id);
+      usedSpecies.add(sp);
       hybridTeam.push({
         slot: hybridTeam.length + 1,
         id: t.id,
@@ -7953,30 +8121,114 @@ function executeTeamBuild(targetLeader) {
       });
     }
 
-      // Fill remaining slots up to 6 with high-level reserve anchors from collection
-      if (hybridTeam.length < 6) {
-        const usedIds = new Set(hybridTeam.map(m => m.id));
-        const reservePool = (currentCollection || [])
-          .filter(p => !usedIds.has(p.id))
-          .sort((a, b) => (b.level || 0) - (a.level || 0));
-        for (let i = 0; i < reservePool.length && hybridTeam.length < 6; i++) {
-          const res = reservePool[i];
-          usedIds.add(res.id);
-          hybridTeam.push({
-            slot: hybridTeam.length + 1,
-            id: res.id,
-            name: res.name,
-            variant: res.variant,
-            level: res.level,
-            types: res.types,
-            sprite: res.sprite,
-            bestMove: teamEngine.getRosterWideBestAttack(res, targetLeader),
-            targetName: 'Reserve Anchor',
-            role: 'Reserve Anchor (Lv ' + res.level + ')',
-            score: 200
-          });
-        }
+    // 3b. If still open slots, add any remaining filter-matching trainees
+    for (let i = 0; i < otherMatching.length && hybridTeam.length < 6; i++) {
+      const t = otherMatching[i];
+      if (usedIds.has(t.id)) continue;
+      usedIds.add(t.id);
+      usedSpecies.add(teamEngine.getBaseSpecies(t.name));
+      hybridTeam.push({
+        slot: hybridTeam.length + 1,
+        id: t.id,
+        name: t.name,
+        variant: t.variant,
+        level: t.level,
+        types: t.types,
+        sprite: t.sprite,
+        bestMove: teamEngine.getRosterWideBestAttack(t, targetLeader),
+        targetName: 'Trainee #' + (hybridTeam.length + 1),
+        role: 'Trainee EXP Receiver (Lv ' + t.level + ')',
+        score: 100,
+        isCarry: false
+      });
+    }
+
+    // 4. Backfill from entire collection's trainees (< Lv 100) if the candidate pool lacks or has fewer than 5 candidates
+    if (hybridTeam.length < 6) {
+      const remainingBoxTrainees = allBoxTrainees.filter(p => !usedIds.has(p.id) && !carrySpeciesSet.has(teamEngine.getBaseSpecies(p.name)));
+      const rankedBackfill = (typeof teamEngine.rankTraineePartners === 'function')
+        ? teamEngine.rankTraineePartners(remainingBoxTrainees, targetLeader)
+        : remainingBoxTrainees.map(t => ({ poke: t }));
+
+      // Pass 4a: Unique species backfill
+      for (let i = 0; i < rankedBackfill.length && hybridTeam.length < 6; i++) {
+        const t = rankedBackfill[i].poke;
+        if (usedIds.has(t.id)) continue;
+        const sp = teamEngine.getBaseSpecies(t.name);
+        if (usedSpecies.has(sp)) continue;
+        usedIds.add(t.id);
+        usedSpecies.add(sp);
+
+        const isPrimary = !hasPrimaryTrainee;
+        if (isPrimary) hasPrimaryTrainee = true;
+
+        hybridTeam.push({
+          slot: hybridTeam.length + 1,
+          id: t.id,
+          name: t.name,
+          variant: t.variant,
+          level: t.level,
+          types: t.types,
+          sprite: t.sprite,
+          bestMove: teamEngine.getRosterWideBestAttack(t, targetLeader),
+          targetName: isPrimary ? 'Primary Trainee Partner' : ('Trainee #' + (hybridTeam.length + 1)),
+          role: isPrimary ? ('Primary Trainee Duo (Lv ' + t.level + ')') : ('Trainee EXP Receiver (Lv ' + t.level + ')'),
+          score: rankedBackfill[i].score || 100,
+          isCarry: false
+        });
       }
+
+      // Pass 4b: If still slots, allow duplicate species trainees (< Lv 100)
+      for (let i = 0; i < rankedBackfill.length && hybridTeam.length < 6; i++) {
+        const t = rankedBackfill[i].poke;
+        if (usedIds.has(t.id)) continue;
+        usedIds.add(t.id);
+        usedSpecies.add(teamEngine.getBaseSpecies(t.name));
+
+        const isPrimary = !hasPrimaryTrainee;
+        if (isPrimary) hasPrimaryTrainee = true;
+
+        hybridTeam.push({
+          slot: hybridTeam.length + 1,
+          id: t.id,
+          name: t.name,
+          variant: t.variant,
+          level: t.level,
+          types: t.types,
+          sprite: t.sprite,
+          bestMove: teamEngine.getRosterWideBestAttack(t, targetLeader),
+          targetName: isPrimary ? 'Primary Trainee Partner' : ('Trainee #' + (hybridTeam.length + 1)),
+          role: isPrimary ? ('Primary Trainee Duo (Lv ' + t.level + ')') : ('Trainee EXP Receiver (Lv ' + t.level + ')'),
+          score: rankedBackfill[i].score || 100,
+          isCarry: false
+        });
+      }
+    }
+
+    // 5. If the entire collection has fewer than 5 trainees in total, fill remaining slots with reserve anchors
+    if (hybridTeam.length < 6) {
+      const reservePool = (currentCollection || [])
+        .filter(p => !usedIds.has(p.id))
+        .sort((a, b) => (b.level || 0) - (a.level || 0));
+      for (let i = 0; i < reservePool.length && hybridTeam.length < 6; i++) {
+        const res = reservePool[i];
+        usedIds.add(res.id);
+        hybridTeam.push({
+          slot: hybridTeam.length + 1,
+          id: res.id,
+          name: res.name,
+          variant: res.variant,
+          level: res.level,
+          types: res.types,
+          sprite: res.sprite,
+          bestMove: teamEngine.getRosterWideBestAttack(res, targetLeader),
+          targetName: 'Reserve Anchor',
+          role: 'Reserve Anchor (Lv ' + res.level + ')',
+          score: 200,
+          isCarry: false
+        });
+      }
+    }
 
     lastRecommendedTeam = hybridTeam;
     renderTeamLineup(targetLeader, hybridTeam);
@@ -8528,6 +8780,19 @@ function areAllTeamPokemonLevel100() {
   });
 }
 
+function isGMaxChallengeModeActive() {
+  try {
+    if (typeof teamCategorySelect !== 'undefined' && teamCategorySelect && (teamCategorySelect.value === 'GMAX_CHALLENGE' || teamCategorySelect.value === 'CHALLENGE')) return true;
+    if (typeof teamTrainerSelect !== 'undefined' && teamTrainerSelect && (teamTrainerSelect.value || '').toLowerCase().includes('g-max challenge')) return true;
+    if (typeof activeAiBattleData !== 'undefined' && activeAiBattleData && (activeAiBattleData.isGmaxChallenge || (activeAiBattleData.trainerTitle && activeAiBattleData.trainerTitle.toLowerCase().includes('g-max challenge')) || (activeAiBattleData.battleUrl && activeAiBattleData.battleUrl.toLowerCase().includes('gmax')))) return true;
+    if (typeof delugeView !== 'undefined' && delugeView) {
+      const u = (delugeView.getURL && delugeView.getURL()) ? delugeView.getURL().toLowerCase() : '';
+      if (u.includes('gmax') || u.includes('/challenge')) return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
 function scheduleNextLoopBattle() {
   if (isPendingSessionAutoStop) {
     isPendingSessionAutoStop = false;
@@ -8552,8 +8817,8 @@ function scheduleNextLoopBattle() {
     return;
   }
 
-  // Check goal: All team Pokemon on current roster are Level 100
-  if (areAllTeamPokemonLevel100()) {
+  // Check goal: All team Pokemon on current roster are Level 100 (Training Battles only)
+  if (!isGMaxChallengeModeActive() && areAllTeamPokemonLevel100()) {
     isBattleLoopRunning = false;
     if (teamBattleLoopCheck) teamBattleLoopCheck.checked = false;
     updateLoopCheckboxVisual();
@@ -8564,9 +8829,22 @@ function scheduleNextLoopBattle() {
     return;
   }
 
+  // G-Max Challenge goal: Complete entire challenge
+  if (isGMaxChallengeModeActive() && activeAiBattleData && activeAiBattleData.isGmaxChallengeComplete) {
+    isBattleLoopRunning = false;
+    if (teamBattleLoopCheck) teamBattleLoopCheck.checked = false;
+    updateLoopCheckboxVisual();
+    if (teamActionStatus) {
+      teamActionStatus.textContent = 'G-Max Challenge successfully completed!';
+      teamActionStatus.style.color = '#10b981';
+    }
+    return;
+  }
+
   isBattleLoopRunning = true;
   // Human randomized micro-rest between matches (2400ms - 3600ms) to avoid bot detection and server flooding
   const microRestMs = 2400 + Math.floor(Math.random() * 1200);
+  backendLog('LOOP_ENGINE', `Loop timer armed: ${microRestMs}ms until Next Battle click`);
   if (teamActionStatus) {
     teamActionStatus.textContent = 'Loop: Micro-rest (' + (microRestMs / 1000).toFixed(1) + 's) before next match...';
     teamActionStatus.style.color = '#388bfd';
@@ -8582,7 +8860,7 @@ function scheduleNextLoopBattle() {
       isBattleLoopRunning = false;
       return;
     }
-    if (areAllTeamPokemonLevel100()) {
+    if (!isGMaxChallengeModeActive() && areAllTeamPokemonLevel100()) {
       isBattleLoopRunning = false;
       if (teamBattleLoopCheck) teamBattleLoopCheck.checked = false;
       updateLoopCheckboxVisual();
@@ -8590,6 +8868,13 @@ function scheduleNextLoopBattle() {
         teamActionStatus.textContent = 'All team Pokemon reached Lv 100! Training complete.';
         teamActionStatus.style.color = '#10b981';
       }
+      return;
+    }
+
+    if (isGMaxChallengeModeActive() && activeAiBattleData && activeAiBattleData.isGmaxChallengeComplete) {
+      isBattleLoopRunning = false;
+      if (teamBattleLoopCheck) teamBattleLoopCheck.checked = false;
+      updateLoopCheckboxVisual();
       return;
     }
 
@@ -8601,6 +8886,7 @@ function scheduleNextLoopBattle() {
       activeAiBattleData.isVictoryScreen = false;
       activeAiBattleData.isPostBattleScreen = false;
       activeAiBattleData.isDefeatScreen = false;
+      activeAiBattleData.hasNextBattleBtn = false;
       if (typeof currentMatchParticipants !== 'undefined') currentMatchParticipants.clear();
       if (typeof justSwitchedActivePokemon !== 'undefined') justSwitchedActivePokemon.clear();
       currentMatchSwitchCount = 0;
@@ -8613,7 +8899,7 @@ function scheduleNextLoopBattle() {
       teamActionStatus.style.color = '#388bfd';
     }
 
-    // Attempt direct in-game rematch click on webview first (clicks "NORMAL BATTLE")
+    // Attempt direct in-game rematch click on webview first (clicks "NORMAL BATTLE" or "NEXT BATTLE")
     if (delugeView && typeof delugeView.send === 'function') {
       delugeView.send('click-rematch-button');
     }
@@ -8627,17 +8913,29 @@ function scheduleNextLoopBattle() {
         try {
           const cUrl = (delugeView.getURL && delugeView.getURL()) ? delugeView.getURL() : '';
           const isStillPostBattle = Boolean(
-            (activeAiBattleData && (activeAiBattleData.isVictoryScreen || activeAiBattleData.isPostBattleScreen || activeAiBattleData.isDefeatScreen)) ||
+            (activeAiBattleData && (activeAiBattleData.isVictoryScreen || activeAiBattleData.isPostBattleScreen || activeAiBattleData.isDefeatScreen || activeAiBattleData.hasNextBattleBtn)) ||
             (cUrl.indexOf('/battle') === -1 || cUrl.indexOf('defeat') !== -1 || cUrl.indexOf('result') !== -1)
           );
           if (isStillPostBattle) {
             backendLog('LOOP_ENGINE', 'Post-battle screen still active; executing direct arena entry...');
-            if (battleOpponentBtn) battleOpponentBtn.click();
+            if (isGMaxChallengeModeActive()) {
+              if (delugeView && typeof delugeView.send === 'function') {
+                delugeView.send('click-rematch-button');
+              }
+            } else if (battleOpponentBtn) {
+              battleOpponentBtn.click();
+            }
           }
         } catch (_) {
-          if (battleOpponentBtn) battleOpponentBtn.click();
+          if (isGMaxChallengeModeActive()) {
+            if (delugeView && typeof delugeView.send === 'function') {
+              delugeView.send('click-rematch-button');
+            }
+          } else if (battleOpponentBtn) {
+            battleOpponentBtn.click();
+          }
         }
-      } else if (battleOpponentBtn) {
+      } else if (battleOpponentBtn && !isGMaxChallengeModeActive()) {
         battleOpponentBtn.click();
       }
     }, 900);
@@ -8648,19 +8946,18 @@ if (teamBattleAutoCheck) {
   teamBattleAutoCheck.addEventListener('change', () => {
     if (teamBattleAutoCheck.checked) {
       userManuallyPaused = false;
+      isBattleAutoRunning = true;
       if (teamBattleAutoLabel) {
         teamBattleAutoLabel.style.borderColor = '#388bfd';
         teamBattleAutoLabel.style.color = '#58a6ff';
       }
       updateLoopCheckboxVisual();
-      if (teamActionStatus && !isBattleAutoRunning) {
-        teamActionStatus.textContent = 'Auto mode armed. Click action button to start.';
+      if (teamActionStatus) {
+        teamActionStatus.textContent = 'Auto mode active';
         teamActionStatus.style.color = '#388bfd';
-        setTimeout(() => {
-          if (teamActionStatus && teamActionStatus.textContent === 'Auto mode armed. Click action button to start.') {
-            teamActionStatus.textContent = '';
-          }
-        }, 3000);
+      }
+      if (activeAiBattleData) {
+        updateTeamBuilderBattleAction(activeAiBattleData);
       }
     } else {
       isBattleAutoRunning = false;
@@ -8711,7 +9008,7 @@ if (teamBattleLoopCheck) {
 
     if (teamBattleLoopCheck.checked) {
       userManuallyPaused = false;
-      if (areAllTeamPokemonLevel100()) {
+      if (!isGMaxChallengeModeActive() && areAllTeamPokemonLevel100()) {
         teamBattleLoopCheck.checked = false;
         updateLoopCheckboxVisual();
         if (teamActionStatus) {
@@ -8722,16 +9019,18 @@ if (teamBattleLoopCheck) {
       }
       updateLoopCheckboxVisual();
       if (teamActionStatus) {
-        teamActionStatus.textContent = 'Loop mode armed (battles until all team is Lv 100)';
+        teamActionStatus.textContent = isGMaxChallengeModeActive()
+          ? 'Loop mode armed (battles until challenge complete)'
+          : 'Loop mode armed (battles until all team is Lv 100)';
         teamActionStatus.style.color = '#388bfd';
         setTimeout(() => {
-          if (teamActionStatus && teamActionStatus.textContent === 'Loop mode armed (battles until all team is Lv 100)') {
+          if (teamActionStatus && (teamActionStatus.textContent.indexOf('Loop mode armed') !== -1)) {
             teamActionStatus.textContent = '';
           }
         }, 3000);
       }
       // If currently on a completed battle screen, start loop micro-rest
-      if (activeAiBattleData && (activeAiBattleData.isVictoryScreen || activeAiBattleData.isDefeatScreen || activeAiBattleData.isPostBattleScreen)) {
+      if (activeAiBattleData && (activeAiBattleData.isVictoryScreen || activeAiBattleData.isDefeatScreen || activeAiBattleData.isPostBattleScreen || activeAiBattleData.hasNextBattleBtn)) {
         scheduleNextLoopBattle();
       }
     } else {
@@ -9649,8 +9948,8 @@ function openAiAssistantPanel() {
   if (delugeView && typeof delugeView.send === 'function') {
     delugeView.send('check-evolve-card');
   }
-  renderAiAssistantUI();
   renderEvolutionDecisionMakerUI();
+  renderAiAssistantUI();
 }
 
 function closeAiAssistantPanel() {
@@ -9709,11 +10008,21 @@ function renderEvolutionChoicesGrid() {
 }
 
 function handleEvolveMoveSelection(card) {
-  let pName = card.targetPokemon || card.fullName || '';
-  if ((!pName || pName === 'Pokemon' || pName === 'Evolving Pokemon') && selectedEvoPoke) {
-    pName = (selectedEvoPoke.bestBranch && selectedEvoPoke.bestBranch.fullName) || selectedEvoPoke.name;
+  let pName = (card.targetPokemon || card.fullName || '').trim();
+  const isInvalidModalName = !pName || /^(pokemon|evolving\s*pokemon|close\s*evolve|evolve|close|cancel|submit)$/i.test(pName);
+  if (isInvalidModalName && selectedEvoPoke) {
+    pName = (selectedEvoPoke.bestBranch && (selectedEvoPoke.bestBranch.fullName || selectedEvoPoke.bestBranch.name)) || selectedEvoPoke.name || '';
+  } else if (!card.isChangeAttackPage && selectedEvoPoke && selectedEvoPoke.name && pName.toLowerCase() === selectedEvoPoke.name.toLowerCase() && selectedEvoPoke.bestBranch) {
+    pName = selectedEvoPoke.bestBranch.fullName || selectedEvoPoke.bestBranch.name || pName;
   }
-  if (!pName) pName = 'Pokemon';
+  if (!pName || /^(close\s*evolve|evolve|close|cancel|submit)$/i.test(pName)) {
+    pName = (card.sourcePokemon && !/^(close\s*evolve|evolve|close|cancel|submit)$/i.test(card.sourcePokemon.trim()))
+      ? card.sourcePokemon.trim()
+      : 'Pokemon';
+  }
+  if ((!card.level || card.level === 50) && selectedEvoPoke && selectedEvoPoke.level) {
+    card.level = selectedEvoPoke.level;
+  }
   const availableMoves = Array.isArray(card.availableMoves) ? card.availableMoves : [];
 
   const evalResult = (evolutionEngine && evolutionEngine.evaluateEvolutionMoveSelection)
@@ -9825,18 +10134,42 @@ function handleEvolveMoveSelection(card) {
     autoPickBtn.id = 'aiAutoSelectMovesBtn';
     autoPickBtn.className = 'btn btn-accent';
     autoPickBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
-    autoPickBtn.innerHTML = '&#9876; Auto-Select Best 4 Moves in Game';
-    autoPickBtn.addEventListener('click', () => {
-      if (delugeView && typeof delugeView.send === 'function') {
-        delugeView.send('apply-recommended-moves', {
-          recommendedMoves: evalResult.recommendedMoves.map(m => m.name),
-          dropMoves: evalResult.dropMoves.map(m => m.name),
-          slot1: evalResult.slotOrder[0],
-          isChangeAttackPage: !!card.isChangeAttackPage
-        });
-        updateStatus('Optimal moves applied to DelugeRPG form!', '#238636');
-      }
-    });
+
+    if (card.isChangeAttackPage) {
+      autoPickBtn.innerHTML = '&#9876; Auto-Select Best 4 Moves in Game';
+      autoPickBtn.addEventListener('click', () => {
+        if (delugeView && typeof delugeView.send === 'function') {
+          delugeView.send('apply-recommended-moves', {
+            recommendedMoves: evalResult.recommendedMoves.map(m => m.name),
+            dropMoves: evalResult.dropMoves.map(m => m.name),
+            slot1: evalResult.slotOrder[0],
+            isChangeAttackPage: true
+          });
+          updateStatus('Optimal moves applied to DelugeRPG form!', '#238636');
+        }
+      });
+    } else {
+      const defaultBtnHtml = '&#9876; Apply Best 4 Moves & Confirm Evolve';
+      autoPickBtn.innerHTML = defaultBtnHtml;
+      autoPickBtn.addEventListener('click', () => {
+        if (delugeView && typeof delugeView.send === 'function') {
+          autoPickBtn.innerHTML = '&#9203; Applying Moves & Evolving...';
+          autoPickBtn.disabled = true;
+          delugeView.send('apply-recommended-moves-and-submit', {
+            recommendedMoves: evalResult.recommendedMoves.map(m => m.name),
+            dropMoves: evalResult.dropMoves.map(m => m.name),
+            slot1: evalResult.slotOrder[0]
+          });
+          updateStatus('Optimal moves applied & confirming evolve!', '#10b981');
+          setTimeout(() => {
+            if (autoPickBtn && autoPickBtn.isConnected && autoPickBtn.disabled) {
+              autoPickBtn.disabled = false;
+              autoPickBtn.innerHTML = defaultBtnHtml;
+            }
+          }, 3800);
+        }
+      });
+    }
     aiInstantActionSlot.appendChild(autoPickBtn);
   }
 
@@ -9865,6 +10198,85 @@ function handleEvolveCardDetected(card) {
   activeAiBattleData = null;
   activeEvolveCardData = card;
 
+  // CASE 0: Evolution Complete (Success Screen)
+  if (card.isComplete) {
+    if (aiBattleOpponentBadge) {
+      aiBattleOpponentBadge.textContent = 'Evolution Complete';
+      aiBattleOpponentBadge.style.color = '#10b981';
+    }
+    if (aiStatusChip) {
+      aiStatusChip.textContent = 'Success';
+      aiStatusChip.style.color = '#10b981';
+    }
+    if (aiTacticalBriefing) {
+      aiTacticalBriefing.innerHTML = `
+        <div style="background: #0e1b30; border: 1px solid #10b981; border-radius: 4px; padding: 8px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 12px; font-weight: 700; color: #10b981; margin-bottom: 3px;">
+            &#10003; ${escapeHtml(card.message || 'Evolution Complete!')}
+          </div>
+          <div style="font-size: 9.5px; color: #8eaad0;">
+            ${escapeHtml(card.fromPokemon || '')} &#8594; <strong style="color: #e0ecfa;">${escapeHtml(card.toPokemon || card.fullName)}</strong>
+          </div>
+        </div>
+      `;
+    }
+
+    if (Array.isArray(currentCollection) && card.fromPokemon && card.toPokemon) {
+      const fromLower = card.fromPokemon.toLowerCase();
+      const pIdx = currentCollection.findIndex(p => (p.name || '').toLowerCase() === fromLower || (p.id && selectedEvoPoke && p.id === selectedEvoPoke.id));
+      if (pIdx !== -1) {
+        currentCollection[pIdx].name = card.toPokemon;
+        if (evolutionEngine && typeof evolutionEngine.resolvePokemonTypes === 'function') {
+          currentCollection[pIdx].types = evolutionEngine.resolvePokemonTypes(card.toPokemon, currentCollection);
+        }
+        currentCollection[pIdx].canEvolve = undefined;
+        try {
+          fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
+        } catch (_) {}
+        syncUserCollectionToGuest();
+      }
+    }
+
+    const nextAnalysis = (card.toPokemon && aiAssistant) ? aiAssistant.analyzeEvolutionPath(card.toPokemon, currentCollection) : null;
+    const canEvolveFurther = nextAnalysis && nextAnalysis.bestBranch && !nextAnalysis.bestBranch.isDuplicate;
+
+    if (aiInstantActionSlot) {
+      aiInstantActionSlot.innerHTML = '';
+      const actionBtn = document.createElement('button');
+      actionBtn.type = 'button';
+      actionBtn.className = 'btn btn-accent';
+      actionBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
+
+      if (canEvolveFurther) {
+        actionBtn.innerHTML = `&#129516; Proceed to Evolve into ${escapeHtml(nextAnalysis.bestBranch.name)}`;
+        actionBtn.addEventListener('click', () => {
+          if (delugeView) {
+            actionBtn.disabled = true;
+            delugeView.send('close-modal-and-refresh');
+            setTimeout(() => {
+              delugeView.send('trigger-evolve-pokemon', {
+                pokemonId: (selectedEvoPoke && selectedEvoPoke.id) || null,
+                name: card.toPokemon,
+                targetBranch: nextAnalysis.bestBranch.name
+              });
+            }, 400);
+          }
+          renderEvolutionDecisionMakerUI();
+        });
+      } else {
+        actionBtn.innerHTML = '&#10003; Evolution Complete (Close Modal)';
+        actionBtn.addEventListener('click', () => {
+          if (delugeView) {
+            delugeView.send('close-modal-and-refresh');
+          }
+          renderEvolutionDecisionMakerUI();
+        });
+      }
+      aiInstantActionSlot.appendChild(actionBtn);
+    }
+    return;
+  }
+
   if (card.isMoveSelection) {
     if (!selectedEvoPoke && Array.isArray(cachedEvolveReadyList) && cachedEvolveReadyList.length > 0) {
       const cTarget = (card.targetPokemon || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -9873,9 +10285,6 @@ function handleEvolveCardDetected(card) {
         return pClean === cTarget || cTarget.includes(pClean) || pClean.includes(cTarget);
       });
       if (matchedPoke) selectedEvoPoke = matchedPoke;
-    }
-    if (selectedEvoPoke) {
-      selectEvolvePokemon(selectedEvoPoke, selectedEvoPoke.bestBranch);
     }
     handleEvolveMoveSelection(card);
     return;
@@ -9888,9 +10297,39 @@ function handleEvolveCardDetected(card) {
     : (evolutionEngine && evolutionEngine.resolvePokemonTypes ? evolutionEngine.resolvePokemonTypes(card.fullName || species, currentCollection) : ['Normal']);
   card.types = resolvedTypes;
 
+  const rawCardVariant = String(card.variant || (rawName && (rawName.match(/^(Normal|Shiny|Metallic|Ghostly|Ghost|Dark|Shadow|Mirage|Retro|Chrome|Negative)\s+/i) || ['', 'Normal'])[1]) || 'Normal').trim();
+  const normCardVariant = (rawCardVariant.toLowerCase() === 'ghost') ? 'Ghostly' : (rawCardVariant.charAt(0).toUpperCase() + rawCardVariant.slice(1).toLowerCase());
+
+  if (Array.isArray(cachedEvolveReadyList) && cachedEvolveReadyList.length > 0 && rawName) {
+    const cLower = rawName.toLowerCase().trim();
+    const matchedReady = cachedEvolveReadyList.find(p => (p.name || '').toLowerCase().trim() === cLower);
+    if (matchedReady) {
+      selectedEvoPoke = matchedReady;
+      if (evoReadyList) {
+        const itemCards = evoReadyList.querySelectorAll('.evo-item-card');
+        itemCards.forEach(el => {
+          const isMatch = el.getAttribute('data-poke-id') === String(matchedReady.id);
+          el.style.background = isMatch ? '#0c182c' : '#070e1a';
+          el.style.borderColor = isMatch ? '#388bfd' : '#1a283e';
+        });
+      }
+    }
+  }
+
   const evoAnalysis = aiAssistant ? aiAssistant.analyzeEvolutionPath(card.fullName || species, currentCollection) : null;
-  const bestBranch = evoAnalysis ? evoAnalysis.bestBranch : null;
-  const bestBranchName = bestBranch ? bestBranch.name : '';
+  let bestBranch = evoAnalysis ? evoAnalysis.bestBranch : null;
+  if (Array.isArray(card.options) && card.options.length > 0 && evoAnalysis && Array.isArray(evoAnalysis.branches)) {
+    const modalMatchedBranches = evoAnalysis.branches.filter(b => card.options.some(opt => {
+      const oRaw = (opt.fullName || opt.name || '').toLowerCase();
+      const bName = (b.name || '').toLowerCase();
+      const bFull = (b.fullName || b.name || '').toLowerCase();
+      return oRaw === bFull || oRaw === bName || oRaw.endsWith(' ' + bName);
+    }));
+    if (modalMatchedBranches.length > 0) {
+      bestBranch = modalMatchedBranches[0];
+    }
+  }
+  const bestBranchName = bestBranch ? (bestBranch.fullName || bestBranch.name) : '';
 
   // 1. Update AI Assistant Panel Header Badges
   if (aiBattleOpponentBadge) {
@@ -9913,18 +10352,6 @@ function handleEvolveCardDetected(card) {
         <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 4px;">TARGET EVOLUTIONS</div>
     `;
 
-    const cardVariant = card.variant || (card.fullName && (card.fullName.match(/^(Normal|Shiny|Metallic|Ghostly|Ghost|Dark|Shadow|Mirage|Retro|Chrome|Negative)\s+/i) || ['Normal'])[0]) || 'Normal';
-    const normCardVariant = (cardVariant.toLowerCase() === 'ghost') ? 'Ghostly' : (cardVariant.charAt(0).toUpperCase() + cardVariant.slice(1).toLowerCase());
-
-    const hasAnyMegaOwned = Array.isArray(card.options) && card.options.some(opt => {
-      const optRaw = opt.fullName || opt.name || '';
-      const fullTargetName = (normCardVariant !== 'Normal' && !optRaw.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
-        ? `${normCardVariant} ${optRaw}`
-        : optRaw;
-      const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
-      return own.hasMegaOwned;
-    });
-
     if (Array.isArray(card.options) && card.options.length > 0) {
       card.options.forEach(opt => {
         const optRaw = opt.fullName || opt.name || '';
@@ -9932,15 +10359,18 @@ function handleEvolveCardDetected(card) {
           ? `${normCardVariant} ${optRaw}`
           : optRaw;
         const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
+        const isMegaOpt = /\bMega\s+/i.test(optRaw);
+        const isGmaxOpt = /\bG-Max\b/i.test(optRaw);
+        const isTargetOwned = isMegaOpt ? Boolean(own.hasMegaOwned || own.hasExactOwned) : (isGmaxOpt ? Boolean(own.hasGmaxOwned || own.hasExactOwned) : Boolean(own.hasExactOwned));
         const optBase = getBaseSpecies ? getBaseSpecies(fullTargetName) : fullTargetName;
         const isBest = Boolean(bestBranchName && (optBase.toLowerCase() === bestBranchName.toLowerCase() || fullTargetName.toLowerCase().includes(bestBranchName.toLowerCase()) || optRaw.toLowerCase().includes(bestBranchName.toLowerCase())));
 
         let badgeHtml = '';
-        if (own.isOwned) {
-          if (own.hasMegaOwned) {
+        if (isTargetOwned) {
+          if (isMegaOpt && own.hasMegaOwned) {
             badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #ff7b72; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: 3px;">&#9888; STOP: MEGA OWNED (Lv ${own.bestLevel})</span>`;
           } else {
-            badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">OWNED (Lv ${own.bestLevel})</span>`;
+            badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #ff7b72; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: 3px;">OWNED (Lv ${own.bestLevel})</span>`;
           }
         } else {
           badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">100% UNIQUE</span>`;
@@ -9985,36 +10415,54 @@ function handleEvolveCardDetected(card) {
   if (aiInstantActionSlot) {
     aiInstantActionSlot.innerHTML = '';
 
-    const pathBtn = document.createElement('button');
-    pathBtn.type = 'button';
-    pathBtn.id = 'aiEvolvePathBtn';
-    pathBtn.className = 'btn btn-accent';
-    pathBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
-    pathBtn.innerHTML = `&#129516; Path Details: ${escapeHtml(card.fullName)}`;
-    pathBtn.addEventListener('click', () => {
-      appendAiChatMessage('USER', `Evolution path for ${card.fullName}`);
-      const ans = aiAssistant ? aiAssistant.askAssistant(`evolve ${card.fullName}`, { activeEvolveCard: card, collection: currentCollection }) : '';
-      setTimeout(() => {
-        appendAiChatMessage('AI', ans);
-      }, 100);
-    });
-    aiInstantActionSlot.appendChild(pathBtn);
+    const isModalOptionOwned = (opt) => {
+      const optRaw = opt.fullName || opt.name || '';
+      const fullTargetName = (normCardVariant !== 'Normal' && !optRaw.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
+        ? `${normCardVariant} ${optRaw}`
+        : optRaw;
+      const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
+      const isMegaOpt = /\bMega\s+/i.test(optRaw);
+      const isGmaxOpt = /\bG-Max\b/i.test(optRaw);
+      return isMegaOpt ? Boolean(own.hasMegaOwned || own.hasExactOwned) : (isGmaxOpt ? Boolean(own.hasGmaxOwned || own.hasExactOwned) : Boolean(own.hasExactOwned));
+    };
 
-    const movesBtn = document.createElement('button');
-    movesBtn.type = 'button';
-    movesBtn.id = 'aiEvolveMovesBtn';
-    movesBtn.className = 'btn';
-    movesBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 600; justify-content: center; gap: 6px; box-shadow: none !important;';
-    const finalSpecies = bestBranchName || (card.options && card.options.length > 0 ? (card.options[0].fullName || card.options[0].name) : card.fullName);
-    movesBtn.innerHTML = `&#9876; Final Moveset: ${escapeHtml(finalSpecies)}`;
-    movesBtn.addEventListener('click', () => {
-      appendAiChatMessage('USER', `Best attack moves for ${finalSpecies}`);
-      const ans = aiAssistant ? aiAssistant.askAssistant(`moves for ${finalSpecies}`, { activeEvolveCard: card, collection: currentCollection }) : '';
-      setTimeout(() => {
-        appendAiChatMessage('AI', ans);
-      }, 100);
-    });
-    aiInstantActionSlot.appendChild(movesBtn);
+    const allModalDuplicates = Array.isArray(card.options) && card.options.length > 0 && card.options.every(isModalOptionOwned);
+
+    const bestUnownedOption = Array.isArray(card.options) ? card.options.find(opt => !isModalOptionOwned(opt)) : null;
+
+    const actionBtn = document.createElement('button');
+    actionBtn.type = 'button';
+    actionBtn.id = 'aiEvolveActionBtn';
+    actionBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
+
+    if (allModalDuplicates) {
+      actionBtn.className = 'btn';
+      actionBtn.disabled = true;
+      actionBtn.style.borderColor = '#f87171';
+      actionBtn.style.color = '#f87171';
+      actionBtn.style.background = '#2a1215';
+      actionBtn.innerHTML = '&#9888; All Evolution Paths Owned (Cannot Proceed)';
+    } else {
+      const targetChoice = bestUnownedOption ? (bestUnownedOption.fullName || bestUnownedOption.name) : (bestBranchName || 'Evolved Form');
+      const defaultEvolveBtnHtml = `&#129516; Confirm Evolve into ${escapeHtml(targetChoice)}`;
+      actionBtn.className = 'btn btn-accent';
+      actionBtn.innerHTML = defaultEvolveBtnHtml;
+      actionBtn.addEventListener('click', () => {
+        if (delugeView) {
+          actionBtn.innerHTML = '&#9203; Submitting Evolution...';
+          actionBtn.disabled = true;
+          delugeView.send('submit-modal-evolve', { targetBranch: targetChoice });
+          updateStatus(`Submitting evolution into ${targetChoice}...`, '#388bfd');
+          setTimeout(() => {
+            if (actionBtn && actionBtn.isConnected && actionBtn.disabled) {
+              actionBtn.disabled = false;
+              actionBtn.innerHTML = defaultEvolveBtnHtml;
+            }
+          }, 3200);
+        }
+      });
+    }
+    aiInstantActionSlot.appendChild(actionBtn);
   }
 }
 
@@ -10054,35 +10502,59 @@ function setEvoFilter(filterType) {
 }
 
 function refreshEvolveBoxList() {
+  loadTeamBuilderData();
   if (delugeView) {
-    if (scanStatusDot) scanStatusDot.style.background = '#388bfd';
-    if (scanStatusBadge) {
-      scanStatusBadge.style.color = '#388bfd';
-      scanStatusBadge.textContent = 'Scanning live box...';
+    try {
+      delugeView.send('sync-current-pokemon-page');
+      delugeView.send('check-evolve-card');
+    } catch (_) {}
+    if (!Array.isArray(currentCollection) || currentCollection.length === 0) {
+      if (scanStatusDot) scanStatusDot.style.background = '#388bfd';
+      if (scanStatusBadge) {
+        scanStatusBadge.style.color = '#388bfd';
+        scanStatusBadge.textContent = 'Scanning live box...';
+      }
+      updateStatus('Scanning live DelugeRPG box for evolve-ready Pokemon...', '#388bfd');
+      delugeView.send('start-scan-pokemon');
+      return;
     }
-    updateStatus('Scanning live DelugeRPG box for evolve-ready Pokemon...', '#388bfd');
-    delugeView.send('start-scan-pokemon');
-  } else {
-    loadTeamBuilderData();
-    renderEvolutionDecisionMakerUI();
-    updateStatus('Evolve-ready Pokemon box refreshed', '#10b981');
   }
+  renderEvolutionDecisionMakerUI();
+  updateStatus('Evolve-ready Pokemon box refreshed (0 network requests)', '#10b981');
 }
 
 function selectEvolvePokemon(poke, branch) {
   if (!poke) return;
   selectedEvoPoke = poke;
 
-  if (activeEvolveCardData && activeEvolveCardData.isMoveSelection) {
-    handleEvolveMoveSelection(activeEvolveCardData);
-    return;
-  }
-
   const targetBranch = branch || poke.bestBranch || (poke.branches && poke.branches[0]);
   if (!targetBranch) return;
 
   const targetName = targetBranch.fullName || targetBranch.name;
   const isDuplicate = Boolean(targetBranch.isDuplicate);
+
+  const openSource = ((activeEvolveCardData && (activeEvolveCardData.sourcePokemon || activeEvolveCardData.fullName)) || '').toLowerCase().trim();
+  const openTarget = ((activeEvolveCardData && (activeEvolveCardData.targetPokemon || activeEvolveCardData.fullName)) || '').toLowerCase().trim();
+  const pNameLower = (poke.name || '').toLowerCase().trim();
+  const branchLower = (targetName || '').toLowerCase().trim();
+  const matchesActiveModal = Boolean(activeEvolveCardData && activeEvolveCardData.isOpen && (
+    (openSource && (openSource === pNameLower || openSource === branchLower)) ||
+    (openTarget && (openTarget === pNameLower || openTarget === branchLower))
+  ));
+
+  if (!matchesActiveModal && activeEvolveCardData) {
+    activeEvolveCardData = null;
+  }
+
+  if (matchesActiveModal && activeEvolveCardData && activeEvolveCardData.isMoveSelection) {
+    handleEvolveMoveSelection(activeEvolveCardData);
+    return;
+  }
+
+  if (matchesActiveModal && activeEvolveCardData && activeEvolveCardData.isOpen && !activeEvolveCardData.isComplete) {
+    handleEvolveCardDetected(activeEvolveCardData);
+    return;
+  }
 
   if (aiBattleOpponentBadge) {
     aiBattleOpponentBadge.innerHTML = escapeHtml(poke.name);
@@ -10165,21 +10637,40 @@ function selectEvolvePokemon(poke, branch) {
     } else {
       const triggerBtn = document.createElement('button');
       triggerBtn.type = 'button';
-      triggerBtn.className = isDuplicate ? 'btn' : 'btn btn-accent';
       triggerBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
-      triggerBtn.innerHTML = '&#129516; Open Evolve Modal';
-      triggerBtn.addEventListener('click', () => {
-        if (delugeView) {
-          delugeView.send('trigger-evolve-pokemon', {
-            pokemonId: poke.id,
-            name: poke.name,
-            level: poke.level,
-            types: poke.types,
-            variant: poke.variant
-          });
-          updateStatus(`Opening evolve modal for ${poke.name}...`, '#388bfd');
-        }
-      });
+
+      if (isDuplicate) {
+        triggerBtn.className = 'btn';
+        triggerBtn.disabled = true;
+        triggerBtn.style.borderColor = '#f87171';
+        triggerBtn.style.color = '#f87171';
+        triggerBtn.style.background = '#2a1215';
+        triggerBtn.innerHTML = '&#9888; Evolution Already Owned (Duplicate)';
+      } else {
+        triggerBtn.className = 'btn btn-accent';
+        triggerBtn.innerHTML = `&#129516; Evolve into ${escapeHtml(targetName)}`;
+        triggerBtn.addEventListener('click', () => {
+          if (delugeView) {
+            triggerBtn.disabled = true;
+            triggerBtn.innerHTML = '&#9203; Opening Evolve Modal...';
+            delugeView.send('trigger-evolve-pokemon', {
+              pokemonId: poke.id,
+              name: poke.name,
+              level: poke.level,
+              types: poke.types,
+              variant: poke.variant,
+              targetBranch: targetName
+            });
+            updateStatus(`Opening evolve modal for ${poke.name}...`, '#388bfd');
+            setTimeout(() => {
+              if (triggerBtn && triggerBtn.disabled) {
+                triggerBtn.disabled = false;
+                triggerBtn.innerHTML = `&#129516; Evolve into ${escapeHtml(targetName)}`;
+              }
+            }, 4000);
+          }
+        });
+      }
       aiInstantActionSlot.appendChild(triggerBtn);
     }
   }
@@ -10451,7 +10942,7 @@ function renderEvolutionDecisionMakerUI() {
     : [];
   cachedBoxMovesList = boxMovesList;
 
-  const megaList = boxMovesList.filter(p => teamEngine.isActualMegaEvolution(p.name));
+  const megaList = boxMovesList.filter(p => teamEngine.isActualMegaEvolution(p.name) || teamEngine.isAlreadyGmax(p));
   cachedMegaList = megaList;
 
   const flawedList = boxMovesList.filter(p => p.moveStatus === 'NEEDS_OPTIMIZATION');
@@ -10590,7 +11081,7 @@ function renderEvolutionDecisionMakerUI() {
 
   // Otherwise: UNIQUE EVOLVE MODE
   if (evoListHeaderTitle) evoListHeaderTitle.textContent = 'Evolve-Ready Box Pokemon';
-  let displayed = readyList.filter(p => p.hasUnique);
+  let displayed = currentEvoSearch ? readyList.slice() : readyList.filter(p => p.hasUnique);
 
   if (currentEvoSearch) {
     const q = currentEvoSearch.toLowerCase();
@@ -10598,7 +11089,7 @@ function renderEvolutionDecisionMakerUI() {
       const pName = (p.name || '').toLowerCase();
       const pVariant = (p.variant || '').toLowerCase();
       const pTypes = (p.types || []).join(' ').toLowerCase();
-      const branchNames = (p.branches || []).map(b => b.name.toLowerCase()).join(' ');
+      const branchNames = (p.branches || []).map(b => (b.fullName || b.name || '').toLowerCase()).join(' ');
       return pName.includes(q) || pVariant.includes(q) || pTypes.includes(q) || branchNames.includes(q);
     });
   }
@@ -10659,28 +11150,14 @@ function renderEvolutionDecisionMakerUI() {
           </div>
         </div>
         <div style="flex-shrink: 0; display: flex; align-items: center; gap: 6px;">
-          ${isBranchDup ? '<span style="font-size: 8px; font-weight: 700; color: #f87171; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: 3px;">Owned</span>' : ''}
-          <button type="button" class="btn btn-accent btn-action-evolve" style="height: 22px; font-size: 9.5px; font-weight: 700; padding: 0 8px; box-shadow: none !important;">Evolve</button>
+          ${isBranchDup
+            ? '<span style="font-size: 8.5px; font-weight: 700; color: #f87171; padding: 1px 5px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: 3px;">Owned</span>'
+            : '<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 5px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">Ready</span>'}
         </div>
       </div>
     `;
 
-    card.addEventListener('click', (e) => {
-      if (e.target && e.target.classList.contains('btn-action-evolve')) {
-        e.stopPropagation();
-        selectEvolvePokemon(item, item.bestBranch);
-        if (delugeView) {
-          delugeView.send('trigger-evolve-pokemon', {
-            pokemonId: item.id,
-            name: item.name,
-            level: item.level,
-            types: item.types,
-            variant: item.variant
-          });
-          updateStatus(`Opening evolve modal for ${item.name}...`, '#388bfd');
-        }
-        return;
-      }
+    card.addEventListener('click', () => {
       selectEvolvePokemon(item, item.bestBranch);
     });
 
@@ -10768,8 +11245,19 @@ function renderEvolutionDecisionMakerUI() {
     return;
   }
 
+  if (activeEvolveCardData && activeEvolveCardData.isOpen) {
+    handleEvolveCardDetected(activeEvolveCardData);
+    return;
+  }
+
+  if (selectedEvoPoke && !displayed.some(p => p.id === selectedEvoPoke.id && p.name === selectedEvoPoke.name)) {
+    selectedEvoPoke = null;
+  }
   if (!selectedEvoPoke && displayed.length > 0) {
-    selectEvolvePokemon(displayed[0], displayed[0].bestBranch);
+    selectedEvoPoke = displayed[0];
+  }
+  if (selectedEvoPoke) {
+    selectEvolvePokemon(selectedEvoPoke, selectedEvoPoke.bestBranch);
   }
 }
 
@@ -10797,10 +11285,37 @@ function computeAiBattleActionConfig(battleData, collection) {
   const isPostBattle = Boolean(
     battleData.isVictoryScreen ||
     battleData.isDefeatScreen ||
-    battleData.isPostBattleScreen
+    battleData.isPostBattleScreen ||
+    battleData.hasNextBattleBtn ||
+    battleData.isGmaxChallengeComplete
   );
   if (isPostBattle) {
     const isDefeat = Boolean(battleData.isDefeatScreen);
+    const isGmaxComplete = Boolean(battleData.isGmaxChallengeComplete);
+    const hasNext = Boolean(battleData.hasNextBattleBtn);
+
+    if (isGmaxComplete) {
+      return {
+        labelHtml: '&#10003; G-Max Challenge Complete',
+        hudText: '&#10003; Complete',
+        disabled: true,
+        btnClass: 'btn',
+        action: null
+      };
+    }
+
+    if (hasNext) {
+      return {
+        labelHtml: '&#9889; Next Battle',
+        hudText: 'Next Battle',
+        disabled: false,
+        btnClass: 'btn btn-accent',
+        action: () => {
+          executeAiBattleAction('click-rematch-button', {});
+        }
+      };
+    }
+
     return {
       labelHtml: isDefeat ? '&#10003; Battle Finished (Defeat)' : '&#10003; Battle Complete',
       hudText: isDefeat ? '&#10003; Defeat' : '&#10003; Complete',
@@ -11125,8 +11640,12 @@ function updateTeamBuilderBattleAction(battleData) {
     return;
   }
 
-  const isComplete = Boolean(config.disabled || !config.action || (config.labelHtml && (config.labelHtml.indexOf('Battle Complete') !== -1 || config.labelHtml.indexOf('Battle Finished') !== -1)));
-  if (isComplete) {
+  const isMatchOver = Boolean(
+    (battleData && (battleData.isPostBattleScreen || battleData.isVictoryScreen || battleData.isDefeatScreen || battleData.isGmaxChallengeComplete || battleData.hasNextBattleBtn)) ||
+    (config && (config.disabled || !config.action || (config.labelHtml && (config.labelHtml.indexOf('Battle Complete') !== -1 || config.labelHtml.indexOf('Battle Finished') !== -1 || config.labelHtml.indexOf('Challenge Complete') !== -1 || config.labelHtml.indexOf('Next Battle') !== -1))))
+  );
+  backendLog('BATTLE_ACTION_EVAL', `isMatchOver=${isMatchOver}, action="${config ? config.hudText || 'none' : 'none'}", hasNextBattleBtn=${Boolean(battleData && battleData.hasNextBattleBtn)}, isVictoryScreen=${Boolean(battleData && battleData.isVictoryScreen)}, loopChecked=${Boolean(teamBattleLoopCheck && teamBattleLoopCheck.checked)}`);
+  if (isMatchOver) {
     if (battleAutoStepTimer) {
       clearTimeout(battleAutoStepTimer);
       battleAutoStepTimer = null;
@@ -11140,8 +11659,17 @@ function updateTeamBuilderBattleAction(battleData) {
       return;
     }
 
-    // Check if Loop mode is armed
-    if (teamBattleLoopCheck && teamBattleLoopCheck.checked && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
+    // Check if G-Max Challenge is fully completed
+    if (isGMaxChallengeModeActive() && ((battleData && battleData.isGmaxChallengeComplete) || (config && config.labelHtml && config.labelHtml.indexOf('G-Max Challenge Complete') !== -1))) {
+      isBattleLoopRunning = false;
+      if (teamBattleLoopCheck) teamBattleLoopCheck.checked = false;
+      updateLoopCheckboxVisual();
+      if (teamActionStatus) {
+        teamActionStatus.textContent = 'G-Max Challenge successfully completed!';
+        teamActionStatus.style.color = '#10b981';
+      }
+    } else if (teamBattleLoopCheck && teamBattleLoopCheck.checked && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
+      // Loop mode proceeds to Next Battle or rematch after human micro-rest
       scheduleNextLoopBattle();
     }
   }
@@ -11154,13 +11682,16 @@ function updateTeamBuilderBattleAction(battleData) {
   teamBattleActionBtn.onclick = () => {
     userManuallyPaused = false;
     if (typeof config.action === 'function') {
+      const isNextBattleClick = Boolean(config.labelHtml && config.labelHtml.indexOf('Next Battle') !== -1);
       if (teamBattleAutoCheck && teamBattleAutoCheck.checked) {
         isBattleAutoRunning = true;
       } else {
         isBattleAutoRunning = false;
       }
       if (teamActionStatus) {
-        teamActionStatus.textContent = isBattleAutoRunning ? 'Auto executing turn...' : 'Applying...';
+        teamActionStatus.textContent = isNextBattleClick
+          ? 'Next battle loading...'
+          : (isBattleAutoRunning ? 'Auto executing turn...' : 'Applying...');
         teamActionStatus.style.color = '#388bfd';
       }
       teamBattleActionBtn.disabled = true;
@@ -11173,12 +11704,12 @@ function updateTeamBuilderBattleAction(battleData) {
 
   // If loop mode is active on non-complete screens, ensure auto runs
   if (teamBattleLoopCheck && teamBattleLoopCheck.checked && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
-    if (!isUnlockChallengeActive && !isCaptchaAlarmActive && !isComplete) {
+    if (!isUnlockChallengeActive && !isCaptchaAlarmActive && !isMatchOver) {
       isBattleAutoRunning = true;
     }
   }
 
-  if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isComplete && typeof config.action === 'function' && !config.disabled) {
+  if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isMatchOver && typeof config.action === 'function' && !config.disabled) {
     if (battleAutoStepTimer) {
       clearTimeout(battleAutoStepTimer);
       battleAutoStepTimer = null;
@@ -11350,6 +11881,11 @@ function executeAiBattleAction(action, payload) {
       teamBattleActionBtn.disabled = false;
     }
   }, 4000);
+  if (action === 'click-rematch-button') {
+    if (delugeView && typeof delugeView.send === 'function') {
+      delugeView.send('click-rematch-button');
+    }
+  }
   delugeView.send('apply-ai-battle-action', Object.assign({ action: action }, payload || {}));
 }
 
@@ -12080,6 +12616,10 @@ function loadSafetySettingsIntoUI() {
   if (safetyAutoStopMin) safetyAutoStopMin.value = s.autoStopMinMinutes || 5;
   if (safetyAutoStopMax) safetyAutoStopMax.value = s.autoStopMaxMinutes || 30;
 
+  if (safetySpeedToggle) safetySpeedToggle.checked = s.enableMovementSpeed !== false;
+  if (safetySpeedMin) safetySpeedMin.value = (typeof s.movementSpeedMinSec === 'number' && s.movementSpeedMinSec > 0) ? s.movementSpeedMinSec : 1.7;
+  if (safetySpeedMax) safetySpeedMax.value = (typeof s.movementSpeedMaxSec === 'number' && s.movementSpeedMaxSec > 0) ? s.movementSpeedMaxSec : 2.8;
+
   if (safetyMapRotationToggle) safetyMapRotationToggle.checked = (s.enableMapRotation === true || (config.settings && config.settings.randomMapHopping === true));
   if (safetyMapRotationMin) safetyMapRotationMin.value = s.mapRotationMinMinutes || 10;
   if (safetyMapRotationMax) safetyMapRotationMax.value = s.mapRotationMaxMinutes || 30;
@@ -12129,6 +12669,25 @@ function saveSafetySettingsFromUI() {
   config.safety.enableDeadManSwitch = safetyAutoStopToggle ? safetyAutoStopToggle.checked : true;
   config.safety.autoStopMinMinutes = autoMin;
   config.safety.autoStopMaxMinutes = autoMax;
+
+  let spdMin = safetySpeedMin ? parseFloat(safetySpeedMin.value) : 1.7;
+  let spdMax = safetySpeedMax ? parseFloat(safetySpeedMax.value) : 2.8;
+  if (isNaN(spdMin) || spdMin <= 0) spdMin = 1.7;
+  if (isNaN(spdMax) || spdMax <= 0) spdMax = 2.8;
+  if (spdMin > 50) spdMin = spdMin / 1000;
+  if (spdMax > 50) spdMax = spdMax / 1000;
+  if (spdMin > spdMax) {
+    const tmp = spdMin;
+    spdMin = spdMax;
+    spdMax = tmp;
+  }
+  config.safety.enableMovementSpeed = safetySpeedToggle ? safetySpeedToggle.checked : true;
+  config.safety.movementSpeedMinSec = parseFloat(spdMin.toFixed(2));
+  config.safety.movementSpeedMaxSec = parseFloat(spdMax.toFixed(2));
+  if (!config.settings) config.settings = {};
+  config.settings.baseDelay = Math.round(((spdMin + spdMax) / 2) * 1000);
+  config.settings.jitter = Math.round((spdMax - spdMin) * 1000);
+  config.settings.minSafetyFloor = Math.round(spdMin * 1000);
 
   const rotMin = Math.max(1, parseInt(safetyMapRotationMin.value, 10) || 10);
   const rotMax = Math.max(rotMin, parseInt(safetyMapRotationMax.value, 10) || 30);

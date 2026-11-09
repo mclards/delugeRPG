@@ -230,24 +230,48 @@ assert.strictEqual(mewtwoModalAnalysis.recommendedMoves.length, 4, 'Must recomme
 assert.strictEqual(new Set(mewtwoModalAnalysis.recommendedMoves.map(m => m.name.toLowerCase())).size, 4, 'Recommended moves must be 100% deduplicated');
 console.log('  Live Evolve Modal Audit -> Shadow Mega Mewtwo X dual STAB & duplicate handling verified');
 
-// D4. Test Evolution Readiness Filter: Strict Minimum Level Enforcement & Zero Omission of Unsynced Pages
+// D4. Test Evolution Readiness Filter: Strict Minimum Level Enforcement, Living Pokedex Ownership & Zero Omission of Unsynced Pages
 const mockBoxCollection = [
-  { id: 'p1', name: 'Shadow Onix', level: 12, canEvolve: true },
+  { id: 'p0a', name: 'Ghostly Onix', level: 14, canEvolve: true },
+  { id: 'p0b', name: 'Dark Scyther', level: 4, canEvolve: true },
+  { id: 'p1', name: 'Shadow Onix', level: 45, canEvolve: true },
   { id: 'p2', name: 'Chrome Cosmog', level: 10, canEvolve: true },
   { id: 'p3', name: 'Mirage Torchic', level: 12, canEvolve: true },
   { id: 'p4', name: 'Shadow Mewtwo', level: 100 },
   { id: 'p5', name: 'Poipole', level: 96, canEvolve: true },
-  { id: 'p6', name: 'Venusaur', level: 100 }
+  { id: 'p6', name: 'Venusaur', level: 100 },
+  { id: 'p7', name: 'Mareep', level: 100, canEvolve: true },
+  { id: 'p8', name: 'Swablu', level: 100, canEvolve: true },
+  { id: 'p8m', name: 'Mega Altaria', level: 100, canEvolve: false },
+  { id: 'p9', name: 'Hisuian Sliggoo', level: 100, canEvolve: true },
+  { id: 'p9g', name: 'Hisuian Goodra', level: 100, canEvolve: false }
 ];
 const boxReady = evolutionEngine.getEvolveReadyPokemon(mockBoxCollection);
 const readyNames = boxReady.map(p => p.name);
-assert(readyNames.includes('Shadow Onix'), 'Shadow Onix Lv 12 must be ready (Metal Coat item evo)');
+const uniqueReadyNames = boxReady.filter(p => p.hasUnique).map(p => p.name);
+assert(!readyNames.includes('Ghostly Onix'), 'Ghostly Onix Lv 14 untrained wild catch (< Lv 20) must be excluded');
+assert(!readyNames.includes('Dark Scyther'), 'Dark Scyther Lv 4 untrained wild catch (< Lv 20) must be excluded');
+assert(readyNames.includes('Shadow Onix'), 'Shadow Onix Lv 45 must be ready (minLevel 40)');
 assert(!readyNames.includes('Chrome Cosmog'), 'Chrome Cosmog Lv 10 must not be ready (minLevel 43)');
 assert(!readyNames.includes('Mirage Torchic'), 'Mirage Torchic Lv 12 must not be ready (minLevel 16)');
 assert(readyNames.includes('Shadow Mewtwo'), 'Shadow Mewtwo Lv 100 on unsynced page must be ready');
 assert(readyNames.includes('Poipole'), 'Poipole Lv 96 must be ready (minLevel 60)');
 assert(readyNames.includes('Venusaur'), 'Venusaur Lv 100 must be ready for Mega Venusaur');
-console.log('  Evolution Readiness Audit -> Under-leveled excluded & Level 100 / Megas included correctly');
+assert(uniqueReadyNames.includes('Mareep'), 'Mareep Lv 100 must be ready & unique for immediate next stage Flaaffy');
+assert.strictEqual(boxReady.find(p => p.name === 'Mareep').bestBranch.fullName, 'Flaaffy', 'Mareep must evolve to immediate next stage Flaaffy');
+assert(uniqueReadyNames.includes('Swablu'), 'Swablu Lv 100 must be ready & unique for Altaria even if Mega Altaria is owned');
+assert(!uniqueReadyNames.includes('Hisuian Sliggoo'), 'Hisuian Sliggoo Lv 100 must be duplicate-blocked when Hisuian Goodra is owned');
+console.log('  Evolution Readiness Audit -> Under-leveled excluded & Living Pokedex immediate stages verified');
+
+// D5. Test Non-Normal Variant Evolve Modal & Full 554-Species analyzeEvolutionPath Coverage
+const darkWeedleAnalysis = aiAssistant.analyzeEvolutionPath('Dark Weedle', mockBoxCollection);
+assert(darkWeedleAnalysis && darkWeedleAnalysis.branches.some(b => b.fullName === 'Dark Kakuna' && b.isImmediateStage), 'Dark Weedle must resolve Dark Kakuna as immediate stage');
+const sliggooAnalysis = aiAssistant.analyzeEvolutionPath('Hisuian Sliggoo', mockBoxCollection);
+assert(sliggooAnalysis && sliggooAnalysis.bestBranch && sliggooAnalysis.bestBranch.name === 'Hisuian Goodra' && sliggooAnalysis.bestBranch.isDuplicate, 'Dynamic STAGE_TRANSITIONS family must resolve Hisuian Goodra as owned duplicate');
+const preloadSrc = fs.readFileSync('game-preload.js', 'utf8');
+const detectBlock = preloadSrc.slice(preloadSrc.indexOf('function detectEvolveCard()'), preloadSrc.indexOf('function syncEvolveCardState('));
+assert(detectBlock.includes('const VARIANT_PREFIX_REGEX ='), 'detectEvolveCard must define VARIANT_PREFIX_REGEX in local scope');
+console.log('  Variant Evolve Modal & Dynamic Family Audit -> Dark Weedle & 554-species path coverage verified');
 
 // E. Test chat AI copilot responses
 const evoChatResp = aiAssistant.askAssistant('what should i evolve eevee into?', { collection: coll });
@@ -493,6 +517,18 @@ const victoryBattle = {
 };
 const isComplete = Boolean(victoryBattle.isVictoryScreen || victoryBattle.roster.every(p => p.isFainted || p.hp <= 0));
 assert.strictEqual(isComplete, true, 'Victory screen must indicate battle complete');
+
+// Scenario 6b: Challenge Post-Battle with Next Battle Link (G-Max Challenge)
+const gmaxNextBattle = {
+  trainerName: 'G-Max Opponent',
+  isVictoryScreen: true,
+  isPostBattleScreen: true,
+  hasNextBattleBtn: true,
+  roster: [{ name: 'Charizard', types: ['Fire', 'Flying'], level: 100, hp: 0, maxHp: 400, isFainted: true }]
+};
+const isPostBattleNext = Boolean(gmaxNextBattle.isVictoryScreen || gmaxNextBattle.hasNextBattleBtn);
+assert.strictEqual(isPostBattleNext, true, 'G-Max victory screen with Next Battle must indicate post-battle');
+assert.strictEqual(gmaxNextBattle.hasNextBattleBtn, true, 'hasNextBattleBtn must be true');
 
 // Scenario 7: Training Team 2-Pokemon EXP Maximization (Primary Trainee Leads First -> Carry Finishes When Trainee Dies)
 const trainingBattleStart = {
@@ -946,7 +982,99 @@ assert(analysisConsecutive.fullRestoreReason.includes('consecutive lockout'), 'R
 
 console.log('\n[PASS] AUDIT 12: Full Restore Tactical Decision Engine (Useless vs Chance) Verified');
 
-// 13. AUDIT 100% 7-BIT CLEAN ASCII
+// 13. AUDIT: G-Max Challenge Next Battle, Complete Flow & Variant Uniqueness
+console.log('\n--- AUDIT 13: G-Max Challenge & Evolution Duplicate Prevention ---');
+const teamEngine = require('./team_engine.js');
+const sampleCol = [
+  { id: 'gm1', name: 'Normal G-Max Melmetal', variant: 'Normal', level: 100 },
+  { id: 'm1', name: 'Melmetal', variant: 'Normal', level: 100 },
+  { id: 'm2', name: 'Metallic Melmetal', variant: 'Metallic', level: 100 },
+  { id: 'm3', name: 'Meltan', variant: 'Normal', level: 100 },
+  { id: 'm4', name: 'Melmetal', variant: 'Normal', level: 80 }
+];
+
+// Test 1: Duplicate variant prevention (Melmetal Normal is duplicate, Metallic is unique)
+assert.strictEqual(teamEngine.isGmaxChallengeTargetEligible(sampleCol[1], sampleCol), false, 'Normal Melmetal must be rejected because Normal G-Max Melmetal is owned');
+assert.strictEqual(teamEngine.isGmaxChallengeTargetEligible(sampleCol[2], sampleCol), true, 'Metallic Melmetal must be accepted because Metallic G-Max Melmetal is not owned');
+
+// Test 2: Pre-evolution exclusion (Meltan cannot do G-Max challenge)
+assert.strictEqual(teamEngine.isGmaxChallengeTargetEligible(sampleCol[3], sampleCol), false, 'Meltan must be rejected because it is not evolved to final G-Max stage');
+
+// Test 3: Level 100 requirement
+assert.strictEqual(teamEngine.isGmaxChallengeTargetEligible(sampleCol[4], sampleCol), false, 'Level 80 Melmetal must be rejected because G-Max requires Lv 100');
+
+// Test 4: Evolution & Moves ownership & duplicate detection across variants
+const ownMelmetal = evolutionEngine.checkEvolutionOwnership('Melmetal', sampleCol, 'Normal');
+assert.strictEqual(ownMelmetal.isOwned, true, 'Melmetal Normal must be detected as owned');
+assert.strictEqual(ownMelmetal.hasGmaxOwned, true, 'Melmetal Normal must have hasGmaxOwned = true');
+assert(ownMelmetal.summaryLabel.indexOf('(G-MAX)') !== -1, 'Summary label must indicate G-MAX');
+
+// Test 5: Evolve-ready box list deduplication
+const readyPokes = evolutionEngine.getEvolveReadyPokemon([
+  { id: 'm3', name: 'Normal Meltan', variant: 'Normal', level: 100 },
+  { id: 'm1', name: 'Normal Melmetal', variant: 'Normal', level: 100, canEvolve: false },
+  { id: 'gm1', name: 'Normal G-Max Melmetal', variant: 'Normal', level: 100 }
+]);
+assert.strictEqual(readyPokes.length, 1, 'Meltan is evolve-ready');
+assert.strictEqual(readyPokes[0].hasUnique, false, 'Meltan has no unique branches because Normal Melmetal is owned');
+
+// Test 6: G-Max Challenge Post-Battle DOM regex
+const gmaxVictoryHtml = "Well Done! You've defeated your opponent in the GMax Challenge. Check out your next opponent and their team on the GMAX CHALLENGE page Or start your NEXT BATTLE straight away";
+const isGmaxVic = /defeated your opponent in the (?:g[- ]?max|gmax)\s*challenge/i.test(gmaxVictoryHtml);
+assert.strictEqual(isGmaxVic, true, 'G-Max victory regex must match victory text');
+
+const gmaxCompleteHtml = "Well Done! You've defeated your opponent in the GMax Challenge. With this, you have successfully completed the GMax Challenge. Visit the GMAX CHALLENGE page to proceed with GMax Evolution.";
+const isGmaxDone = /successfully completed the (?:g[- ]?max|gmax)\s*challenge/i.test(gmaxCompleteHtml);
+assert.strictEqual(isGmaxDone, true, 'G-Max complete regex must match complete text');
+
+// Test 7: Post-battle Next Battle vs G-Max Challenge Complete detection
+const appJsSource = fs.readFileSync('app.js', 'utf8');
+assert(appJsSource.includes("labelHtml: '&#9889; Next Battle'"), 'app.js must provide Next Battle button');
+assert(appJsSource.includes("labelHtml: '&#10003; G-Max Challenge Complete'"), 'app.js must provide G-Max Challenge Complete button');
+assert(appJsSource.includes("isMatchOver"), 'app.js must define isMatchOver guard to stop Auto on post-battle');
+
+// Test 8: Auto Hunting Movement Speed range verification
+assert(appJsSource.includes("function getHardenedHumanDelay()"), 'app.js must implement getHardenedHumanDelay');
+assert(appJsSource.includes("s.movementSpeedMinSec"), 'getHardenedHumanDelay must use configurable movement speed');
+assert(appJsSource.includes("s.movementSpeedMaxSec"), 'getHardenedHumanDelay must use configurable max speed');
+
+// Test 9: Move Selection Modal Accuracy (Chrome Pidgeotto, Dark Kakuna, Dark Beedrill) & Checkbox Synchronization
+const pidgeottoEval = evolutionEngine.evaluateEvolutionMoveSelection('Chrome Pidgeotto', {
+  currentMoves: ['Gust', 'Tackle', 'Quick Attack', 'Wing Attack'],
+  evolutionMoves: ['Gust', 'Tackle', 'Quick Attack', 'Twister']
+}, coll);
+assert(pidgeottoEval.types.includes('Normal') && pidgeottoEval.types.includes('Flying'), 'Chrome Pidgeotto must resolve to Normal/Flying');
+assert.strictEqual(pidgeottoEval.recommendedMoves[0].name, 'Wing Attack', 'Wing Attack must be Slot 1 for Chrome Pidgeotto');
+assert.strictEqual(pidgeottoEval.recommendedMoves[0].isStab, true, 'Wing Attack must be STAB on Chrome Pidgeotto');
+assert(pidgeottoEval.dropMoves.some(d => d.name === 'Twister'), 'Twister must be dropped on Chrome Pidgeotto');
+
+const kakunaEval = evolutionEngine.evaluateEvolutionMoveSelection('Dark Kakuna', {
+  currentMoves: ['Poison Sting', 'Absorb', 'Poison Fang', 'Absorb'],
+  evolutionMoves: ['Tackle', 'Tackle', 'Tackle', 'Tackle']
+}, coll);
+assert(kakunaEval.types.includes('Bug') && kakunaEval.types.includes('Poison'), 'Dark Kakuna must resolve to Bug/Poison');
+assert.strictEqual(kakunaEval.recommendedMoves[0].name, 'Poison Fang', 'Poison Fang must be Slot 1 STAB on Dark Kakuna');
+assert.strictEqual(kakunaEval.recommendedMoves[0].isStab, true, 'Poison Fang must be STAB on Dark Kakuna');
+assert(kakunaEval.duplicateChoices.includes('Absorb') && kakunaEval.duplicateChoices.includes('Tackle'), 'Intra-list duplicates Absorb and Tackle must be flagged');
+
+const beedrillEval = evolutionEngine.evaluateEvolutionMoveSelection('Dark Beedrill', {
+  currentMoves: ['Tackle', 'Poison Fang', 'Absorb', 'Poison Sting'],
+  evolutionMoves: ['Fury Attack', 'Pin Missile', 'Rage', 'Poison Jab']
+}, coll);
+assert(beedrillEval.types.includes('Bug') && beedrillEval.types.includes('Poison'), 'Dark Beedrill must resolve to Bug/Poison');
+assert.strictEqual(beedrillEval.recommendedMoves[0].name, 'Poison Jab', 'Poison Jab must be Slot 1 on Dark Beedrill');
+assert.strictEqual(beedrillEval.recommendedMoves[1].name, 'Pin Missile', 'Pin Missile must be Slot 2 on Dark Beedrill');
+assert(beedrillEval.recommendedMoves.some(m => m.name === 'Poison Fang' && m.isStab), 'Poison Fang must be kept as STAB on Dark Beedrill');
+
+assert(preloadContent.includes('async function applyModalMoveCheckboxes(modalContainer, data)'), 'game-preload.js must implement applyModalMoveCheckboxes');
+assert(preloadContent.includes('async function toggleMoveCheckboxCleanly(cb, shouldCheck)'), 'game-preload.js must implement toggleMoveCheckboxCleanly');
+assert(preloadContent.includes("link.closest('#DModal, #DMbody, #delugemodal, .modal')"), 'game-preload.js must ignore modal button clicks when capturing lastClickedPokemonInfo');
+assert(preloadContent.includes('function isModalElementOpen(el)'), 'game-preload.js must implement ancestor-aware isModalElementOpen to ignore hidden #DMbody inside closed #DModal');
+assert(appJsSource.includes('if (!matchesActiveModal && activeEvolveCardData)'), 'app.js selectEvolvePokemon must clear stale activeEvolveCardData when selecting a Pokemon with no open modal');
+
+console.log('[PASS] AUDIT 13: G-Max Challenge & Evolution Duplicate Prevention Verified');
+
+// 14. AUDIT 100% 7-BIT CLEAN ASCII
 const filesToCheck = ['app.html', 'app.js', 'ai_agent_bridge.js', 'evolution_engine.js', 'team_engine.js', 'ml_combat_engine.py', 'package.json', 'game-preload.js'];
 filesToCheck.forEach(f => {
   const content = fs.readFileSync(f, 'utf8');
@@ -956,7 +1084,7 @@ filesToCheck.forEach(f => {
     }
   }
 });
-console.log('\n[PASS] AUDIT 13: 100% 7-bit Clean ASCII Integrity Verified Across All Files');
+console.log('\n[PASS] AUDIT 14: 100% 7-bit Clean ASCII Integrity Verified Across All Files');
 
 console.log('\n================================================================');
 console.log('   ALL LIVE AI ASSISTANT & COPILOT AUDITS PASSED PERFECTLY     ');

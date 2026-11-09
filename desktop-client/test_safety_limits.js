@@ -51,6 +51,9 @@ runTest('config.json safety parameters integrity', () => {
   assert(s.enableDeadManSwitch === true, 'enableDeadManSwitch must be true');
   assert(typeof s.autoStopMinMinutes === 'number' && s.autoStopMinMinutes >= 1, 'autoStopMinMinutes must be >= 1');
   assert(typeof s.autoStopMaxMinutes === 'number' && s.autoStopMaxMinutes >= s.autoStopMinMinutes, 'autoStopMaxMinutes >= autoStopMinMinutes');
+  assert(s.enableMovementSpeed === true, 'enableMovementSpeed must be true');
+  assert(typeof s.movementSpeedMinSec === 'number' && s.movementSpeedMinSec >= 0.5, 'movementSpeedMinSec must be >= 0.5');
+  assert(typeof s.movementSpeedMaxSec === 'number' && s.movementSpeedMaxSec >= s.movementSpeedMinSec, 'movementSpeedMaxSec >= movementSpeedMinSec');
   assert(s.enableForcedBreaks === true, 'enableForcedBreaks must be true');
   assert(typeof s.breakMinSteps === 'number' && s.breakMinSteps >= 10, 'breakMinSteps must be >= 10');
   assert(typeof s.breakMaxSteps === 'number' && s.breakMaxSteps >= s.breakMinSteps, 'breakMaxSteps >= breakMinSteps');
@@ -134,6 +137,9 @@ runTest('Docked Safety Panel HTML elements and CSS zero-glow verification', () =
   assert(appHtml.includes('id="safetyZonesSelectAllBtn"'), 'app.html must define safetyZonesSelectAllBtn');
   assert(appHtml.includes('id="safetyZonesClearBtn"'), 'app.html must define safetyZonesClearBtn');
   assert(appHtml.includes('class="safety-zone-checkbox"'), 'app.html must define safety-zone-checkbox');
+  assert(appHtml.includes('id="safetySpeedToggle"'), 'app.html must define safetySpeedToggle');
+  assert(appHtml.includes('id="safetySpeedMin"'), 'app.html must define safetySpeedMin');
+  assert(appHtml.includes('id="safetySpeedMax"'), 'app.html must define safetySpeedMax');
 
   // Verify CSS zero-glow
   const panelIdx = appHtml.indexOf('id="safetySettingsModal"');

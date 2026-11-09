@@ -1266,8 +1266,9 @@ function scoreVsSingleOpponent(poke, oppTypes, oppLevel = 50, oppMoves = null, o
 function getBaseSpecies(name) {
   if (!name) return '';
   return name
-    .replace(/^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
-    .replace(/^(Mega|Primal|G-Max|Gigantamax)\s+/i, '')
+    .replace(/^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro|Normal)\s+/i, '')
+    .replace(/^(Mega|Primal|G-Max|Gigantamax|Gmax)\s+/i, '')
+    .replace(/^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro|Normal)\s+/i, '')
     .replace(/^(Alolan|Galarian|Hisuian|Paldean)\s+/i, '')
     .replace(/\s*\([^)]*\)/g, '')
     .replace(/-(Wash|Heat|Frost|Fan|Mow|Origin|Therian|Incarnate|Altered|Dusk-Mane|Dawn-Wings|Rapid-Strike|Single-Strike|Paldea|Hisui|Galar|Alola|Sky|Attack|Defense|Speed)$/i, '')
@@ -1286,6 +1287,14 @@ const PARADOX_SPECIES = [
   'iron treads', 'iron bundle', 'iron hands', 'iron jugulis', 'iron moth', 'iron thorns',
   'roaring moon', 'iron valiant', 'walking wake', 'iron leaves',
   'gouging fire', 'raging bolt', 'iron boulder', 'iron crown'
+];
+
+const GMAX_FINAL_SPECIES = [
+  'venusaur', 'charizard', 'blastoise', 'butterfree', 'pikachu', 'meowth', 'machamp', 'gengar',
+  'kingler', 'lapras', 'eevee', 'snorlax', 'garbodor', 'melmetal', 'rillaboom', 'cinderace',
+  'inteleon', 'corviknight', 'orbeetle', 'drednaw', 'coalossal', 'flapple', 'appletun',
+  'sandaconda', 'toxtricity', 'centiskorch', 'hatterene', 'grimmsnarl', 'alcremie', 'copperajah',
+  'duraludon', 'urshifu'
 ];
 
 const GMAX_SPECIES = [
@@ -1344,6 +1353,26 @@ function isCommonPokemon(pokeOrName) {
   return !isLegendaryPokemon(pokeOrName) && !isUltraBeast(pokeOrName) && !isParadoxPokemon(pokeOrName);
 }
 
+function getPokemonVariant(pokeOrName) {
+  if (!pokeOrName) return 'Normal';
+  let v = '';
+  if (typeof pokeOrName === 'object' && pokeOrName.variant && typeof pokeOrName.variant === 'string') {
+    v = pokeOrName.variant.trim();
+  }
+  const VARIANT_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)(?:\s+|$)/i;
+  if (!v || v.toLowerCase() === 'normal') {
+    const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
+    const m = String(raw).match(VARIANT_REGEX);
+    if (m) {
+      v = m[1];
+    }
+  }
+  if (!v) v = 'Normal';
+  const lower = v.toLowerCase();
+  if (lower === 'ghost') return 'Ghostly';
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
 function isAlreadyGmax(pokeOrName) {
   if (!pokeOrName) return false;
   const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
@@ -1356,6 +1385,36 @@ function isGmaxEligible(pokeOrName) {
   if (!pokeOrName) return false;
   if (isAlreadyGmax(pokeOrName)) return false;
   return isGmaxPokemon(pokeOrName);
+}
+
+function isGmaxChallengeTargetEligible(pokeOrName, collection) {
+  if (!pokeOrName) return false;
+  if (isAlreadyGmax(pokeOrName)) return false;
+  if (isActualMegaEvolution(pokeOrName)) return false;
+
+  const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
+  const base = getBaseSpecies(raw);
+  // Only final stage G-Max species eligible for G-Max challenge (pre-evolutions like Meltan or Charmander strictly excluded)
+  if (!GMAX_FINAL_SPECIES.includes(base)) return false;
+
+  const lvl = typeof pokeOrName === 'object' ? (pokeOrName.level || 0) : 100;
+  if (lvl < 100) return false;
+
+  // Duplicate Variant Guard: If user already owns the G-Max form of that exact variant in their collection, do not recommend!
+  if (Array.isArray(collection) && collection.length > 0) {
+    const candVariant = getPokemonVariant(pokeOrName).toLowerCase();
+    const hasOwnedGmaxVariant = collection.some(other => {
+      if (!other || !other.name) return false;
+      if (!isAlreadyGmax(other)) return false;
+      const otherBase = getBaseSpecies(other.name);
+      if (otherBase !== base) return false;
+      const otherVariant = getPokemonVariant(other).toLowerCase();
+      return otherVariant === candVariant;
+    });
+    if (hasOwnedGmaxVariant) return false;
+  }
+
+  return true;
 }
 
 function isGmaxPokemon(pokeOrName) {
@@ -1409,6 +1468,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection, explicitVar
       isDuplicate: false,
       isOwned: false,
       hasMegaOwned: false,
+      hasGmaxOwned: false,
       hasExactOwned: false,
       ownedPokemon: null,
       type: 'UNOWNED',
@@ -1461,6 +1521,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection, explicitVar
       isDuplicate: false,
       isOwned: false,
       hasMegaOwned: false,
+      hasGmaxOwned: false,
       hasExactOwned: false,
       ownedPokemon: null,
       type: 'UNOWNED',
@@ -1471,8 +1532,10 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection, explicitVar
   }
 
   const isTargetMega = isActualMegaEvolution(candidate) || isActualMegaEvolution(candSpecies);
+  const isTargetGmax = isAlreadyGmax(candidate) || isAlreadyGmax(candSpecies);
   const matchingSpecies = [];
   const matchingMegas = [];
+  const matchingGmax = [];
   let exactMatch = null;
 
   for (let i = 0; i < collection.length; i++) {
@@ -1514,12 +1577,45 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection, explicitVar
           matchingMegas.push(p);
         }
       }
+      if (isAlreadyGmax(p)) {
+        if (hasExplicitVariant || isTargetGmax) {
+          if (pVariant === candidateVariant) {
+            matchingGmax.push(p);
+          }
+        } else {
+          matchingGmax.push(p);
+        }
+      }
     }
   }
 
   const capitalize = (s) => s ? (s.charAt(0).toUpperCase() + s.slice(1)) : '';
 
-  if (matchingMegas.length > 0) {
+  const isHighValueSpecial = (typeof isLegendaryPokemon === 'function' && (isLegendaryPokemon(candSpecies) || isLegendaryPokemon(baseSpecies))) ||
+                             (typeof isUltraBeast === 'function' && (isUltraBeast(candSpecies) || isUltraBeast(baseSpecies))) ||
+                             (typeof isParadoxPokemon === 'function' && (isParadoxPokemon(candSpecies) || isParadoxPokemon(baseSpecies)));
+
+  if (isHighValueSpecial && !isTargetMega && !isTargetGmax) {
+    // High-Value Legendary / Ultra Beast / Paradox Shield:
+    // A wild base legendary can NEVER be marked duplicate due to Mega equivalence or variant cross-matching!
+    // It can ONLY be marked duplicate if an EXACT match of the exact same variant is already owned in collection!
+    if (!exactMatch) {
+      return {
+        isDuplicate: false,
+        isOwned: matchingSpecies.length > 0,
+        hasMegaOwned: matchingMegas.length > 0,
+        hasGmaxOwned: matchingGmax.length > 0,
+        hasExactOwned: false,
+        ownedPokemon: matchingSpecies[0] || null,
+        type: matchingSpecies.length > 0 ? 'SPECIES_ALREADY_OWNED' : 'UNOWNED',
+        alertTitle: '',
+        alertMessage: '',
+        reason: ''
+      };
+    }
+  }
+
+  if (isTargetMega && matchingMegas.length > 0) {
     matchingMegas.sort((a, b) => (b.level || 0) - (a.level || 0));
     const topMega = matchingMegas[0];
     const fullMegaName = (topMega.name.toLowerCase().startsWith((topMega.variant || 'Normal').toLowerCase()) || topMega.variant === 'Normal')
@@ -1530,12 +1626,34 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection, explicitVar
       isDuplicate: true,
       isOwned: true,
       hasMegaOwned: true,
+      hasGmaxOwned: false,
       hasExactOwned: Boolean(exactMatch),
       ownedPokemon: topMega,
       type: 'MEGA_ALREADY_OWNED',
       alertTitle: 'STOP: MEGA EVOLUTION ALREADY OWNED',
       alertMessage: `You already own ${fullMegaName} (Lv ${topMega.level || 100})!`,
       reason: `You already own the Mega Evolution of ${capitalize(baseSpecies)}. 100% uniqueness protection active.`
+    };
+  }
+
+  if (isTargetGmax && matchingGmax.length > 0) {
+    matchingGmax.sort((a, b) => (b.level || 0) - (a.level || 0));
+    const topGmax = matchingGmax[0];
+    const fullGmaxName = (topGmax.name.toLowerCase().startsWith((topGmax.variant || 'Normal').toLowerCase()) || topGmax.variant === 'Normal')
+      ? topGmax.name
+      : `${topGmax.variant} ${topGmax.name}`;
+
+    return {
+      isDuplicate: true,
+      isOwned: true,
+      hasMegaOwned: false,
+      hasGmaxOwned: true,
+      hasExactOwned: Boolean(exactMatch),
+      ownedPokemon: topGmax,
+      type: 'GMAX_ALREADY_OWNED',
+      alertTitle: 'STOP: G-MAX EVOLUTION ALREADY OWNED',
+      alertMessage: `You already own ${fullGmaxName} (Lv ${topGmax.level || 100})!`,
+      reason: `You already own the G-Max Evolution of ${capitalize(baseSpecies)}. 100% uniqueness protection active.`
     };
   }
 
@@ -1547,7 +1665,8 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection, explicitVar
     return {
       isDuplicate: true,
       isOwned: true,
-      hasMegaOwned: false,
+      hasMegaOwned: matchingMegas.length > 0,
+      hasGmaxOwned: matchingGmax.length > 0,
       hasExactOwned: true,
       ownedPokemon: exactMatch,
       type: 'EXACT_ALREADY_OWNED',
@@ -1559,14 +1678,17 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, collection, explicitVar
 
   if (matchingSpecies.length > 0) {
     matchingSpecies.sort((a, b) => (b.level || 0) - (a.level || 0));
-    const topSp = matchingSpecies[0];
+    if (matchingMegas.length > 0) matchingMegas.sort((a, b) => (b.level || 0) - (a.level || 0));
+    if (matchingGmax.length > 0) matchingGmax.sort((a, b) => (b.level || 0) - (a.level || 0));
+    const topSp = matchingMegas[0] || matchingGmax[0] || matchingSpecies[0];
 
-    // Species exists in collection under a DIFFERENT variant (e.g. user owns Dark Eternatus, encountered Normal Eternatus).
-    // In DelugeRPG, distinct variants are completely separate targets and must NOT be flagged as duplicate encounters.
+    // Species exists in collection under a DIFFERENT variant or different form (e.g. user owns Mega Kangaskhan, encountered base Kangaskhan).
+    // In DelugeRPG, distinct variants and baseline vs Mega forms are completely separate catches and must NOT be flagged as duplicate encounters.
     return {
       isDuplicate: false,
       isOwned: true,
-      hasMegaOwned: false,
+      hasMegaOwned: matchingMegas.length > 0,
+      hasGmaxOwned: matchingGmax.length > 0,
       hasExactOwned: false,
       ownedPokemon: topSp,
       type: 'SPECIES_ALREADY_OWNED',
@@ -1635,10 +1757,10 @@ function buildBestTeam(trainer, collection, fullCollection = null) {
       ? fullCollection
       : collection;
 
-    // 1. Pick the best Level 100 G-Max eligible Pokemon as Slot 1 Target
-    const gmaxEligible = candidatePool.concat(fullPool).filter(isGmaxEligible);
-    const lvl100Gmax = gmaxEligible.filter(p => (p.level || 0) === 100);
-    const targetPool = (lvl100Gmax.length > 0 ? lvl100Gmax : gmaxEligible).slice();
+    // 1. Pick the best Level 100 G-Max eligible Pokemon as Slot 1 Target (strictly excluding pre-evolutions and owned G-Max variant duplicates)
+    const combinedPool = candidatePool.concat(fullPool);
+    const gmaxEligible = combinedPool.filter(p => isGmaxChallengeTargetEligible(p, fullPool));
+    const targetPool = gmaxEligible.slice();
 
     targetPool.sort((a, b) => {
       const aScore = scoreVsSingleOpponent(a, ['Mixed'], 100).totalScore;
@@ -2489,6 +2611,7 @@ module.exports = {
     ULTRA_BEASTS,
     PARADOX_SPECIES,
     GMAX_SPECIES,
+    GMAX_FINAL_SPECIES,
     MEGA_SPECIES,
     LEGENDARY_SPECIES,
     isUltraBeast,
@@ -2501,6 +2624,8 @@ module.exports = {
     evaluateOwnershipAndMegaEquivalence,
     isAlreadyGmax,
     isGmaxEligible,
+    isGmaxChallengeTargetEligible,
+    getPokemonVariant,
     filterCandidatePool,
     isNegativePokemon,
     isInverseVariant

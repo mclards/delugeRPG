@@ -327,7 +327,8 @@ runTest('Custom Checkbox Structure & CSS Zero-Glow Audit', () => {
   // Verify all checkbox elements have sibling span.custom-checkbox
   const checkboxIds = [
     'subClassicLegCheckbox', 'subUltraBeastsCheckbox', 'subParadoxCheckbox',
-    'filterMegasCheckbox', 'avoidDuplicatesCheck', 'filterLevelCheckbox',
+    'filterMegasCheckbox', 'subMegasCheckbox', 'subGMaxCheckbox', 'subStartersCheckbox',
+    'avoidDuplicatesCheck', 'filterLevelCheckbox',
     'filterVariantsCheckbox',
     'legVarNormal', 'legVarShiny', 'legVarChrome', 'legVarRetro', 'legVarMetallic',
     'legVarShadow', 'legVarGhostly', 'legVarDark', 'legVarMirage', 'legVarNegative',

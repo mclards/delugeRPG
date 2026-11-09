@@ -2172,6 +2172,26 @@
                 </div>
               </div>
 
+              <!-- Movement Speed (Auto-Hunting) -->
+              <div style="background: #0b1424; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <span style="font-size: 10px; font-weight: 700; color: #c9d8ec; text-transform: uppercase; letter-spacing: 0.3px;">Movement Speed</span>
+                  <label class="switch">
+                    <input type="checkbox" id="safetySpeedToggle" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10.5px; color: #e0ecfa;">
+                  <span style="color: #8eaad0;">Random range:</span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" id="safetySpeedMin" class="clean-num-input" min="0.5" max="30" step="0.1" value="1.7" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="color: #566e96; font-weight: 700;">-</span>
+                    <input type="number" id="safetySpeedMax" class="clean-num-input" min="0.5" max="30" step="0.1" value="2.8" style="width: 50px; height: 22px; font-size: 10.5px;">
+                    <span style="width: 38px; display: inline-block; text-align: left; font-size: 9.5px; color: #8eaad0;">secs</span>
+                  </div>
+                </div>
+              </div>
+
               <!-- Random Map Rotation -->
               <div style="background: #0b1424; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
@@ -2375,7 +2395,7 @@
               <div class="dropdown-divider"></div>
               <div id="navVersionFooter" class="nav-version-footer">
                 <span class="nav-version-label">DelugeRPG Client</span>
-                <span id="navVersionBadge" class="nav-version-badge">v1.4.16</span>
+                <span id="navVersionBadge" class="nav-version-badge">v1.4.20</span>
               </div>
             </div>
           </div>

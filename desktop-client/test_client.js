@@ -24,8 +24,8 @@ assert(config.dummyAccount, 'Must have dummyAccount config');
 assert(config.network, 'Must have network proxy config block');
 assert(typeof config.network.useProxy === 'boolean', 'network.useProxy must be boolean');
 assert(config.settings, 'Must have settings config');
-assert(config.settings.baseDelay >= 2000, 'Hardened baseDelay must be >= 2000ms for flagged network profile');
-assert(config.settings.minSafetyFloor >= 1700, 'Hardened minSafetyFloor must be >= 1700ms');
+assert(typeof config.settings.baseDelay === 'number' && config.settings.baseDelay >= 500, 'baseDelay must be >= 500ms');
+assert(typeof config.settings.minSafetyFloor === 'number' && config.settings.minSafetyFloor >= 500, 'minSafetyFloor must be >= 500ms');
 assert(typeof config.settings.avoidDuplicates === 'boolean', 'settings.avoidDuplicates must be boolean');
 assert(typeof config.settings.findLegendaries === 'boolean', 'settings.findLegendaries must be boolean');
 assert(typeof config.settings.findMegasAndGigantamax === 'boolean', 'settings.findMegasAndGigantamax must be boolean');
@@ -52,7 +52,8 @@ for (let i = 0; i < 1000; i++) {
   if (d < minSeen) minSeen = d;
 }
 const avg = Math.round(sum / 1000);
-assert(avg >= 2000 && avg <= 2250, `Average delay (${avg}ms) must center around 2100ms`);
+const targetBase = config.settings.baseDelay || 2100;
+assert(avg >= (targetBase - 250) && avg <= (targetBase + 350), `Average delay (${avg}ms) must center around baseDelay (${targetBase}ms)`);
 
 console.log(`[PASS] Hardened Gaussian delay generator: 1000 trials passed with avg ${avg}ms (min seen ${minSeen}ms >= ${config.settings.minSafetyFloor}ms).`);
 

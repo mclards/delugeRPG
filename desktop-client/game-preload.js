@@ -1307,6 +1307,32 @@ function isPreloadActualMega(name) {
     return lower.includes('mega ') || lower.includes('primal ') || lower.startsWith('mega-') || lower.endsWith(' mega') || lower.endsWith(' primal');
 }
 
+function isPreloadLegendaryOrSpecial(name) {
+    if (!name) return false;
+    const clean = String(name)
+        .replace(/^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
+        .replace(/^(Mega|Primal|G-Max|Gigantamax)\s+/i, '')
+        .replace(/\s*\(Lv\s*\d+[^)]*\)\s*/gi, '')
+        .replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '')
+        .replace(/\s*\([^)]*\)/g, '')
+        .trim()
+        .toLowerCase();
+    if (!clean) return false;
+    const base = getPreloadBaseSpecies(clean);
+    return LEGENDARY_LOWER.includes(clean) || (base && LEGENDARY_LOWER.includes(base));
+}
+
+function checkHasExplicitCaughtText(container) {
+    if (!container) return false;
+    const txt = (container.innerText || container.textContent || '').toLowerCase();
+    return txt.indexOf('you have this pokemon in your box') !== -1 ||
+           txt.indexOf('already in your box') !== -1 ||
+           txt.indexOf('already caught') !== -1 ||
+           txt.indexOf('already in pokedex') !== -1 ||
+           txt.indexOf('pokedex: caught') !== -1 ||
+           txt.indexOf('dex: caught') !== -1;
+}
+
 function updateUserCollectionIndex(collection) {
     if (!Array.isArray(collection)) return;
     ownedUserCollection = collection;
@@ -1487,7 +1513,27 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
 
     const capitalize = (s) => s ? (s.charAt(0).toUpperCase() + s.slice(1)) : '';
 
-    if (matchingMegas.length > 0) {
+    const isLegendarySpecial = isPreloadLegendaryOrSpecial(candSpecies) || isPreloadLegendaryOrSpecial(baseSpecies);
+    if (isLegendarySpecial && !isTargetMega) {
+        // High-Value Legendary / Ultra Beast / Paradox Hardened Shield:
+        // A wild base legendary can NEVER be marked duplicate due to Mega equivalence or variant cross-matching!
+        // It can ONLY be marked duplicate if an EXACT match of the exact same variant is already owned in collection!
+        if (!exactMatch) {
+            return {
+                isDuplicate: false,
+                isOwned: matchingSpecies.length > 0,
+                hasMegaOwned: matchingMegas.length > 0,
+                hasExactOwned: false,
+                ownedPokemon: matchingSpecies[0] || null,
+                type: matchingSpecies.length > 0 ? 'SPECIES_ALREADY_OWNED' : 'UNOWNED',
+                alertTitle: '',
+                alertMessage: '',
+                reason: ''
+            };
+        }
+    }
+
+    if (isTargetMega && matchingMegas.length > 0) {
         matchingMegas.sort((a, b) => (b.level || 0) - (a.level || 0));
         const topMega = matchingMegas[0];
         const fullMegaName = (topMega.name.toLowerCase().startsWith((topMega.variant || 'Normal').toLowerCase()) || topMega.variant === 'Normal')
@@ -1515,7 +1561,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
         return {
             isDuplicate: true,
             isOwned: true,
-            hasMegaOwned: false,
+            hasMegaOwned: matchingMegas.length > 0,
             hasExactOwned: true,
             ownedPokemon: exactMatch,
             type: 'EXACT_ALREADY_OWNED',
@@ -1529,12 +1575,12 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
         matchingSpecies.sort((a, b) => (b.level || 0) - (a.level || 0));
         const topSp = matchingSpecies[0];
 
-        // Species exists in collection under a DIFFERENT variant (e.g. user owns Dark Eternatus, encountered Normal Eternatus).
-        // In DelugeRPG, distinct variants are completely separate targets and must NOT be flagged as duplicate encounters.
+        // Species exists in collection under a DIFFERENT variant or different form (e.g. user owns Dark Mega Mewtwo X, encountered Normal Mewtwo).
+        // In DelugeRPG, distinct variants and baseline vs Mega forms are completely separate catches and must NOT be flagged as duplicate encounters.
         return {
             isDuplicate: false,
             isOwned: true,
-            hasMegaOwned: false,
+            hasMegaOwned: matchingMegas.length > 0,
             hasExactOwned: false,
             ownedPokemon: topSp,
             type: 'SPECIES_ALREADY_OWNED',
@@ -1695,7 +1741,7 @@ function isCatchHoneypotTrap(el) {
     return false;
 }
 
-function dispatchHumanClick(el, callback) {
+function dispatchHumanClick(el, callback, opts) {
     if (!el) {
         if (typeof callback === 'function') callback();
         return;
@@ -1709,12 +1755,18 @@ function dispatchHumanClick(el, callback) {
         return;
     }
     try {
-        try {
-            if (typeof el.scrollIntoView === 'function') {
-                el.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' });
+        const skipScroll = Boolean(opts && opts.skipScroll);
+        if (!skipScroll) {
+            try {
+                const r = (typeof el.getBoundingClientRect === 'function') ? el.getBoundingClientRect() : null;
+                const vh = window.innerHeight || 800;
+                const inView = r && r.width > 0 && r.height > 0 && r.top >= 45 && r.bottom <= (vh - 15);
+                if (!inView && typeof el.scrollIntoView === 'function') {
+                    el.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' });
+                }
+            } catch (_) {
+                try { el.scrollIntoView(); } catch (_) {}
             }
-        } catch (_) {
-            try { el.scrollIntoView(); } catch (_) {}
         }
 
         const coords = getViewportDipCoords(el);
@@ -2080,9 +2132,14 @@ function checkEncounterIsDuplicate(container, shouldLog = false, explicitVariant
         const ownStatus = (typeof evaluateOwnershipAndMegaEquivalence === 'function')
             ? evaluateOwnershipAndMegaEquivalence(checkCandidate, explicitVariant)
             : null;
-        if (ownStatus && ownStatus.hasMegaOwned) {
-            if (shouldLog) console.log('[PokePreload] Duplicate check: OVERRIDE via Mega Evolution equivalence (' + ownStatus.alertTitle + ' -> ' + ownStatus.alertMessage + ')');
-            return true;
+        if (ownStatus && ownStatus.isDuplicate) {
+            const isHighVal = isPreloadLegendaryOrSpecial(checkCandidate) || isPreloadLegendaryOrSpecial(fallbackName);
+            if (isHighVal && !ownStatus.hasExactOwned) {
+                if (shouldLog) console.log('[PokePreload] Duplicate check: High-value Legendary/UB/Paradox protected from non-exact duplicate override');
+            } else {
+                if (shouldLog) console.log('[PokePreload] Duplicate check: OVERRIDE via collection ownership (' + (ownStatus.alertTitle || 'Already Owned') + ' -> ' + (ownStatus.alertMessage || 'Duplicate') + ')');
+                return true;
+            }
         }
 
         // 1B. Explicit UNCAUGHT text
@@ -2883,7 +2940,20 @@ function scanForTargets() {
     const isEncounterDuplicate = checkEncounterIsDuplicate(encContainer, isNewEncounter, detectedVariant, shortName);
     const avoidDupesActive = (config.avoidDuplicates !== false);
 
-    if (avoidDupesActive && isEncounterDuplicate) {
+    const isHighValEncounter = isPreloadLegendaryOrSpecial(shortName) || isPreloadLegendaryOrSpecial(encounterBoxText);
+    let allowEncounterSkip = isEncounterDuplicate;
+    if (isHighValEncounter && isEncounterDuplicate) {
+        const hasExactOwned = ownStatus && ownStatus.hasExactOwned;
+        const hasExplicitCaughtDOM = encContainer && checkHasExplicitCaughtText(encContainer);
+        if (!hasExactOwned && !hasExplicitCaughtDOM) {
+            if (isNewEncounter) {
+                console.warn('[TargetEngine] PROTECTED ENCOUNTER: High-value target "' + shortName + '" protected from duplicate skip without verified exact ownership. Proceeding to target evaluation!');
+            }
+            allowEncounterSkip = false;
+        }
+    }
+
+    if (avoidDupesActive && allowEncounterSkip) {
         if (ownStatus && ownStatus.isDuplicate) {
             if (typeof renderUniquenessAlertBanner === 'function') renderUniquenessAlertBanner(ownStatus);
             if (isNewEncounter && typeof ipcRenderer !== 'undefined' && ipcRenderer && ipcRenderer.sendToHost) {
@@ -3446,7 +3516,7 @@ function scanForTargets() {
 }
 
 // --- 4. TARGET FOUND HANDLER ---
-function triggerTargetFound(targetName, category) {
+function triggerTargetFound(targetName, category, variant) {
     const currentPath = (window.location.pathname || '').toLowerCase();
     if (currentPath.indexOf('/map') === -1) return;
     if (!isHuntingActive) return;
@@ -3473,11 +3543,27 @@ function triggerTargetFound(targetName, category) {
         }
     }
 
+    const explicitVariant = variant || (typeof detectedVariant !== 'undefined' ? detectedVariant : undefined);
     const ownCheck = (typeof evaluateOwnershipAndMegaEquivalence === 'function')
-        ? evaluateOwnershipAndMegaEquivalence(targetName)
+        ? evaluateOwnershipAndMegaEquivalence(targetName, explicitVariant)
         : null;
-    const isDupe = checkEncounterIsDuplicate(encContainer, false, undefined, targetName);
-    if (config.avoidDuplicates !== false && isDupe) {
+    const isDupe = checkEncounterIsDuplicate(encContainer, false, explicitVariant, targetName);
+
+    const isLegendarySpecial = isPreloadLegendaryOrSpecial(targetName) || (category && /legendary|ultra beast|paradox/i.test(category));
+    let allowSkip = isDupe;
+    if (isLegendarySpecial && isDupe) {
+        // Hardened Airgap: High-value targets (Legendaries, Ultra Beasts, Paradox)
+        // must NEVER be skipped as duplicate without verified exact variant ownership in collection
+        // OR explicit DelugeRPG DOM caught pokeball / caught text confirmation!
+        const hasExactOwned = ownCheck && ownCheck.hasExactOwned;
+        const hasExplicitCaughtDOM = encContainer && checkHasExplicitCaughtText(encContainer);
+        if (!hasExactOwned && !hasExplicitCaughtDOM) {
+            console.warn('[TargetEngine] PROTECTED TARGET: High-value target ' + targetName + ' (' + category + ') will NOT be skipped as duplicate without verified exact ownership. Triggering catch!');
+            allowSkip = false;
+        }
+    }
+
+    if (config.avoidDuplicates !== false && allowSkip) {
         lastIgnoredEncounter = targetName;
         lastFoundTarget = '';
         console.log('[PokePreload] Duplicate target detected during trigger: ' + targetName + ' (' + (ownCheck && ownCheck.isDuplicate ? ownCheck.alertMessage : 'duplicate') + ') - skipping.');
@@ -5461,13 +5547,27 @@ function parsePokemonRowsFromHtml(html) {
     return pokemons;
 }
 
+let isPokemonBoxScanActive = false;
 ipcRenderer.on('start-scan-pokemon', async () => {
+    if (isPokemonBoxScanActive) return;
+    isPokemonBoxScanActive = true;
     try {
+        if (typeof isCaptchaDetectedOnPage === 'function' && isCaptchaDetectedOnPage()) {
+            isPokemonBoxScanActive = false;
+            return;
+        }
         console.log('[PokePreload] Starting automated pokemon collection scan...');
         ipcRenderer.sendToHost('scan-pokemon-status', { step: 'reading-page-1' });
 
-        const res1 = await fetch('/pokemon/page/1', { credentials: 'include' });
-        const html1 = await res1.text();
+        let html1 = '';
+        const curPath = (window.location.pathname || '').replace(/\/+$/, '').toLowerCase();
+        const hasLiveRows = document.querySelectorAll('.row[data-pkid]').length > 0;
+        if ((curPath === '/pokemon' || curPath === '/pokemon/page/1') && hasLiveRows && !window.location.search) {
+            html1 = document.documentElement.outerHTML;
+        } else {
+            const res1 = await fetch('/pokemon/page/1', { credentials: 'include' });
+            html1 = await res1.text();
+        }
 
         let maxPages = 1;
         const pageMatches = html1.match(/\/pokemon\/page\/(\d+)/g) || [];
@@ -5476,13 +5576,29 @@ ipcRenderer.on('start-scan-pokemon', async () => {
             if (pnum > maxPages) maxPages = pnum;
         }
 
+        const matchOut = html1.match(/(?:out of\s+|total\s+)([0-9,]+)\s+matches/i);
+        if (matchOut) {
+            const totalMatches = parseInt(matchOut[1].replace(/,/g, ''), 10);
+            if (totalMatches > 0) {
+                const calculatedPages = Math.ceil(totalMatches / 48);
+                if (calculatedPages > maxPages) maxPages = calculatedPages;
+            }
+        }
+
+        const jumpMatches = html1.match(/[?&]page=(\d+)/g) || [];
+        for (let i = 0; i < jumpMatches.length; i++) {
+            const pnum = parseInt(jumpMatches[i].replace(/[^0-9]/g, ''), 10);
+            if (pnum > maxPages) maxPages = pnum;
+        }
+
         const page1Pokes = parsePokemonRowsFromHtml(html1);
         const map = new Map();
         page1Pokes.forEach(p => map.set(p.id, p));
 
         for (let page = 2; page <= maxPages; page++) {
+            if (typeof isCaptchaDetectedOnPage === 'function' && isCaptchaDetectedOnPage()) break;
             ipcRenderer.sendToHost('scan-pokemon-status', { step: 'reading-page', page: page, total: maxPages });
-            await new Promise(r => setTimeout(r, getGaussianDelay(920, 180, 650)));
+            await new Promise(r => setTimeout(r, getGaussianDelay(1380, 260, 950)));
             try {
                 const res = await fetch('/pokemon/page/' + page, { credentials: 'include' });
                 const html = await res.text();
@@ -5515,6 +5631,8 @@ ipcRenderer.on('start-scan-pokemon', async () => {
             success: false,
             error: err.message
         });
+    } finally {
+        isPokemonBoxScanActive = false;
     }
 });
 
@@ -5898,10 +6016,32 @@ function detectBattleOpponents(isManualCheck) {
         const pageText = fullBodyText;
 
         const hasRematchText = /Battle This Trainer Again/i.test(fullBodyText) || /NORMAL BATTLE/i.test(fullBodyText) || (rematchLink && /NORMAL BATTLE/i.test(rematchLink.textContent || ''));
-        const isVictory = /congratulations!?s+you defeated|you defeateds+.*and each of the pok[e\xE9]mon below gained|you beat|each of the pok[e\xE9]mon below gained|gained\s+[0-9,]+\s+exp/i.test(fullBodyText);
+
+        // Scan for Next Battle link or button (G-Max Challenge and Battle Arenas)
+        let nextBattleEl = null;
+        const potentialNextLinks = document.querySelectorAll('a, button, input[type="submit"], input[type="button"]');
+        for (let nb = 0; nb < potentialNextLinks.length; nb++) {
+            const pEl = potentialNextLinks[nb];
+            if (!isElementVisible(pEl) || isCatchHoneypotTrap(pEl)) continue;
+            const pTxt = ((pEl.textContent || '') + ' ' + (pEl.value || '')).trim().toLowerCase();
+            if (/\bnext\s+battle\b/i.test(pTxt) || (pTxt === 'next' && pEl.closest && pEl.closest('.notify_done, .alert, .notify, #bresult, div'))) {
+                nextBattleEl = pEl;
+                break;
+            }
+        }
+        const hasNextBattle = Boolean(nextBattleEl);
+
+        const isStandardVictory = /congratulations!?\s+you defeated|you defeated\s+.*and each of the pok[e\xE9]mon below gained|you beat|each of the pok[e\xE9]mon below gained|gained\s+[0-9,]+\s+exp/i.test(fullBodyText);
+        const isChallengeVictory = /defeated your opponent|well done!?\s+(?:you(?:'ve| have)? defeated|you've)/i.test(fullBodyText) ||
+                                   /in the (?:gmax|g-max) challenge/i.test(fullBodyText) ||
+                                   /start your next battle/i.test(fullBodyText);
+        const isGmaxComplete = (/completed the (?:gmax|g-max) challenge/i.test(fullBodyText) ||
+                               (isChallengeVictory && !hasNextBattle && !document.querySelector('a[href*="challenge"][href*="next"], a[href*="/battle/challenge"]')));
+
+        const isVictory = isStandardVictory || isChallengeVictory || hasNextBattle;
         const isDefeat = /were defeated by|have been defeated by|defeated by|lost (?:the )?battle|all (?:of )?your pok[e\xE9]mon (?:have )?fainted|forfeited the battle|you forfeited|\bforfeited\b/i.test(fullBodyText);
 
-        if ((notifyBox && (isVictory || isDefeat)) || hasRematchText || (viewPokes && (isVictory || hasRematchText)) || isVictory || isDefeat) {
+        if ((notifyBox && (isVictory || isDefeat)) || hasRematchText || (viewPokes && (isVictory || hasRematchText)) || isVictory || isDefeat || hasNextBattle) {
             let trainerName = '';
             if (isDefeat) {
                 const dMatch = pageText.match(/(?:were|was|have been)?\s*defeated by\s+<b>?(.+?)<\/b>?(?:\.|\s|$)/i) ||
@@ -5909,6 +6049,7 @@ function detectBattleOpponents(isManualCheck) {
                 if (dMatch) trainerName = dMatch[1].replace(/<[^>]+>/g, '').trim();
             } else {
                 const vMatch = pageText.match(/(?:congratulations!?\s+)?you defeated\s+<b>?(.+?)<\/b>?(?:\.|\s|$)/i) ||
+                               pageText.match(/(?:well done!?\s+)?you(?:'ve| have)? defeated\s+<b>?(.+?)<\/b>?(?:\.|\s|$)/i) ||
                                pageText.match(/defeated\s+<b>?(.+?)<\/b>?\./i) ||
                                pageText.match(/defeated\s+(.+?)\./i);
                 if (vMatch) trainerName = vMatch[1].replace(/<[^>]+>/g, '').trim();
@@ -5916,8 +6057,11 @@ function detectBattleOpponents(isManualCheck) {
             if (trainerName.toLowerCase().startsWith('by ')) {
                 trainerName = trainerName.substring(3).trim();
             }
+            if (trainerName.toLowerCase().startsWith('your opponent in the gmax challenge') || trainerName.toLowerCase().startsWith('your opponent')) {
+                trainerName = lastKnownTrainerName || 'G-Max Opponent';
+            }
             if (!trainerName) {
-                trainerName = lastKnownTrainerName || 'Trainer';
+                trainerName = lastKnownTrainerName || (isChallengeVictory ? 'G-Max Opponent' : 'Trainer');
             }
 
             let gainedExpPerPoke = 0;
@@ -5972,7 +6116,7 @@ function detectBattleOpponents(isManualCheck) {
             const participantsCount = userTeam.length > 0 ? userTeam.length : 2;
             const totalExpPool = gainedExpPerPoke * participantsCount;
 
-            const postSig = 'POST_BATTLE:' + trainerName + ':' + (isDefeat ? 'DEFEAT' : 'VICTORY') + ':' + (lastKnownUserTeam || []).map(u => u.name + '_' + u.level).join(',') + ':exp=' + gainedExpPerPoke;
+            const postSig = 'POST_BATTLE:' + trainerName + ':' + (isDefeat ? 'DEFEAT' : 'VICTORY') + ':' + (lastKnownUserTeam || []).map(u => u.name + '_' + u.level).join(',') + ':exp=' + gainedExpPerPoke + ':next=' + hasNextBattle + ':gmaxDone=' + isGmaxComplete;
             if (!isManualCheck && postSig === lastBroadcastBattleSig) {
                 return;
             }
@@ -5980,7 +6124,7 @@ function detectBattleOpponents(isManualCheck) {
 
             const postBattlePayload = {
                 trainerName: trainerName,
-                trainerTitle: trainerName + "'s Team",
+                trainerTitle: trainerName + (trainerName.includes('Opponent') ? '' : "'s Team"),
                 roster: (lastKnownOpponentRoster && lastKnownOpponentRoster.length > 0) ? lastKnownOpponentRoster : [],
                 userTeam: (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > 0) ? lastKnownUserTeam : (userTeam.length > 0 ? userTeam : []),
                 isVictoryScreen: Boolean(isVictory && !isDefeat),
@@ -5992,9 +6136,12 @@ function detectBattleOpponents(isManualCheck) {
                 coinsWon: coinsWon,
                 participantsCount: participantsCount,
                 totalExpPool: totalExpPool,
-                participatingPokemon: userTeam
+                participatingPokemon: userTeam,
+                hasNextBattleBtn: Boolean(hasNextBattle),
+                isGmaxChallengeComplete: Boolean(isGmaxComplete)
             };
 
+            console.log('[BATTLE_SENSOR] Post-battle state: trainer="' + trainerName + '" isVictory=' + Boolean(isVictory && !isDefeat) + ' hasNext=' + Boolean(hasNextBattle) + ' gmaxDone=' + Boolean(isGmaxComplete));
             ipcRenderer.sendToHost('battle-opponents-detected', postBattlePayload);
 
             if (isVictory && gainedExpPerPoke > 0) {
@@ -6423,6 +6570,9 @@ function detectBattleOpponents(isManualCheck) {
                 const items = teamLeftEl.querySelectorAll('.battlelistitem');
                 for (let i = 0; i < items.length; i++) {
                     const item = items[i];
+                    if (typeof isElementVisible === 'function' && !isElementVisible(item)) continue;
+                    if (item.classList && (item.classList.contains('template') || item.classList.contains('hidden') || item.classList.contains('d-none'))) continue;
+                    if (item.id && /template|sample|dummy|poke0/i.test(item.id)) continue;
                     const nameEl = item.querySelector('.batname span, .batname, h4');
                     const rName = nameEl ? nameEl.textContent.trim() : '';
                     if (!rName) continue;
@@ -6514,6 +6664,7 @@ function detectBattleOpponents(isManualCheck) {
                     const btn = allActionButtons[b];
                     const bTxt = ((btn.value || '') + ' ' + (btn.textContent || '')).toLowerCase();
                     if (bTxt.indexOf('switch') !== -1) continue;
+                    if (bTxt.indexOf('next battle') !== -1) continue;
                     if (bTxt.indexOf('skip') !== -1 && bTxt.indexOf('pokemon') !== -1) {
                         hasSkipSelectionBtn = true;
                     } else if (bTxt.indexOf('continue') !== -1 || bTxt.indexOf('next') !== -1) {
@@ -6620,7 +6771,8 @@ function detectBattleOpponents(isManualCheck) {
                     let mMatch;
                     while ((mMatch = re.exec(lText)) !== null) {
                         const actorName = mMatch[1].replace(/^[A-Za-z0-9_-]+['']s\s+/i, '').trim();
-                        const moveUsed = mMatch[2].trim();
+                        let moveUsed = mMatch[2].trim();
+                        moveUsed = moveUsed.replace(/\s+(?:and\s+dealt|and\s+it\s+was|and\s+missed|but\s+it\s+missed|and\s+restored|and\s+fainted|and\s+critical|and\s+it\s+had).*$/i, '').trim();
                         if (!actorName || !moveUsed) continue;
                         if (userActivePokemon && (actorName.toLowerCase() === userActivePokemon.name.toLowerCase() || userActivePokemon.name.toLowerCase().includes(actorName.toLowerCase()))) {
                             continue;
@@ -6683,6 +6835,9 @@ function detectBattleOpponents(isManualCheck) {
                 const roster = [];
                 for (let i = 0; i < items.length; i++) {
                     const item = items[i];
+                    if (typeof isElementVisible === 'function' && !isElementVisible(item)) continue;
+                    if (item.classList && (item.classList.contains('template') || item.classList.contains('hidden') || item.classList.contains('d-none'))) continue;
+                    if (item.id && /template|sample|dummy|poke0/i.test(item.id)) continue;
                     const nameEl = item.querySelector('.batname span');
                     const name = nameEl ? nameEl.textContent.trim() : 'Unknown';
                     const types = [];
@@ -6982,6 +7137,19 @@ ipcRenderer.on('click-rematch-button', () => {
             }
         }
 
+        // Priority 1b: Match "NEXT BATTLE" link / button (G-Max Challenge and Challenge Arena)
+        if (!rematchEl) {
+            for (let i = 0; i < allLinks.length; i++) {
+                const el = allLinks[i];
+                if (!isElementVisible(el) || isCatchHoneypotTrap(el)) continue;
+                const txt = ((el.textContent || '') + ' ' + (el.value || '')).trim().toLowerCase();
+                if (txt.includes('next battle') || (txt === 'next' && el.closest && el.closest('.notify_done, .alert, .notify, #bresult, div'))) {
+                    rematchEl = el;
+                    break;
+                }
+            }
+        }
+
         // Priority 2: Match any link with /battle/trainer/ or /battle/gym/ that is NOT inverse or return
         if (!rematchEl) {
             for (let i = 0; i < allLinks.length; i++) {
@@ -6997,6 +7165,21 @@ ipcRenderer.on('click-rematch-button', () => {
             }
         }
 
+        // Priority 2b: Match any link or button with /challenge/ that links to next battle
+        if (!rematchEl) {
+            for (let i = 0; i < allLinks.length; i++) {
+                const el = allLinks[i];
+                if (!isElementVisible(el) || isCatchHoneypotTrap(el)) continue;
+                const href = (el.getAttribute('href') || el.href || '').toLowerCase();
+                const txt = ((el.textContent || '') + ' ' + (el.value || '')).trim().toLowerCase();
+                if (href.includes('challenge') && (txt.includes('next') || href.includes('next') || href.includes('battle'))) {
+                    rematchEl = el;
+                    break;
+                }
+            }
+        }
+
+        console.log('[REMATCH_DISPATCHER] Rematch target resolved: ' + (rematchEl ? rematchEl.tagName + ' txt="' + ((rematchEl.textContent || rematchEl.value || '').trim()) + '" href="' + (rematchEl.getAttribute('href') || '') + '"' : 'NONE'));
         if (rematchEl) {
             const targetHref = rematchEl.getAttribute('href') || rematchEl.href || '';
             dispatchHumanClick(rematchEl, () => {
@@ -8139,10 +8322,11 @@ window.addEventListener('click', (e) => {
     try {
         const t = e.target;
         if (!t) return;
-        const link = (t.closest && t.closest('a, button, [onclick]')) || t;
-        const txt = (link.textContent || '').trim().toUpperCase();
+        const link = (t.closest && t.closest('a, button, input[type="button"], input[type="submit"], [onclick]')) || t;
+        if (link.closest && link.closest('#DModal, #DMbody, #delugemodal, .modal')) return;
+        const txt = (link.textContent || link.value || '').trim().toUpperCase();
         if (txt === 'EVOLVE' || txt === 'CHANGE MOVES') {
-            const card = (link.closest && link.closest('.row, div[data-pkid], .userpoke, .poke-card, tr, .box, [data-name]')) || link.parentElement;
+            const card = (link.closest && link.closest('.row, div[data-pkid], .userpoke, .poke-card, tr, .prow, .pkmn'));
             if (card) {
                 const pInfo = {
                     name: '',
@@ -8159,11 +8343,14 @@ window.addEventListener('click', (e) => {
                     const textLines = (card.textContent || '').split(/[\r\n]+/);
                     for (let i = 0; i < textLines.length; i++) {
                         const l = textLines[i].trim();
-                        if (l && !/^(level|exp|evolve|in team|add to team|change moves|trade|quick trade|release)/i.test(l)) {
+                        if (l && !/^(level|exp|evolve|in team|add to team|change moves|trade|quick trade|release|close)/i.test(l)) {
                             pInfo.name = l;
                             break;
                         }
                     }
+                }
+                if (!pInfo.name || /^(close\s*evolve|evolve|close|cancel|submit)$/i.test(pInfo.name.trim())) {
+                    return;
                 }
                 const lvMatch = (card.textContent || '').match(/level:?\s*(\d+)/i);
                 if (lvMatch) pInfo.level = parseInt(lvMatch[1], 10);
@@ -8174,11 +8361,241 @@ window.addEventListener('click', (e) => {
                     if (tName && pInfo.types.indexOf(tName) === -1) pInfo.types.push(tName);
                 }
 
+                pInfo.sourceName = pInfo.name;
                 lastClickedPokemonInfo = pInfo;
             }
         }
     } catch (_) {}
 }, true);
+
+function getRadioOptionText(radio, modalContainer) {
+    if (!radio) return '';
+    if (radio.id && modalContainer) {
+        const lbl = modalContainer.querySelector(`label[for="${radio.id}"]`);
+        if (lbl) {
+            const txt = (lbl.textContent || '').trim();
+            if (txt) return txt;
+        }
+    }
+    if (radio.parentElement && radio.parentElement.tagName.toLowerCase() === 'label') {
+        const txt = (radio.parentElement.textContent || '').trim();
+        if (txt) return txt;
+    }
+    let sib = radio.nextSibling;
+    let sibText = '';
+    while (sib) {
+        if (sib.nodeType === 1) {
+            const sTag = (sib.tagName || '').toLowerCase();
+            if (sTag === 'input' || sTag === 'button' || sTag === 'form' || sTag === 'table' || sTag === 'hr') break;
+            if (sTag === 'br' && sibText.trim().length > 0) break;
+            sibText += ' ' + (sib.textContent || '');
+        } else if (sib.nodeType === 3) {
+            sibText += ' ' + (sib.nodeValue || '');
+        }
+        sib = sib.nextSibling;
+    }
+    return sibText.trim();
+}
+
+async function humanClickElementVerified(el, opts) {
+    if (!el) return false;
+    let clickFired = false;
+    const onNativeClick = () => { clickFired = true; };
+    try {
+        if (typeof el.addEventListener === 'function') {
+            el.addEventListener('click', onNativeClick, { once: true, capture: true });
+        }
+    } catch (_) {}
+    await new Promise(resolve => dispatchHumanClick(el, resolve, opts));
+    await new Promise(resolve => setTimeout(resolve, 65));
+    try {
+        if (typeof el.removeEventListener === 'function') {
+            el.removeEventListener('click', onNativeClick, { capture: true });
+        }
+    } catch (_) {}
+    if (!clickFired && typeof el.click === 'function') {
+        try { el.click(); } catch (_) {}
+    }
+    return true;
+}
+
+async function toggleMoveCheckboxCleanly(cb, shouldCheck) {
+    if (!cb) return false;
+    const targetState = Boolean(shouldCheck);
+    if (Boolean(cb.checked) === targetState) return true;
+
+    await new Promise(resolve => dispatchHumanClick(cb, resolve, { skipScroll: true }));
+    await new Promise(resolve => setTimeout(resolve, 65));
+
+    if (Boolean(cb.checked) !== targetState) {
+        if (typeof cb.click === 'function') {
+            try { cb.click(); } catch (_) {}
+        }
+        if (Boolean(cb.checked) !== targetState) {
+            cb.checked = targetState;
+            try { cb.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
+            try { cb.dispatchEvent(new Event('click', { bubbles: true })); } catch (_) {}
+        }
+    }
+    return Boolean(cb.checked) === targetState;
+}
+
+async function applyModalMoveCheckboxes(modalContainer, data) {
+    if (!modalContainer || !data || !Array.isArray(data.recommendedMoves)) return false;
+    const checkboxes = Array.from(modalContainer.querySelectorAll('input[type="checkbox"]'));
+    if (checkboxes.length === 0) return false;
+
+    const cbMoveNames = checkboxes.map(cb => extractMoveNameFromCheckbox(cb, modalContainer).toLowerCase().trim());
+    const maxPick = Math.min(4, checkboxes.length);
+    const targetIndices = [];
+    const chosenIdxSet = new Set();
+    const chosenMoveNames = new Set();
+
+    // Pass 1: Pick 1 checkbox per unique recommended move in Slot 1..4 priority order
+    for (let rIdx = 0; rIdx < data.recommendedMoves.length; rIdx++) {
+        if (targetIndices.length >= maxPick) break;
+        const recMove = String(data.recommendedMoves[rIdx] || '').toLowerCase().trim();
+        if (!recMove || chosenMoveNames.has(recMove)) continue;
+
+        let bestIdx = -1;
+        for (let i = 0; i < checkboxes.length; i++) {
+            if (chosenIdxSet.has(i) || cbMoveNames[i] !== recMove) continue;
+            if (checkboxes[i].checked) {
+                bestIdx = i;
+                break;
+            }
+            if (bestIdx === -1) bestIdx = i;
+        }
+        if (bestIdx !== -1) {
+            targetIndices.push(bestIdx);
+            chosenIdxSet.add(bestIdx);
+            chosenMoveNames.add(recMove);
+        }
+    }
+
+    // Pass 2: If fewer than 4 unique move names exist across all 8 checkboxes (e.g. Kakuna Tackle x4),
+    // fill remaining slots up to maxPick from recommended moves first, then any remaining checkboxes
+    if (targetIndices.length < maxPick) {
+        const recSet = new Set(data.recommendedMoves.map(n => String(n || '').toLowerCase().trim()));
+        for (let i = 0; i < checkboxes.length && targetIndices.length < maxPick; i++) {
+            if (!chosenIdxSet.has(i) && recSet.has(cbMoveNames[i])) {
+                targetIndices.push(i);
+                chosenIdxSet.add(i);
+            }
+        }
+        for (let i = 0; i < checkboxes.length && targetIndices.length < maxPick; i++) {
+            if (!chosenIdxSet.has(i)) {
+                targetIndices.push(i);
+                chosenIdxSet.add(i);
+            }
+        }
+    }
+
+    // Step A: Uncheck all non-target checkboxes FIRST so checked count never exceeds DelugeRPG's 4-move cap
+    for (let i = 0; i < checkboxes.length; i++) {
+        if (!chosenIdxSet.has(i) && checkboxes[i].checked) {
+            await toggleMoveCheckboxCleanly(checkboxes[i], false);
+            await new Promise(r => setTimeout(r, getGaussianDelay(145, 35, 95)));
+        }
+    }
+
+    // Step B: Check all target checkboxes in Slot 1..4 priority order
+    for (let t = 0; t < targetIndices.length; t++) {
+        const idx = targetIndices[t];
+        if (!checkboxes[idx].checked) {
+            await toggleMoveCheckboxCleanly(checkboxes[idx], true);
+            await new Promise(r => setTimeout(r, getGaussianDelay(145, 35, 95)));
+        }
+    }
+
+    // Step C: Final state verification pass (uncheck any straggler extras first, then check any missed targets)
+    for (let i = 0; i < checkboxes.length; i++) {
+        if (!chosenIdxSet.has(i) && checkboxes[i].checked) {
+            await toggleMoveCheckboxCleanly(checkboxes[i], false);
+        }
+    }
+    for (let t = 0; t < targetIndices.length; t++) {
+        const idx = targetIndices[t];
+        if (!checkboxes[idx].checked) {
+            await toggleMoveCheckboxCleanly(checkboxes[idx], true);
+        }
+    }
+    return true;
+}
+
+function findModalEvolveButton(container) {
+    const roots = [];
+    const dModal = document.getElementById('DModal');
+    const dmBody = document.getElementById('DMbody');
+    if (dModal) roots.push(dModal);
+    if (container && roots.indexOf(container) === -1) roots.push(container);
+    if (dmBody && roots.indexOf(dmBody) === -1) roots.push(dmBody);
+    roots.push(document);
+
+    for (let rIdx = 0; rIdx < roots.length; rIdx++) {
+        const root = roots[rIdx];
+        if (!root || typeof root.querySelectorAll !== 'function') continue;
+        const btns = Array.from(root.querySelectorAll('input[type="submit"], input[type="button"], button'));
+        const btn = btns.find(b => {
+            if (root === document && b.closest && !b.closest('#DModal, #DMbody, #delugemodal, .modal, form[action*="evolve" i]')) {
+                return false;
+            }
+            const v = (b.value || b.textContent || '').trim().toLowerCase();
+            return v === 'evolve' || v.startsWith('evolve');
+        });
+        if (btn) return btn;
+    }
+    return null;
+}
+
+function clickModalEvolveButton(container) {
+    const btn = findModalEvolveButton(container);
+    if (btn) {
+        humanClickElementVerified(btn);
+        return true;
+    }
+    return false;
+}
+
+function clickModalCloseButton(container) {
+    const parent = container || document.getElementById('DModal') || document.getElementById('DMbody') || document;
+    const btns = Array.from(parent.querySelectorAll('input[type="button"], button, a, #DMclose, .close'));
+    const btn = btns.find(b => {
+        const v = (b.value || b.textContent || b.id || b.className || '').trim().toLowerCase();
+        return v.includes('close') || v.includes('dmclose');
+    });
+    if (btn) {
+        dispatchHumanClick(btn);
+        return true;
+    }
+    return false;
+}
+
+function isModalElementOpen(el) {
+    if (!el) return false;
+    let cur = el;
+    while (cur && cur.nodeType === 1) {
+        if (cur.style && (cur.style.display === 'none' || cur.style.visibility === 'hidden')) return false;
+        const ariaHidden = cur.getAttribute ? cur.getAttribute('aria-hidden') : null;
+        if (ariaHidden === 'true') return false;
+        if (cur.hasAttribute && cur.hasAttribute('hidden')) return false;
+        if (cur.classList && (cur.classList.contains('hidden') || cur.classList.contains('hide'))) return false;
+        if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
+            try {
+                const st = window.getComputedStyle(cur);
+                if (st && (st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0')) return false;
+            } catch (_) {}
+        }
+        cur = cur.parentElement;
+    }
+    if (typeof el.getBoundingClientRect === 'function' && document.body && document.body.offsetWidth > 0) {
+        try {
+            const r = el.getBoundingClientRect();
+            if (r.width <= 0 || r.height <= 0) return false;
+        } catch (_) {}
+    }
+    return true;
+}
 
 function detectEvolveCard() {
     try {
@@ -8191,20 +8608,21 @@ function detectEvolveCard() {
         let modalContainer = null;
         for (let i = 0; i < allMoveContainers.length; i++) {
             const el = allMoveContainers[i];
-            if (el.style && el.style.display === 'none') continue;
-            const ariaHidden = el.getAttribute ? el.getAttribute('aria-hidden') : null;
-            if (ariaHidden === 'true') continue;
+            if (!isModalElementOpen(el)) continue;
             const bTxt = (el.textContent || '').toLowerCase();
             const tTxt = (el.querySelector('#DMtitle, .modal-title, h1, h2, h3, h4')?.textContent || '').toLowerCase();
-            if (bTxt.includes('choose any four attacks') || bTxt.includes('can evolve into') || tTxt.includes('evolve')) {
+            if (bTxt.includes('choose any four attacks') || bTxt.includes('can evolve into') || bTxt.includes('evolved into') || tTxt.includes('evolve')) {
                 modalContainer = el;
                 break;
             }
         }
-        if (!modalContainer) {
-            const bodyTxt = (document.body ? document.body.textContent : '').toLowerCase();
-            if (bodyTxt.includes('choose any four attacks')) {
-                modalContainer = document.querySelector('form[action*="evolve" i], form[action*="attack" i], #content, body');
+        if (!modalContainer && path.indexOf('/evolve') !== -1) {
+            const fallbackEl = document.querySelector('form[action*="evolve" i], form[action*="attack" i], #content, body');
+            if (fallbackEl && isModalElementOpen(fallbackEl)) {
+                const bodyTxt = (fallbackEl.textContent || '').toLowerCase();
+                if (bodyTxt.includes('choose any four attacks') || bodyTxt.includes('can evolve into') || bodyTxt.includes('evolved into')) {
+                    modalContainer = fallbackEl;
+                }
             }
         }
 
@@ -8285,8 +8703,24 @@ function detectEvolveCard() {
         const isEvolveTitle = /evolve/i.test(titleText);
         const hasEvolvePrompt = /can evolve into/i.test(bodyText);
         const hasMoveSelectionPrompt = /choose any four attacks/i.test(bodyText);
+        const hasEvolvedSuccess = /evolved into/i.test(bodyText);
 
-        if (!isEvolveTitle && !hasEvolvePrompt && !hasMoveSelectionPrompt) return null;
+        if (!isEvolveTitle && !hasEvolvePrompt && !hasMoveSelectionPrompt && !hasEvolvedSuccess) return null;
+
+        // CASE 0.5: Evolution Complete (Success Screen)
+        if (hasEvolvedSuccess && !hasMoveSelectionPrompt) {
+            const successMatch = bodyText.match(/([a-zA-Z0-9\s\(\)\-]+?)\s+evolved into\s+([a-zA-Z0-9\s\(\)\-]+)/i);
+            const fromPoke = successMatch ? successMatch[1].trim() : '';
+            const toPoke = successMatch ? successMatch[2].trim() : '';
+            return {
+                isOpen: true,
+                isComplete: true,
+                fromPokemon: fromPoke,
+                toPokemon: toPoke,
+                fullName: toPoke || fromPoke,
+                message: successMatch ? `${fromPoke} evolved into ${toPoke}` : 'Pokemon evolved successfully!'
+            };
+        }
 
         // CASE 1: Move Selection upon Evolution or Change Attacks
         if (hasMoveSelectionPrompt) {
@@ -8334,18 +8768,30 @@ function detectEvolveCard() {
                 }
             }
 
-            const currentSet = new Set(currentChoices.map(n => n.toLowerCase().trim()));
+            const allChoicesCombined = currentChoices.concat(evolutionChoices);
+            const choiceCountMap = new Map();
+            allChoicesCombined.forEach(m => {
+                const lower = (m || '').toLowerCase().trim();
+                if (lower) choiceCountMap.set(lower, (choiceCountMap.get(lower) || 0) + 1);
+            });
             const duplicateChoices = [];
             const dupSet = new Set();
-            evolutionChoices.forEach(em => {
-                const lower = em.toLowerCase().trim();
-                if (currentSet.has(lower) && !dupSet.has(lower)) {
-                    duplicateChoices.push(em);
+            allChoicesCombined.forEach(m => {
+                const lower = (m || '').toLowerCase().trim();
+                if (lower && (choiceCountMap.get(lower) || 0) > 1 && !dupSet.has(lower)) {
+                    duplicateChoices.push(m);
                     dupSet.add(lower);
                 }
             });
 
             let pName = (lastClickedPokemonInfo && lastClickedPokemonInfo.name) || '';
+            const evolvedMatch = bodyText.match(/evolved into\s+([A-Za-z0-9\s\(\)\-':.]+?)(?:\s*!|\s*Choose|\r|\n|$)/i);
+            if (evolvedMatch && evolvedMatch[1]) {
+                pName = evolvedMatch[1].trim();
+            }
+            if (!pName || /^(close\s*evolve|evolve|close|cancel|submit|pokemon|evolving\s*pokemon)$/i.test(pName.trim())) {
+                pName = (lastClickedPokemonInfo && lastClickedPokemonInfo.sourceName) || '';
+            }
             let pLevel = (lastClickedPokemonInfo && lastClickedPokemonInfo.level) || 50;
             let pTypes = (lastClickedPokemonInfo && lastClickedPokemonInfo.types && lastClickedPokemonInfo.types.length > 0) ? lastClickedPokemonInfo.types : [];
 
@@ -8360,6 +8806,7 @@ function detectEvolveCard() {
                 isMoveSelection: true,
                 targetPokemon: pName || 'Evolving Pokemon',
                 fullName: pName || 'Evolving Pokemon',
+                sourcePokemon: (lastClickedPokemonInfo && lastClickedPokemonInfo.sourceName) || pName || '',
                 level: pLevel,
                 types: pTypes,
                 currentChoices: currentChoices,
@@ -8375,6 +8822,7 @@ function detectEvolveCard() {
 
         const level = match[1] ? parseInt(match[1], 10) : 50;
         const rawFullName = match[2].trim();
+        const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
 
         let variant = 'Normal';
         const knownVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
@@ -8397,37 +8845,45 @@ function detectEvolveCard() {
         if (radios && radios.length > 0) {
             for (let i = 0; i < radios.length; i++) {
                 const radio = radios[i];
-                let labelText = '';
-                if (radio.id) {
-                    const lbl = modalContainer.querySelector(`label[for="${radio.id}"]`);
-                    if (lbl) labelText = (lbl.textContent || '').trim();
-                }
-                if (!labelText && radio.parentElement) {
-                    labelText = (radio.parentElement.textContent || '').trim();
-                }
-                if (!labelText && radio.nextSibling) {
-                    labelText = (radio.nextSibling.textContent || '').trim();
-                }
-                if (labelText) {
-                    const optMatch = labelText.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
-                    const optName = optMatch ? optMatch[1].trim() : labelText;
-                    const optReq = optMatch && optMatch[2] ? optMatch[2].trim() : '';
-                    const optFullName = (variant !== 'Normal' && !optName.match(VARIANT_PREFIX_REGEX))
-                        ? `${variant} ${optName}`
-                        : optName;
+                let labelText = getRadioOptionText(radio, modalContainer);
+                labelText = labelText.replace(/Evolutionary items will be automatically purchased[\s\S]*/i, '')
+                                     .replace(/\b(Evolve|Close|Cancel|Submit)\b/ig, '')
+                                     .trim();
 
-                    const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optFullName, variant);
-
-                    options.push({
-                        fullName: optFullName,
-                        requirement: optReq,
-                        radioValue: radio.value,
-                        isOwned: optOwnStatus ? optOwnStatus.isOwned : false,
-                        hasMegaOwned: optOwnStatus ? optOwnStatus.hasMegaOwned : false,
-                        ownedPokemon: optOwnStatus ? optOwnStatus.ownedPokemon : null,
-                        alertMessage: optOwnStatus ? optOwnStatus.alertMessage : ''
-                    });
+                if (!labelText || /^(evolve|close|cancel|submit|evolutionary)/i.test(labelText)) {
+                    continue;
                 }
+
+                const optMatch = labelText.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
+                const optName = optMatch ? optMatch[1].trim() : labelText;
+                const optReq = optMatch && optMatch[2] ? optMatch[2].trim() : '';
+
+                if (/^(evolve|close|cancel|submit|evolutionary)/i.test(optName)) {
+                    continue;
+                }
+
+                const optFullName = (variant !== 'Normal' && !optName.match(VARIANT_PREFIX_REGEX))
+                    ? `${variant} ${optName}`
+                    : optName;
+
+                const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optFullName, variant);
+                const isMegaTarget = /\bMega\s+/i.test(optFullName);
+                const isGmaxTarget = /\bG-Max\b/i.test(optFullName);
+                const isExactOrMegaOwned = optOwnStatus
+                    ? (isMegaTarget ? Boolean(optOwnStatus.hasMegaOwned || optOwnStatus.hasExactOwned) : (isGmaxTarget ? Boolean(optOwnStatus.hasGmaxOwned || optOwnStatus.hasExactOwned) : Boolean(optOwnStatus.hasExactOwned)))
+                    : false;
+
+                options.push({
+                    fullName: optFullName,
+                    requirement: optReq,
+                    radioValue: radio.value,
+                    isOwned: isExactOrMegaOwned,
+                    hasExactOwned: optOwnStatus ? Boolean(optOwnStatus.hasExactOwned) : false,
+                    hasMegaOwned: optOwnStatus ? optOwnStatus.hasMegaOwned : false,
+                    hasGmaxOwned: optOwnStatus ? optOwnStatus.hasGmaxOwned : false,
+                    ownedPokemon: optOwnStatus ? optOwnStatus.ownedPokemon : null,
+                    alertMessage: optOwnStatus ? optOwnStatus.alertMessage : ''
+                });
             }
         }
 
@@ -8442,19 +8898,27 @@ function detectEvolveCard() {
                     continue;
                 }
                 if (afterPrompt) {
-                    if (/^(?:evolve|close|cancel)$/i.test(line)) break;
+                    if (/^(?:evolve|close|cancel|submit|evolutionary)$/i.test(line)) break;
                     const m = line.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
                     if (m) {
                         const optName = m[1].trim();
+                        if (/^(?:evolve|close|cancel|submit|evolutionary)/i.test(optName)) continue;
                         const optFullName = (variant !== 'Normal' && !optName.match(VARIANT_PREFIX_REGEX))
                             ? `${variant} ${optName}`
                             : optName;
                         const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optFullName, variant);
+                        const isMegaTarget = /\bMega\s+/i.test(optFullName);
+                        const isGmaxTarget = /\bG-Max\b/i.test(optFullName);
+                        const isExactOrMegaOwned = optOwnStatus
+                            ? (isMegaTarget ? Boolean(optOwnStatus.hasMegaOwned || optOwnStatus.hasExactOwned) : (isGmaxTarget ? Boolean(optOwnStatus.hasGmaxOwned || optOwnStatus.hasExactOwned) : Boolean(optOwnStatus.hasExactOwned)))
+                            : false;
                         options.push({
                             fullName: optFullName,
                             requirement: m[2] ? m[2].trim() : '',
-                            isOwned: optOwnStatus ? optOwnStatus.isOwned : false,
+                            isOwned: isExactOrMegaOwned,
+                            hasExactOwned: optOwnStatus ? Boolean(optOwnStatus.hasExactOwned) : false,
                             hasMegaOwned: optOwnStatus ? optOwnStatus.hasMegaOwned : false,
+                            hasGmaxOwned: optOwnStatus ? optOwnStatus.hasGmaxOwned : false,
                             ownedPokemon: optOwnStatus ? optOwnStatus.ownedPokemon : null,
                             alertMessage: optOwnStatus ? optOwnStatus.alertMessage : ''
                         });
@@ -8486,8 +8950,38 @@ function detectEvolveCard() {
             }
         }
 
-        const allDuplicates = options.length > 0 && options.every(opt => opt.isOwned || opt.hasMegaOwned);
-        const hasUnique = options.some(opt => !opt.isOwned && !opt.hasMegaOwned);
+        const allDuplicates = options.length > 0 && options.every(opt => opt.isOwned);
+        const hasUnique = options.some(opt => !opt.isOwned);
+
+        // Preserve accurate evolving target Pokemon & level for Step 2 Move Selection modal
+        let activeTargetName = rawFullName;
+        if (options.length === 1 && options[0].fullName) {
+            activeTargetName = options[0].fullName;
+        } else if (options.length > 0) {
+            if (radios && radios.length > 0) {
+                for (let rIdx = 0; rIdx < radios.length; rIdx++) {
+                    if (radios[rIdx].checked) {
+                        const rVal = radios[rIdx].value;
+                        const matchedOpt = options.find(o => o.radioValue === rVal) || options[rIdx];
+                        if (matchedOpt && matchedOpt.fullName) {
+                            activeTargetName = matchedOpt.fullName;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (activeTargetName === rawFullName) {
+                const firstUnowned = options.find(o => !o.isOwned) || options[0];
+                if (firstUnowned && firstUnowned.fullName) activeTargetName = firstUnowned.fullName;
+            }
+        }
+        lastClickedPokemonInfo = {
+            name: activeTargetName || rawFullName,
+            sourceName: rawFullName,
+            variant: variant,
+            level: level,
+            types: types
+        };
 
         // Stealth zero-DOM-injection: do not put overlays or banners on the DelugeRPG page
         const existingBanner = modalContainer.querySelector('#deluge-evolve-uniqueness-banner');
@@ -8518,7 +9012,7 @@ function syncEvolveCardState(force) {
     if (card) {
         const optsSig = (card.options || []).map(o => o.fullName).join(',');
         const movesSig = (card.availableMoves || []).map(m => m.name).join(',');
-        const sig = `${card.fullName}:${card.level}:${optsSig}:${movesSig}:${card.isMoveSelection ? 'moves' : 'branch'}`;
+        const sig = `${card.fullName}:${card.targetPokemon || ''}:${card.level}:${optsSig}:${movesSig}:${card.isMoveSelection ? 'moves' : 'branch'}`;
         if (force || sig !== lastEvolveCardSignature) {
             lastEvolveCardSignature = sig;
             ipcRenderer.sendToHost('evolve-card-detected', card);
@@ -8531,7 +9025,7 @@ function syncEvolveCardState(force) {
     }
 }
 
-ipcRenderer.on('apply-recommended-moves', (event, data) => {
+ipcRenderer.on('apply-recommended-moves', async (event, data) => {
     try {
         if (!data || !Array.isArray(data.recommendedMoves)) return;
 
@@ -8562,8 +9056,68 @@ ipcRenderer.on('apply-recommended-moves', (event, data) => {
             return;
         }
 
-        const targetRec = new Set(data.recommendedMoves.map(n => n.toLowerCase().trim()));
-        const targetDrop = new Set((data.dropMoves || []).map(n => n.toLowerCase().trim()));
+        const dModal = document.getElementById('DModal');
+        const dmBody = document.getElementById('DMbody');
+        let modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, div[id*="modal" i], form[action*="evolve" i], form[action*="attack" i]');
+        if (!modalContainer || !modalContainer.querySelector('input[type="checkbox"]')) {
+            modalContainer = document.querySelector('form[action*="evolve" i], form[action*="attack" i], body');
+        }
+        if (!modalContainer) return;
+
+        await applyModalMoveCheckboxes(modalContainer, data);
+    } catch (_) {}
+});
+
+ipcRenderer.on('submit-modal-evolve', async (event, data) => {
+    try {
+        const dModal = document.getElementById('DModal');
+        const dmBody = document.getElementById('DMbody');
+        const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, form[action*="evolve" i], body');
+        if (!modalContainer) return;
+
+        const targetBranchRaw = data && data.targetBranch ? String(data.targetBranch).trim() : '';
+        const targetBranch = targetBranchRaw.toLowerCase();
+        if (targetBranchRaw) {
+            if (!lastClickedPokemonInfo) {
+                lastClickedPokemonInfo = { name: targetBranchRaw, sourceName: targetBranchRaw, level: 100, types: [] };
+            } else {
+                lastClickedPokemonInfo.name = targetBranchRaw;
+            }
+        }
+
+        const radios = Array.from(modalContainer.querySelectorAll('input[type="radio"]'));
+        if (radios.length > 0 && targetBranch) {
+            const cleanTarget = targetBranch.replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i, '').trim();
+            for (let i = 0; i < radios.length; i++) {
+                const r = radios[i];
+                const rText = getRadioOptionText(r, modalContainer).toLowerCase();
+                const rVal = (r.value || '').toLowerCase();
+                if (rText.includes(cleanTarget) || rVal.includes(cleanTarget)) {
+                    if (!r.checked) {
+                        await humanClickElementVerified(r, { skipScroll: true });
+                        if (!r.checked) {
+                            r.checked = true;
+                            try { r.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
+                        }
+                    }
+                    break;
+                }
+            }
+        } else if (radios.length === 1 && !radios[0].checked) {
+            await humanClickElementVerified(radios[0], { skipScroll: true });
+        }
+
+        await new Promise(r => setTimeout(r, getGaussianDelay(260, 65, 170)));
+        clickModalEvolveButton(modalContainer);
+        setTimeout(() => { syncEvolveCardState(false); autoSyncCurrentPokemonPage(); }, 350);
+        setTimeout(() => { syncEvolveCardState(false); autoSyncCurrentPokemonPage(); }, 750);
+        setTimeout(() => { syncEvolveCardState(false); autoSyncCurrentPokemonPage(); }, 1250);
+    } catch (_) {}
+});
+
+ipcRenderer.on('apply-recommended-moves-and-submit', async (event, data) => {
+    try {
+        if (!data || !Array.isArray(data.recommendedMoves)) return;
 
         const dModal = document.getElementById('DModal');
         const dmBody = document.getElementById('DMbody');
@@ -8573,44 +9127,21 @@ ipcRenderer.on('apply-recommended-moves', (event, data) => {
         }
         if (!modalContainer) return;
 
-        const checkboxes = Array.from(modalContainer.querySelectorAll('input[type="checkbox"]'));
-        const chosenMoves = new Set();
-        let selectedCount = 0;
+        await applyModalMoveCheckboxes(modalContainer, data);
+        await new Promise(r => setTimeout(r, getGaussianDelay(280, 70, 180)));
+        clickModalEvolveButton(modalContainer);
+        setTimeout(() => { syncEvolveCardState(false); autoSyncCurrentPokemonPage(); }, 350);
+        setTimeout(() => { syncEvolveCardState(false); autoSyncCurrentPokemonPage(); }, 750);
+        setTimeout(() => { syncEvolveCardState(false); autoSyncCurrentPokemonPage(); }, 1250);
+    } catch (_) {}
+});
 
-        // Phase 1: Uncheck all checkboxes that are explicitly in targetDrop
-        for (let i = 0; i < checkboxes.length; i++) {
-            const cb = checkboxes[i];
-            const mName = extractMoveNameFromCheckbox(cb, modalContainer).toLowerCase().trim();
-            if (targetDrop.has(mName)) {
-                if (cb.checked) {
-                    cb.checked = false;
-                    cb.dispatchEvent(new Event('change', { bubbles: true }));
-                    cb.dispatchEvent(new Event('click', { bubbles: true }));
-                }
-            }
-        }
-
-        // Phase 2: Check exactly 1 checkbox per recommended move (handling duplicates cleanly)
-        for (let i = 0; i < checkboxes.length; i++) {
-            const cb = checkboxes[i];
-            const mName = extractMoveNameFromCheckbox(cb, modalContainer).toLowerCase().trim();
-            if (targetRec.has(mName) && !chosenMoves.has(mName) && selectedCount < 4) {
-                chosenMoves.add(mName);
-                selectedCount++;
-                if (!cb.checked) {
-                    cb.checked = true;
-                    cb.dispatchEvent(new Event('change', { bubbles: true }));
-                    cb.dispatchEvent(new Event('click', { bubbles: true }));
-                }
-            } else {
-                // If it is a duplicate instance of an already-chosen move or not recommended: uncheck!
-                if (cb.checked) {
-                    cb.checked = false;
-                    cb.dispatchEvent(new Event('change', { bubbles: true }));
-                    cb.dispatchEvent(new Event('click', { bubbles: true }));
-                }
-            }
-        }
+ipcRenderer.on('close-modal-and-refresh', () => {
+    try {
+        const dModal = document.getElementById('DModal');
+        const dmBody = document.getElementById('DMbody');
+        const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, form[action*="evolve" i], body');
+        clickModalCloseButton(modalContainer);
     } catch (_) {}
 });
 
@@ -8618,28 +9149,84 @@ ipcRenderer.on('check-evolve-card', () => {
     syncEvolveCardState(true);
 });
 
-ipcRenderer.on('trigger-evolve-pokemon', (event, data) => {
+ipcRenderer.on('sync-current-pokemon-page', () => {
+    lastSyncedPokemonPageSig = null;
+    autoSyncCurrentPokemonPage();
+});
+
+ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
     try {
         const pokeId = data && data.pokemonId;
-        if (!pokeId) return;
+        const pokeName = (data && data.name ? data.name : '').toLowerCase();
+        const targetBranchRaw = (data && data.targetBranch ? String(data.targetBranch).trim() : '');
+        const targetBranch = targetBranchRaw.toLowerCase();
 
-        const link = document.querySelector(`a[href*="/pokemon/evolve/${pokeId}"]`) ||
-                     document.querySelector(`a.evolve[href*="${pokeId}"]`);
-        if (link) {
-            dispatchHumanClick(link);
-            return;
+        if (data && data.name) {
+            lastClickedPokemonInfo = {
+                id: pokeId || '',
+                name: targetBranchRaw || data.name,
+                sourceName: data.name,
+                level: data.level || 100,
+                types: data.types || []
+            };
         }
 
-        const pokeName = (data.name || '').toLowerCase();
-        const rows = document.querySelectorAll('.row, tr, div[data-pkid], .prow, .pkmn');
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            const text = (row.textContent || '').toLowerCase();
-            if (text.includes(pokeName)) {
-                const evoLink = row.querySelector('a.evolve, a[href*="/pokemon/evolve/"]');
-                if (evoLink) {
-                    dispatchHumanClick(evoLink);
-                    return;
+        // If the Evolve modal is already open for this Pokemon, submit the evolution directly
+        const openCard = detectEvolveCard();
+        if (openCard && openCard.isOpen && !openCard.isMoveSelection && !openCard.isComplete) {
+            const openName = (openCard.fullName || '').toLowerCase();
+            if (!pokeName || openName === pokeName || openName.includes(pokeName) || pokeName.includes(openName)) {
+                const dModal = document.getElementById('DModal');
+                const dmBody = document.getElementById('DMbody');
+                const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, div[id*="modal" i]');
+                if (modalContainer) {
+                    const radios = Array.from(modalContainer.querySelectorAll('input[type="radio"]'));
+                    let matchedRadio = null;
+                    if (targetBranch && radios.length > 0) {
+                        const cleanTarget = targetBranch.replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i, '').trim();
+                        for (let rIdx = 0; rIdx < radios.length; rIdx++) {
+                            const rText = getRadioOptionText(radios[rIdx], modalContainer).toLowerCase();
+                            if (rText.includes(targetBranch) || (cleanTarget && rText.includes(cleanTarget))) {
+                                matchedRadio = radios[rIdx];
+                                break;
+                            }
+                        }
+                    }
+                    if (!matchedRadio && radios.length === 1) {
+                        matchedRadio = radios[0];
+                    }
+                    if (matchedRadio) {
+                        if (!matchedRadio.checked) {
+                            await humanClickElementVerified(matchedRadio, { skipScroll: true });
+                        }
+                        const stepDelay = (typeof getGaussianDelay === 'function') ? getGaussianDelay(260, 65, 160) : 240;
+                        setTimeout(() => clickModalEvolveButton(modalContainer), stepDelay);
+                        return;
+                    }
+                }
+            }
+        }
+
+        if (pokeId) {
+            const link = document.querySelector(`a[href*="/pokemon/evolve/${pokeId}"]`) ||
+                         document.querySelector(`a.evolve[href*="${pokeId}"]`);
+            if (link) {
+                dispatchHumanClick(link);
+                return;
+            }
+        }
+
+        if (pokeName) {
+            const rows = document.querySelectorAll('.row, tr, div[data-pkid], .prow, .pkmn');
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const text = (row.textContent || '').toLowerCase();
+                if (text.includes(pokeName)) {
+                    const evoLink = row.querySelector('a.evolve, a[href*="/pokemon/evolve/"]');
+                    if (evoLink) {
+                        dispatchHumanClick(evoLink);
+                        return;
+                    }
                 }
             }
         }
@@ -8678,8 +9265,8 @@ ipcRenderer.on('trigger-change-attack', (event, data) => {
             }
         }
 
-        if (pokeId) {
-            window.location.href = `/pokemon/change_attack/${pokeId}`;
+        if (window.location.pathname.indexOf('/pokemon') === -1) {
+            window.location.href = '/pokemon';
         }
     } catch (_) {}
 });
@@ -8705,6 +9292,38 @@ function autoSyncCurrentPokemonPage() {
             const levelMatch = (row.textContent || '').match(/Level:\s*(\d+)/i);
             const level = levelMatch ? parseInt(levelMatch[1], 10) : 1;
 
+            let variant = row.getAttribute('data-class') || '';
+            if (!variant) {
+                const classEl = row.querySelector('[data-class]');
+                if (classEl) variant = classEl.getAttribute('data-class') || '';
+            }
+            if (!variant) {
+                const vMatch = name.match(/^(Normal|Shiny|Metallic|Ghostly|Dark|Shadow|Mirage|Chrome|Negative|Retro)\s+/i);
+                if (vMatch) variant = vMatch[1];
+            }
+            if (!variant || variant.toLowerCase() === 'normal') variant = 'Normal';
+            else variant = variant.charAt(0).toUpperCase() + variant.slice(1).toLowerCase();
+
+            const types = [];
+            const tBtns = row.querySelectorAll('i.tbtn[title], .tbtn[title]');
+            for (let tIdx = 0; tIdx < tBtns.length; tIdx++) {
+                const tTitle = (tBtns[tIdx].getAttribute('title') || '').trim();
+                if (tTitle && !types.includes(tTitle)) types.push(tTitle);
+            }
+
+            const moves = [];
+            const moveDivs = row.querySelectorAll('.attk div[class*="hoverclr-"]');
+            for (let mIdx = 0; mIdx < moveDivs.length; mIdx++) {
+                const mText = (moveDivs[mIdx].textContent || '').trim();
+                const cls = moveDivs[mIdx].className || '';
+                const cMatch = cls.match(/hoverclr-([a-z]+)/i);
+                const mType = cMatch ? (cMatch[1].charAt(0).toUpperCase() + cMatch[1].slice(1).toLowerCase()) : 'Normal';
+                if (mText) moves.push({ name: mText, type: mType });
+            }
+
+            const spriteEl = row.querySelector('img[src]');
+            const sprite = spriteEl ? (spriteEl.getAttribute('src') || '') : '';
+
             const evoLink = row.querySelector('a.evolve, a[href*="/pokemon/evolve/"]');
             const canEvolve = Boolean(evoLink);
             const evolveUrl = evoLink ? evoLink.getAttribute('href') : null;
@@ -8713,12 +9332,16 @@ function autoSyncCurrentPokemonPage() {
             pokesOnPage.push({
                 id,
                 name,
+                variant,
                 level,
+                types,
+                moves,
+                sprite,
                 canEvolve,
                 evolveUrl,
                 inTeam
             });
-            sig += `${id}:${canEvolve ? 1 : 0}:${level};`;
+            sig += `${id}:${name}:${canEvolve ? 1 : 0}:${level};`;
         }
 
         if (pokesOnPage.length > 0 && sig !== lastSyncedPokemonPageSig) {

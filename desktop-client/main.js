@@ -63,11 +63,22 @@ function getResolvedConfigPath() {
   const migrateFiles = ['user_collection.json', 'gym_leaders.json', 'daily_catch_log.json', 'daily_safety_log.json', 'favorite_trainers.json'];
   for (const f of migrateFiles) {
     const targetPath = path.join(userDataDir, f);
+    const sourcePath = path.join(__dirname, f);
     if (!fs.existsSync(targetPath)) {
       try {
-        const sourcePath = path.join(__dirname, f);
         if (fs.existsSync(sourcePath)) {
           fs.copyFileSync(sourcePath, targetPath);
+        }
+      } catch (_) {}
+    } else if (f === 'gym_leaders.json') {
+      // Sync canonical database updates when bundled copy is updated
+      try {
+        if (fs.existsSync(sourcePath)) {
+          const srcStat = fs.statSync(sourcePath);
+          const tgtStat = fs.statSync(targetPath);
+          if (srcStat.mtimeMs > tgtStat.mtimeMs) {
+            fs.copyFileSync(sourcePath, targetPath);
+          }
         }
       } catch (_) {}
     }

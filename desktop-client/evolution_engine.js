@@ -108,8 +108,30 @@ const EVOLUTION_FAMILIES = {
     base: 'Scyther',
     stages: ['Scyther'],
     branches: [
-      { name: 'Scizor', types: ['Bug', 'Steel'], bst: 500, gmax: false, mega: true, role: 'Mega Capable Steel Sweeper', keyMoves: ['Bullet Punch', 'X-Scissor', 'Close Combat', 'Acrobatics'] },
-      { name: 'Kleavor', types: ['Bug', 'Rock'], bst: 500, gmax: false, mega: false, role: 'Stone Axe Hazard Sweeper', keyMoves: ['Stone Axe', 'X-Scissor', 'Close Combat', 'Night Slash'] }
+      { name: 'Scizor', minLevel: 1, types: ['Bug', 'Steel'], bst: 500, gmax: false, mega: true, role: 'Mega Capable Steel Sweeper', keyMoves: ['Bullet Punch', 'X-Scissor', 'Close Combat', 'Acrobatics'] },
+      { name: 'Kleavor', minLevel: 1, types: ['Bug', 'Rock'], bst: 500, gmax: false, mega: false, role: 'Stone Axe Hazard Sweeper', keyMoves: ['Stone Axe', 'X-Scissor', 'Close Combat', 'Night Slash'] }
+    ]
+  },
+  mareep: {
+    base: 'Mareep',
+    stages: ['Mareep', 'Flaaffy', 'Ampharos'],
+    branches: [
+      { name: 'Flaaffy', minLevel: 15, types: ['Electric'], bst: 365, gmax: false, mega: false, role: 'Electric Wool Sweeper', keyMoves: ['Thunderbolt', 'Power Gem', 'Signal Beam', 'Cotton Guard'] },
+      { name: 'Ampharos', minLevel: 30, types: ['Electric'], bst: 510, gmax: false, mega: true, role: 'Mega Capable Electric Special Sweeper', keyMoves: ['Thunderbolt', 'Dragon Pulse', 'Focus Blast', 'Signal Beam'] }
+    ]
+  },
+  swablu: {
+    base: 'Swablu',
+    stages: ['Swablu', 'Altaria'],
+    branches: [
+      { name: 'Altaria', minLevel: 35, types: ['Dragon', 'Flying'], bst: 490, gmax: false, mega: true, role: 'Mega Capable Pixilate Dragon', keyMoves: ['Dragon Pulse', 'Moonblast', 'Earthquake', 'Flamethrower'] }
+    ]
+  },
+  buneary: {
+    base: 'Buneary',
+    stages: ['Buneary', 'Lopunny'],
+    branches: [
+      { name: 'Lopunny', minLevel: 20, types: ['Normal'], bst: 480, gmax: false, mega: true, role: 'Mega Scrappy Normal Striker', keyMoves: ['High Jump Kick', 'Return', 'Close Combat', 'Ice Punch'] }
     ]
   },
   poliwag: {
@@ -449,7 +471,23 @@ const EVOLUTION_FAMILIES = {
     base: 'Onix',
     stages: ['Onix'],
     branches: [
-      { name: 'Steelix', types: ['Steel', 'Ground'], bst: 510, gmax: false, mega: true, role: 'Mega Sand Force Steel Wall', keyMoves: ['Earthquake', 'Heavy Slam', 'Stone Edge', 'Fire Fang'] }
+      { name: 'Steelix', minLevel: 1, types: ['Steel', 'Ground'], bst: 510, gmax: false, mega: true, role: 'Mega Sand Force Steel Wall', keyMoves: ['Earthquake', 'Heavy Slam', 'Stone Edge', 'Fire Fang'] }
+    ]
+  },
+  pidgey: {
+    base: 'Pidgey',
+    stages: ['Pidgey', 'Pidgeotto', 'Pidgeot'],
+    branches: [
+      { name: 'Pidgeotto', minLevel: 18, types: ['Normal', 'Flying'], bst: 349, gmax: false, mega: false, role: 'Mid-Stage Aviator', keyMoves: ['Air Slash', 'Quick Attack', 'Wing Attack', 'Roost'] },
+      { name: 'Pidgeot', minLevel: 36, types: ['Normal', 'Flying'], bst: 479, gmax: false, mega: true, role: 'Mega No Guard Hurricane Sweeper', keyMoves: ['Hurricane', 'Heat Wave', 'U-turn', 'Roost'] }
+    ]
+  },
+  weedle: {
+    base: 'Weedle',
+    stages: ['Weedle', 'Kakuna', 'Beedrill'],
+    branches: [
+      { name: 'Kakuna', minLevel: 7, types: ['Bug', 'Poison'], bst: 205, gmax: false, mega: false, role: 'Cocoon Stage', keyMoves: ['Harden', 'Poison Sting', 'Bug Bite', 'Electroweb'] },
+      { name: 'Beedrill', minLevel: 10, types: ['Bug', 'Poison'], bst: 395, gmax: false, mega: true, role: 'Mega Adaptability Stinger Sweeper', keyMoves: ['Poison Jab', 'X-Scissor', 'Drill Run', 'U-turn'] }
     ]
   },
   rhyhorn: {
@@ -990,7 +1028,7 @@ function cleanSpeciesKey(n) {
 function cleanNameWithoutVariant(n) {
   if (!n) return '';
   return String(n).toLowerCase()
-    .replace(/^(shiny|metallic|ghostly|dark|shadow|mirage|retro|chrome|negative)\s+/i, '')
+    .replace(/^(normal|shiny|metallic|ghostly|dark|shadow|mirage|retro|chrome|negative)\s+/i, '')
     .replace(/[^a-z0-9]/g, '');
 }
 
@@ -1008,9 +1046,11 @@ function findFamily(speciesOrName) {
   if (!speciesOrName) return null;
   const raw = typeof speciesOrName === 'object' ? (speciesOrName.name || '') : String(speciesOrName);
   const base = getBaseSpecies(raw).toLowerCase();
+  const cleanNoVar = cleanSpeciesKey(raw);
   const cName = cleanName(raw);
 
   // Direct key check
+  if (EVOLUTION_FAMILIES[cleanNoVar]) return EVOLUTION_FAMILIES[cleanNoVar];
   if (EVOLUTION_FAMILIES[base]) return EVOLUTION_FAMILIES[base];
 
   // Scan all families for matching base, stage, or branch
@@ -1019,15 +1059,34 @@ function findFamily(speciesOrName) {
     if (fam.base.toLowerCase() === base || cleanName(fam.base) === cName) {
       return fam;
     }
-    if (Array.isArray(fam.stages) && fam.stages.some(s => s.toLowerCase() === base || cleanName(s) === cName)) {
+    if (Array.isArray(fam.stages) && fam.stages.some(s => s.toLowerCase() === base || s.toLowerCase() === cleanNoVar || cleanName(s) === cName)) {
       return fam;
     }
-    if (Array.isArray(fam.branches) && fam.branches.some(b => b.name.toLowerCase() === base || cleanName(b.name) === cName)) {
+    if (Array.isArray(fam.branches) && fam.branches.some(b => b.name.toLowerCase() === base || b.name.toLowerCase() === cleanNoVar || cleanName(b.name) === cName)) {
       return fam;
     }
   }
 
-  // Not found in static catalog, construct dynamic single-branch entry
+  // Construct dynamic family from STAGE_TRANSITIONS for all 554 DelugeRPG evolving species
+  const trList = STAGE_TRANSITIONS[cleanNoVar] || STAGE_TRANSITIONS[base];
+  if (Array.isArray(trList) && trList.length > 0) {
+    const capBase = raw.replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|retro|chrome|negative)\s+/i, '').trim() || base;
+    return {
+      base: capBase,
+      stages: [capBase],
+      branches: trList.map(t => ({
+        name: t.name,
+        minLevel: t.minLevel || 20,
+        types: t.types || resolvePokemonTypes(t.name),
+        bst: t.bst || 500,
+        gmax: Boolean(t.gmax),
+        mega: Boolean(t.mega),
+        role: t.role || 'Evolution Stage',
+        keyMoves: t.keyMoves || []
+      }))
+    };
+  }
+
   return null;
 }
 
@@ -1036,13 +1095,16 @@ function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant)
   if (!Array.isArray(userCollection) || userCollection.length === 0 || !evolutionName) {
     return {
       isOwned: false,
+      hasExactOwned: false,
       count: 0,
       bestLevel: 0,
       highestVariant: 'None',
       summaryLabel: '[NOT OWNED]',
       bestPoke: null,
       hasMegaOwned: false,
-      ownedMega: null
+      hasGmaxOwned: false,
+      ownedMega: null,
+      ownedGmax: null
     };
   }
 
@@ -1051,26 +1113,32 @@ function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant)
 
   const eq = teamEngine.evaluateOwnershipAndMegaEquivalence(evolutionName, userCollection, explicitVariant);
   const isTargetMega = teamEngine.isActualMegaEvolution(evolutionName);
+  const isTargetGmax = teamEngine.isAlreadyGmax(evolutionName);
 
   let isActuallyOwned = false;
   if (isTargetMega) {
     isActuallyOwned = eq.hasMegaOwned;
+  } else if (isTargetGmax) {
+    isActuallyOwned = eq.hasGmaxOwned || eq.hasExactOwned;
   } else if (hasExplicitVariant) {
-    isActuallyOwned = eq.hasExactOwned || eq.hasMegaOwned;
+    isActuallyOwned = eq.hasExactOwned || eq.hasMegaOwned || eq.hasGmaxOwned;
   } else {
-    isActuallyOwned = eq.isOwned || eq.hasExactOwned || eq.hasMegaOwned;
+    isActuallyOwned = eq.isOwned || eq.hasExactOwned || eq.hasMegaOwned || eq.hasGmaxOwned;
   }
 
   if (!isActuallyOwned) {
     return {
       isOwned: false,
+      hasExactOwned: false,
       count: 0,
       bestLevel: 0,
       highestVariant: 'None',
       summaryLabel: '[NOT OWNED]',
       bestPoke: null,
       hasMegaOwned: false,
-      ownedMega: null
+      hasGmaxOwned: false,
+      ownedMega: null,
+      ownedGmax: null
     };
   }
 
@@ -1081,17 +1149,25 @@ function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant)
     ? best.name
     : `${variant} ${best.name}`;
 
+  let summaryLabel = `[OWNED - Lv ${level} ${formattedFullName}]`;
+  if (eq.hasMegaOwned) {
+    summaryLabel = `[OWNED - Lv ${level} ${formattedFullName} (MEGA)]`;
+  } else if (eq.hasGmaxOwned) {
+    summaryLabel = `[OWNED - Lv ${level} ${formattedFullName} (G-MAX)]`;
+  }
+
   return {
     isOwned: true,
+    hasExactOwned: Boolean(eq.hasExactOwned),
     count: 1,
     bestLevel: level,
     highestVariant: variant,
-    summaryLabel: eq.hasMegaOwned
-      ? `[OWNED - Lv ${level} ${formattedFullName} (MEGA)]`
-      : `[OWNED - Lv ${level} ${formattedFullName}]`,
+    summaryLabel: summaryLabel,
     bestPoke: best,
     hasMegaOwned: eq.hasMegaOwned,
+    hasGmaxOwned: eq.hasGmaxOwned,
     ownedMega: eq.hasMegaOwned ? eq.ownedPokemon : null,
+    ownedGmax: eq.hasGmaxOwned ? eq.ownedPokemon : null,
     warningType: eq.type,
     alertTitle: eq.alertTitle,
     alertMessage: eq.alertMessage
@@ -1104,6 +1180,7 @@ function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant)
 function analyzeEvolutionPath(pokemonName, userCollection) {
   const family = findFamily(pokemonName);
   const baseName = pokemonName ? getBaseSpecies(pokemonName) : 'Unknown';
+  const cleanNoVar = cleanSpeciesKey(pokemonName);
 
   const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
   let variant = null;
@@ -1112,7 +1189,38 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
     variant = (vMatch[1].toLowerCase() === 'ghost') ? 'Ghostly' : (vMatch[1].charAt(0).toUpperCase() + vMatch[1].slice(1).toLowerCase());
   }
 
-  if (!family) {
+  const directTransitions = STAGE_TRANSITIONS[cleanNoVar] || STAGE_TRANSITIONS[baseName.toLowerCase()] || [];
+  const directSet = new Set(directTransitions.map(t => t.name.toLowerCase()));
+
+  let rawBranches = family && Array.isArray(family.branches) ? family.branches.slice() : [];
+  if (cleanNoVar && rawBranches.length > 0) {
+    const earlierSet = new Set([cleanNoVar]);
+    if (family && Array.isArray(family.stages)) {
+      const sIdx = family.stages.findIndex(s => s.toLowerCase() === cleanNoVar);
+      if (sIdx !== -1) {
+        for (let i = 0; i <= sIdx; i++) earlierSet.add(family.stages[i].toLowerCase());
+      }
+    }
+    rawBranches = rawBranches.filter(b => !earlierSet.has(b.name.toLowerCase()));
+  }
+  if (rawBranches.length === 0 || !EVOLUTION_FAMILIES[cleanNoVar]) {
+    for (const tr of directTransitions) {
+      if (tr.name.toLowerCase() !== cleanNoVar && !rawBranches.some(b => b.name.toLowerCase() === tr.name.toLowerCase())) {
+        rawBranches.push({
+          name: tr.name,
+          minLevel: tr.minLevel || 20,
+          types: tr.types || resolvePokemonTypes(tr.name),
+          bst: tr.bst || 500,
+          gmax: Boolean(tr.gmax),
+          mega: Boolean(tr.mega),
+          role: tr.role || 'Evolution Stage',
+          keyMoves: tr.keyMoves || []
+        });
+      }
+    }
+  }
+
+  if (!family || rawBranches.length === 0) {
     // Pokemon has no known evolutions or is a standalone
     const fullBaseName = (variant && variant !== 'Normal' && !baseName.toLowerCase().startsWith(variant.toLowerCase() + ' '))
       ? `${variant} ${baseName}`
@@ -1130,12 +1238,19 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
     };
   }
 
-  const branches = family.branches.map(branch => {
+  const branches = rawBranches.map(branch => {
     const fullBranchName = (variant && variant !== 'Normal' && !branch.name.toLowerCase().startsWith(variant.toLowerCase() + ' '))
       ? `${variant} ${branch.name}`
       : branch.name;
     const ownership = checkEvolutionOwnership(fullBranchName, userCollection, variant);
-    const defProfile = teamEngine.getDefensiveProfile(branch.types);
+    const isDuplicate = branch.mega
+      ? Boolean(ownership.hasMegaOwned || ownership.hasExactOwned)
+      : (branch.gmax
+          ? Boolean(ownership.hasGmaxOwned || ownership.hasExactOwned)
+          : Boolean(ownership.hasExactOwned));
+    const isImmediateStage = directSet.has(branch.name.toLowerCase());
+    const bTypes = branch.types || resolvePokemonTypes(branch.name);
+    const defProfile = teamEngine.getDefensiveProfile(bTypes);
 
     // Deluge Combat Viability Scoring:
     // Base Stat Total
@@ -1151,24 +1266,27 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
 
     // Ownership Prioritization & Hardening:
     // Give unowned branches a huge +500 boost so user expands their Pokedex!
-    // Penalize heavily if the user already owns the Mega Evolution or species
+    // Penalize heavily if the user already owns the Mega Evolution, G-Max, or species
     let priorityScore = combatScore;
     if (!ownership.isOwned) {
       priorityScore += 500;
-    } else if (ownership.hasMegaOwned) {
-      priorityScore -= 2000; // Never recommend duplicating a species whose Mega is owned
+    } else if (ownership.hasMegaOwned || ownership.hasGmaxOwned) {
+      priorityScore -= 2000; // Never recommend duplicating a species whose Mega or G-Max is owned
     } else {
       priorityScore -= 1000; // Avoid duplicate species
     }
 
     return {
       name: branch.name,
-      types: branch.types,
-      bst: branch.bst,
-      gmax: branch.gmax,
-      mega: branch.mega,
+      fullName: fullBranchName,
+      types: bTypes,
+      bst: branch.bst || 500,
+      gmax: Boolean(branch.gmax),
+      mega: Boolean(branch.mega),
       role: branch.role,
       keyMoves: branch.keyMoves || [],
+      isDuplicate,
+      isImmediateStage,
       ownership,
       combatScore,
       priorityScore
@@ -1186,9 +1304,10 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
   if (ownedBranchesCount === 0) {
     recommendationReason = `None owned yet. ${bestBranch.name} is the highest-value combat choice (${bestBranch.types.join('/')}, BST ${bestBranch.bst}${bestBranch.gmax ? ', G-Max Capable' : ''}${bestBranch.mega ? ', Mega Capable' : ''}).`;
   } else if (ownedBranchesCount === totalBranchesCount) {
-    const megaBranch = branches.find(b => b.ownership && b.ownership.hasMegaOwned);
-    if (megaBranch) {
-      recommendationReason = `STOP: You already own all evolution forms (including ${megaBranch.ownership.ownedMega.name} Lv ${megaBranch.ownership.ownedMega.level})! Evolving will create a duplicate.`;
+    const pinnacleBranch = branches.find(b => b.ownership && (b.ownership.hasMegaOwned || b.ownership.hasGmaxOwned));
+    if (pinnacleBranch) {
+      const ownedPinnacle = pinnacleBranch.ownership.ownedMega || pinnacleBranch.ownership.ownedGmax;
+      recommendationReason = `STOP: You already own all evolution forms (including ${ownedPinnacle ? ownedPinnacle.name : pinnacleBranch.name} Lv ${ownedPinnacle ? ownedPinnacle.level : 100})! Evolving will create a duplicate.`;
     } else {
       recommendationReason = `You already own all ${totalBranchesCount} evolution branches! For maximum combat output, prioritize ${bestBranch.name} (BST ${bestBranch.bst}).`;
     }
@@ -1713,16 +1832,22 @@ function evaluateEvolutionMoveSelection(pokemonOrName, availableMovesInput = [],
     }
   }
 
-  // Detect duplicate attack moves between Current Attacks and Evolution's Attacks
+  // Detect duplicate attack moves across Current Attacks and Evolution's Attacks (including intra-list duplicates)
   const currentClean = currentMoves.map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : '')).trim()).filter(Boolean);
   const evolutionClean = evolutionMoves.map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : '')).trim()).filter(Boolean);
-  const currentSet = new Set(currentClean.map(m => m.toLowerCase()));
+  const allCleanChoices = [...currentClean, ...evolutionClean];
+  const choiceCountMap = new Map();
+  allCleanChoices.forEach(m => {
+    const k = m.toLowerCase();
+    choiceCountMap.set(k, (choiceCountMap.get(k) || 0) + 1);
+  });
   const duplicateChoices = [];
   const duplicateSet = new Set();
-  evolutionClean.forEach(em => {
-    if (currentSet.has(em.toLowerCase()) && !duplicateSet.has(em.toLowerCase())) {
-      duplicateChoices.push(em);
-      duplicateSet.add(em.toLowerCase());
+  allCleanChoices.forEach(m => {
+    const k = m.toLowerCase();
+    if ((choiceCountMap.get(k) || 0) > 1 && !duplicateSet.has(k)) {
+      duplicateChoices.push(m);
+      duplicateSet.add(k);
     }
   });
 
@@ -1889,6 +2014,12 @@ function evaluateEvolutionMoveSelection(pokemonOrName, availableMovesInput = [],
 // 5. STAGE TRANSITIONS & BOX EVOLUTION READINESS EVALUATOR
 // -----------------------------------------------------------------------------
 const STAGE_TRANSITIONS = {
+  bulbasaur: [{ name: 'Ivysaur', minLevel: 16, types: ['Grass', 'Poison'], bst: 405, keyMoves: ['Razor Leaf', 'Solar Beam', 'Tackle', 'Poison Powder'] }],
+  ivysaur: [{ name: 'Venusaur', minLevel: 32, types: ['Grass', 'Poison'], bst: 525, keyMoves: ['Energy Ball', 'Sludge Bomb', 'Earth Power', 'Giga Drain'] }],
+  venusaur: [
+    { name: 'Mega Venusaur', minLevel: 100, types: ['Grass', 'Poison'], bst: 625, mega: true, keyMoves: ['Energy Ball', 'Sludge Bomb', 'Earth Power', 'Synthesis'] },
+    { name: 'G-Max Venusaur', minLevel: 100, types: ['Grass', 'Poison'], bst: 625, gmax: true, keyMoves: ['G-Max Vine Lash', 'Sludge Bomb', 'Earth Power', 'Giga Drain'] }
+  ],
   charmander: [{ name: 'Charmeleon', minLevel: 16, types: ['Fire'], bst: 405, keyMoves: ['Flamethrower', 'Fire Fang', 'Slash', 'Dragon Breath'] }],
   charmeleon: [
     { name: 'Charizard', minLevel: 36, types: ['Fire', 'Flying'], bst: 534, keyMoves: ['Flamethrower', 'Air Slash', 'Solar Beam', 'Focus Blast'] }
@@ -1897,11 +2028,43 @@ const STAGE_TRANSITIONS = {
     { name: 'Mega Charizard X', minLevel: 100, types: ['Fire', 'Dragon'], bst: 634, mega: true, keyMoves: ['Flare Blitz', 'Dragon Claw', 'Earthquake', 'Roost'] },
     { name: 'Mega Charizard Y', minLevel: 100, types: ['Fire', 'Flying'], bst: 634, mega: true, keyMoves: ['Fire Blast', 'Solar Beam', 'Air Slash', 'Focus Blast'] }
   ],
+  squirtle: [{ name: 'Wartortle', minLevel: 16, types: ['Water'], bst: 405, keyMoves: ['Water Pulse', 'Aqua Tail', 'Bite', 'Rapid Spin'] }],
+  wartortle: [{ name: 'Blastoise', minLevel: 36, types: ['Water'], bst: 530, keyMoves: ['Hydro Pump', 'Surf', 'Ice Beam', 'Aura Sphere'] }],
+  cyndaquil: [{ name: 'Quilava', minLevel: 14, types: ['Fire'], bst: 405, keyMoves: ['Flame Wheel', 'Flamethrower', 'Swift', 'Quick Attack'] }],
+  quilava: [{ name: 'Typhlosion', minLevel: 36, types: ['Fire'], bst: 534, keyMoves: ['Eruption', 'Flamethrower', 'Focus Blast', 'Extrasensory'] }],
+  totodile: [{ name: 'Croconaw', minLevel: 18, types: ['Water'], bst: 405, keyMoves: ['Waterfall', 'Ice Fang', 'Bite', 'Aqua Jet'] }],
+  croconaw: [{ name: 'Feraligatr', minLevel: 30, types: ['Water'], bst: 530, keyMoves: ['Waterfall', 'Ice Punch', 'Crunch', 'Superpower'] }],
+  treecko: [{ name: 'Grovyle', minLevel: 16, types: ['Grass'], bst: 405, keyMoves: ['Leaf Blade', 'Mega Drain', 'Quick Attack', 'Agility'] }],
+  grovyle: [{ name: 'Sceptile', minLevel: 36, types: ['Grass'], bst: 530, keyMoves: ['Leaf Storm', 'Dragon Pulse', 'Focus Blast', 'Earthquake'] }],
+  torchic: [{ name: 'Combusken', minLevel: 16, types: ['Fire', 'Fighting'], bst: 405, keyMoves: ['Double Kick', 'Flame Charge', 'Slash', 'Quick Attack'] }],
+  combusken: [{ name: 'Blaziken', minLevel: 36, types: ['Fire', 'Fighting'], bst: 530, keyMoves: ['Flare Blitz', 'High Jump Kick', 'Brave Bird', 'Stone Edge'] }],
+  turtwig: [{ name: 'Grotle', minLevel: 18, types: ['Grass'], bst: 405, keyMoves: ['Razor Leaf', 'Bite', 'Mega Drain', 'Curse'] }],
+  grotle: [{ name: 'Torterra', minLevel: 32, types: ['Grass', 'Ground'], bst: 525, keyMoves: ['Wood Hammer', 'Earthquake', 'Stone Edge', 'Synthesis'] }],
+  chimchar: [{ name: 'Monferno', minLevel: 14, types: ['Fire', 'Fighting'], bst: 405, keyMoves: ['Flame Wheel', 'Mach Punch', 'Taunt', 'Torment'] }],
+  monferno: [{ name: 'Infernape', minLevel: 36, types: ['Fire', 'Fighting'], bst: 534, keyMoves: ['Flare Blitz', 'Close Combat', 'Mach Punch', 'Stone Edge'] }],
+  piplup: [{ name: 'Prinplup', minLevel: 16, types: ['Water'], bst: 405, keyMoves: ['Bubble Beam', 'Metal Claw', 'Fury Attack', 'Bide'] }],
+  prinplup: [{ name: 'Empoleon', minLevel: 36, types: ['Water', 'Steel'], bst: 530, keyMoves: ['Hydro Pump', 'Flash Cannon', 'Ice Beam', 'Drill Peck'] }],
+  grookey: [{ name: 'Thwackey', minLevel: 16, types: ['Grass'], bst: 400, keyMoves: ['Branch Poke', 'Razor Leaf', 'Knock Off', 'Slam'] }],
+  thwackey: [{ name: 'Rillaboom', minLevel: 35, types: ['Grass'], bst: 530, keyMoves: ['Wood Hammer', 'Grassy Glide', 'Earthquake', 'Knock Off'] }],
+  scorbunny: [{ name: 'Raboot', minLevel: 16, types: ['Fire'], bst: 400, keyMoves: ['Flame Charge', 'Double Kick', 'Headbutt', 'Agility'] }],
+  raboot: [{ name: 'Cinderace', minLevel: 35, types: ['Fire'], bst: 530, keyMoves: ['Pyro Ball', 'High Jump Kick', 'Gunk Shot', 'Iron Head'] }],
+  sobble: [{ name: 'Drizzile', minLevel: 16, types: ['Water'], bst: 400, keyMoves: ['Water Pulse', 'Bind', 'Sucker Punch', 'U-turn'] }],
+  drizzile: [{ name: 'Inteleon', minLevel: 35, types: ['Water'], bst: 530, keyMoves: ['Snipe Shot', 'Hydro Pump', 'Ice Beam', 'Dark Pulse'] }],
+  gastly: [{ name: 'Haunter', minLevel: 25, types: ['Ghost', 'Poison'], bst: 405, keyMoves: ['Shadow Ball', 'Sludge Bomb', 'Dazzling Gleam', 'Dark Pulse'] }],
+  haunter: [{ name: 'Gengar', minLevel: 36, types: ['Ghost', 'Poison'], bst: 500, keyMoves: ['Shadow Ball', 'Sludge Wave', 'Focus Blast', 'Thunderbolt'] }],
+  dratini: [{ name: 'Dragonair', minLevel: 30, types: ['Dragon'], bst: 420, keyMoves: ['Dragon Pulse', 'Slam', 'Aqua Tail', 'Extreme Speed'] }],
+  dragonair: [{ name: 'Dragonite', minLevel: 55, types: ['Dragon', 'Flying'], bst: 600, keyMoves: ['Outrage', 'Dragon Claw', 'Earthquake', 'Fire Punch'] }],
+  larvitar: [{ name: 'Pupitar', minLevel: 30, types: ['Rock', 'Ground'], bst: 410, keyMoves: ['Rock Slide', 'Earthquake', 'Crunch', 'Thrash'] }],
+  pupitar: [{ name: 'Tyranitar', minLevel: 55, types: ['Rock', 'Dark'], bst: 600, keyMoves: ['Stone Edge', 'Crunch', 'Earthquake', 'Fire Punch'] }],
+  gible: [{ name: 'Gabite', minLevel: 24, types: ['Dragon', 'Ground'], bst: 410, keyMoves: ['Dragon Claw', 'Slash', 'Bulldoze', 'Dual Chop'] }],
+  gabite: [{ name: 'Garchomp', minLevel: 48, types: ['Dragon', 'Ground'], bst: 600, keyMoves: ['Earthquake', 'Dragon Claw', 'Stone Edge', 'Sword Dance'] }],
+  garchomp: [{ name: 'Mega Garchomp', minLevel: 100, types: ['Dragon', 'Ground'], bst: 700, mega: true, keyMoves: ['Earthquake', 'Dragon Claw', 'Stone Edge', 'Fire Fang'] }],
+  magikarp: [{ name: 'Gyarados', minLevel: 20, types: ['Water', 'Flying'], bst: 540, keyMoves: ['Waterfall', 'Crunch', 'Earthquake', 'Dragon Dance'] }],
   abra: [
     { name: 'Kadabra', minLevel: 16, types: ['Psychic'], bst: 400, keyMoves: ['Psychic', 'Psyshock', 'Shadow Ball', 'Dazzling Gleam'] }
   ],
   kadabra: [
-    { name: 'Alakazam', minLevel: 1, types: ['Psychic'], bst: 500, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Energy Ball'] }
+    { name: 'Alakazam', minLevel: 36, types: ['Psychic'], bst: 500, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Energy Ball'] }
   ],
   alakazam: [
     { name: 'Mega Alakazam', minLevel: 100, types: ['Psychic'], bst: 600, mega: true, keyMoves: ['Psychic', 'Focus Blast', 'Shadow Ball', 'Dazzling Gleam'] }
@@ -1974,16 +2137,61 @@ const STAGE_TRANSITIONS = {
   ],
   medicham: [{ name: 'Mega Medicham', minLevel: 100, types: ['Fighting', 'Psychic'], bst: 510, mega: true, keyMoves: ['High Jump Kick', 'Zen Headbutt', 'Ice Punch', 'Close Combat'] }],
   onix: [
-    { name: 'Steelix', minLevel: 1, types: ['Steel', 'Ground'], bst: 510, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] }
+    { name: 'Steelix', minLevel: 40, types: ['Steel', 'Ground'], bst: 510, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] }
   ],
   steelix: [{ name: 'Mega Steelix', minLevel: 100, types: ['Steel', 'Ground'], bst: 610, mega: true, keyMoves: ['Earthquake', 'Iron Head', 'Stone Edge', 'Heavy Slam'] }],
   scyther: [
-    { name: 'Scizor', minLevel: 1, types: ['Bug', 'Steel'], bst: 500, keyMoves: ['Bullet Punch', 'X-Scissor', 'Superpower', 'Swords Dance'] },
-    { name: 'Kleavor', minLevel: 1, types: ['Bug', 'Rock'], bst: 500, keyMoves: ['Stone Axe', 'X-Scissor', 'Close Combat', 'Night Slash'] }
+    { name: 'Scizor', minLevel: 40, types: ['Bug', 'Steel'], bst: 500, keyMoves: ['Bullet Punch', 'X-Scissor', 'Superpower', 'Swords Dance'] },
+    { name: 'Kleavor', minLevel: 40, types: ['Bug', 'Rock'], bst: 500, keyMoves: ['Stone Axe', 'X-Scissor', 'Close Combat', 'Night Slash'] }
   ],
+  mareep: [
+    { name: 'Flaaffy', minLevel: 15, types: ['Electric'], bst: 365, keyMoves: ['Thunderbolt', 'Power Gem', 'Signal Beam', 'Cotton Guard'] }
+  ],
+  flaaffy: [
+    { name: 'Ampharos', minLevel: 30, types: ['Electric'], bst: 510, keyMoves: ['Thunderbolt', 'Dragon Pulse', 'Focus Blast', 'Signal Beam'] }
+  ],
+  ampharos: [{ name: 'Mega Ampharos', minLevel: 100, types: ['Electric', 'Dragon'], bst: 610, mega: true, keyMoves: ['Thunderbolt', 'Dragon Pulse', 'Focus Blast', 'Signal Beam'] }],
+  swablu: [
+    { name: 'Altaria', minLevel: 35, types: ['Dragon', 'Flying'], bst: 490, keyMoves: ['Dragon Pulse', 'Moonblast', 'Earthquake', 'Flamethrower'] }
+  ],
+  altaria: [{ name: 'Mega Altaria', minLevel: 100, types: ['Dragon', 'Fairy'], bst: 590, mega: true, keyMoves: ['Dragon Pulse', 'Moonblast', 'Earthquake', 'Flamethrower'] }],
+  pidgey: [
+    { name: 'Pidgeotto', minLevel: 18, types: ['Normal', 'Flying'], bst: 349, keyMoves: ['Air Slash', 'Quick Attack', 'Wing Attack', 'Roost'] }
+  ],
+  pidgeotto: [
+    { name: 'Pidgeot', minLevel: 36, types: ['Normal', 'Flying'], bst: 479, keyMoves: ['Hurricane', 'Heat Wave', 'U-turn', 'Roost'] }
+  ],
+  pidgeot: [{ name: 'Mega Pidgeot', minLevel: 100, types: ['Normal', 'Flying'], bst: 579, mega: true, keyMoves: ['Hurricane', 'Heat Wave', 'U-turn', 'Roost'] }],
+  weedle: [
+    { name: 'Kakuna', minLevel: 7, types: ['Bug', 'Poison'], bst: 205, keyMoves: ['Poison Sting', 'Bug Bite', 'Electroweb', 'Harden'] }
+  ],
+  kakuna: [
+    { name: 'Beedrill', minLevel: 10, types: ['Bug', 'Poison'], bst: 395, keyMoves: ['Poison Jab', 'X-Scissor', 'Drill Run', 'U-turn'] }
+  ],
+  beedrill: [{ name: 'Mega Beedrill', minLevel: 100, types: ['Bug', 'Poison'], bst: 495, mega: true, keyMoves: ['Poison Jab', 'X-Scissor', 'Drill Run', 'U-turn'] }],
+  buneary: [
+    { name: 'Lopunny', minLevel: 20, types: ['Normal'], bst: 480, keyMoves: ['High Jump Kick', 'Return', 'Close Combat', 'Ice Punch'] }
+  ],
+  melmetal: [{ name: 'G-Max Melmetal', minLevel: 100, types: ['Steel'], bst: 600, gmax: true, keyMoves: ['Double Iron Bash', 'Earthquake', 'Thunder Punch', 'Superpower'] }],
+  goomy: [
+    { name: 'Sliggoo', minLevel: 40, types: ['Dragon'], bst: 452, keyMoves: ['Dragon Pulse', 'Muddy Water', 'Sludge Bomb', 'Thunderbolt'] },
+    { name: 'Hisuian Sliggoo', minLevel: 40, types: ['Steel', 'Dragon'], bst: 452, keyMoves: ['Flash Cannon', 'Dragon Pulse', 'Shelter', 'Ice Beam'] }
+  ],
+  sliggoo: [
+    { name: 'Goodra', minLevel: 50, types: ['Dragon'], bst: 600, keyMoves: ['Draco Meteor', 'Fire Blast', 'Sludge Wave', 'Thunderbolt'] }
+  ],
+  'hisuian sliggoo': [
+    { name: 'Hisuian Goodra', minLevel: 50, types: ['Steel', 'Dragon'], bst: 600, keyMoves: ['Heavy Slam', 'Draco Meteor', 'Flamethrower', 'Ice Beam'] }
+  ],
+  'urshifu (rapid strike)': [{ name: 'G-Max Urshifu (Rapid Strike)', minLevel: 100, types: ['Fighting', 'Water'], bst: 550, gmax: true, keyMoves: ['Surging Strikes', 'Close Combat', 'Aqua Jet', 'Ice Punch'] }],
+  'urshifu (single strike)': [{ name: 'G-Max Urshifu (Single Strike)', minLevel: 100, types: ['Fighting', 'Dark'], bst: 550, gmax: true, keyMoves: ['Wicked Blow', 'Close Combat', 'Poison Jab', 'Iron Head'] }],
   slowpoke: [
     { name: 'Slowbro', minLevel: 37, types: ['Water', 'Psychic'], bst: 490, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Flamethrower'] },
     { name: 'Slowking', minLevel: 37, types: ['Water', 'Psychic'], bst: 490, keyMoves: ['Surf', 'Psychic', 'Ice Beam', 'Fire Blast'] }
+  ],
+  'galarian slowpoke': [
+    { name: 'Galarian Slowbro', minLevel: 37, types: ['Poison', 'Psychic'], bst: 490, keyMoves: ['Shell Side Arm', 'Psychic', 'Sludge Bomb', 'Flamethrower'] },
+    { name: 'Galarian Slowking', minLevel: 37, types: ['Poison', 'Psychic'], bst: 490, keyMoves: ['Eerie Spell', 'Sludge Bomb', 'Psychic', 'Flamethrower'] }
   ],
   slowbro: [{ name: 'Mega Slowbro', minLevel: 100, types: ['Water', 'Psychic'], bst: 590, mega: true, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Calm Mind'] }],
   snorunt: [
@@ -1995,6 +2203,7 @@ const STAGE_TRANSITIONS = {
   meltan: [{ name: 'Melmetal', minLevel: 80, types: ['Steel'], bst: 600, keyMoves: ['Double Iron Bash', 'Earthquake', 'Thunder Punch', 'Superpower'] }],
   'type: null': [{ name: 'Silvally', minLevel: 25, types: ['Normal'], bst: 570, keyMoves: ['Multi-Attack', 'Parting Shot', 'Iron Head', 'Flamethrower'] }],
   "farfetch'd": [{ name: "Sirfetch'd", minLevel: 35, types: ['Fighting'], bst: 507, keyMoves: ['Meteor Assault', 'Close Combat', 'Brave Bird', 'First Impression'] }],
+  "galarian farfetch'd": [{ name: "Sirfetch'd", minLevel: 35, types: ['Fighting'], bst: 507, keyMoves: ['Meteor Assault', 'Close Combat', 'Brave Bird', 'First Impression'] }],
   kubfu: [
     { name: 'Urshifu (Single Strike)', minLevel: 20, types: ['Fighting', 'Dark'], bst: 550, gmax: true, keyMoves: ['Wicked Blow', 'Close Combat', 'Poison Jab', 'Iron Head'] },
     { name: 'Urshifu (Rapid Strike)', minLevel: 20, types: ['Fighting', 'Water'], bst: 550, gmax: true, keyMoves: ['Surging Strikes', 'Close Combat', 'Aqua Jet', 'Ice Punch'] }
@@ -2012,6 +2221,270 @@ const STAGE_TRANSITIONS = {
   rayquaza: [{ name: 'Mega Rayquaza', minLevel: 100, types: ['Dragon', 'Flying'], bst: 780, mega: true, keyMoves: ['Dragon Ascent', 'Extreme Speed', 'Earthquake', 'V-create'] }],
   venusaur: [{ name: 'Mega Venusaur', minLevel: 100, types: ['Grass', 'Poison'], bst: 625, mega: true, keyMoves: ['Giga Drain', 'Sludge Bomb', 'Earthquake', 'Synthesis'] }]
 };
+
+// Comprehensive Gen 1-9 Universal Immediate Stage Transitions (Guarantees 100% Future-Proof Species Coverage)
+const UNIVERSAL_STAGE_MAP = {
+  // Gen 1
+  caterpie: [['Metapod', 7]], metapod: [['Butterfree', 10]], butterfree: [['G-Max Butterfree', 100, 'gmax']],
+  rattata: [['Raticate', 20]], 'alolan rattata': [['Alolan Raticate', 20]],
+  spearow: [['Fearow', 20]], ekans: [['Arbok', 22]],
+  pichu: [['Pikachu', 20]], pikachu: [['Raichu', 25], ['Alolan Raichu', 25], ['G-Max Pikachu', 100, 'gmax']],
+  sandshrew: [['Sandslash', 22]], 'alolan sandshrew': [['Alolan Sandslash', 22]],
+  'nidoran f': [['Nidorina', 16]], nidorina: [['Nidoqueen', 36]],
+  'nidoran m': [['Nidorino', 16]], nidorino: [['Nidoking', 36]],
+  cleffa: [['Clefairy', 20]], clefairy: [['Clefable', 30]],
+  vulpix: [['Ninetales', 30]], 'alolan vulpix': [['Alolan Ninetales', 30]],
+  igglybuff: [['Jigglypuff', 20]], jigglypuff: [['Wigglytuff', 30]],
+  zubat: [['Golbat', 22]], golbat: [['Crobat', 36]],
+  oddish: [['Gloom', 21]], gloom: [['Vileplume', 36], ['Bellossom', 36]],
+  paras: [['Parasect', 24]], venonat: [['Venomoth', 31]],
+  diglett: [['Dugtrio', 26]], 'alolan diglett': [['Alolan Dugtrio', 26]],
+  meowth: [['Persian', 28], ['G-Max Meowth', 100, 'gmax']], 'alolan meowth': [['Alolan Persian', 28]], 'galarian meowth': [['Perrserker', 28]],
+  psyduck: [['Golduck', 33]], mankey: [['Primeape', 28]], primeape: [['Annihilape', 35]],
+  growlithe: [['Arcanine', 35]], 'hisuian growlithe': [['Hisuian Arcanine', 35]],
+  poliwag: [['Poliwhirl', 25]], poliwhirl: [['Poliwrath', 36], ['Politoed', 36]],
+  machop: [['Machoke', 28]], machoke: [['Machamp', 40]], machamp: [['G-Max Machamp', 100, 'gmax']],
+  bellsprout: [['Weepinbell', 21]], weepinbell: [['Victreebel', 36]],
+  tentacool: [['Tentacruel', 30]],
+  geodude: [['Graveler', 25]], graveler: [['Golem', 40]],
+  'alolan geodude': [['Alolan Graveler', 25]], 'alolan graveler': [['Alolan Golem', 40]],
+  ponyta: [['Rapidash', 40]], 'galarian ponyta': [['Galarian Rapidash', 40]],
+  magnemite: [['Magneton', 30]], magneton: [['Magnezone', 40]],
+  doduo: [['Dodrio', 31]], seel: [['Dewgong', 34]],
+  grimer: [['Muk', 38]], 'alolan grimer': [['Alolan Muk', 38]],
+  shellder: [['Cloyster', 30]], drowzee: [['Hypno', 26]],
+  krabby: [['Kingler', 28]], kingler: [['G-Max Kingler', 100, 'gmax']],
+  voltorb: [['Electrode', 30]], 'hisuian voltorb': [['Hisuian Electrode', 30]],
+  exeggcute: [['Exeggutor', 35], ['Alolan Exeggutor', 35]],
+  cubone: [['Marowak', 28], ['Alolan Marowak', 28]],
+  tyrogue: [['Hitmonlee', 20], ['Hitmonchan', 20], ['Hitmontop', 20]],
+  lickitung: [['Lickilicky', 33]], koffing: [['Weezing', 35], ['Galarian Weezing', 35]],
+  rhyhorn: [['Rhydon', 42]], rhydon: [['Rhyperior', 55]],
+  happiny: [['Chansey', 20]], chansey: [['Blissey', 35]],
+  tangela: [['Tangrowth', 33]], horsea: [['Seadra', 32]], seadra: [['Kingdra', 45]],
+  goldeen: [['Seaking', 33]], staryu: [['Starmie', 30]],
+  'mime jr.': [['Mr. Mime', 20], ['Galarian Mr. Mime', 20]], 'galarian mr. mime': [['Mr. Rime', 42]],
+  smoochum: [['Jynx', 30]], elekid: [['Electabuzz', 30]], electabuzz: [['Electivire', 45]],
+  magby: [['Magmar', 30]], magmar: [['Magmortar', 45]],
+  lapras: [['G-Max Lapras', 100, 'gmax']],
+  eevee: [['Vaporeon', 25], ['Jolteon', 25], ['Flareon', 25], ['Espeon', 25], ['Umbreon', 25], ['Leafeon', 25], ['Glaceon', 25], ['Sylveon', 25], ['G-Max Eevee', 100, 'gmax']],
+  porygon: [['Porygon2', 30]], porygon2: [['Porygon-Z', 45]],
+  omanyte: [['Omastar', 40]], kabuto: [['Kabutops', 40]],
+  munchlax: [['Snorlax', 25]], snorlax: [['G-Max Snorlax', 100, 'gmax']],
+  // Gen 2
+  chikorita: [['Bayleef', 16]], bayleef: [['Meganium', 32]],
+  sentret: [['Furret', 15]], hoothoot: [['Noctowl', 20]],
+  ledyba: [['Ledian', 18]], spinarak: [['Ariados', 22]],
+  chinchou: [['Lanturn', 27]], togepi: [['Togetic', 20]], togetic: [['Togekiss', 35]],
+  natu: [['Xatu', 25]], azurill: [['Marill', 15]], marill: [['Azumarill', 18]],
+  bonsly: [['Sudowoodo', 20]], hoppip: [['Skiploom', 18]], skiploom: [['Jumpluff', 27]],
+  aipom: [['Ambipom', 32]], sunkern: [['Sunflora', 25]], yanma: [['Yanmega', 33]],
+  wooper: [['Quagsire', 20]], 'paldean wooper': [['Clodsire', 20]],
+  murkrow: [['Honchkrow', 35]], misdreavus: [['Mismagius', 35]],
+  girafarig: [['Farigiraf', 32]], pineco: [['Forretress', 31]],
+  dunsparce: [['Dudunsparce', 32]], gligar: [['Gliscor', 35]],
+  snubbull: [['Granbull', 23]], 'hisuian qwilfish': [['Overqwil', 35]],
+  sneasel: [['Weavile', 35]], 'hisuian sneasel': [['Sneasler', 35]],
+  teddiursa: [['Ursaring', 30]], ursaring: [['Ursaluna', 50]],
+  slugma: [['Magcargo', 38]], swinub: [['Piloswine', 33]], piloswine: [['Mamoswine', 45]],
+  'galarian corsola': [['Cursola', 38]], remoraid: [['Octillery', 25]],
+  mantyke: [['Mantine', 25]], phanpy: [['Donphan', 25]],
+  stantler: [['Wyrdeer', 35]],
+  // Gen 3
+  poochyena: [['Mightyena', 18]],
+  zigzagoon: [['Linoone', 20]], 'galarian zigzagoon': [['Galarian Linoone', 20]], 'galarian linoone': [['Obstagoon', 35]],
+  wurmple: [['Silcoon', 7], ['Cascoon', 7]], silcoon: [['Beautifly', 10]], cascoon: [['Dustox', 10]],
+  lotad: [['Lombre', 14]], lombre: [['Ludicolo', 32]],
+  seedot: [['Nuzleaf', 14]], nuzleaf: [['Shiftry', 32]],
+  taillow: [['Swellow', 22]], wingull: [['Pelipper', 25]],
+  ralts: [['Kirlia', 20]], kirlia: [['Gardevoir', 30], ['Gallade', 30]],
+  surskit: [['Masquerain', 22]], shroomish: [['Breloom', 23]],
+  slakoth: [['Vigoroth', 18]], vigoroth: [['Slaking', 36]],
+  nincada: [['Ninjask', 20], ['Shedinja', 20]],
+  whismur: [['Loudred', 20]], loudred: [['Exploud', 40]],
+  makuhita: [['Hariyama', 24]], nosepass: [['Probopass', 35]],
+  skitty: [['Delcatty', 25]],
+  aron: [['Lairon', 32]], lairon: [['Aggron', 42]],
+  electrike: [['Manectric', 26]], budew: [['Roselia', 20]], roselia: [['Roserade', 35]],
+  gulpin: [['Swalot', 26]], carvanha: [['Sharpedo', 30]],
+  wailmer: [['Wailord', 40]], numel: [['Camerupt', 33]],
+  spoink: [['Grumpig', 32]], trapinch: [['Vibrava', 35]], vibrava: [['Flygon', 45]],
+  cacnea: [['Cacturne', 32]], barboach: [['Whiscash', 30]],
+  corphish: [['Crawdaunt', 30]], baltoy: [['Claydol', 36]],
+  lileep: [['Cradily', 40]], anorith: [['Armaldo', 40]],
+  feebas: [['Milotic', 35]], shuppet: [['Banette', 37]],
+  duskull: [['Dusclops', 37]], dusclops: [['Dusknoir', 45]],
+  chingling: [['Chimecho', 20]], wynaut: [['Wobbuffet', 15]],
+  spheal: [['Sealeo', 32]], sealeo: [['Walrein', 44]],
+  clamperl: [['Huntail', 30], ['Gorebyss', 30]],
+  // Gen 4
+  starly: [['Staravia', 14]], staravia: [['Staraptor', 34]],
+  bidoof: [['Bibarel', 15]], kricketot: [['Kricketune', 10]],
+  shinx: [['Luxio', 15]], luxio: [['Luxray', 30]],
+  cranidos: [['Rampardos', 30]], shieldon: [['Bastiodon', 30]],
+  burmy: [['Wormadam', 20], ['Mothim', 20]], combee: [['Vespiquen', 21]],
+  buizel: [['Floatzel', 26]], cherubi: [['Cherrim', 25]],
+  shellos: [['Gastrodon', 30]], drifloon: [['Drifblim', 28]],
+  glameow: [['Purugly', 38]], bronzor: [['Bronzong', 33]],
+  skorupi: [['Drapion', 40]], croagunk: [['Toxicroak', 37]],
+  finneon: [['Lumineon', 31]], snover: [['Abomasnow', 40]],
+  riolu: [['Lucario', 25]], hippopotas: [['Hippowdon', 34]],
+  // Gen 5
+  snivy: [['Servine', 17]], servine: [['Serperior', 36]],
+  tepig: [['Pignite', 17]], pignite: [['Emboar', 36]],
+  oshawott: [['Dewott', 17]], dewott: [['Samurott', 36], ['Hisuian Samurott', 36]],
+  patrat: [['Watchog', 20]], lillipup: [['Herdier', 16]], herdier: [['Stoutland', 32]],
+  purrloin: [['Liepard', 20]],
+  pansage: [['Simisage', 25]], pansear: [['Simisear', 25]], panpour: [['Simipour', 25]],
+  munna: [['Musharna', 25]], pidove: [['Tranquill', 21]], tranquill: [['Unfezant', 32]],
+  blitzle: [['Zebstrika', 27]], roggenrola: [['Boldore', 25]], boldore: [['Gigalith', 40]],
+  woobat: [['Swoobat', 25]], drilbur: [['Excadrill', 31]],
+  timburr: [['Gurdurr', 25]], gurdurr: [['Conkeldurr', 40]],
+  tympole: [['Palpitoad', 25]], palpitoad: [['Seismitoad', 36]],
+  sewaddle: [['Swadloon', 20]], swadloon: [['Leavanny', 32]],
+  venipede: [['Whirlipede', 22]], whirlipede: [['Scolipede', 30]],
+  cottonee: [['Whimsicott', 25]], petilil: [['Lilligant', 25], ['Hisuian Lilligant', 25]],
+  basculin: [['Basculegion', 40]],
+  sandile: [['Krokorok', 29]], krokorok: [['Krookodile', 40]],
+  darumaka: [['Darmanitan', 35]], 'galarian darumaka': [['Galarian Darmanitan', 35]],
+  dwebble: [['Crustle', 34]], scraggy: [['Scrafty', 39]],
+  yamask: [['Cofagrigus', 34]], 'galarian yamask': [['Runerigus', 34]],
+  tirtouga: [['Carracosta', 37]], archen: [['Archeops', 37]],
+  trubbish: [['Garbodor', 36]], garbodor: [['G-Max Garbodor', 100, 'gmax']],
+  zorua: [['Zoroark', 30]], 'hisuian zorua': [['Hisuian Zoroark', 30]],
+  minccino: [['Cinccino', 25]], gothita: [['Gothorita', 32]], gothorita: [['Gothitelle', 41]],
+  solosis: [['Duosion', 32]], duosion: [['Reuniclus', 41]],
+  ducklett: [['Swanna', 35]], vanillite: [['Vanillish', 35]], vanillish: [['Vanilluxe', 47]],
+  deerling: [['Sawsbuck', 34]], karrablast: [['Escavalier', 30]],
+  foongus: [['Amoonguss', 39]], frillish: [['Jellicent', 40]],
+  joltik: [['Galvantula', 36]], ferroseed: [['Ferrothorn', 40]],
+  klink: [['Klang', 38]], klang: [['Klinklang', 49]],
+  tynamo: [['Eelektrik', 39]], eelektrik: [['Eelektross', 45]],
+  elgyem: [['Beheeyem', 42]], litwick: [['Lampent', 41]], lampent: [['Chandelure', 45]],
+  axew: [['Fraxure', 38]], fraxure: [['Haxorus', 48]],
+  cubchoo: [['Beartic', 37]], shelmet: [['Accelgor', 30]],
+  mienfoo: [['Mienshao', 50]], golett: [['Golurk', 43]],
+  pawniard: [['Bisharp', 52]], bisharp: [['Kingambit', 60]],
+  rufflet: [['Braviary', 54], ['Hisuian Braviary', 54]],
+  vullaby: [['Mandibuzz', 54]],
+  deino: [['Zweilous', 50]], zweilous: [['Hydreigon', 64]],
+  larvesta: [['Volcarona', 59]],
+  // Gen 6
+  chespin: [['Quilladin', 16]], quilladin: [['Chesnaught', 36]],
+  fennekin: [['Braixen', 16]], braixen: [['Delphox', 36]],
+  bunnelby: [['Diggersby', 20]],
+  fletchling: [['Fletchinder', 17]], fletchinder: [['Talonflame', 35]],
+  scatterbug: [['Spewpa', 9]], spewpa: [['Vivillon', 12]],
+  litleo: [['Pyroar', 35]],
+  flabebe: [['Floette', 19]], floette: [['Florges', 35]],
+  skiddo: [['Gogoat', 32]], pancham: [['Pangoro', 32]],
+  espurr: [['Meowstic', 25]],
+  honedge: [['Doublade', 35]], doublade: [['Aegislash', 45]],
+  spritzee: [['Aromatisse', 30]], swirlix: [['Slurpuff', 30]],
+  inkay: [['Malamar', 30]], binacle: [['Barbaracle', 39]],
+  skrelp: [['Dragalge', 48]], clauncher: [['Clawitzer', 37]],
+  helioptile: [['Heliolisk', 30]], tyrunt: [['Tyrantrum', 39]],
+  amaura: [['Aurorus', 39]], phantump: [['Trevenant', 30]],
+  pumpkaboo: [['Gourgeist', 30]],
+  bergmite: [['Avalugg', 37]], 'hisuian bergmite': [['Hisuian Avalugg', 37]],
+  noibat: [['Noivern', 48]],
+  // Gen 7
+  rowlet: [['Dartrix', 17]], dartrix: [['Decidueye', 34], ['Hisuian Decidueye', 36]],
+  litten: [['Torracat', 17]], torracat: [['Incineroar', 34]],
+  popplio: [['Brionne', 17]], brionne: [['Primarina', 34]],
+  pikipek: [['Trumbeak', 14]], trumbeak: [['Toucannon', 28]],
+  yungoos: [['Gumshoos', 20]],
+  grubbin: [['Charjabug', 20]], charjabug: [['Vikavolt', 35]],
+  crabrawler: [['Crabominable', 35]], cutiefly: [['Ribombee', 25]],
+  rockruff: [['Lycanroc (Midday)', 25], ['Lycanroc (Midnight)', 25], ['Lycanroc (Dusk)', 25]],
+  mareanie: [['Toxapex', 38]], mudbray: [['Mudsdale', 30]],
+  dewpider: [['Araquanid', 22]], fomantis: [['Lurantis', 34]],
+  morelull: [['Shiinotic', 24]], salandit: [['Salazzle', 33]],
+  stufful: [['Bewear', 27]],
+  bounsweet: [['Steenee', 18]], steenee: [['Tsareena', 28]],
+  wimpod: [['Golisopod', 30]], sandygast: [['Palossand', 42]],
+  'jangmo-o': [['Hakamo-o', 35]], 'hakamo-o': [['Kommo-o', 45]],
+  // Gen 8
+  rillaboom: [['G-Max Rillaboom', 100, 'gmax']],
+  cinderace: [['G-Max Cinderace', 100, 'gmax']],
+  inteleon: [['G-Max Inteleon', 100, 'gmax']],
+  skwovet: [['Greedent', 24]],
+  rookidee: [['Corvisquire', 18]], corvisquire: [['Corviknight', 38]], corviknight: [['G-Max Corviknight', 100, 'gmax']],
+  blipbug: [['Dottler', 10]], dottler: [['Orbeetle', 30]], orbeetle: [['G-Max Orbeetle', 100, 'gmax']],
+  nickit: [['Thievul', 18]], gossifleur: [['Eldegoss', 20]],
+  wooloo: [['Dubwool', 24]],
+  chewtle: [['Drednaw', 22]], drednaw: [['G-Max Drednaw', 100, 'gmax']],
+  yamper: [['Boltund', 25]],
+  rolycoly: [['Carkol', 18]], carkol: [['Coalossal', 34]], coalossal: [['G-Max Coalossal', 100, 'gmax']],
+  applin: [['Flapple', 30], ['Appletun', 30], ['Dipplin', 30]], dipplin: [['Hydrapple', 45]],
+  flapple: [['G-Max Flapple', 100, 'gmax']], appletun: [['G-Max Appletun', 100, 'gmax']],
+  silicobra: [['Sandaconda', 36]], sandaconda: [['G-Max Sandaconda', 100, 'gmax']],
+  arrokuda: [['Barraskewda', 26]],
+  toxel: [['Toxtricity', 30]], toxtricity: [['G-Max Toxtricity', 100, 'gmax']],
+  sizzlipede: [['Centiskorch', 28]], centiskorch: [['G-Max Centiskorch', 100, 'gmax']],
+  clobbopus: [['Grapploct', 35]], sinistea: [['Polteageist', 30]],
+  hatenna: [['Hattrem', 32]], hattrem: [['Hatterene', 42]], hatterene: [['G-Max Hatterene', 100, 'gmax']],
+  impidimp: [['Morgrem', 32]], morgrem: [['Grimmsnarl', 42]], grimmsnarl: [['G-Max Grimmsnarl', 100, 'gmax']],
+  milcery: [['Alcremie', 25]], alcremie: [['G-Max Alcremie', 100, 'gmax']],
+  snom: [['Frosmoth', 25]],
+  cufant: [['Copperajah', 34]], copperajah: [['G-Max Copperajah', 100, 'gmax']],
+  duraludon: [['Archaludon', 40], ['G-Max Duraludon', 100, 'gmax']],
+  dreepy: [['Drakloak', 50]], drakloak: [['Dragapult', 60]],
+  // Gen 9
+  sprigatito: [['Floragato', 16]], floragato: [['Meowscarada', 36]],
+  fuecoco: [['Crocalor', 16]], crocalor: [['Skeledirge', 36]],
+  quaxly: [['Quaxwell', 16]], quaxwell: [['Quaquaval', 36]],
+  lechonk: [['Oinkologne', 18]], tarountula: [['Spidops', 15]],
+  nymble: [['Lokix', 24]],
+  pawmi: [['Pawmo', 18]], pawmo: [['Pawmot', 32]],
+  tandemaus: [['Maushold', 25]], fidough: [['Dachsbun', 26]],
+  smoliv: [['Dolliv', 25]], dolliv: [['Arboliva', 35]],
+  nacli: [['Naclstack', 24]], naclstack: [['Garganacl', 38]],
+  charcadet: [['Armarouge', 30], ['Ceruledge', 30]],
+  tadbulb: [['Bellibolt', 30]], wattrel: [['Kilowattrel', 25]],
+  maschiff: [['Mabosstiff', 30]], shroodle: [['Grafaiai', 28]],
+  bramblin: [['Brambleghast', 30]], toedscool: [['Toedscruel', 30]],
+  capsakid: [['Scovillain', 30]], rellor: [['Rabsca', 30]],
+  flittle: [['Espathra', 35]],
+  tinkatink: [['Tinkatuff', 24]], tinkatuff: [['Tinkaton', 38]],
+  wiglett: [['Wugtrio', 26]], finizen: [['Palafin', 38]],
+  varoom: [['Revavroom', 40]], glimmet: [['Glimmora', 35]],
+  greavard: [['Houndstone', 30]], cetoddle: [['Cetitan', 35]],
+  frigibax: [['Arctibax', 35]], arctibax: [['Baxcalibur', 54]],
+  gimmighoul: [['Gholdengo', 40]], poltchageist: [['Sinistcha', 30]],
+  quilava: [['Typhlosion', 36], ['Hisuian Typhlosion', 36]],
+  "galarian farfetch'd": [["Sirfetch'd", 30]],
+  farfetchd: [["Sirfetch'd", 30]]
+};
+
+for (const [srcKey, targets] of Object.entries(UNIVERSAL_STAGE_MAP)) {
+  const mappedTargets = targets.map(t => {
+    const targetName = t[0];
+    const minLvl = t[1] || 20;
+    const flag = t[2] || '';
+    const resolvedTypes = (typeof resolvePokemonTypes === 'function')
+      ? resolvePokemonTypes(targetName)
+      : ['Normal'];
+    return {
+      name: targetName,
+      minLevel: minLvl,
+      types: resolvedTypes,
+      bst: flag === 'gmax' || flag === 'mega' ? 600 : (minLvl >= 30 ? 500 : 410),
+      mega: flag === 'mega',
+      gmax: flag === 'gmax',
+      keyMoves: []
+    };
+  });
+  if (!STAGE_TRANSITIONS[srcKey]) {
+    STAGE_TRANSITIONS[srcKey] = mappedTargets;
+  } else {
+    for (const mt of mappedTargets) {
+      if (!STAGE_TRANSITIONS[srcKey].some(e => e.name.toLowerCase() === mt.name.toLowerCase())) {
+        STAGE_TRANSITIONS[srcKey].push(mt);
+      }
+    }
+  }
+}
 
 function getEvolveReadyPokemon(userCollection) {
   if (!Array.isArray(userCollection) || userCollection.length === 0) return [];
@@ -2032,8 +2505,15 @@ function getEvolveReadyPokemon(userCollection) {
       continue;
     }
 
+    // Exclude untrained wild catches below Level 20 (all wild catches in DelugeRPG are Lv 2-16)
+    if ((poke.level || 1) < 20) {
+      continue;
+    }
+
+    const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)(?:\s+|$)/i;
+    const cleanNoVariant = rawName.replace(VARIANT_PREFIX_REGEX, '').trim().toLowerCase();
     const baseSpecies = teamEngine.getBaseSpecies(rawName).toLowerCase();
-    const transitions = STAGE_TRANSITIONS[baseSpecies];
+    const transitions = STAGE_TRANSITIONS[cleanNoVariant] || STAGE_TRANSITIONS[baseSpecies];
     const fam = findFamily(rawName);
 
     const branches = [];
@@ -2045,8 +2525,8 @@ function getEvolveReadyPokemon(userCollection) {
         filteredTransitions = transitions.filter(t => t.name.toLowerCase().includes('single strike'));
       }
       for (const tr of filteredTransitions) {
-        if (tr.name.toLowerCase() === baseSpecies) continue;
-        const minLvl = (tr.mega || tr.gmax) ? 100 : (tr.minLevel || 1);
+        if (tr.name.toLowerCase() === cleanNoVariant || tr.name.toLowerCase() === baseSpecies) continue;
+        const minLvl = (tr.mega || tr.gmax) ? 100 : Math.max(20, tr.minLevel || 20);
         if ((poke.level || 1) < minLvl) {
           continue; // Strict level enforcement: under-leveled Pokemon can NEVER evolve
         }
@@ -2056,19 +2536,40 @@ function getEvolveReadyPokemon(userCollection) {
       const isBase = fam.base.toLowerCase() === baseSpecies;
       const isStage = Array.isArray(fam.stages) && fam.stages.some(s => s.toLowerCase() === baseSpecies);
       if (isBase || isStage) {
-        for (const br of fam.branches) {
-          if (br.name.toLowerCase() === baseSpecies) continue;
-          const minLvl = (br.mega || br.gmax) ? 100 : (br.minLevel || 1);
-          if ((poke.level || 1) < minLvl) {
-            continue; // Strict level enforcement: under-leveled Pokemon can NEVER evolve
+        let stageIdx = -1;
+        if (Array.isArray(fam.stages)) {
+          stageIdx = fam.stages.findIndex(s => s.toLowerCase() === baseSpecies);
+        }
+        if (stageIdx !== -1 && stageIdx < fam.stages.length - 1) {
+          const nextStageName = fam.stages[stageIdx + 1];
+          const nextTypes = (typeof resolvePokemonTypes === 'function') ? resolvePokemonTypes(nextStageName, userCollection) : ['Normal'];
+          let stageMinLvl = 20;
+          const trCheck = STAGE_TRANSITIONS[cleanNoVariant] || STAGE_TRANSITIONS[baseSpecies];
+          if (trCheck && trCheck[0] && trCheck[0].minLevel) {
+            stageMinLvl = Math.max(20, trCheck[0].minLevel);
           }
-          branches.push(br);
+          if ((poke.level || 1) >= stageMinLvl) {
+            branches.push({
+              name: nextStageName,
+              minLevel: stageMinLvl,
+              types: nextTypes,
+              bst: 405
+            });
+          }
+        } else {
+          for (const br of fam.branches) {
+            if (br.name.toLowerCase() === baseSpecies) continue;
+            const minLvl = (br.mega || br.gmax) ? 100 : Math.max(20, br.minLevel || 30);
+            if ((poke.level || 1) < minLvl) {
+              continue; // Strict level enforcement: under-leveled Pokemon can NEVER evolve
+            }
+            branches.push(br);
+          }
         }
       }
     }
 
     if (branches.length > 0) {
-      const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)(?:\s+|$)/i;
       const vMatch = rawName.match(VARIANT_PREFIX_REGEX);
       const pVariant = poke.variant || (vMatch ? vMatch[1] : 'Normal');
       const cleanVariant = String(pVariant).trim();
@@ -2079,7 +2580,11 @@ function getEvolveReadyPokemon(userCollection) {
           ? `${normalizedVariant} ${br.name}`
           : br.name;
         const ownership = checkEvolutionOwnership(fullBranchName, userCollection, normalizedVariant);
-        const isDuplicate = ownership.isOwned || ownership.hasMegaOwned;
+        const isDuplicate = br.mega
+          ? Boolean(ownership.hasMegaOwned || ownership.hasExactOwned)
+          : (br.gmax
+              ? Boolean(ownership.hasGmaxOwned || ownership.hasExactOwned)
+              : Boolean(ownership.hasExactOwned));
 
         // Combine current equipped moves and branch key moves for best 4 attacks evaluation
         const currentMoves = Array.isArray(poke.moves) ? poke.moves.map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : ''))).filter(Boolean) : [];
@@ -2150,7 +2655,7 @@ function getBoxPokemonMovesCollection(userCollection, filterMode = 'ALL') {
     if (!poke || !poke.name) continue;
     const rawName = String(poke.name).trim();
 
-    if (filterMode === 'MEGAS' && !teamEngine.isActualMegaEvolution(rawName)) {
+    if (filterMode === 'MEGAS' && !teamEngine.isActualMegaEvolution(rawName) && !teamEngine.isAlreadyGmax(rawName)) {
       continue;
     }
 

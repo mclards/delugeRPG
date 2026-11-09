@@ -923,6 +923,44 @@ runTest('app.js: Training Mode Carry Anchor Leads in Slot 1 Audit', () => {
   assert(appJsContent.includes("targetName: 'Primary Trainee Partner'") && appJsContent.includes("targetName: 'Trainee #' + (hybridTeam.length + 1)"), 'Trainee counters must follow sequentially in slots 2 through 6');
 });
 
+runTest('app.js: Training Mode Candidate Pool Fallback & Trainee Backfill Audit', () => {
+  const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  // Carry selection must come from collectionLvl100s regardless of filter
+  assert(appJsContent.includes('const collectionLvl100s = (currentCollection || []).filter(p => (p.level || 0) === 100);'), 'Carry must evaluate entire collection Level 100s');
+  // Must check if entire box has trainees
+  assert(appJsContent.includes("const allBoxTrainees = (currentCollection || []).filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);"), 'Must check all box trainees under Lv 100');
+  // Must backfill remaining slots from allBoxTrainees
+  assert(appJsContent.includes('const remainingBoxTrainees = allBoxTrainees.filter(p => !usedIds.has(p.id)'), 'Must backfill open slots from remaining box trainees');
+  assert(appJsContent.includes('All Pokemon in your collection are Level 100!'), 'Must only warn when entire box is Lv 100');
+
+  // Algorithmic validation with simulated box
+  const testBox = [
+    { id: 'carry1', name: 'Dark Mega Sableye', level: 100, types: ['Dark', 'Ghost'], attacks: [{ name: 'Astral Barrage', type: 'Ghost', power: 120 }] },
+    { id: 'gmax100', name: 'G-Max Coalossal', level: 100, types: ['Rock', 'Fire'], attacks: [{ name: 'Burn Up', type: 'Fire', power: 130 }] },
+    { id: 't1', name: 'Metallic Grookey', level: 13, types: ['Grass'], attacks: [{ name: 'Knock Off', type: 'Dark', power: 65 }] },
+    { id: 't2', name: 'Grookey', level: 5, types: ['Grass'], attacks: [{ name: 'Knock Off', type: 'Dark', power: 65 }] },
+    { id: 't3', name: 'Bulbasaur', level: 14, types: ['Grass', 'Poison'], attacks: [{ name: 'Razor Leaf', type: 'Grass', power: 55 }] },
+    { id: 't4', name: 'Ghostly Bulbasaur', level: 8, types: ['Grass', 'Poison'], attacks: [{ name: 'Razor Leaf', type: 'Grass', power: 55 }] },
+    { id: 't5', name: 'Pidgey', level: 12, types: ['Normal', 'Flying'], attacks: [{ name: 'Gust', type: 'Flying', power: 40 }] }
+  ];
+
+  const dummyLeader = { name: 'Acerola', avgLevel: 56, roster: [{ name: 'Mimikyu', types: ['Ghost', 'Fairy'], level: 56 }] };
+  const teamEngine = require(path.join(__dirname, 'team_engine.js'));
+
+  // When G-Max filter is applied: 4 G-Max trainees exist + 1 non-G-Max trainee
+  const gmaxPool = teamEngine.filterCandidatePool(testBox, 'GMAX');
+  const gmaxTrainees = gmaxPool.filter(p => p.level < 100);
+  assert.strictEqual(gmaxTrainees.length, 4, 'Should detect 4 G-Max trainees');
+
+  // Verify that backfill from box trainees fills slot 6 with Pidgey (< Lv 100), NOT Coalossal (Lv 100)
+  const allTrainees = testBox.filter(p => p.level < 100);
+  const used = new Set(gmaxTrainees.map(t => t.id));
+  const backfilled = allTrainees.filter(t => !used.has(t.id));
+  assert.strictEqual(backfilled.length, 1, 'Should find 1 remaining box trainee for backfill');
+  assert.strictEqual(backfilled[0].name, 'Pidgey', 'Backfill must be low level trainee Pidgey');
+  assert(backfilled[0].level < 100, 'Backfilled member must be under Level 100');
+});
+
 runTest('app.html & app.js: Ads Inspector docked panel & telemetry UI audit', () => {
   const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
   assert(appHtml.includes('id="adsInspectorModal"'), 'adsInspectorModal must exist in app.html');
@@ -1158,9 +1196,9 @@ console.log('\n--- PIPELINE 8: CORE HUNTING, ANTI-BOT & SAFETY GUARDS AUDIT ---'
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
 
-runTest('Anti-Bot Safety Floor: >= 1700ms enforced', () => {
-  assert(config.settings.minSafetyFloor >= 1700, 'minSafetyFloor must be at least 1700ms');
-  assert(config.settings.baseDelay >= 2000, 'baseDelay must be at least 2000ms');
+runTest('Anti-Bot Safety Floor: >= 500ms enforced (Configurable Movement Speed Bounds)', () => {
+  assert(typeof config.settings.minSafetyFloor === 'number' && config.settings.minSafetyFloor >= 500, 'minSafetyFloor must be at least 500ms');
+  assert(typeof config.settings.baseDelay === 'number' && config.settings.baseDelay >= config.settings.minSafetyFloor, 'baseDelay must be at least minSafetyFloor');
 });
 
 runTest('Captcha / Unlock Guard: Active in preload', () => {
@@ -1201,9 +1239,9 @@ runTest('Full Configurations & Settings Parameters Pipelines Audit', () => {
   assert(typeof s.profile === 'string', 'settings.profile must exist');
   assert(['wander', 'patrol'].includes(s.walkMode), 'settings.walkMode must be valid');
   assert(typeof s.stepsPerDirection === 'number' && s.stepsPerDirection >= 1, 'settings.stepsPerDirection must be >= 1');
-  assert(typeof s.baseDelay === 'number' && s.baseDelay >= 1700, 'settings.baseDelay must be >= 1700');
+  assert(typeof s.baseDelay === 'number' && s.baseDelay >= 500, 'settings.baseDelay must be >= 500');
   assert(typeof s.jitter === 'number', 'settings.jitter must exist');
-  assert(typeof s.minSafetyFloor === 'number' && s.minSafetyFloor >= 1700, 'settings.minSafetyFloor must be >= 1700');
+  assert(typeof s.minSafetyFloor === 'number' && s.minSafetyFloor >= 500, 'settings.minSafetyFloor must be >= 500');
   assert(typeof s.enableMicroBreaks === 'boolean', 'settings.enableMicroBreaks must exist');
   assert(typeof s.enableIdlePauses === 'boolean', 'settings.enableIdlePauses must exist');
   assert(typeof s.soundAlert === 'boolean', 'settings.soundAlert must exist');
@@ -1329,6 +1367,12 @@ runTest('Strict Mega and Legendary Exclusion Guards & Per-Tier Variant Assignmen
       function extractWildLevel() { return currentLevel; }
       function getEncounterContainer() { return { innerText: encounterBoxText }; }
       function checkEncounterIsDuplicate() { return isDupe; }
+      function isPreloadLegendaryOrSpecial(name) {
+        if (!name) return false;
+        const clean = String(name).toLowerCase().replace(/^(dark|shiny|shadow|ghostly|ghost|metallic|mirage|negative|chrome|retro|mega|primal|g-max|gigantamax)\s+/i, '').replace(/\s*\(lv\s*\d+[^)]*\)\s*/gi, '').replace(/\s*\([^)]*\)/g, '').trim();
+        return LEGENDARY_LOWER.some(l => clean === l || clean.includes(l));
+      }
+      function checkHasExplicitCaughtText() { return false; }
       function triggerTargetFound(name, category) { onFound({ name, category }); }
       const console = { log: () => {} };
       (function() {

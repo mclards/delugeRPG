@@ -730,9 +730,18 @@ console.log('[PASS] Hide Ads ON dependency strictly enforced.');
 
   // Case 1: Wild base Charizard encountered when user owns Mega Charizard X
   const charizardCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Charizard', mockCollection);
-  assert.strictEqual(charizardCheck.isDuplicate, true, 'Base Charizard must be flagged as duplicate when Mega Charizard X is owned');
+  assert.strictEqual(charizardCheck.isDuplicate, false, 'Base Charizard must NOT be flagged as duplicate when only Mega Charizard X is owned');
   assert.strictEqual(charizardCheck.hasMegaOwned, true, 'hasMegaOwned must be true for Charizard');
   assert.strictEqual(charizardCheck.ownedPokemon.name, 'Mega Charizard X', 'Must identify Mega Charizard X');
+
+  // Case 1B: Wild Kangaskhan baseline encountered when user owns Mega Kangaskhan
+  const kangaCollection = [{ name: 'Mega Kangaskhan', level: 100, variant: 'Normal' }];
+  const kangaCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Kangaskhan', kangaCollection);
+  assert.strictEqual(kangaCheck.isDuplicate, false, 'Wild baseline Kangaskhan must NOT be flagged as duplicate when only Mega Kangaskhan is owned');
+  assert.strictEqual(kangaCheck.hasMegaOwned, true, 'hasMegaOwned must be true for baseline Kangaskhan');
+
+  const megaKangaCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Mega Kangaskhan', kangaCollection);
+  assert.strictEqual(megaKangaCheck.isDuplicate, true, 'Wild Mega Kangaskhan MUST be flagged as duplicate when Mega Kangaskhan is owned');
 
   // Case 2: Alternate Mega Charizard Y when user owns Mega Charizard X
   const charizardYCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Mega Charizard Y', mockCollection);
@@ -741,7 +750,7 @@ console.log('[PASS] Hide Ads ON dependency strictly enforced.');
 
   // Case 3: Wild Steelix when user owns Dark Mega Steelix
   const steelixCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Steelix', mockCollection);
-  assert.strictEqual(steelixCheck.isDuplicate, true, 'Base Steelix must be flagged as duplicate when Dark Mega Steelix is owned');
+  assert.strictEqual(steelixCheck.isDuplicate, false, 'Base Steelix must NOT be flagged as duplicate when only Dark Mega Steelix is owned');
   assert.strictEqual(steelixCheck.hasMegaOwned, true, 'hasMegaOwned must be true for Steelix');
 
   // Case 4: Unowned Pikachu must NOT be flagged
@@ -841,6 +850,58 @@ console.log('[PASS] Hide Ads ON dependency strictly enforced.');
   assert.strictEqual(darkPinsirEntry.hasUnique, true, 'Dark Pinsir must have hasUnique: true when only Negative Mega Pinsir is owned');
   assert.strictEqual(darkPinsirEntry.bestBranch.isDuplicate, false, 'Dark Pinsir bestBranch must not be marked as duplicate');
   assert.strictEqual(darkPinsirEntry.bestBranch.fullName, 'Dark Mega Pinsir', 'Dark Pinsir bestBranch fullName must be Dark Mega Pinsir');
+
+  // Case 12: Legendary Mewtwo Variant-Aware Catch Protection (Zero False Duplicate Drops)
+  const mewtwoCollection = [
+    { name: 'Dark Mega Mewtwo X', variant: 'Dark', level: 100 }
+  ];
+
+  // Wild Normal Mewtwo (Level 80) encountered when user owns Dark Mega Mewtwo X
+  const wildMewtwoCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Mewtwo Appeared!\nLevel: 80', mewtwoCollection);
+  assert.strictEqual(wildMewtwoCheck.isDuplicate, false, 'Wild Normal Mewtwo must NOT be flagged as duplicate when user only owns Dark Mega Mewtwo X');
+  assert.strictEqual(wildMewtwoCheck.hasExactOwned, false, 'Normal Mewtwo must not be exact owned');
+
+  // Short name encounter format
+  const shortMewtwoCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Mewtwo (Lv 80)', mewtwoCollection);
+  assert.strictEqual(shortMewtwoCheck.isDuplicate, false, 'Mewtwo (Lv 80) must NOT be flagged as duplicate');
+
+  // Wild Dark Mega Mewtwo X MUST be duplicate
+  const darkMegaCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Dark Mega Mewtwo X', mewtwoCollection, 'Dark');
+  assert.strictEqual(darkMegaCheck.isDuplicate, true, 'Dark Mega Mewtwo X MUST be recognized as duplicate');
+
+  // Wild Shiny Mega Mewtwo X must NOT be duplicate
+  const shinyMegaCheck = teamEngine.evaluateOwnershipAndMegaEquivalence('Shiny Mega Mewtwo X', mewtwoCollection, 'Shiny');
+  assert.strictEqual(shinyMegaCheck.isDuplicate, false, 'Shiny Mega Mewtwo X must NOT be duplicate when only Dark Mega Mewtwo X is owned');
+
+  // Case 13: High-Value Hardened Shield for Legendaries, Ultra Beasts, and Paradoxes
+  const legendaryCol = [
+    { name: 'Mega Rayquaza', variant: 'Normal', level: 100 },
+    { name: 'Primal Kyogre', variant: 'Normal', level: 100 },
+    { name: 'Shiny Nihilego', variant: 'Shiny', level: 100 },
+    { name: 'Dark Flutter Mane', variant: 'Dark', level: 100 },
+    { name: 'Zacian', variant: 'Normal', level: 100 }
+  ];
+
+  // Base Rayquaza must NEVER be marked duplicate even when owning Normal Mega Rayquaza
+  const wildRayquaza = teamEngine.evaluateOwnershipAndMegaEquivalence('Rayquaza Appeared!\nLevel: 70', legendaryCol);
+  assert.strictEqual(wildRayquaza.isDuplicate, false, 'Base Rayquaza must NOT be duplicate when owning Mega Rayquaza');
+
+  // Base Kyogre must NEVER be marked duplicate even when owning Primal Kyogre
+  const wildKyogre = teamEngine.evaluateOwnershipAndMegaEquivalence('Kyogre Appeared!\nLevel: 70', legendaryCol);
+  assert.strictEqual(wildKyogre.isDuplicate, false, 'Base Kyogre must NOT be duplicate when owning Primal Kyogre');
+
+  // Normal Nihilego must NOT match Shiny Nihilego as duplicate
+  const wildNihilego = teamEngine.evaluateOwnershipAndMegaEquivalence('Ultra Beast: NIHILIEGO (Lv 60)', legendaryCol, 'normal');
+  assert.strictEqual(wildNihilego.isDuplicate, false, 'Normal Nihilego must NOT match Shiny Nihilego as duplicate');
+
+  // Normal Flutter Mane must NOT match Dark Flutter Mane as duplicate
+  const wildFlutter = teamEngine.evaluateOwnershipAndMegaEquivalence('Paradox: FLUTTER MANE (Lv 65)', legendaryCol, 'normal');
+  assert.strictEqual(wildFlutter.isDuplicate, false, 'Normal Flutter Mane must NOT match Dark Flutter Mane as duplicate');
+
+  // Exact match Zacian MUST be recognized as duplicate
+  const wildZacian = teamEngine.evaluateOwnershipAndMegaEquivalence('Zacian Appeared!\nLevel: 70', legendaryCol, 'normal');
+  assert.strictEqual(wildZacian.isDuplicate, true, 'Exact Normal Zacian MUST be recognized as duplicate');
+
   console.log('[PASS] 100% Uniqueness & Mega Evolution equivalence checks verified across wild encounters and evolution paths.');
 }
 
@@ -851,6 +912,10 @@ console.log('[PASS] Hide Ads ON dependency strictly enforced.');
   assert.strictEqual(preloadJs.includes('__delugeAutoCatchAuthorizedClick'), true, 'game-preload.js must gate Try to Catch It clicks with __delugeAutoCatchAuthorizedClick');
   assert.strictEqual(preloadJs.includes('extractWildPokemonFromCatchPage'), true, 'game-preload.js must contain extractWildPokemonFromCatchPage');
   assert.strictEqual(preloadJs.includes("path.indexOf('/map') !== -1 || path.indexOf('/catch') !== -1"), false, 'scanForTargets must never run on /catch pages');
+  assert.strictEqual(preloadJs.includes('isPreloadLegendaryOrSpecial'), true, 'game-preload.js must contain isPreloadLegendaryOrSpecial');
+  assert.strictEqual(preloadJs.includes('checkHasExplicitCaughtText'), true, 'game-preload.js must contain checkHasExplicitCaughtText');
+  assert.strictEqual(preloadJs.includes('PROTECTED TARGET: High-value target'), true, 'game-preload.js must contain high-value target protected airgap');
+  assert.strictEqual(preloadJs.includes('PROTECTED ENCOUNTER: High-value target'), true, 'game-preload.js must contain high-value encounter protected airgap');
   assert.strictEqual(appJs.includes('isAutoCatchCountdownActive'), true, 'app.js must track isAutoCatchCountdownActive to abort on manual pause');
   console.log('[PASS] Non-target manual pause protection and /catch page isolation verified.');
 }

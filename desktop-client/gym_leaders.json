@@ -6279,6 +6279,12 @@
               "type": "Ghost",
               "power": 80,
               "category": "Special"
+            },
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost",
+              "power": 40,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
@@ -6330,11 +6336,11 @@
         }
       ],
       "expYield": {
-        "baselinePool": 37380,
-        "lastGainedExp": 18690,
-        "lastCoinsWon": 3271,
-        "lastParticipantsCount": 2,
-        "lastCalibratedAt": 1794263229774
+        "baselinePool": 35805,
+        "lastGainedExp": 11935,
+        "lastCoinsWon": 2089,
+        "lastParticipantsCount": 3,
+        "lastCalibratedAt": 1794324455038
       },
       "npcId": 708
     },
@@ -6815,6 +6821,12 @@
               "type": "Ghost",
               "power": 80,
               "category": "Special"
+            },
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost",
+              "power": 40,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
@@ -6888,11 +6900,18 @@
               "type": "Steel",
               "power": 80,
               "category": "Physical"
+            },
+            {
+              "name": "Slam",
+              "type": "Normal",
+              "power": 80,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
             "Grass",
-            "Steel"
+            "Steel",
+            "Normal"
           ]
         },
         {
@@ -6967,12 +6986,19 @@
               "type": "Psychic",
               "power": 40,
               "category": "Status"
+            },
+            {
+              "name": "Giga Drain",
+              "type": "Grass",
+              "power": 60,
+              "category": "Special"
             }
           ],
           "knownMoveTypes": [
             "Ghost",
             "Ground",
-            "Psychic"
+            "Psychic",
+            "Grass"
           ]
         }
       ],
@@ -9189,6 +9215,12 @@
               "type": "Ghost",
               "power": 80,
               "category": "Special"
+            },
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost",
+              "power": 40,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
@@ -9274,6 +9306,12 @@
               "type": "Ghost",
               "power": 80,
               "category": "Special"
+            },
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost",
+              "power": 40,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
@@ -9347,11 +9385,18 @@
               "type": "Steel",
               "power": 80,
               "category": "Physical"
+            },
+            {
+              "name": "Slam",
+              "type": "Normal",
+              "power": 80,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
             "Grass",
-            "Steel"
+            "Steel",
+            "Normal"
           ]
         },
         {
@@ -9426,12 +9471,19 @@
               "type": "Psychic",
               "power": 40,
               "category": "Status"
+            },
+            {
+              "name": "Giga Drain",
+              "type": "Grass",
+              "power": 60,
+              "category": "Special"
             }
           ],
           "knownMoveTypes": [
             "Ghost",
             "Ground",
-            "Psychic"
+            "Psychic",
+            "Grass"
           ]
         }
       ]

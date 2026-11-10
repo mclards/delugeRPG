@@ -788,6 +788,7 @@ let autoStartTimer = null;
 let autoStartCountdownTimer = null;
 let autoStartRemainingSeconds = 0;
 let wasHuntingBeforeAutoCatch = false;
+let wasHuntingBeforeBoxScan = false;
 let outOfStockPaused = false;
 
 // Pacing & Fatigue State
@@ -2129,6 +2130,65 @@ function syncUserCollectionToGuest() {
   } catch (_) {}
 }
 
+let lastBoxSyncCheckTime = 0;
+let pendingPreHuntingSyncCallback = null;
+let isPreHuntingSyncInProgress = false;
+
+function ensureMemorySyncedBeforeHunting(onReady) {
+  if (typeof onReady !== 'function') return;
+
+  // 1. Immediately reload user_collection.json from disk into memory and hydrate guest
+  try {
+    loadTeamBuilderData();
+    syncUserCollectionToGuest();
+  } catch (_) {}
+
+  // 2. If memory was verified recently (within 5 min) and collection is populated, proceed immediately
+  const recentSync = (Date.now() - lastBoxSyncCheckTime < 5 * 60 * 1000);
+  if (recentSync && Array.isArray(currentCollection) && currentCollection.length > 0) {
+    onReady();
+    return;
+  }
+
+  // 3. Fast Smart Box Verification (< 400ms page-1 check)
+  if (isPreHuntingSyncInProgress || !delugeView || typeof delugeView.send !== 'function') {
+    onReady();
+    return;
+  }
+
+  isPreHuntingSyncInProgress = true;
+  let syncTimeout = null;
+
+  const cleanupAndReady = () => {
+    if (syncTimeout) {
+      clearTimeout(syncTimeout);
+      syncTimeout = null;
+    }
+    isPreHuntingSyncInProgress = false;
+    pendingPreHuntingSyncCallback = null;
+    onReady();
+  };
+
+  // Defense fallback timeout: proceed after 3.2s so hunting is never blocked
+  syncTimeout = setTimeout(() => {
+    cleanupAndReady();
+  }, 3200);
+
+  pendingPreHuntingSyncCallback = (data) => {
+    lastBoxSyncCheckTime = Date.now();
+    cleanupAndReady();
+  };
+
+  try {
+    delugeView.send('start-scan-pokemon', {
+      smartCheck: true,
+      expectedCount: Array.isArray(currentCollection) ? currentCollection.length : 0
+    });
+  } catch (_) {
+    cleanupAndReady();
+  }
+}
+
 function handleDuplicateOwnedAlert(alertData) {
   if (!alertData) return;
   if (liveAiHudOverlay && !activeAiBattleData && !activeEvolveCardData) {
@@ -2219,6 +2279,11 @@ function toggleHunting() {
       }, 2000);
       return;
     }
+    if (scanStatusBadge && (scanStatusBadge.textContent.includes('Scanning') || scanStatusBadge.textContent.includes('Reading'))) {
+      wasHuntingBeforeBoxScan = true;
+      updateStatus('Box Sync In Progress (Will hunt upon completion)', '#388bfd');
+      return;
+    }
     if (config.settings && config.settings.autoCatchMasterBall === true) {
       if (dailyCatchData && dailyCatchData.masterBallStock === 0) {
         updateStatus('Paused (0 Master Balls - Restock or disable Auto-Catch)', '#ef4444');
@@ -2295,7 +2360,9 @@ function toggleHunting() {
     backendLog('FilterConfig', `Preset: ${(config.settings && config.settings.targetPreset) || 'default'}, Legendaries: ${config.settings.findLegendaries !== false}, Megas: ${config.settings.findMegasAndGigantamax !== false}, Active Variants (${activeVars.length}): [${activeVars.join(', ')}]`);
     backendLog('HuntingStart', `Automated hunting started: direction=${currentDirectionKey}`);
     updateToggleButton();
-    scheduleNextStep(500);
+    ensureMemorySyncedBeforeHunting(() => {
+      if (isRunning) scheduleNextStep(500);
+    });
   } else {
     isAutoCatchCountdownActive = false;
     userManuallyPaused = true;
@@ -3181,7 +3248,9 @@ function triggerDelayedAutoStart(sourceReason = 'Map opened') {
     updateToggleButton();
     syncHuntingState();
     updateStatus('Hunting Active (Auto-Started)', '#22c55e');
-    scheduleNextStep(1000);
+    ensureMemorySyncedBeforeHunting(() => {
+      if (isRunning) scheduleNextStep(1000);
+    });
   }, delaySec * 1000);
 }
 
@@ -3236,7 +3305,9 @@ function handleMapNavigation(url) {
       const delaySec = (config.settings && config.settings.autoStartDelay) || 3;
       updateStatus('Hunting (Map Rotated)', '#10b981');
       backendLog('MapRotation', 'Arrival on new map confirmed. Resumed hunting.');
-      scheduleNextStep(delaySec * 1000);
+      ensureMemorySyncedBeforeHunting(() => {
+        if (isRunning) scheduleNextStep(delaySec * 1000);
+      });
     } else if (guestReportsMap && !isRunning && !userManuallyPaused && !isEncounterOnScreen && shouldAutoStart) {
       if (!autoStartTimer) {
         wasHuntingBeforeAutoCatch = false;
@@ -3627,11 +3698,40 @@ delugeView.addEventListener('ipc-message', (event) => {
           setTimeout(() => { if (teamActionStatus) teamActionStatus.textContent = ''; }, 2500);
         }
       }
+      if (typeof pendingPreHuntingSyncCallback === 'function') {
+        const cb = pendingPreHuntingSyncCallback;
+        pendingPreHuntingSyncCallback = null;
+        cb(data);
+      }
+      if (wasHuntingBeforeBoxScan) {
+        wasHuntingBeforeBoxScan = false;
+        if (isCurrentPageMap() && !isEncounterOnScreen && !userManuallyPaused) {
+          isRunning = true;
+          updateToggleButton();
+          updateStatus('Hunting Resumed', '#10b981');
+          backendLog('BoxScan', 'Box scan complete. Automatically resumed hunting.');
+          scheduleNextStep(1000);
+        }
+      }
     } else {
       if (scanStatusDot) scanStatusDot.style.background = '#f87171';
       if (scanStatusBadge) {
         scanStatusBadge.style.color = '#f87171';
         scanStatusBadge.textContent = 'Scan failed';
+      }
+      if (typeof pendingPreHuntingSyncCallback === 'function') {
+        const cb = pendingPreHuntingSyncCallback;
+        pendingPreHuntingSyncCallback = null;
+        cb(data);
+      }
+      if (wasHuntingBeforeBoxScan) {
+        wasHuntingBeforeBoxScan = false;
+        if (isCurrentPageMap() && !isEncounterOnScreen && !userManuallyPaused) {
+          isRunning = true;
+          updateToggleButton();
+          updateStatus('Hunting Resumed', '#10b981');
+          scheduleNextStep(1000);
+        }
       }
       if (isBuildSyncInProgress) {
         isBuildSyncInProgress = false;
@@ -7841,6 +7941,13 @@ if (scanPokesBtn) {
       scanStatusBadge.style.color = '#388bfd';
       scanStatusBadge.textContent = 'Scanning...';
     }
+    if (isRunning) {
+      wasHuntingBeforeBoxScan = true;
+      isRunning = false;
+      updateToggleButton();
+      updateStatus('Paused (Syncing Box...)', '#388bfd');
+      backendLog('BoxScan', 'Temporarily paused automated hunting during manual box scan for stealth.');
+    }
     delugeView.send('start-scan-pokemon');
   });
 }
@@ -8688,6 +8795,12 @@ if (buildTeamBtn) {
         : (scoutedPlayerOpponent || liveBattleOpponent);
       const canSyncBox = (pvpStrategy === 'GODSQUAD') || (pvpTarget && Array.isArray(pvpTarget.roster) && pvpTarget.roster.length > 0);
       if (canSyncBox && delugeView && typeof delugeView.send === 'function' && !isBuildSyncInProgress) {
+        if (isRunning) {
+          wasHuntingBeforeBoxScan = true;
+          isRunning = false;
+          updateToggleButton();
+          updateStatus('Paused (Syncing Box...)', '#388bfd');
+        }
         isBuildSyncInProgress = true;
         pendingBuildLeader = (pvpStrategy === 'GODSQUAD')
           ? { name: 'Live PvP Universal Meta', isPvpMeta: true, isPvp: true }
@@ -8768,6 +8881,12 @@ if (buildTeamBtn) {
 
     // 2. Automatically sync freshest Pokemon data from Box (doing the same as Scan My Box)
     if (delugeView && typeof delugeView.send === 'function' && !isBuildSyncInProgress) {
+      if (isRunning) {
+        wasHuntingBeforeBoxScan = true;
+        isRunning = false;
+        updateToggleButton();
+        updateStatus('Paused (Syncing Box...)', '#388bfd');
+      }
       isBuildSyncInProgress = true;
       pendingBuildLeader = targetLeader;
       buildTeamBtn.innerHTML = '<span>&#8635;</span><span>Syncing Box...</span>';
@@ -10048,6 +10167,31 @@ function recordCaughtPokemon(pokemon, remainingStock) {
       pokemon.kind = getCaughtPokemonKind(pokemon);
     }
     dailyCatchData.caught.unshift(pokemon);
+
+    // Defense-in-depth: Immediately update local memory collection with newly caught Pokemon
+    try {
+      if (Array.isArray(currentCollection)) {
+        const cName = pokemon.name || '';
+        const cVariant = pokemon.variant || 'Normal';
+        const cLevel = pokemon.level || 50;
+        const exists = currentCollection.some(p => p && p.name === cName && (p.variant || 'Normal') === cVariant);
+        if (!exists) {
+          currentCollection.push({
+            id: pokemon.id || ('catch_' + Date.now()),
+            name: cName,
+            variant: cVariant,
+            level: cLevel
+          });
+          try {
+            fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
+          } catch (_) {}
+          syncUserCollectionToGuest();
+          if (scanStatusBadge) {
+            scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced`;
+          }
+        }
+      }
+    } catch (_) {}
   }
   dailyCatchData.masterBallUsedToday = (dailyCatchData.masterBallUsedToday || 0) + 1;
   if (typeof remainingStock === 'number') {

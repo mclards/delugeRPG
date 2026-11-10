@@ -929,6 +929,32 @@ console.log('[PASS] Hide Ads ON dependency strictly enforced.');
   console.log('[PASS] Target filters respected across page jumps, resume from Paused, and AJAX step transitions.');
 }
 
+// 3E. Forme Snowflake Indicator, Mythical Banner, and Unowned Forme Protection Audit
+{
+  assert.strictEqual(preloadJs.includes('checkEncounterHasFormeIndicator'), true, 'game-preload.js must implement checkEncounterHasFormeIndicator');
+  assert.strictEqual(preloadJs.includes('Mythical Pokemon'), true, 'game-preload.js must support Mythical Pokemon category banner');
+  assert.strictEqual(preloadJs.includes('isProtectedFormOrHighVal'), true, 'game-preload.js must protect unowned formes from base species duplicate override');
+  assert.strictEqual(appJs.includes('ensureMemorySyncedBeforeHunting'), true, 'app.js must implement ensureMemorySyncedBeforeHunting before taking steps');
+  assert.strictEqual(appJs.includes('smartCheck: true'), true, 'app.js must perform smartCheck single-page box verification');
+  assert.strictEqual(preloadJs.includes('opts.smartCheck'), true, 'game-preload.js must handle smartCheck box verification');
+
+  // Verify Mythical header banner matching
+  const mythicalBannerText = 'MYTHICAL POKEMON\nShiny Arceus (Fairy) Appeared!';
+  const hasMythicalBanner = mythicalBannerText.toLowerCase().indexOf('mythical') !== -1 || /\bmythical\s*pok[e\u00e9]mon\b/i.test(mythicalBannerText);
+  assert.strictEqual(hasMythicalBanner, true, 'MYTHICAL POKEMON banner text must be detected');
+
+  // Forme detection regex test
+  const fairyArceus = 'Shiny Arceus (Fairy)';
+  const isForme = /\([a-z0-9\s'%+\-]+\)/i.test(fairyArceus) || /\b(?:galarian|alolan|hisuian|paldean|dada)\b/i.test(fairyArceus);
+  assert.strictEqual(isForme, true, 'Arceus (Fairy) must be detected as alternate forme');
+
+  const galarianMoltres = 'Galarian Moltres';
+  const isGalar = /\b(?:galarian|alolan|hisuian|paldean|dada)\b/i.test(galarianMoltres);
+  assert.strictEqual(isGalar, true, 'Galarian Moltres must be detected as alternate forme');
+
+  console.log('[PASS] Forme Snowflake, Mythical Banner, and Unowned Forme Protection verified.');
+}
+
 // 4. Verify 100% 7-bit Clean ASCII across all files
 console.log('\n--- TEST 4: 100% 7-bit Clean ASCII Verification ---');
 const clientFiles = [

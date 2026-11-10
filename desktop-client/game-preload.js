@@ -1309,17 +1309,49 @@ function isPreloadActualMega(name) {
 
 function isPreloadLegendaryOrSpecial(name) {
     if (!name) return false;
+    const strLower = String(name).toLowerCase();
+    if (strLower.indexOf('mythical') !== -1 || strLower.indexOf('legendary') !== -1 ||
+        strLower.indexOf('ultrabeast') !== -1 || strLower.indexOf('ultra beast') !== -1 ||
+        strLower.indexOf('paradox') !== -1) {
+        return true;
+    }
     const clean = String(name)
         .replace(/^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
         .replace(/^(Mega|Primal|G-Max|Gigantamax)\s+/i, '')
         .replace(/\s*\(Lv\s*\d+[^)]*\)\s*/gi, '')
-        .replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '')
+        .replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mythical|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '')
         .replace(/\s*\([^)]*\)/g, '')
         .trim()
         .toLowerCase();
     if (!clean) return false;
     const base = getPreloadBaseSpecies(clean);
     return LEGENDARY_LOWER.includes(clean) || (base && LEGENDARY_LOWER.includes(base));
+}
+
+function checkEncounterHasFormeIndicator(container, name) {
+    try {
+        const c = container || (typeof getEncounterContainer === 'function' ? getEncounterContainer() : null);
+        if (c) {
+            const html = (c.innerHTML || '').toLowerCase();
+            const text = (c.innerText || c.textContent || '');
+            if (html.indexOf('forme') !== -1 || html.indexOf('snowflake') !== -1 ||
+                html.indexOf('\u2744') !== -1 || html.indexOf('\u2745') !== -1 || html.indexOf('\u2746') !== -1 ||
+                text.indexOf('\u2744') !== -1 || text.indexOf('\u2745') !== -1 || text.indexOf('\u2746') !== -1) {
+                return true;
+            }
+            if (c.querySelector && c.querySelector('a[href*="/forme/"], a[href*="/pokedex/forme/"], [title*="forme" i], [title*="form " i], [alt*="forme" i], [class*="snowflake" i], [class*="forme" i]')) {
+                return true;
+            }
+        }
+        if (name) {
+            const nLower = String(name).toLowerCase();
+            if (/\([a-z0-9\s'%+\-]+\)/i.test(nLower) ||
+                /\b(?:galarian|alolan|hisuian|paldean|dada|bloodmoon|origin|therian|primal|sensu|pom-pom|pa'u|baile|dawn|dusk|ultra|gulping|gorging|hangry|single strike|rapid strike|ice rider|shadow rider|cornerstone|wellspring|hearthflame|stellar|hero|blade)\b/i.test(nLower)) {
+                return true;
+            }
+        }
+    } catch (_) {}
+    return false;
 }
 
 function checkHasExplicitCaughtText(container) {
@@ -2095,10 +2127,27 @@ function getEncounterContainer() {
 
 function isEncounterOrCatchUIPresent() {
     try {
+        const dexyEl = document.getElementById('dexy') || document.querySelector('.dexy');
+        if (dexyEl) {
+            const dexyText = (dexyEl.innerText || dexyEl.textContent || '').toLowerCase();
+            if (dexyText.indexOf("couldn't find") !== -1 ||
+                dexyText.indexOf("could not find") !== -1 ||
+                dexyText.indexOf("try moving") !== -1 ||
+                dexyText.indexOf("searching...") !== -1) {
+                return false;
+            }
+        }
         if (findCatchActionElement() !== null) {
             return true;
         }
-        if (getEncounterContainer() !== null) {
+        const encContainer = getEncounterContainer();
+        if (encContainer !== null) {
+            const cText = (encContainer.innerText || encContainer.textContent || '').toLowerCase();
+            if (cText.indexOf("couldn't find") !== -1 ||
+                cText.indexOf("could not find") !== -1 ||
+                cText.indexOf("try moving") !== -1) {
+                return false;
+            }
             return true;
         }
     } catch (_) {}
@@ -2132,6 +2181,12 @@ function checkEncounterIsDuplicate(container, shouldLog = false, explicitVariant
         const ownStatus = (typeof evaluateOwnershipAndMegaEquivalence === 'function')
             ? evaluateOwnershipAndMegaEquivalence(checkCandidate, explicitVariant)
             : null;
+        const hasFormeIndicator = (typeof checkEncounterHasFormeIndicator === 'function') && checkEncounterHasFormeIndicator(container, fallbackName || checkCandidate);
+        const isHighValTarget = isPreloadLegendaryOrSpecial(checkCandidate) || isPreloadLegendaryOrSpecial(fallbackName) || hasFormeIndicator;
+        const isProtectedFormOrHighVal = (isHighValTarget || hasFormeIndicator) &&
+                                         (Array.isArray(ownedUserCollection) && ownedUserCollection.length > 0) &&
+                                         (!ownStatus || !ownStatus.hasExactOwned);
+
         if (ownStatus && ownStatus.isDuplicate) {
             const isHighVal = isPreloadLegendaryOrSpecial(checkCandidate) || isPreloadLegendaryOrSpecial(fallbackName);
             if (isHighVal && !ownStatus.hasExactOwned) {
@@ -2163,6 +2218,10 @@ function checkEncounterIsDuplicate(container, shouldLog = false, explicitVariant
             rawText.indexOf('already owned') !== -1 ||
             rawText.indexOf('pokedex: caught') !== -1 ||
             rawText.indexOf('dex: caught') !== -1) {
+            if (isProtectedFormOrHighVal) {
+                if (shouldLog) console.log('[PokePreload] Duplicate check: Forme/High-Value target protected from container duplicate text override (hasExactOwned=false)');
+                return false;
+            }
             if (shouldLog) console.log('[PokePreload] Duplicate check: matched explicit duplicate text in container');
             return true;
         }
@@ -2225,6 +2284,10 @@ function checkEncounterIsDuplicate(container, shouldLog = false, explicitVariant
                     titleStr.indexOf("already owned") !== -1 ||
                     titleStr.indexOf("you have this pokemon") !== -1 ||
                     titleStr.indexOf("in your box") !== -1) {
+                    if (isProtectedFormOrHighVal) {
+                        if (shouldLog) console.log('[PokePreload] Duplicate check: Forme/High-Value target protected from attribute duplicate override (hasExactOwned=false)');
+                        return false;
+                    }
                     if (shouldLog) console.log('[PokePreload] Duplicate check: matched explicit duplicate attribute text: "' + titleStr + '"');
                     return true;
                 }
@@ -2462,6 +2525,10 @@ function checkEncounterIsDuplicate(container, shouldLog = false, explicitVariant
             allIndicatorTexts.indexOf('registered') !== -1;
 
         if (isCaughtByText) {
+            if (isProtectedFormOrHighVal) {
+                if (shouldLog) console.log('[PokePreload] Duplicate check: Forme/High-Value target protected from title duplicate override (hasExactOwned=false)');
+                return false;
+            }
             if (shouldLog) console.log('[PokePreload] Indicator DUPLICATE CONFIRMED via title/alt: "' + allIndicatorTexts + '"');
             return true;
         }
@@ -2476,6 +2543,10 @@ function checkEncounterIsDuplicate(container, shouldLog = false, explicitVariant
             !isUncaughtBySrc;
 
         if (isStandardCaughtBall) {
+            if (isProtectedFormOrHighVal) {
+                if (shouldLog) console.log('[PokePreload] Duplicate check: Forme/High-Value target protected from colored PokeBall duplicate override (hasExactOwned=false)');
+                return false;
+            }
             if (shouldLog) console.log('[PokePreload] Indicator DUPLICATE CONFIRMED via colored PokeBall icon: src=' + indSrc);
             return true;
         }
@@ -2502,6 +2573,10 @@ function checkEncounterIsDuplicate(container, shouldLog = false, explicitVariant
                     }
                 }
                 if (redPixels >= 3) {
+                    if (isProtectedFormOrHighVal) {
+                        if (shouldLog) console.log('[PokePreload] Duplicate check: Forme/High-Value target protected from red pixel duplicate override (hasExactOwned=false)');
+                        return false;
+                    }
                     if (shouldLog) console.log('[PokePreload] Indicator DUPLICATE CONFIRMED via canvas red pixel sampling (' + redPixels + ' red pixels)');
                     return true;
                 }
@@ -2511,6 +2586,9 @@ function checkEncounterIsDuplicate(container, shouldLog = false, explicitVariant
         // H. CRITICAL FAIL-SAFE: If status cannot be definitively confirmed as a duplicate,
         // check if exact match is already owned in collection, otherwise default to false for safety!
         if (ownStatus && ownStatus.isDuplicate) {
+            if (isProtectedFormOrHighVal) {
+                return false;
+            }
             if (shouldLog) console.log('[PokePreload] Duplicate check: fallback to collection exact match (' + ownStatus.alertTitle + ' -> ' + ownStatus.alertMessage + ')');
             return true;
         }
@@ -2639,6 +2717,11 @@ function scanForTargets() {
     // 2. STRICT PAGE GUARD: Only scan on map page (never on catch, team, box, or trade pages)
     const isHuntingPage = path.indexOf('/map') !== -1;
     if (!isHuntingPage) {
+        return;
+    }
+
+    // 3. STRICT MOVEMENT IN-FLIGHT GUARD: Never scan dirty transitional DOM while movement is resolving!
+    if (activeStep && !activeStep.resolved) {
         return;
     }
 
@@ -2860,7 +2943,7 @@ function scanForTargets() {
         const hLines = headlineMatch[1].split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
         encounterHeadline = hLines.length > 0 ? hLines[hLines.length - 1] : headlineMatch[1];
     } else {
-        const nameEl = document.getElementById('showpoke-name') || document.querySelector('.showpoke-name');
+        const nameEl = (typeof document !== 'undefined' && typeof document.getElementById === 'function') ? (document.getElementById('showpoke-name') || (typeof document.querySelector === 'function' ? document.querySelector('.showpoke-name') : null)) : null;
         if (nameEl) {
             encounterHeadline = (nameEl.innerText || nameEl.textContent || '').trim();
         } else if (encounterBoxText) {
@@ -2915,13 +2998,15 @@ function scanForTargets() {
     // Reject false map realm / header triggers or transitioning DOM where no valid encounter evidence exists
     const boxLower = (encounterBoxText || '').toLowerCase();
     const shortLower = (shortName || '').toLowerCase();
+    if (shortLower.indexOf('deluge realm') !== -1 || /^.*#\d+$/.test(shortName.trim())) {
+        lastEvaluatedEncounterSignature = '';
+        return;
+    }
     const hasAppearedWord = (boxLower.indexOf('appeared') !== -1 || textLower.indexOf('appeared') !== -1);
     const hasCatchEvidence = (typeof hasCatchUI !== 'undefined' && !!hasCatchUI) && (currentLevel !== null || boxLower.indexOf('wild') !== -1 || boxLower.indexOf('level') !== -1 || boxLower.indexOf('lvl') !== -1);
-    if ((!hasAppearedWord && !hasCatchEvidence) || shortLower.indexOf('deluge realm') !== -1 || /^.*#\d+$/.test(shortName.trim())) {
-        if (!hasAppearedWord && !hasCatchEvidence) {
-            lastEvaluatedEncounterSignature = '';
-            return;
-        }
+    if (!hasAppearedWord && !hasCatchEvidence) {
+        lastEvaluatedEncounterSignature = '';
+        return;
     }
 
     if (isNewEncounter) {
@@ -2940,12 +3025,12 @@ function scanForTargets() {
     const isEncounterDuplicate = checkEncounterIsDuplicate(encContainer, isNewEncounter, detectedVariant, shortName);
     const avoidDupesActive = (config.avoidDuplicates !== false);
 
-    const isHighValEncounter = isPreloadLegendaryOrSpecial(shortName) || isPreloadLegendaryOrSpecial(encounterBoxText);
+    const hasFormeEncounter = (typeof checkEncounterHasFormeIndicator === 'function') && checkEncounterHasFormeIndicator(encContainer, shortName);
+    const isHighValEncounter = isPreloadLegendaryOrSpecial(shortName) || isPreloadLegendaryOrSpecial(encounterBoxText) || hasFormeEncounter;
     let allowEncounterSkip = isEncounterDuplicate;
     if (isHighValEncounter && isEncounterDuplicate) {
         const hasExactOwned = ownStatus && ownStatus.hasExactOwned;
-        const hasExplicitCaughtDOM = encContainer && checkHasExplicitCaughtText(encContainer);
-        if (!hasExactOwned && !hasExplicitCaughtDOM) {
+        if (!hasExactOwned) {
             if (isNewEncounter) {
                 console.warn('[TargetEngine] PROTECTED ENCOUNTER: High-value target "' + shortName + '" protected from duplicate skip without verified exact ownership. Proceeding to target evaluation!');
             }
@@ -3048,18 +3133,32 @@ function scanForTargets() {
 
     // Helper: extracts clean Pokemon species name from encounter text
     function extractEncounterSpeciesName() {
+        const nameEl = (typeof document !== 'undefined' && typeof document.getElementById === 'function') ? (document.getElementById('showpoke-name') || (typeof document.querySelector === 'function' ? document.querySelector('.showpoke-name') : null)) : null;
+        if (nameEl) {
+            let nText = (nameEl.innerText || nameEl.textContent || '').trim();
+            nText = nText.replace(/^(?:a\s+)?wild\s+/i, '').replace(/^caught\s+/i, '').replace(VARIANT_PREFIX_REGEX, '').trim();
+            if (nText && nText.toLowerCase().indexOf('deluge realm') === -1) {
+                return nText;
+            }
+        }
         const fullSource = (encounterBoxText ? encounterBoxText + ' ' : '') + textLower;
         const m = fullSource.match(/(?:a wild\s+)?([a-z0-9\-\'\s\(\):.%]+?)\s+appeared/i);
         if (m && m[1]) {
             const raw = m[1].trim();
             const lines = raw.split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
             let name = lines.length > 0 ? lines[lines.length - 1] : raw;
-            name = name.replace(/^a\s+wild\s+/i, '').trim();
+            name = name.replace(/^(?:you\s+)?moved\s+(?:north|south|east|west|up|down|left|right)[^a-z0-9]*/i, '').trim();
+            name = name.replace(/^the\s+deluge\s+realm[^a-z0-9]*/i, '').trim();
+            name = name.replace(/^(?:a\s+)?wild\s+/i, '').trim();
+            name = name.replace(/^caught\s+/i, '').trim();
             name = name.replace(VARIANT_PREFIX_REGEX, '').trim();
-            return name;
+            if (name && name.toLowerCase().indexOf('deluge realm') === -1) {
+                return name;
+            }
         }
         let fallback = (shortName ? shortName.replace(/\s*appeared.*/i, '') : '').replace(/^wild\s+/i, '').replace(VARIANT_PREFIX_REGEX, '').trim();
-        return fallback;
+        fallback = fallback.replace(/^(?:you\s+)?moved\s+(?:north|south|east|west|up|down|left|right)[^a-z0-9]*/i, '').trim();
+        return fallback.toLowerCase().indexOf('deluge realm') !== -1 ? '' : fallback;
     }
 
     // D. Match against Tab 1 Target Tiers:
@@ -3153,7 +3252,25 @@ function scanForTargets() {
             }
         }
 
-        // 2C. Category Header Banner: Rare & Legendary Pokemon (e.g. LEGENDARY POKEMON / LEGENDARY)
+        // 2C. Category Header Banner: Mythical Pokemon (e.g. MYTHICAL POKEMON / MYTHICAL)
+        if (boxCheckText.indexOf('mythical') !== -1 || /\bmythical\s*pok[e\u00e9]mon\b/i.test(boxCheckText)) {
+            if (!allowClassic) {
+                if (isNewEncounter) console.log('[TargetEngine] IGNORED: Mythical skipped (Classic/Legendary sub-filter disabled)');
+                return;
+            }
+            const spec = extractEncounterSpeciesName();
+            if (spec) {
+                if (isVariantAcceptedForLegendary()) {
+                    const foundName = varPrefix + 'Mythical: ' + spec.toUpperCase() + lvlSuffix;
+                    triggerTargetFound(foundName, 'Mythical Pokemon');
+                } else if (isNewEncounter) {
+                    console.log('[TargetEngine] IGNORED: Mythical ' + spec + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Legendaries)');
+                }
+                return;
+            }
+        }
+
+        // 2D. Category Header Banner: Rare & Legendary Pokemon (e.g. LEGENDARY POKEMON / LEGENDARY)
         if (boxCheckText.indexOf('legendary') !== -1 || /\blegendary\s*pok[e\u00e9]mon\b/i.test(boxCheckText)) {
             if (!allowClassic) {
                 if (isNewEncounter) console.log('[TargetEngine] IGNORED: Classic Legendary skipped (Classic sub-filter disabled)');
@@ -3522,6 +3639,23 @@ function triggerTargetFound(targetName, category, variant) {
     if (!isHuntingActive) return;
     if (targetName === lastFoundTarget || targetName === lastIgnoredEncounter) return;
 
+    // Safety Guard: Never trigger a target if targetName is invalid or contains map movement artifacts
+    const tLower = (targetName || '').toLowerCase();
+    if (!targetName || tLower.indexOf('deluge realm') !== -1 || tLower.indexOf('moved north') !== -1 || tLower.indexOf('moved south') !== -1 || tLower.indexOf('moved east') !== -1 || tLower.indexOf('moved west') !== -1) {
+        return;
+    }
+
+    // Safety Guard: A real, visible catch button MUST exist on screen!
+    const catchBtn = findCatchActionElement();
+    if (!catchBtn) {
+        return;
+    }
+
+    // Safety Guard: If screen explicitly says "couldn't find anything", never trigger!
+    if (!isEncounterOrCatchUIPresent()) {
+        return;
+    }
+
     const encContainer = getEncounterContainer();
 
     if (category !== 'Level Match' && config.enableLevelFilter && config.levelFilterScope === 'targets') {
@@ -3549,15 +3683,14 @@ function triggerTargetFound(targetName, category, variant) {
         : null;
     const isDupe = checkEncounterIsDuplicate(encContainer, false, explicitVariant, targetName);
 
-    const isLegendarySpecial = isPreloadLegendaryOrSpecial(targetName) || (category && /legendary|ultra beast|paradox/i.test(category));
+    const hasFormeTarget = (typeof checkEncounterHasFormeIndicator === 'function') && checkEncounterHasFormeIndicator(encContainer, targetName);
+    const isLegendarySpecial = isPreloadLegendaryOrSpecial(targetName) || (category && /legendary|ultra beast|paradox|mythical/i.test(category)) || hasFormeTarget;
     let allowSkip = isDupe;
     if (isLegendarySpecial && isDupe) {
-        // Hardened Airgap: High-value targets (Legendaries, Ultra Beasts, Paradox)
-        // must NEVER be skipped as duplicate without verified exact variant ownership in collection
-        // OR explicit DelugeRPG DOM caught pokeball / caught text confirmation!
+        // Hardened Airgap: High-value targets (Legendaries, Ultra Beasts, Paradox, Mythical, Formes)
+        // must NEVER be skipped as duplicate without verified exact variant ownership in collection!
         const hasExactOwned = ownCheck && ownCheck.hasExactOwned;
-        const hasExplicitCaughtDOM = encContainer && checkHasExplicitCaughtText(encContainer);
-        if (!hasExactOwned && !hasExplicitCaughtDOM) {
+        if (!hasExactOwned) {
             console.warn('[TargetEngine] PROTECTED TARGET: High-value target ' + targetName + ' (' + category + ') will NOT be skipped as duplicate without verified exact ownership. Triggering catch!');
             allowSkip = false;
         }
@@ -5548,7 +5681,7 @@ function parsePokemonRowsFromHtml(html) {
 }
 
 let isPokemonBoxScanActive = false;
-ipcRenderer.on('start-scan-pokemon', async () => {
+ipcRenderer.on('start-scan-pokemon', async (event, options) => {
     if (isPokemonBoxScanActive) return;
     isPokemonBoxScanActive = true;
     try {
@@ -5576,12 +5709,37 @@ ipcRenderer.on('start-scan-pokemon', async () => {
             if (pnum > maxPages) maxPages = pnum;
         }
 
+        let totalMatches = 0;
         const matchOut = html1.match(/(?:out of\s+|total\s+)([0-9,]+)\s+matches/i);
         if (matchOut) {
-            const totalMatches = parseInt(matchOut[1].replace(/,/g, ''), 10);
+            totalMatches = parseInt(matchOut[1].replace(/,/g, ''), 10);
             if (totalMatches > 0) {
                 const calculatedPages = Math.ceil(totalMatches / 48);
                 if (calculatedPages > maxPages) maxPages = calculatedPages;
+            }
+        }
+
+        const opts = options || {};
+        if (opts.smartCheck && typeof opts.expectedCount === 'number' && opts.expectedCount > 0 && totalMatches > 0) {
+            if (totalMatches === opts.expectedCount && Array.isArray(ownedUserCollection) && ownedUserCollection.length === opts.expectedCount) {
+                console.log('[PokePreload] Smart Box Check: Verified current (' + totalMatches + ' Pokemon). Skipping multi-page scan.');
+                let parsedUser = extractLoggedInUsername(document);
+                if (!parsedUser && html1) {
+                    try {
+                        const parser = new DOMParser();
+                        const doc1 = parser.parseFromString(html1, 'text/html');
+                        parsedUser = extractLoggedInUsername(doc1);
+                    } catch (_) {}
+                }
+                ipcRenderer.sendToHost('pokemon-scan-complete', {
+                    success: true,
+                    upToDate: true,
+                    pokemons: ownedUserCollection,
+                    totalMatches: totalMatches,
+                    pageCount: maxPages,
+                    username: parsedUser
+                });
+                return;
             }
         }
 

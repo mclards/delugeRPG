@@ -1366,7 +1366,7 @@ runTest('Strict Mega and Legendary Exclusion Guards & Per-Tier Variant Assignmen
       `
       let lastEvaluatedEncounterSignature = '';
       const pageText = encounterBoxText + ' Level: ' + currentLevel;
-      const document = { body: { innerText: pageText } };
+      const document = { body: { innerText: pageText }, getElementById: () => null, querySelector: () => null };
       function extractWildLevel() { return currentLevel; }
       function getEncounterContainer() { return { innerText: encounterBoxText }; }
       function checkEncounterIsDuplicate() { return isDupe; }

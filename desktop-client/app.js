@@ -1953,6 +1953,8 @@ setInterval(detectNetworkIdentity, 60000);
 
 // Audio Synthesizer for alerts
 let sharedAudioCtx = null;
+const activeAudioNodes = new Set();
+
 function getAudioContext() {
   try {
     if (!sharedAudioCtx) {
@@ -1968,6 +1970,17 @@ function getAudioContext() {
   }
 }
 
+function stopAllActiveSounds() {
+  try {
+    activeAudioNodes.forEach(node => {
+      try { node.osc.stop(); } catch (_) {}
+      try { node.osc.disconnect(); } catch (_) {}
+      try { node.gain.disconnect(); } catch (_) {}
+    });
+    activeAudioNodes.clear();
+  } catch (_) {}
+}
+
 function playSound(freq = 880, duration = 0.5) {
   if (!soundEnabled) return;
   try {
@@ -1981,14 +1994,20 @@ function playSound(freq = 880, duration = 0.5) {
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
+    const entry = { osc, gain };
+    activeAudioNodes.add(entry);
+    osc.onended = () => activeAudioNodes.delete(entry);
     osc.start();
     osc.stop(audioCtx.currentTime + duration);
   } catch (_) {}
 }
 
 function playAlarmSound() {
+  if (!soundEnabled) return;
   playSound(440, 0.3);
-  setTimeout(() => playSound(880, 0.4), 250);
+  setTimeout(() => {
+    if (soundEnabled) playSound(880, 0.4);
+  }, 250);
 }
 
 // Status UI Helpers
@@ -4343,6 +4362,11 @@ delugeView.addEventListener('ipc-message', (event) => {
 
 // Sync config and auto-fill login on page load if enabled
 delugeView.addEventListener('dom-ready', () => {
+  try {
+    if (delugeView && typeof delugeView.setAudioMuted === 'function') {
+      delugeView.setAudioMuted(!soundEnabled);
+    }
+  } catch (_) {}
   syncHuntingState();
   applyZoom(currentZoomFactor);
   syncUserCollectionToGuest();
@@ -4373,6 +4397,14 @@ toggleBtn.addEventListener('click', toggleHunting);
 
 soundBtn.addEventListener('click', () => {
   soundEnabled = !soundEnabled;
+  if (!soundEnabled) {
+    stopAllActiveSounds();
+  }
+  try {
+    if (delugeView && typeof delugeView.setAudioMuted === 'function') {
+      delugeView.setAudioMuted(!soundEnabled);
+    }
+  } catch (_) {}
   updateSoundUI();
   config.settings.soundAlert = soundEnabled;
   saveLocalConfig();
@@ -6572,7 +6604,9 @@ function handleLiveBattleOpponents(data) {
     const mLower = String(member.name).toLowerCase().trim();
     if (uLower === mLower) return true;
     const mVar = (member.variant && member.variant !== 'Normal') ? (String(member.variant).toLowerCase().trim() + ' ') : '';
-    return mVar ? (uLower === mVar + mLower) : false;
+    if (mVar && uLower === mVar + mLower) return true;
+    if (mVar && mLower.startsWith(mVar) && uLower === mLower.slice(mVar.length)) return true;
+    return false;
   };
 
   // Enrich #switchpoke entries lacking DOM level numbers from known team/collection
@@ -6580,11 +6614,12 @@ function handleLiveBattleOpponents(data) {
     data.userTeam.forEach(u => {
       if (!u || !u.name) return;
       if (u.levelKnown === false) {
-        const knownMem = (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.find(m => matchesTeamEntryName(u.name, m))) ||
-                         (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.find(m => matchesTeamEntryName(u.name, m))) ||
-                         (Array.isArray(currentCollection) && currentCollection.find(c => matchesTeamEntryName(u.name, c)));
+        const knownMem = (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.find(m => m && m.levelKnown !== false && matchesTeamEntryName(u.name, m))) ||
+                         (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.find(m => m && matchesTeamEntryName(u.name, m))) ||
+                         (Array.isArray(currentCollection) && currentCollection.find(c => c && matchesTeamEntryName(u.name, c)));
         if (knownMem && typeof knownMem.level === 'number') {
           u.level = knownMem.level;
+          u.levelKnown = true;
         }
       }
     });
@@ -6592,13 +6627,20 @@ function handleLiveBattleOpponents(data) {
 
   // Track and retain userTeam across preparation, challenge preview, and active battle screens
   if (Array.isArray(data.userTeam) && data.userTeam.length > 0) {
-    if ((data.isInActiveBattle || isPostBattle) && Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > data.userTeam.length) {
-      const isSameParty = data.userTeam.every(u => lastKnownUserTeam.some(m => matchesTeamEntryName(u.name, m)));
+    const baseParty = (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > data.userTeam.length)
+      ? lastKnownUserTeam
+      : ((isPostBattle && Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > data.userTeam.length) ? lastRecommendedTeam : null);
+    if ((data.isInActiveBattle || isPostBattle) && baseParty && baseParty.length > data.userTeam.length) {
+      const isSameParty = data.userTeam.every(u => baseParty.some(m => matchesTeamEntryName(u.name, m)));
       if (isSameParty) {
-        data.userTeam = lastKnownUserTeam.map((mem, idx) => {
+        data.userTeam = baseParty.map((mem, idx) => {
           const liveMatch = data.userTeam.find(u => matchesTeamEntryName(u.name, mem));
           if (liveMatch) {
             const merged = Object.assign({}, mem, liveMatch, { index: idx });
+            if (liveMatch.levelKnown === false && mem.levelKnown !== false && typeof mem.level === 'number') {
+              merged.level = mem.level;
+              merged.levelKnown = true;
+            }
             if (!data.isPreparationScreen && (mem.isFainted || (typeof mem.hp === 'number' && mem.hp <= 0))) {
               merged.isFainted = true;
               merged.hp = 0;
@@ -6609,7 +6651,12 @@ function handleLiveBattleOpponents(data) {
             return merged;
           }
           if (data.userActivePokemon && matchesTeamEntryName(data.userActivePokemon.name, mem)) {
-            return Object.assign({}, mem, data.userActivePokemon, { index: idx });
+            const activeMerged = Object.assign({}, mem, data.userActivePokemon, { index: idx });
+            if (data.userActivePokemon.levelKnown === false && mem.levelKnown !== false && typeof mem.level === 'number') {
+              activeMerged.level = mem.level;
+              activeMerged.levelKnown = true;
+            }
+            return activeMerged;
           }
           if (data.isInActiveBattle) {
             return Object.assign({}, mem, { hp: 0, isFainted: true, index: idx });
@@ -6619,6 +6666,10 @@ function handleLiveBattleOpponents(data) {
       }
     }
     lastKnownUserTeam = data.userTeam;
+    if (!isPostBattle && (data.isPreparationScreen || data.isInActiveBattle) && battleLoopTimer) {
+      clearTimeout(battleLoopTimer);
+      battleLoopTimer = null;
+    }
     const isFreshMatchPrep = Boolean(
       data.isPreparationScreen &&
       (!Array.isArray(data.roster) || !data.roster.some(p => p.isFainted || (typeof p.hp === 'number' && typeof p.maxHp === 'number' && p.maxHp > 0 && p.hp < p.maxHp))) &&
@@ -9009,31 +9060,53 @@ function areAllTeamPokemonLevel100() {
     ? lastKnownUserTeam
     : (battlingTeam.length > 0 ? battlingTeam : null);
 
-  // Source of Truth: The active live battling party (all 6 Pokemon), falling back to recommended team
-  const fullRoster = (liveRoster && liveRoster.length > 0)
-    ? liveRoster
-    : (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0 ? lastRecommendedTeam : null);
-
-  if (!fullRoster || fullRoster.length === 0) {
-    return false;
-  }
-
-  const liveParticipants = battlingTeam;
   const matchName = (uName, mem) => {
     if (!uName || !mem || !mem.name) return false;
     const uLower = String(uName).toLowerCase().trim();
     const mLower = String(mem.name).toLowerCase().trim();
     if (uLower === mLower) return true;
     const mVar = (mem.variant && mem.variant !== 'Normal') ? (String(mem.variant).toLowerCase().trim() + ' ') : '';
-    return mVar ? (uLower === mVar + mLower) : false;
+    if (mVar && uLower === mVar + mLower) return true;
+    if (mVar && mLower.startsWith(mVar) && uLower === mLower.slice(mVar.length)) return true;
+    return false;
   };
 
-  // The loop only finishes when EVERY single member of the team roster reaches Level 100
+  // Source of Truth: The active live battling party (all 6 Pokemon), merged with recommended team if liveRoster only captured active participants
+  let fullRoster = (liveRoster && liveRoster.length > 0)
+    ? liveRoster.slice()
+    : (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0 ? lastRecommendedTeam.slice() : null);
+
+  if (!fullRoster || fullRoster.length === 0) {
+    return false;
+  }
+
+  if (fullRoster.length < 6 && Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > fullRoster.length) {
+    const isSubsetOfRec = fullRoster.every(u => lastRecommendedTeam.some(r => matchName(u.name, r)));
+    if (isSubsetOfRec) {
+      lastRecommendedTeam.forEach(r => {
+        if (!fullRoster.some(u => matchName(u.name, r))) {
+          fullRoster.push(r);
+        }
+      });
+    }
+  }
+
+  const liveParticipants = battlingTeam;
+
+  // The loop only finishes when EVERY single member of the team roster has a verified Level >= 100
   return fullRoster.every(mem => {
-    let lvl = (mem && mem.level !== undefined && mem.level !== null) ? parseInt(mem.level, 10) : NaN;
+    let lvl = (mem && mem.levelKnown !== false && mem.level !== undefined && mem.level !== null) ? parseInt(mem.level, 10) : NaN;
     if (liveParticipants.length > 0 && mem && mem.name) {
-      const found = liveParticipants.find(u => u && matchName(u.name, mem));
+      const found = liveParticipants.find(u => u && u.levelKnown !== false && matchName(u.name, mem));
       if (found && found.level) lvl = parseInt(found.level, 10);
+    }
+    if (isNaN(lvl) && Array.isArray(lastKnownUserTeam) && mem && mem.name) {
+      const kMatch = lastKnownUserTeam.find(k => k && k.levelKnown !== false && matchName(k.name, mem));
+      if (kMatch && kMatch.level !== undefined && kMatch.level !== null) lvl = parseInt(kMatch.level, 10);
+    }
+    if (isNaN(lvl) && Array.isArray(lastRecommendedTeam) && mem && mem.name) {
+      const rMatch = lastRecommendedTeam.find(r => r && matchName(r.name, mem));
+      if (rMatch && rMatch.level !== undefined && rMatch.level !== null) lvl = parseInt(rMatch.level, 10);
     }
     if (isNaN(lvl) && Array.isArray(currentCollection) && mem && mem.name) {
       const match = currentCollection.find(c => c && matchName(c.name, mem));
@@ -9144,12 +9217,8 @@ function scheduleNextLoopBattle() {
     // Arm auto battle for the incoming match
     isBattleAutoRunning = true;
 
-    // Reset post-battle screen markers so watchdog and loop recognize new state
+    // Reset match-scoped participant/switch counters for the incoming match
     if (activeAiBattleData) {
-      activeAiBattleData.isVictoryScreen = false;
-      activeAiBattleData.isPostBattleScreen = false;
-      activeAiBattleData.isDefeatScreen = false;
-      activeAiBattleData.hasNextBattleBtn = false;
       if (typeof currentMatchParticipants !== 'undefined') currentMatchParticipants.clear();
       if (typeof justSwitchedActivePokemon !== 'undefined') justSwitchedActivePokemon.clear();
       currentMatchSwitchCount = 0;
@@ -9179,6 +9248,12 @@ function scheduleNextLoopBattle() {
             (activeAiBattleData && (activeAiBattleData.isVictoryScreen || activeAiBattleData.isPostBattleScreen || activeAiBattleData.isDefeatScreen || activeAiBattleData.hasNextBattleBtn)) ||
             (cUrl.indexOf('/battle') === -1 || cUrl.indexOf('defeat') !== -1 || cUrl.indexOf('result') !== -1)
           );
+          if (activeAiBattleData) {
+            activeAiBattleData.isVictoryScreen = false;
+            activeAiBattleData.isPostBattleScreen = false;
+            activeAiBattleData.isDefeatScreen = false;
+            activeAiBattleData.hasNextBattleBtn = false;
+          }
           if (isStillPostBattle) {
             backendLog('LOOP_ENGINE', 'Post-battle screen still active; executing direct arena entry...');
             if (isGMaxChallengeModeActive()) {
@@ -12004,7 +12079,7 @@ function updateTeamBuilderBattleAction(battleData) {
         }
         teamBattleActionBtn.disabled = true;
         config.action();
-      } else if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isComplete) {
+      } else if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isMatchOver) {
         // If DOM was mid-animation or action briefly unready, re-poll rather than stopping
         battleAutoStepTimer = setTimeout(() => {
           battleAutoStepTimer = null;
@@ -12704,6 +12779,7 @@ let captchaAlarmInterval = null;
 let isCaptchaAlarmActive = false;
 
 function playEmergencyBeep(freq = 600, duration = 0.25) {
+  if (!soundEnabled) return;
   try {
     const audioCtx = getAudioContext();
     if (!audioCtx) return;
@@ -12715,15 +12791,19 @@ function playEmergencyBeep(freq = 600, duration = 0.25) {
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
+    const entry = { osc, gain };
+    activeAudioNodes.add(entry);
+    osc.onended = () => activeAudioNodes.delete(entry);
     osc.start();
     osc.stop(audioCtx.currentTime + duration);
   } catch (_) {}
 }
 
 function playAlarmPulse() {
+  if (!soundEnabled) return;
   playEmergencyBeep(520, 0.2);
   setTimeout(() => {
-    if (isCaptchaAlarmActive) {
+    if (isCaptchaAlarmActive && soundEnabled) {
       playEmergencyBeep(880, 0.25);
     }
   }, 220);

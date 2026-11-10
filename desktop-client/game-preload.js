@@ -6177,6 +6177,7 @@ function detectBattleOpponents(isManualCheck) {
             }
 
             const userTeam = [];
+            const seenVpNames = new Set();
             if (viewPokes) {
                 const vpTables = viewPokes.querySelectorAll('.viewpoketable, .battlelistitem, div[class*="poke"]');
                 for (let i = 0; i < vpTables.length; i++) {
@@ -6184,17 +6185,20 @@ function detectBattleOpponents(isManualCheck) {
                     const h4 = tbl.querySelector('h4, .name, b');
                     const pName = h4 ? h4.textContent.trim() : '';
                     if (!pName) continue;
-                    let pLevel = 100;
-                    let pExp = 100000;
                     const txt = tbl.textContent || '';
-                    const m = txt.match(/Level:\s*(\d+)/i);
-                    if (m) pLevel = parseInt(m[1], 10);
+                    const m = txt.match(/Level:\s*(\d+)/i) || txt.match(/Lv\.?\s*(\d+)/i);
+                    if (!m) continue;
+                    const nameKey = pName.toLowerCase();
+                    if (seenVpNames.has(nameKey)) continue;
+                    seenVpNames.add(nameKey);
+                    const pLevel = parseInt(m[1], 10);
+                    let pExp = pLevel * 1000;
                     const mExp = txt.match(/Exp:\s*([0-9,]+)/i);
                     if (mExp) pExp = parseInt(mExp[1].replace(/,/g, ''), 10);
-                    else pExp = pLevel * 1000;
                     userTeam.push({
                         name: pName,
                         level: pLevel,
+                        levelKnown: true,
                         exp: pExp
                     });
                 }
@@ -6202,9 +6206,10 @@ function detectBattleOpponents(isManualCheck) {
             if (userTeam.length > 0) {
                 if (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > userTeam.length) {
                     lastKnownUserTeam.forEach(mem => {
-                        const up = userTeam.find(u => u.name && u.name.toLowerCase() === mem.name.toLowerCase());
-                        if (up && up.level) {
+                        const up = userTeam.find(u => u.name && u.name.toLowerCase() === (mem.name || '').toLowerCase());
+                        if (up && up.levelKnown !== false && typeof up.level === 'number') {
                             mem.level = up.level;
+                            mem.levelKnown = true;
                             if (up.exp) mem.exp = up.exp;
                         }
                     });
@@ -6386,7 +6391,13 @@ function detectBattleOpponents(isManualCheck) {
                     }
                 }
 
-                let pLevel = (matchedKnown && matchedKnown.level) ? matchedKnown.level : 100;
+                let pLevel = (matchedKnown && matchedKnown.levelKnown !== false && typeof matchedKnown.level === 'number') ? matchedKnown.level : 100;
+                let pLevelKnown = Boolean(matchedKnown && matchedKnown.levelKnown !== false && typeof matchedKnown.level === 'number');
+                const pLvlMatch = pFullText.match(/Level:\s*(\d+)/i) || pFullText.match(/Lv\.?\s*(\d+)/i);
+                if (pLvlMatch) {
+                    pLevel = parseInt(pLvlMatch[1], 10);
+                    pLevelKnown = true;
+                }
                 let pHp = 400;
                 let pMaxHp = 400;
                 const pHpEl = playerPokeEl.querySelector('.hp');
@@ -6395,7 +6406,7 @@ function detectBattleOpponents(isManualCheck) {
                 if (pHpM) {
                     pHp = parseInt(pHpM[1], 10);
                     if (pHpM[2]) pMaxHp = parseInt(pHpM[2], 10);
-                    if (!matchedKnown || !matchedKnown.level) {
+                    if (!pLevelKnown) {
                         if (pMaxHp <= 400) pLevel = Math.min(100, Math.max(1, Math.round(pMaxHp / 4)));
                         else pLevel = 100;
                     }
@@ -6418,6 +6429,7 @@ function detectBattleOpponents(isManualCheck) {
                         variant: uVariant,
                         types: pTypes.length > 0 ? pTypes : ['Normal'],
                         level: pLevel,
+                        levelKnown: pLevelKnown,
                         hp: pHp,
                         maxHp: pMaxHp,
                         isFainted: (pHp <= 0),
@@ -6539,7 +6551,7 @@ function detectBattleOpponents(isManualCheck) {
                     let matched = null;
                     if (Array.isArray(lastKnownUserTeam)) {
                         matched = lastKnownUserTeam.find(u => (u.name || '').toLowerCase() === rName.toLowerCase());
-                        if (matched && typeof matched.level === 'number') {
+                        if (matched && matched.levelKnown !== false && typeof matched.level === 'number') {
                             rLevel = matched.level;
                             hasKnownLvl = true;
                         }
@@ -6597,7 +6609,7 @@ function detectBattleOpponents(isManualCheck) {
                         let cMatched = null;
                         if (Array.isArray(lastKnownUserTeam)) {
                             cMatched = lastKnownUserTeam.find(u => (u.name || '').toLowerCase() === cName.toLowerCase());
-                            if (cMatched && typeof cMatched.level === 'number') {
+                            if (cMatched && cMatched.levelKnown !== false && typeof cMatched.level === 'number') {
                                 cLevel = cMatched.level;
                                 cKnownLvl = true;
                             }
@@ -6640,7 +6652,10 @@ function detectBattleOpponents(isManualCheck) {
                     userTeam[existingIdx].hp = userActivePokemon.hp;
                     userTeam[existingIdx].maxHp = userActivePokemon.maxHp;
                     userTeam[existingIdx].isFainted = userActivePokemon.isFainted;
-                    if (userActivePokemon.level) userTeam[existingIdx].level = userActivePokemon.level;
+                    if (userActivePokemon.level && (userActivePokemon.levelKnown || userTeam[existingIdx].levelKnown === false)) {
+                        userTeam[existingIdx].level = userActivePokemon.level;
+                        if (userActivePokemon.levelKnown) userTeam[existingIdx].levelKnown = true;
+                    }
                 }
             }
             if (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > userTeam.length && userTeam.length > 0) {
@@ -6648,7 +6663,14 @@ function detectBattleOpponents(isManualCheck) {
                 if (isSubset) {
                     userTeam.splice(0, userTeam.length, ...lastKnownUserTeam.map((mem, idx) => {
                         const found = userTeam.find(u => (u.name || '').toLowerCase() === (mem.name || '').toLowerCase());
-                        if (found) return Object.assign({}, mem, found, { index: idx });
+                        if (found) {
+                            const merged = Object.assign({}, mem, found, { index: idx });
+                            if (found.levelKnown === false && mem.levelKnown !== false && typeof mem.level === 'number') {
+                                merged.level = mem.level;
+                                merged.levelKnown = true;
+                            }
+                            return merged;
+                        }
                         return Object.assign({}, mem, { hp: 0, isFainted: true, index: idx });
                     }));
                 }
@@ -6991,17 +7013,28 @@ function detectBattleOpponents(isManualCheck) {
                                 if (t && rTypes.indexOf(t) === -1) rTypes.push(t);
                             }
                             let rLevel = 100;
+                            let rLevelKnown = false;
                             let rHp = 100;
                             let rMaxHp = 100;
                             const rLvlEl = rItem.querySelector('.battlelistlvlhp');
                             if (rLvlEl) {
                                 const rTxt = rLvlEl.textContent || '';
                                 const m = rTxt.match(/Level:\s*(\d+)/i) || rTxt.match(/Lv\.?\s*(\d+)/i);
-                                if (m) rLevel = parseInt(m[1], 10);
+                                if (m) {
+                                    rLevel = parseInt(m[1], 10);
+                                    rLevelKnown = true;
+                                }
                                 const hpM = rTxt.match(/HP:\s*(\d+)(?:\s*\/\s*(\d+))?/i);
                                 if (hpM) {
                                     rHp = parseInt(hpM[1], 10);
                                     if (hpM[2]) rMaxHp = parseInt(hpM[2], 10);
+                                }
+                            }
+                            if (!rLevelKnown && Array.isArray(lastKnownUserTeam)) {
+                                const prevMem = lastKnownUserTeam.find(u => (u.name || '').toLowerCase() === rName.toLowerCase());
+                                if (prevMem && prevMem.levelKnown !== false && typeof prevMem.level === 'number') {
+                                    rLevel = prevMem.level;
+                                    rLevelKnown = true;
                                 }
                             }
                             const rRadio = rItem.querySelector('input[type="radio"]');
@@ -7012,6 +7045,7 @@ function detectBattleOpponents(isManualCheck) {
                                 name: rName,
                                 types: rTypes.length > 0 ? rTypes : ['Normal'],
                                 level: rLevel,
+                                levelKnown: rLevelKnown,
                                 hp: rHp,
                                 maxHp: rMaxHp,
                                 isFainted: rFainted,
@@ -7209,6 +7243,7 @@ function detectBattleOpponents(isManualCheck) {
 
 ipcRenderer.on('click-rematch-button', () => {
     try {
+        lastBroadcastBattleSig = null;
         if (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) {
             if (!unlockNoticeSent) {
                 unlockNoticeSent = true;

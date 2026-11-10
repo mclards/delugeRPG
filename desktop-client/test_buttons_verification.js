@@ -16,10 +16,12 @@ console.log('================================================================\n'
 
 const appHtmlPath = path.join(__dirname, 'app.html');
 const appJsPath = path.join(__dirname, 'app.js');
+const preloadJsPath = path.join(__dirname, 'game-preload.js');
 const configJsonPath = path.join(__dirname, 'config.json');
 
 const appHtml = fs.readFileSync(appHtmlPath, 'utf8');
 const appJs = fs.readFileSync(appJsPath, 'utf8');
+const preloadJs = fs.readFileSync(preloadJsPath, 'utf8');
 const configJson = JSON.parse(fs.readFileSync(configJsonPath, 'utf8'));
 
 let testsPassed = 0;
@@ -164,6 +166,7 @@ runTest('soundBtn: Audio Alert Mute / Unmute Toggle Button', () => {
   assert(appHtml.includes('id="soundBtn"'), 'app.html must define soundBtn');
   assert(appJs.includes("soundBtn.addEventListener('click'"), 'soundBtn must have click listener');
   assert(appJs.includes('soundEnabled = !soundEnabled;'), 'soundBtn must toggle soundEnabled boolean');
+  assert(appJs.includes('stopAllActiveSounds()'), 'soundBtn must immediately stop any active oscillator nodes when muted');
   assert(appJs.includes('updateSoundUI();'), 'soundBtn must refresh sound icon & styling');
   assert(appJs.includes('config.settings.soundAlert = soundEnabled;'), 'soundBtn must persist soundAlert');
 });
@@ -380,6 +383,12 @@ runTest('teamBattleAutoCheck: Safe In-Battle Auto Checkbox Button & Zero-Glow St
   assert(appJs.includes("teamBattleAutoCheck.addEventListener('change'"), 'app.js must attach change listener to teamBattleAutoCheck');
   assert(appJs.includes('850 + Math.floor(Math.random() * 500)'), 'app.js must use randomized human reaction delay');
   assert(appJs.includes('isBattleAutoRunning = false'), 'app.js must halt auto mode on state changes');
+
+  // 4. Verify Auto + Loop trainee levelKnown guard so bench placeholders never falsely trigger Lv 100 completion
+  assert(preloadJs.includes("if (matched && matched.levelKnown !== false && typeof matched.level === 'number')"), 'game-preload.js must require matched.levelKnown !== false before marking bench level as known');
+  assert(preloadJs.includes("if (cMatched && cMatched.levelKnown !== false && typeof cMatched.level === 'number')"), 'game-preload.js must require cMatched.levelKnown !== false on radio bench cards');
+  assert(appJs.includes('let lvl = (mem && mem.levelKnown !== false && mem.level !== undefined && mem.level !== null) ? parseInt(mem.level, 10) : NaN;'), 'areAllTeamPokemonLevel100 must ignore unverified bench placeholder levels');
+  assert(appJs.includes('if (fullRoster.length < 6 && Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > fullRoster.length)'), 'areAllTeamPokemonLevel100 must include all recommended team trainees when liveRoster only has victory screen participants');
 });
 
 runTest('Segmented Sliding Tab Component (.tab-container) & Unified Scan Box Capsule Audit', () => {

@@ -3376,18 +3376,35 @@ delugeView.addEventListener('did-fail-load', (e) => {
   }
 });
 
+delugeView.addEventListener('render-process-gone', (details) => {
+  const reason = details ? (details.reason || details.status) : 'unknown';
+  backendLog('WEBVIEW', `Webview render process gone: reason=${reason}`);
+  updateStatus(`Webview process terminated (${reason}). Click Reload to restore.`, '#ef4444');
+});
+
+delugeView.addEventListener('unresponsive', () => {
+  backendLog('WEBVIEW', 'Webview became unresponsive');
+  updateStatus('Webview unresponsive. Waiting for recovery...', '#f59e0b');
+});
+
+delugeView.addEventListener('responsive', () => {
+  backendLog('WEBVIEW', 'Webview recovered responsiveness');
+  updateStatus(isRunning ? 'Hunting Active' : 'Ready', isRunning ? '#22c55e' : '#10b981');
+});
+
 delugeView.addEventListener('will-navigate', (event) => {
   const url = event.url || '';
   const currentUrl = (delugeView && delugeView.getURL && delugeView.getURL()) || '';
-  const isCurrentlyInBattle = currentUrl.indexOf('/catch/') !== -1 || currentUrl.indexOf('/battle/') !== -1;
+  const isBattleComplete = Boolean(activeAiBattleData && (activeAiBattleData.isVictoryScreen || activeAiBattleData.isDefeatScreen || activeAiBattleData.isPostBattleScreen || activeAiBattleData.isGmaxChallengeComplete));
+  const isCurrentlyInBattle = (currentUrl.indexOf('/catch/') !== -1 || (currentUrl.indexOf('/battle/') !== -1 && !isBattleComplete));
 
   if (!isManualReloadInProgress && (isAutoCatchCountdownActive || isCurrentlyInBattle)) {
     try {
       const parsed = new URL(url, 'https://www.delugerpg.com');
       const p = (parsed.pathname || '').toLowerCase();
       const isAllowedMap = isMapUrl(url) || p.startsWith('/map');
-      const isCatchOrBattle = p.startsWith('/catch') || p.startsWith('/battle');
-      if (!isAllowedMap && !isCatchOrBattle) {
+      const isAllowedRoute = isAllowedMap || p.startsWith('/catch') || p.startsWith('/battle') || p.startsWith('/gmax') || p.startsWith('/challenge') || p.startsWith('/pokemon');
+      if (!isAllowedRoute) {
         event.preventDefault();
         backendLog('NAVIGATION_GUARD', `Shielded active battle: Blocked premature navigation to ${p || url}`);
         return;
@@ -4250,7 +4267,7 @@ delugeView.addEventListener('ipc-message', (event) => {
         ipcRenderer.invoke('recover-forbidden-session').catch(() => {}).finally(() => {
           setTimeout(() => {
             try {
-              if (delugeView) delugeView.loadURL('https://www.delugerpg.com/login');
+              if (delugeView) delugeView.loadURL('https://www.delugerpg.com/login').catch(() => {});
             } catch (_) {}
             setTimeout(() => { window.__delugeForbiddenRecoveryInProgress = false; }, 5000);
           }, 600);
@@ -9023,7 +9040,7 @@ if (battleOpponentBtn) {
     setTimeout(() => {
       if (delugeView) {
         try {
-          delugeView.loadURL(fullUrl);
+          delugeView.loadURL(fullUrl).catch(() => {});
           delugeView.focus();
         } catch (err) {
           console.error('Error entering battle arena:', err);
@@ -10703,13 +10720,14 @@ function handleEvolveCardDetected(card) {
       `;
     }
 
-    if (Array.isArray(currentCollection) && card.fromPokemon && card.toPokemon) {
-      const fromLower = card.fromPokemon.toLowerCase();
-      const pIdx = currentCollection.findIndex(p => (p.name || '').toLowerCase() === fromLower || (p.id && selectedEvoPoke && p.id === selectedEvoPoke.id));
+    if (Array.isArray(currentCollection) && (card.toPokemon || card.fullName)) {
+      const evolvedName = card.toPokemon || card.fullName;
+      const fromLower = (card.fromPokemon || (selectedEvoPoke && selectedEvoPoke.name) || '').toLowerCase();
+      const pIdx = currentCollection.findIndex(p => (fromLower && (p.name || '').toLowerCase() === fromLower) || (p.id && selectedEvoPoke && p.id === selectedEvoPoke.id));
       if (pIdx !== -1) {
-        currentCollection[pIdx].name = card.toPokemon;
+        currentCollection[pIdx].name = evolvedName;
         if (evolutionEngine && typeof evolutionEngine.resolvePokemonTypes === 'function') {
-          currentCollection[pIdx].types = evolutionEngine.resolvePokemonTypes(card.toPokemon, currentCollection);
+          currentCollection[pIdx].types = evolutionEngine.resolvePokemonTypes(evolvedName, currentCollection);
         }
         currentCollection[pIdx].canEvolve = undefined;
         try {
@@ -10720,7 +10738,7 @@ function handleEvolveCardDetected(card) {
     }
 
     const nextAnalysis = (card.toPokemon && aiAssistant) ? aiAssistant.analyzeEvolutionPath(card.toPokemon, currentCollection) : null;
-    const canEvolveFurther = nextAnalysis && nextAnalysis.bestBranch && !nextAnalysis.bestBranch.isDuplicate && !/\bg-?max\b/i.test(nextAnalysis.bestBranch.name);
+    const canEvolveFurther = !card.isGmax && nextAnalysis && nextAnalysis.bestBranch && !nextAnalysis.bestBranch.isDuplicate && !/\bg-?max\b/i.test(nextAnalysis.bestBranch.name);
 
     if (aiInstantActionSlot) {
       aiInstantActionSlot.innerHTML = '';
@@ -10729,7 +10747,18 @@ function handleEvolveCardDetected(card) {
       actionBtn.className = 'btn btn-accent';
       actionBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
 
-      if (canEvolveFurther) {
+      if (card.isGmax) {
+        actionBtn.innerHTML = '&#128506; Return to Map';
+        actionBtn.addEventListener('click', () => {
+          if (delugeView && typeof delugeView.loadURL === 'function') {
+            delugeView.loadURL('https://www.delugerpg.com/map').catch(() => {});
+          }
+          renderEvolutionDecisionMakerUI();
+        });
+        if (delugeView && typeof delugeView.send === 'function') {
+          delugeView.send('start-scan-pokemon');
+        }
+      } else if (canEvolveFurther) {
         actionBtn.innerHTML = `&#129516; Proceed to Evolve into ${escapeHtml(nextAnalysis.bestBranch.name)}`;
         actionBtn.addEventListener('click', () => {
           if (delugeView) {

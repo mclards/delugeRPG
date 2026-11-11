@@ -700,8 +700,10 @@ const AD_DISCOVERY_SELECTORS = [
 ];
 
 function classifyAdElement(el) {
-    if (!el || !el.tagName || el.id === 'del_header' || el.id === 'navwrap' || el.tagName === 'NAV') return null;
+    if (!el || !el.tagName) return null;
     const tag = el.tagName.toUpperCase();
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'HEAD' || tag === 'META' || tag === 'LINK' || tag === 'BR' || tag === 'NOSCRIPT') return null;
+    if (el.id === 'del_header' || el.id === 'navwrap' || tag === 'NAV') return null;
     const id = el.id || '';
     const cls = typeof el.className === 'string' ? el.className : '';
     const src = el.src || '';
@@ -9005,6 +9007,35 @@ function detectEvolveCard() {
                 duplicateChoices: [],
                 availableMoves: availableMoves,
                 options: []
+            };
+        }
+
+        // CASE 0.2: G-Max Evolution Confirmation Screen (/gmax/evolve/confirm/<token> or /gmax/confirm/<token>)
+        if (path.indexOf('/gmax/evolve/confirm') !== -1 || path.indexOf('/gmax/confirm') !== -1) {
+            let evolvedPokeName = '';
+            const spriteImg = document.querySelector('img[src*="/pokemon/"], img[src*="sprites"]');
+            if (spriteImg) {
+                const alt = spriteImg.getAttribute('alt') || spriteImg.getAttribute('title');
+                if (alt && alt.length > 2 && !/logo|icon|button/i.test(alt)) evolvedPokeName = alt.trim();
+            }
+            if (!evolvedPokeName) {
+                const docText = document.body ? (document.body.textContent || '') : '';
+                const gmaxMatch = docText.match(/([A-Za-z0-9\s\(\)\-]+?)\s+(?:has evolved into|evolved into|Gigantamax evolved into)\s+([A-Za-z0-9\s\(\)\-]+)/i);
+                if (gmaxMatch && gmaxMatch[2]) {
+                    evolvedPokeName = gmaxMatch[2].trim();
+                }
+            }
+            if (!evolvedPokeName && lastClickedPokemonInfo && lastClickedPokemonInfo.name) {
+                evolvedPokeName = lastClickedPokemonInfo.name;
+            }
+            return {
+                isOpen: true,
+                isComplete: true,
+                isGmax: true,
+                fromPokemon: (lastClickedPokemonInfo && lastClickedPokemonInfo.name) || '',
+                toPokemon: evolvedPokeName || 'Gigantamax Pokemon',
+                fullName: evolvedPokeName || 'Gigantamax Pokemon',
+                message: evolvedPokeName ? `Gigantamax evolution complete: ${evolvedPokeName}` : 'Gigantamax evolution complete!'
             };
         }
 

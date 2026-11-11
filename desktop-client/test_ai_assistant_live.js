@@ -1077,6 +1077,61 @@ assert(preloadContent.includes("link.closest('#DModal, #DMbody, #delugemodal, .m
 assert(preloadContent.includes('function isModalElementOpen(el)'), 'game-preload.js must implement ancestor-aware isModalElementOpen to ignore hidden #DMbody inside closed #DModal');
 assert(appJsSource.includes('if (!matchesActiveModal && activeEvolveCardData)'), 'app.js selectEvolvePokemon must clear stale activeEvolveCardData when selecting a Pokemon with no open modal');
 
+// Test 10: Multi-Path Evolution Ranking (G-Max -> Next Strongest/Best -> Least) & G-Max Preservation Rule
+// A. Cosmoem Multi-Branch: Unowned Chrome Lunala must be prioritized over owned Chrome Solgaleo
+const cosmoemCollection = [
+  { id: 'cs1', name: 'Chrome Solgaleo', variant: 'Chrome', level: 100 },
+  { id: 'cm1', name: 'Chrome Cosmoem', variant: 'Chrome', level: 100, canEvolve: true }
+];
+const cosmoemAnalysis = evolutionEngine.analyzeEvolutionPath('Chrome Cosmoem', cosmoemCollection);
+assert(cosmoemAnalysis && cosmoemAnalysis.bestBranch, 'Chrome Cosmoem must have a recommended best branch');
+assert.strictEqual(cosmoemAnalysis.bestBranch.name, 'Lunala', 'Chrome Cosmoem must prioritize unowned Lunala over owned Solgaleo');
+assert.strictEqual(cosmoemAnalysis.bestBranch.isDuplicate, false, 'Chrome Lunala must be marked unowned / not duplicate');
+const cosmoemReady = evolutionEngine.getEvolveReadyPokemon(cosmoemCollection);
+assert(cosmoemReady.some(p => p.name === 'Chrome Cosmoem' && p.hasUnique), 'Chrome Cosmoem must be evolve-ready with hasUnique = true');
+
+// B. G-Max Precedence & Preservation: Block evolution into Mega if G-Max is not yet owned
+const charizardBlockedCollection = [
+  { id: 'c1', name: 'Ghostly Charizard', variant: 'Ghostly', level: 100, canEvolve: true }
+];
+const charizardGmaxPrereq = evolutionEngine.checkGmaxPrerequisite('Ghostly Charizard', charizardBlockedCollection);
+assert.strictEqual(charizardGmaxPrereq.hasGmaxForm, true, 'Charizard must be detected as G-Max capable');
+assert.strictEqual(charizardGmaxPrereq.isBlockedForGmax, true, 'Ghostly Charizard must be blocked when Ghostly G-Max Charizard is unowned');
+assert.strictEqual(charizardGmaxPrereq.gmaxTarget, 'Ghostly G-Max Charizard', 'Target G-Max must be Ghostly G-Max Charizard');
+const charizardBlockedAnalysis = evolutionEngine.analyzeEvolutionPath('Ghostly Charizard', charizardBlockedCollection);
+assert.strictEqual(charizardBlockedAnalysis.status, 'BLOCKED_FOR_GMAX', 'Evolution status must be BLOCKED_FOR_GMAX');
+assert.strictEqual(charizardBlockedAnalysis.isBlockedForGmax, true, 'isBlockedForGmax must be true in analyzeEvolutionPath');
+const charizardBlockedReady = evolutionEngine.getEvolveReadyPokemon(charizardBlockedCollection);
+assert(charizardBlockedReady.some(p => p.name === 'Ghostly Charizard' && p.isBlockedForGmax && !p.hasUnique), 'Ghostly Charizard must be marked blocked for G-Max in ready list');
+
+// C. Next Strongest/Best & Least Ranking: When G-Max is owned, prioritize Mega Charizard X first, then Y next time
+const charizardGmaxOwnedCollection = [
+  { id: 'gm1', name: 'Ghostly G-Max Charizard', variant: 'Ghostly', level: 100 },
+  { id: 'c1', name: 'Ghostly Charizard', variant: 'Ghostly', level: 100, canEvolve: true },
+  { id: 'c2', name: 'Ghostly Charizard', variant: 'Ghostly', level: 100, canEvolve: true }
+];
+const charizardAllowedPrereq = evolutionEngine.checkGmaxPrerequisite('Ghostly Charizard', charizardGmaxOwnedCollection);
+assert.strictEqual(charizardAllowedPrereq.isBlockedForGmax, false, 'Evolution must be allowed when Ghostly G-Max Charizard is owned');
+const charizardAllowedAnalysis = evolutionEngine.analyzeEvolutionPath('Ghostly Charizard', charizardGmaxOwnedCollection);
+assert.strictEqual(charizardAllowedAnalysis.status, 'BRANCHING_FOUND', 'Status must be BRANCHING_FOUND');
+assert.strictEqual(charizardAllowedAnalysis.bestBranch.name, 'Mega Charizard X', 'Mega Charizard X (BST 634, Fire/Dragon) must be ranked above Mega Charizard Y');
+
+// D. Next time (when Mega Charizard X is also owned): prioritize Mega Charizard Y
+const charizardXOwnedCollection = [
+  { id: 'gm1', name: 'Ghostly G-Max Charizard', variant: 'Ghostly', level: 100 },
+  { id: 'mx1', name: 'Ghostly Mega Charizard X', variant: 'Ghostly', level: 100 },
+  { id: 'c1', name: 'Ghostly Charizard', variant: 'Ghostly', level: 100, canEvolve: true },
+  { id: 'c2', name: 'Ghostly Charizard', variant: 'Ghostly', level: 100, canEvolve: true }
+];
+const charizardNextAnalysis = evolutionEngine.analyzeEvolutionPath('Ghostly Charizard', charizardXOwnedCollection);
+assert.strictEqual(charizardNextAnalysis.bestBranch.name, 'Mega Charizard Y', 'Mega Charizard Y must be prioritized next time when Mega X is already owned');
+
+// E. UI Controller & Modal Source Code Integrity
+assert(appJsSource.includes('isBlockedForGmax'), 'app.js must implement isBlockedForGmax state handling');
+assert(appJsSource.includes('Hold for G-Max'), 'app.js must display Hold for G-Max warnings and action button text');
+assert(preloadContent.includes('GMAX_CAPABLE_SPECIES'), 'game-preload.js must define GMAX_CAPABLE_SPECIES');
+assert(preloadContent.includes('isBlockedForGmax'), 'game-preload.js must detect G-Max block status in detectEvolveCard');
+
 console.log('[PASS] AUDIT 13: G-Max Challenge & Evolution Duplicate Prevention Verified');
 
 // 14. AUDIT 100% 7-BIT CLEAN ASCII

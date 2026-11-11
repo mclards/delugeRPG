@@ -8663,16 +8663,26 @@ function getRadioOptionText(radio, modalContainer) {
             if (txt) return txt;
         }
     }
-    if (radio.parentElement && radio.parentElement.tagName.toLowerCase() === 'label') {
-        const txt = (radio.parentElement.textContent || '').trim();
-        if (txt) return txt;
+    // Check closest label or container if it wraps ONLY this radio button
+    let p = radio.parentElement;
+    while (p && p !== modalContainer && p !== document.body) {
+        const pTag = (p.tagName || '').toLowerCase();
+        if (pTag === 'form' || pTag === 'table' || pTag === 'body') break;
+        const radiosInP = p.querySelectorAll ? p.querySelectorAll('input[type="radio"]') : [];
+        if (radiosInP.length === 1 && (pTag === 'label' || pTag === 'div' || pTag === 'p' || pTag === 'tr' || pTag === 'li')) {
+            let pText = (p.textContent || '').trim();
+            pText = pText.replace(/\b(Evolve|Close|Cancel|Submit)\b/ig, '').trim();
+            if (pText.length > 2) return pText;
+        }
+        p = p.parentElement;
     }
     let sib = radio.nextSibling;
     let sibText = '';
     while (sib) {
         if (sib.nodeType === 1) {
             const sTag = (sib.tagName || '').toLowerCase();
-            if (sTag === 'input' || sTag === 'button' || sTag === 'form' || sTag === 'table' || sTag === 'hr') break;
+            if (sTag === 'input' || sTag === 'button' || sTag === 'form' || sTag === 'table' || sTag === 'hr' || sTag === 'div' || sTag === 'p' || sTag === 'tr' || sTag === 'ul' || sTag === 'li') break;
+            if (sib.querySelector && sib.querySelector('input, button, select, [type="radio"]')) break;
             if (sTag === 'br' && sibText.trim().length > 0) break;
             sibText += ' ' + (sib.textContent || '');
         } else if (sib.nodeType === 3) {
@@ -8680,7 +8690,13 @@ function getRadioOptionText(radio, modalContainer) {
         }
         sib = sib.nextSibling;
     }
-    return sibText.trim();
+    const cleanSib = sibText.trim();
+    if (cleanSib) return cleanSib;
+
+    if (radio.value && radio.value !== 'on' && radio.value !== '1' && radio.value !== 'true') {
+        return radio.value.trim();
+    }
+    return '';
 }
 
 async function humanClickElementVerified(el, opts) {
@@ -9147,9 +9163,19 @@ function detectEvolveCard() {
                     continue;
                 }
 
+                let optName = labelText;
+                let optReq = '';
                 const optMatch = labelText.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
-                const optName = optMatch ? optMatch[1].trim() : labelText;
-                const optReq = optMatch && optMatch[2] ? optMatch[2].trim() : '';
+                if (optMatch) {
+                    optName = optMatch[1].trim();
+                    optReq = optMatch[2] ? optMatch[2].trim() : '';
+                }
+                if (radio.value && radio.value.length > 2 && !/^(on|1|true)$/i.test(radio.value)) {
+                    const cleanVal = radio.value.replace(/\s*\([^)]*\)/g, '').trim();
+                    if (cleanVal.length > 2 && !/^(evolve|close|cancel|submit|evolutionary)/i.test(cleanVal)) {
+                        optName = cleanVal;
+                    }
+                }
 
                 if (/^(evolve|close|cancel|submit|evolutionary)/i.test(optName) || /\bg-?max\b/i.test(optName)) {
                     continue;
@@ -9162,8 +9188,9 @@ function detectEvolveCard() {
                 const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optFullName, variant);
                 const isMegaTarget = /\bMega\s+/i.test(optFullName);
                 const isGmaxTarget = /\bG-Max\b/i.test(optFullName);
+                const isBranchMega = isMegaTarget && /\b[XY]\b/i.test(optFullName);
                 const isExactOrMegaOwned = optOwnStatus
-                    ? (isMegaTarget ? Boolean(optOwnStatus.hasMegaOwned || optOwnStatus.hasExactOwned) : (isGmaxTarget ? Boolean(optOwnStatus.hasGmaxOwned || optOwnStatus.hasExactOwned) : Boolean(optOwnStatus.hasExactOwned)))
+                    ? (isBranchMega ? Boolean(optOwnStatus.hasExactOwned) : (isMegaTarget ? Boolean(optOwnStatus.hasMegaOwned || optOwnStatus.hasExactOwned) : (isGmaxTarget ? Boolean(optOwnStatus.hasGmaxOwned || optOwnStatus.hasExactOwned) : Boolean(optOwnStatus.hasExactOwned))))
                     : false;
 
                 options.push({
@@ -9246,8 +9273,78 @@ function detectEvolveCard() {
             }
         }
 
+        const GMAX_CAPABLE_SPECIES = {
+            venusaur: 'G-Max Venusaur',
+            charizard: 'G-Max Charizard',
+            blastoise: 'G-Max Blastoise',
+            butterfree: 'G-Max Butterfree',
+            pikachu: 'G-Max Pikachu',
+            meowth: 'G-Max Meowth',
+            machamp: 'G-Max Machamp',
+            gengar: 'G-Max Gengar',
+            kingler: 'G-Max Kingler',
+            lapras: 'G-Max Lapras',
+            eevee: 'G-Max Eevee',
+            snorlax: 'G-Max Snorlax',
+            garbodor: 'G-Max Garbodor',
+            melmetal: 'G-Max Melmetal',
+            rillaboom: 'G-Max Rillaboom',
+            cinderace: 'G-Max Cinderace',
+            inteleon: 'G-Max Inteleon',
+            corviknight: 'G-Max Corviknight',
+            orbeetle: 'G-Max Orbeetle',
+            drednaw: 'G-Max Drednaw',
+            coalossal: 'G-Max Coalossal',
+            flapple: 'G-Max Flapple',
+            appletun: 'G-Max Appletun',
+            sandaconda: 'G-Max Sandaconda',
+            toxtricity: 'G-Max Toxtricity',
+            centiskorch: 'G-Max Centiskorch',
+            hatterene: 'G-Max Hatterene',
+            grimmsnarl: 'G-Max Grimmsnarl',
+            alcremie: 'G-Max Alcremie',
+            copperajah: 'G-Max Copperajah',
+            duraludon: 'G-Max Duraludon',
+            urshifu: 'G-Max Urshifu'
+        };
+
+        const cleanBase = baseSpecies.replace(/[^a-z0-9]/g, '');
+        const gmaxBase = GMAX_CAPABLE_SPECIES[cleanBase] || null;
+        let isBlockedForGmax = false;
+        let gmaxTarget = null;
+        let blockReason = '';
+
+        if (gmaxBase) {
+            gmaxTarget = (variant !== 'Normal') ? `${variant} ${gmaxBase}` : gmaxBase;
+            const gmaxCheck = evaluateOwnershipAndMegaEquivalence(gmaxTarget, variant);
+            const hasGmaxOwned = Boolean(gmaxCheck && (gmaxCheck.hasGmaxOwned || gmaxCheck.hasExactOwned || gmaxCheck.isOwned));
+            let baseCount = 0;
+            if (Array.isArray(ownedUserCollection)) {
+                baseCount = ownedUserCollection.filter(p => {
+                    if (!p || !p.name) return false;
+                    const pClean = (p.name || '').replace(VARIANT_PREFIX_REGEX, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const pVar = (p.variant || 'Normal').toLowerCase();
+                    const targetVar = (variant || 'Normal').toLowerCase();
+                    return pClean === cleanBase && (pVar === targetVar || (pVar === 'normal' && targetVar === 'normal'));
+                }).length;
+            }
+            if (!hasGmaxOwned && baseCount <= 1) {
+                isBlockedForGmax = true;
+                blockReason = `Hold ${rawFullName} for G-Max Challenge! Evolving now will consume your base Pokemon before obtaining ${gmaxTarget}.`;
+            }
+        }
+
         const allDuplicates = options.length > 0 && options.every(opt => opt.isOwned);
-        const hasUnique = options.some(opt => !opt.isOwned);
+        const hasUnique = options.some(opt => !opt.isOwned) && !isBlockedForGmax;
+
+        // Auto-select first unowned radio option in the live webview modal
+        if (!isBlockedForGmax && radios && radios.length > 1) {
+            const firstUnownedIdx = options.findIndex(o => !o.isOwned);
+            if (firstUnownedIdx !== -1 && radios[firstUnownedIdx] && !radios[firstUnownedIdx].checked) {
+                radios[firstUnownedIdx].checked = true;
+                try { radios[firstUnownedIdx].dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
+            }
+        }
 
         // Preserve accurate evolving target Pokemon & level for Step 2 Move Selection modal
         let activeTargetName = rawFullName;
@@ -9296,7 +9393,10 @@ function detectEvolveCard() {
             moves: moves,
             options: options,
             allDuplicates: allDuplicates,
-            hasUnique: hasUnique
+            hasUnique: hasUnique,
+            isBlockedForGmax: isBlockedForGmax,
+            gmaxTarget: gmaxTarget,
+            blockReason: blockReason
         };
     } catch (err) {
         return null;

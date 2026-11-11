@@ -6,4 +6,5 @@ desktop-client/dist*/
 desktop-client/daily_catch_log.json
 desktop-client/build_pyinstaller/
 desktop-client/bin/
+.vscode/
 

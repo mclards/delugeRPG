@@ -1091,6 +1091,61 @@ function findFamily(speciesOrName) {
   return null;
 }
 
+const GMAX_CAPABLE_SPECIES = {
+  venusaur: 'G-Max Venusaur',
+  charizard: 'G-Max Charizard',
+  blastoise: 'G-Max Blastoise',
+  butterfree: 'G-Max Butterfree',
+  pikachu: 'G-Max Pikachu',
+  meowth: 'G-Max Meowth',
+  machamp: 'G-Max Machamp',
+  gengar: 'G-Max Gengar',
+  kingler: 'G-Max Kingler',
+  lapras: 'G-Max Lapras',
+  eevee: 'G-Max Eevee',
+  snorlax: 'G-Max Snorlax',
+  garbodor: 'G-Max Garbodor',
+  melmetal: 'G-Max Melmetal',
+  rillaboom: 'G-Max Rillaboom',
+  cinderace: 'G-Max Cinderace',
+  inteleon: 'G-Max Inteleon',
+  corviknight: 'G-Max Corviknight',
+  orbeetle: 'G-Max Orbeetle',
+  drednaw: 'G-Max Drednaw',
+  coalossal: 'G-Max Coalossal',
+  flapple: 'G-Max Flapple',
+  appletun: 'G-Max Appletun',
+  sandaconda: 'G-Max Sandaconda',
+  toxtricity: 'G-Max Toxtricity',
+  centiskorch: 'G-Max Centiskorch',
+  hatterene: 'G-Max Hatterene',
+  grimmsnarl: 'G-Max Grimmsnarl',
+  alcremie: 'G-Max Alcremie',
+  copperajah: 'G-Max Copperajah',
+  duraludon: 'G-Max Duraludon',
+  urshifu: 'G-Max Urshifu'
+};
+
+function getGmaxFormForSpecies(speciesOrName) {
+  if (!speciesOrName) return null;
+  const clean = cleanSpeciesKey(speciesOrName);
+  if (GMAX_CAPABLE_SPECIES[clean]) return GMAX_CAPABLE_SPECIES[clean];
+  const fam = findFamily(speciesOrName);
+  if (fam && Array.isArray(fam.stages)) {
+    for (const st of fam.stages) {
+      const stKey = cleanSpeciesKey(st);
+      if (GMAX_CAPABLE_SPECIES[stKey]) return GMAX_CAPABLE_SPECIES[stKey];
+    }
+  }
+  if (fam && Array.isArray(fam.branches)) {
+    for (const br of fam.branches) {
+      const brKey = cleanSpeciesKey(br.name);
+      if (GMAX_CAPABLE_SPECIES[brKey]) return GMAX_CAPABLE_SPECIES[brKey];
+    }
+  }
+  return null;
+}
+
 // Check collection ownership for a specific evolved form
 function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant) {
   if (!Array.isArray(userCollection) || userCollection.length === 0 || !evolutionName) {
@@ -1118,7 +1173,8 @@ function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant)
 
   let isActuallyOwned = false;
   if (isTargetMega) {
-    isActuallyOwned = eq.hasMegaOwned;
+    const hasBranchSuffix = /\b[XY]\b/i.test(evolutionName);
+    isActuallyOwned = hasBranchSuffix ? Boolean(eq.hasExactOwned) : Boolean(eq.hasExactOwned || eq.hasMegaOwned);
   } else if (isTargetGmax) {
     isActuallyOwned = eq.hasGmaxOwned || eq.hasExactOwned;
   } else if (hasExplicitVariant) {
@@ -1175,6 +1231,56 @@ function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant)
   };
 }
 
+function checkGmaxPrerequisite(pokemonOrName, userCollection, explicitVariant) {
+  if (!pokemonOrName) return { hasGmaxForm: false, isBlockedForGmax: false };
+  const rawName = (typeof pokemonOrName === 'string') ? pokemonOrName : (pokemonOrName.name || '');
+  const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
+  let variant = explicitVariant;
+  if (!variant) {
+    const vM = rawName.match(VARIANT_PREFIX_REGEX);
+    variant = vM ? (vM[1].toLowerCase() === 'ghost' ? 'Ghostly' : vM[1].charAt(0).toUpperCase() + vM[1].slice(1).toLowerCase()) : 'Normal';
+  }
+  const cleanSpecies = cleanSpeciesKey(rawName);
+  const gmaxBaseName = getGmaxFormForSpecies(rawName);
+  if (!gmaxBaseName) {
+    return { hasGmaxForm: false, isBlockedForGmax: false };
+  }
+
+  const targetGmaxFullName = (variant && variant !== 'Normal')
+    ? `${variant} ${gmaxBaseName}`
+    : gmaxBaseName;
+
+  const gmaxOwn = checkEvolutionOwnership(targetGmaxFullName, userCollection, variant);
+  const hasGmaxOwned = Boolean(gmaxOwn.hasGmaxOwned || gmaxOwn.hasExactOwned || gmaxOwn.isOwned);
+
+  // Count how many copies of this base pokemon in this variant the user owns
+  let baseCopiesCount = 0;
+  if (Array.isArray(userCollection)) {
+    baseCopiesCount = userCollection.filter(p => {
+      if (!p || !p.name) return false;
+      const pClean = cleanSpeciesKey(p.name);
+      const pVar = (p.variant || 'Normal').toLowerCase();
+      const targetVar = (variant || 'Normal').toLowerCase();
+      return pClean === cleanSpecies && (pVar === targetVar || (pVar === 'normal' && targetVar === 'normal'));
+    }).length;
+  }
+
+  // If user does NOT own G-Max form yet, and has 1 or fewer base copies:
+  // BLOCK THE EVOLUTION! Must preserve base pokemon for G-Max!
+  const isBlockedForGmax = !hasGmaxOwned && baseCopiesCount <= 1;
+
+  return {
+    hasGmaxForm: true,
+    gmaxTarget: targetGmaxFullName,
+    hasGmaxOwned,
+    baseCopiesCount,
+    isBlockedForGmax,
+    blockReason: isBlockedForGmax
+      ? `Hold ${rawName} for G-Max Challenge! Evolving now will consume your only base Pokemon before obtaining ${targetGmaxFullName}.`
+      : ''
+  };
+}
+
 // -----------------------------------------------------------------------------
 // 4. EVOLUTION PATH ANALYSIS (Deluge Viability + Ownership Smart Boost)
 // -----------------------------------------------------------------------------
@@ -1189,6 +1295,8 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
   if (vMatch) {
     variant = (vMatch[1].toLowerCase() === 'ghost') ? 'Ghostly' : (vMatch[1].charAt(0).toUpperCase() + vMatch[1].slice(1).toLowerCase());
   }
+
+  const gmaxPrereq = checkGmaxPrerequisite(pokemonName, userCollection, variant);
 
   const directTransitions = (STAGE_TRANSITIONS[cleanNoVar] || STAGE_TRANSITIONS[baseName.toLowerCase()] || [])
     .filter(t => !/\bg-?max\b/i.test(t.name));
@@ -1278,6 +1386,11 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
       priorityScore -= 1000; // Avoid duplicate species
     }
 
+    // G-Max Precedence Rule: If the base Pokemon must be held for G-Max Challenge, penalize evolving into non-GMax
+    if (gmaxPrereq.isBlockedForGmax && !branch.gmax) {
+      priorityScore -= 5000;
+    }
+
     return {
       name: branch.name,
       fullName: fullBranchName,
@@ -1303,7 +1416,9 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
   const totalBranchesCount = branches.length;
 
   let recommendationReason = '';
-  if (ownedBranchesCount === 0) {
+  if (gmaxPrereq.isBlockedForGmax) {
+    recommendationReason = gmaxPrereq.blockReason;
+  } else if (ownedBranchesCount === 0) {
     recommendationReason = `None owned yet. ${bestBranch.name} is the highest-value combat choice (${bestBranch.types.join('/')}, BST ${bestBranch.bst}${bestBranch.gmax ? ', G-Max Capable' : ''}${bestBranch.mega ? ', Mega Capable' : ''}).`;
   } else if (ownedBranchesCount === totalBranchesCount) {
     const pinnacleBranch = branches.find(b => b.ownership && (b.ownership.hasMegaOwned || b.ownership.hasGmaxOwned));
@@ -1321,11 +1436,14 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
   }
 
   return {
-    status: 'BRANCHING_FOUND',
+    status: gmaxPrereq.isBlockedForGmax ? 'BLOCKED_FOR_GMAX' : 'BRANCHING_FOUND',
     pokemon: baseName,
     family: family.base,
     branches,
     bestBranch,
+    isBlockedForGmax: gmaxPrereq.isBlockedForGmax,
+    gmaxTarget: gmaxPrereq.gmaxTarget,
+    blockReason: gmaxPrereq.blockReason,
     ownedBranchesCount,
     totalBranchesCount,
     recommendationReason
@@ -2027,6 +2145,7 @@ const STAGE_TRANSITIONS = {
     { name: 'Charizard', minLevel: 36, types: ['Fire', 'Flying'], bst: 534, keyMoves: ['Flamethrower', 'Air Slash', 'Solar Beam', 'Focus Blast'] }
   ],
   charizard: [
+    { name: 'G-Max Charizard', minLevel: 100, types: ['Fire', 'Flying'], bst: 634, gmax: true, keyMoves: ['G-Max Wildfire', 'Blast Burn', 'Air Slash', 'Solar Beam'] },
     { name: 'Mega Charizard X', minLevel: 100, types: ['Fire', 'Dragon'], bst: 634, mega: true, keyMoves: ['Flare Blitz', 'Dragon Claw', 'Earthquake', 'Roost'] },
     { name: 'Mega Charizard Y', minLevel: 100, types: ['Fire', 'Flying'], bst: 634, mega: true, keyMoves: ['Fire Blast', 'Solar Beam', 'Air Slash', 'Focus Blast'] }
   ],
@@ -2093,10 +2212,16 @@ const STAGE_TRANSITIONS = {
   ],
   manectric: [{ name: 'Mega Manectric', minLevel: 100, types: ['Electric'], bst: 575, mega: true, keyMoves: ['Thunderbolt', 'Flamethrower', 'Volt Switch', 'Hidden Power'] }],
   pinsir: [{ name: 'Mega Pinsir', minLevel: 100, types: ['Bug', 'Flying'], bst: 600, mega: true, keyMoves: ['X-Scissor', 'Quick Attack', 'Close Combat', 'Stone Edge'] }],
-  blastoise: [{ name: 'Mega Blastoise', minLevel: 100, types: ['Water'], bst: 630, mega: true, keyMoves: ['Hydro Pump', 'Water Pulse', 'Aura Sphere', 'Ice Beam'] }],
+  blastoise: [
+    { name: 'G-Max Blastoise', minLevel: 100, types: ['Water'], bst: 630, gmax: true, keyMoves: ['G-Max Cannonade', 'Hydro Cannon', 'Ice Beam', 'Aura Sphere'] },
+    { name: 'Mega Blastoise', minLevel: 100, types: ['Water'], bst: 630, mega: true, keyMoves: ['Hydro Pump', 'Water Pulse', 'Aura Sphere', 'Ice Beam'] }
+  ],
   beedrill: [{ name: 'Mega Beedrill', minLevel: 100, types: ['Bug', 'Poison'], bst: 495, mega: true, keyMoves: ['Poison Jab', 'X-Scissor', 'Drill Run', 'U-turn'] }],
   pidgeot: [{ name: 'Mega Pidgeot', minLevel: 100, types: ['Normal', 'Flying'], bst: 579, mega: true, keyMoves: ['Hurricane', 'Heat Wave', 'Air Slash', 'U-turn'] }],
-  gengar: [{ name: 'Mega Gengar', minLevel: 100, types: ['Ghost', 'Poison'], bst: 600, mega: true, keyMoves: ['Shadow Ball', 'Sludge Wave', 'Thunderbolt', 'Focus Blast'] }],
+  gengar: [
+    { name: 'G-Max Gengar', minLevel: 100, types: ['Ghost', 'Poison'], bst: 600, gmax: true, keyMoves: ['G-Max Terror', 'Shadow Ball', 'Sludge Wave', 'Focus Blast'] },
+    { name: 'Mega Gengar', minLevel: 100, types: ['Ghost', 'Poison'], bst: 600, mega: true, keyMoves: ['Shadow Ball', 'Sludge Wave', 'Thunderbolt', 'Focus Blast'] }
+  ],
   gyarados: [{ name: 'Mega Gyarados', minLevel: 100, types: ['Water', 'Dark'], bst: 640, mega: true, keyMoves: ['Waterfall', 'Crunch', 'Earthquake', 'Ice Fang'] }],
   mewtwo: [
     { name: 'Mega Mewtwo X', minLevel: 100, types: ['Psychic', 'Fighting'], bst: 780, mega: true, keyMoves: ['Psystrike', 'Close Combat', 'Drain Punch', 'Earthquake'] },
@@ -2613,6 +2738,8 @@ function getEvolveReadyPokemon(userCollection) {
         };
       });
 
+      const gmaxPrereq = checkGmaxPrerequisite(poke, userCollection, normalizedVariant);
+
       // Best branch priority: prioritize new unique branches, then higher BST
       evaluatedBranches.sort((a, b) => {
         if (!a.isDuplicate && b.isDuplicate) return -1;
@@ -2622,6 +2749,10 @@ function getEvolveReadyPokemon(userCollection) {
 
       const hasUnique = evaluatedBranches.some(b => !b.isDuplicate);
       const bestBranch = evaluatedBranches[0];
+
+      // G-Max Precedence Rule: If user does not own G-Max form yet, hold base Pokemon for G-Max!
+      const isBlockedForGmax = gmaxPrereq.isBlockedForGmax;
+      const isAllowed = hasUnique && !isBlockedForGmax;
 
       readyList.push({
         id: poke.id || '',
@@ -2633,8 +2764,11 @@ function getEvolveReadyPokemon(userCollection) {
         sprite: poke.sprite || '',
         inTeam: Boolean(poke.inTeam),
         canEvolve: Boolean(poke.canEvolve),
-        hasUnique,
-        status: hasUnique ? 'ALLOWED' : 'BLOCKED',
+        hasUnique: isAllowed,
+        isBlockedForGmax,
+        gmaxTarget: gmaxPrereq.gmaxTarget,
+        blockReason: gmaxPrereq.blockReason,
+        status: isBlockedForGmax ? 'BLOCKED_FOR_GMAX' : (hasUnique ? 'ALLOWED' : 'BLOCKED'),
         bestBranch,
         branches: evaluatedBranches
       });
@@ -2739,5 +2873,7 @@ module.exports = {
   getMegaPokemonCollection,
   formatEvolutionCard,
   formatMovesetCard,
+  checkGmaxPrerequisite,
+  getGmaxFormForSpecies,
   evaluateOwnershipAndMegaEquivalence: teamEngine.evaluateOwnershipAndMegaEquivalence
 };

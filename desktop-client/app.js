@@ -10813,26 +10813,65 @@ function handleEvolveCardDetected(card) {
   }
   const bestBranchName = bestBranch ? (bestBranch.fullName || bestBranch.name) : '';
 
+  const gmaxPrereq = (evolutionEngine && typeof evolutionEngine.checkGmaxPrerequisite === 'function')
+    ? evolutionEngine.checkGmaxPrerequisite(card.fullName || species, currentCollection, normCardVariant)
+    : { isBlockedForGmax: false };
+  const isBlockedForGmax = Boolean(card.isBlockedForGmax || gmaxPrereq.isBlockedForGmax || (evoAnalysis && evoAnalysis.isBlockedForGmax));
+  const gmaxTarget = card.gmaxTarget || gmaxPrereq.gmaxTarget || (evoAnalysis && evoAnalysis.gmaxTarget) || 'G-Max Form';
+
   // 1. Update AI Assistant Panel Header Badges
   if (aiBattleOpponentBadge) {
-    aiBattleOpponentBadge.textContent = `Evolve: ${card.fullName}`;
-    aiBattleOpponentBadge.style.color = '#388bfd';
+    if (isBlockedForGmax) {
+      aiBattleOpponentBadge.textContent = `Hold for G-Max: ${card.fullName}`;
+      aiBattleOpponentBadge.style.color = '#fbbf24';
+    } else {
+      aiBattleOpponentBadge.textContent = `Evolve: ${card.fullName}`;
+      aiBattleOpponentBadge.style.color = '#388bfd';
+    }
   }
   if (aiStatusChip) {
-    aiStatusChip.textContent = 'Evolve Intel Active';
-    aiStatusChip.style.color = '#10b981';
+    if (isBlockedForGmax) {
+      aiStatusChip.textContent = 'Hold for G-Max';
+      aiStatusChip.style.color = '#fbbf24';
+    } else {
+      aiStatusChip.textContent = 'Evolve Intel Active';
+      aiStatusChip.style.color = '#10b981';
+    }
   }
 
   // 2. Render Tactical Briefing Card
   if (aiTacticalBriefing) {
     let html = `
-      <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+      <div style="background: #0e1b30; border: 1px solid ${isBlockedForGmax ? '#fbbf24' : '#1a283e'}; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
           <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(card.fullName)}</span>
           <span style="font-size: 9.5px; color: #8eaad0;">Lv ${card.level || 50} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(resolvedTypes.join('/'))}</span></span>
         </div>
-        <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 4px;">TARGET EVOLUTIONS</div>
     `;
+
+    if (isBlockedForGmax) {
+      html += `
+        <div style="font-size: 9.5px; font-weight: 700; color: #fbbf24; padding: 4px 6px; background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px; margin-bottom: 6px;">
+          &#9888; HOLD FOR G-MAX: Evolving now consumes your base Pokemon before obtaining ${escapeHtml(gmaxTarget)}.
+        </div>
+      `;
+    }
+
+    html += `<div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 4px;">TARGET EVOLUTIONS</div>`;
+
+    if (isBlockedForGmax && gmaxTarget) {
+      html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-top: 1px solid #1a283e; margin-top: 2px;">
+          <div style="font-size: 10px; font-weight: 600; color: #fbbf24;">
+            ${escapeHtml(gmaxTarget)}
+            <span style="font-size: 9px; color: #8eaad0; margin-left: 3px;">(using G-Max Challenge)</span>
+          </div>
+          <div style="display: flex; align-items: center;">
+            <span style="font-size: 8.5px; font-weight: 700; color: #fbbf24; padding: 1px 4px; background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px;">TOP PRIORITY (UNOWNED)</span>
+          </div>
+        </div>
+      `;
+    }
 
     if (Array.isArray(card.options) && card.options.length > 0) {
       card.options.forEach(opt => {
@@ -10843,12 +10882,15 @@ function handleEvolveCardDetected(card) {
         const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
         const isMegaOpt = /\bMega\s+/i.test(optRaw);
         const isGmaxOpt = /\bG-Max\b/i.test(optRaw);
-        const isTargetOwned = isMegaOpt ? Boolean(own.hasMegaOwned || own.hasExactOwned) : (isGmaxOpt ? Boolean(own.hasGmaxOwned || own.hasExactOwned) : Boolean(own.hasExactOwned));
+        const isBranchMega = isMegaOpt && /\b[XY]\b/i.test(optRaw);
+        const isTargetOwned = isBranchMega ? Boolean(own.hasExactOwned) : (isMegaOpt ? Boolean(own.hasMegaOwned || own.hasExactOwned) : (isGmaxOpt ? Boolean(own.hasGmaxOwned || own.hasExactOwned) : Boolean(own.hasExactOwned)));
         const optBase = getBaseSpecies ? getBaseSpecies(fullTargetName) : fullTargetName;
-        const isBest = Boolean(bestBranchName && (optBase.toLowerCase() === bestBranchName.toLowerCase() || fullTargetName.toLowerCase().includes(bestBranchName.toLowerCase()) || optRaw.toLowerCase().includes(bestBranchName.toLowerCase())));
+        const isBest = !isBlockedForGmax && Boolean(bestBranchName && (optBase.toLowerCase() === bestBranchName.toLowerCase() || fullTargetName.toLowerCase().includes(bestBranchName.toLowerCase()) || optRaw.toLowerCase().includes(bestBranchName.toLowerCase())));
 
         let badgeHtml = '';
-        if (isTargetOwned) {
+        if (isBlockedForGmax) {
+          badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #8eaad0; padding: 1px 4px; background: rgba(142, 170, 208, 0.1); border: 1px solid rgba(142, 170, 208, 0.25); border-radius: 3px;">BLOCKED (HOLD FOR G-MAX)</span>`;
+        } else if (isTargetOwned) {
           if (isMegaOpt && own.hasMegaOwned) {
             badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #ff7b72; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: 3px;">&#9888; STOP: MEGA OWNED (Lv ${own.bestLevel})</span>`;
           } else {
@@ -10876,11 +10918,18 @@ function handleEvolveCardDetected(card) {
           </div>
         `;
       });
-    } else {
+    } else if (!isBlockedForGmax) {
       html += `<div style="font-size: 9.5px; color: #8eaad0; padding: 4px 0;">No evolution targets detected</div>`;
     }
 
-    if (bestBranchName) {
+    if (isBlockedForGmax) {
+      html += `
+        <div style="margin-top: 5px; padding: 3px 6px; background: #18190c; border: 1px solid #fbbf24; border-radius: 3px; font-size: 9.5px; color: #fbbf24; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 700;">RECOMMENDED:</span>
+          <span style="font-weight: 700;">Complete G-Max Challenge for ${escapeHtml(gmaxTarget)}</span>
+        </div>
+      `;
+    } else if (bestBranchName) {
       html += `
         <div style="margin-top: 5px; padding: 3px 6px; background: #0b1526; border: 1px solid #1a283e; border-radius: 3px; font-size: 9.5px; color: #8eaad0; display: flex; justify-content: space-between; align-items: center;">
           <span style="color: #566e96; font-weight: 700;">RECOMMENDED:</span>
@@ -10897,52 +10946,80 @@ function handleEvolveCardDetected(card) {
   if (aiInstantActionSlot) {
     aiInstantActionSlot.innerHTML = '';
 
-    const isModalOptionOwned = (opt) => {
-      const optRaw = opt.fullName || opt.name || '';
-      const fullTargetName = (normCardVariant !== 'Normal' && !optRaw.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
-        ? `${normCardVariant} ${optRaw}`
-        : optRaw;
-      const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
-      const isMegaOpt = /\bMega\s+/i.test(optRaw);
-      const isGmaxOpt = /\bG-Max\b/i.test(optRaw);
-      return isMegaOpt ? Boolean(own.hasMegaOwned || own.hasExactOwned) : (isGmaxOpt ? Boolean(own.hasGmaxOwned || own.hasExactOwned) : Boolean(own.hasExactOwned));
-    };
-
-    const allModalDuplicates = Array.isArray(card.options) && card.options.length > 0 && card.options.every(isModalOptionOwned);
-
-    const bestUnownedOption = Array.isArray(card.options) ? card.options.find(opt => !isModalOptionOwned(opt)) : null;
-
     const actionBtn = document.createElement('button');
     actionBtn.type = 'button';
     actionBtn.id = 'aiEvolveActionBtn';
     actionBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
 
-    if (allModalDuplicates) {
+    if (isBlockedForGmax) {
       actionBtn.className = 'btn';
       actionBtn.disabled = true;
-      actionBtn.style.borderColor = '#f87171';
-      actionBtn.style.color = '#f87171';
-      actionBtn.style.background = '#2a1215';
-      actionBtn.innerHTML = '&#9888; All Evolution Paths Owned (Cannot Proceed)';
+      actionBtn.style.borderColor = '#fbbf24';
+      actionBtn.style.color = '#fbbf24';
+      actionBtn.style.background = '#2a2012';
+      actionBtn.innerHTML = `&#9888; Hold for G-Max (${escapeHtml(gmaxTarget)} Not Owned)`;
     } else {
-      const targetChoice = bestUnownedOption ? (bestUnownedOption.fullName || bestUnownedOption.name) : (bestBranchName || 'Evolved Form');
-      const defaultEvolveBtnHtml = `&#129516; Confirm Evolve into ${escapeHtml(targetChoice)}`;
-      actionBtn.className = 'btn btn-accent';
-      actionBtn.innerHTML = defaultEvolveBtnHtml;
-      actionBtn.addEventListener('click', () => {
-        if (delugeView) {
-          actionBtn.innerHTML = '&#9203; Submitting Evolution...';
-          actionBtn.disabled = true;
-          delugeView.send('submit-modal-evolve', { targetBranch: targetChoice });
-          updateStatus(`Submitting evolution into ${targetChoice}...`, '#388bfd');
-          setTimeout(() => {
-            if (actionBtn && actionBtn.isConnected && actionBtn.disabled) {
-              actionBtn.disabled = false;
-              actionBtn.innerHTML = defaultEvolveBtnHtml;
+      const isModalOptionOwned = (opt) => {
+        const optRaw = opt.fullName || opt.name || '';
+        const fullTargetName = (normCardVariant !== 'Normal' && !optRaw.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
+          ? `${normCardVariant} ${optRaw}`
+          : optRaw;
+        const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
+        const isMegaOpt = /\bMega\s+/i.test(optRaw);
+        const isGmaxOpt = /\bG-Max\b/i.test(optRaw);
+        const isBranchMega = isMegaOpt && /\b[XY]\b/i.test(optRaw);
+        return isBranchMega ? Boolean(own.hasExactOwned) : (isMegaOpt ? Boolean(own.hasMegaOwned || own.hasExactOwned) : (isGmaxOpt ? Boolean(own.hasGmaxOwned || own.hasExactOwned) : Boolean(own.hasExactOwned)));
+      };
+
+      const allModalDuplicates = Array.isArray(card.options) && card.options.length > 0 && card.options.every(isModalOptionOwned);
+
+      if (allModalDuplicates) {
+        actionBtn.className = 'btn';
+        actionBtn.disabled = true;
+        actionBtn.style.borderColor = '#f87171';
+        actionBtn.style.color = '#f87171';
+        actionBtn.style.background = '#2a1215';
+        actionBtn.innerHTML = '&#9888; All Evolution Paths Owned (Cannot Proceed)';
+      } else {
+        // Multi-branch ranking: Unowned options ranked by meta BST/score
+        let targetChoice = null;
+        if (Array.isArray(card.options)) {
+          const unownedOpts = card.options.filter(opt => !isModalOptionOwned(opt));
+          if (unownedOpts.length > 0) {
+            if (bestBranchName) {
+              const matchedBest = unownedOpts.find(opt => {
+                const optRaw = (opt.fullName || opt.name || '').toLowerCase();
+                const bName = bestBranchName.toLowerCase();
+                return optRaw.includes(bName) || bName.includes(optRaw);
+              });
+              targetChoice = matchedBest ? (matchedBest.fullName || matchedBest.name) : (unownedOpts[0].fullName || unownedOpts[0].name);
+            } else {
+              targetChoice = unownedOpts[0].fullName || unownedOpts[0].name;
             }
-          }, 3200);
+          }
         }
-      });
+        if (!targetChoice) {
+          targetChoice = bestBranchName || 'Evolved Form';
+        }
+
+        const defaultEvolveBtnHtml = `&#129516; Confirm Evolve into ${escapeHtml(targetChoice)}`;
+        actionBtn.className = 'btn btn-accent';
+        actionBtn.innerHTML = defaultEvolveBtnHtml;
+        actionBtn.addEventListener('click', () => {
+          if (delugeView) {
+            actionBtn.innerHTML = '&#9203; Submitting Evolution...';
+            actionBtn.disabled = true;
+            delugeView.send('submit-modal-evolve', { targetBranch: targetChoice });
+            updateStatus(`Submitting evolution into ${targetChoice}...`, '#388bfd');
+            setTimeout(() => {
+              if (actionBtn && actionBtn.isConnected && actionBtn.disabled) {
+                actionBtn.disabled = false;
+                actionBtn.innerHTML = defaultEvolveBtnHtml;
+              }
+            }, 3200);
+          }
+        });
+      }
     }
     aiInstantActionSlot.appendChild(actionBtn);
   }
@@ -11039,13 +11116,23 @@ function selectEvolvePokemon(poke, branch) {
   }
 
   if (aiBattleOpponentBadge) {
-    aiBattleOpponentBadge.innerHTML = escapeHtml(poke.name);
-    aiBattleOpponentBadge.style.color = isDuplicate ? '#f87171' : '#10b981';
+    if (poke.isBlockedForGmax) {
+      aiBattleOpponentBadge.innerHTML = `Hold for G-Max: ${escapeHtml(poke.name)}`;
+      aiBattleOpponentBadge.style.color = '#fbbf24';
+    } else {
+      aiBattleOpponentBadge.innerHTML = escapeHtml(poke.name);
+      aiBattleOpponentBadge.style.color = isDuplicate ? '#f87171' : '#10b981';
+    }
   }
 
   if (aiStatusChip) {
-    aiStatusChip.textContent = isDuplicate ? 'Duplicate Blocked' : '100% Unique';
-    aiStatusChip.style.color = isDuplicate ? '#f87171' : '#10b981';
+    if (poke.isBlockedForGmax) {
+      aiStatusChip.textContent = 'Hold for G-Max';
+      aiStatusChip.style.color = '#fbbf24';
+    } else {
+      aiStatusChip.textContent = isDuplicate ? 'Duplicate Blocked' : '100% Unique';
+      aiStatusChip.style.color = isDuplicate ? '#f87171' : '#10b981';
+    }
   }
 
   if (aiTacticalBriefing) {
@@ -11084,8 +11171,18 @@ function selectEvolvePokemon(poke, branch) {
 
     const typeStr = (targetBranch.types && targetBranch.types.length > 0) ? targetBranch.types.join('/') : 'Normal';
 
+    let gmaxWarningHtml = '';
+    if (poke.isBlockedForGmax) {
+      gmaxWarningHtml = `
+        <div style="font-size: 9.5px; font-weight: 700; color: #fbbf24; padding: 4px 6px; background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px; margin-bottom: 6px;">
+          &#9888; HOLD FOR G-MAX: Evolving now consumes your base Pokemon before obtaining ${escapeHtml(poke.gmaxTarget || 'G-Max Form')}.
+        </div>
+      `;
+    }
+
     aiTacticalBriefing.innerHTML = `
-      <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+      <div style="background: #0e1b30; border: 1px solid ${poke.isBlockedForGmax ? '#fbbf24' : '#1a283e'}; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+        ${gmaxWarningHtml}
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
           <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(targetName)}</span>
           <span style="font-size: 9.5px; color: #8eaad0;">${targetBranch.bst ? (targetBranch.bst + ' BST &bull; ') : ''}<span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span></span>
@@ -11121,7 +11218,14 @@ function selectEvolvePokemon(poke, branch) {
       triggerBtn.type = 'button';
       triggerBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
 
-      if (isDuplicate) {
+      if (poke.isBlockedForGmax) {
+        triggerBtn.className = 'btn';
+        triggerBtn.disabled = true;
+        triggerBtn.style.borderColor = '#fbbf24';
+        triggerBtn.style.color = '#fbbf24';
+        triggerBtn.style.background = '#2a2012';
+        triggerBtn.innerHTML = `&#9888; Hold for G-Max (${escapeHtml(poke.gmaxTarget || 'G-Max')} Not Owned)`;
+      } else if (isDuplicate) {
         triggerBtn.className = 'btn';
         triggerBtn.disabled = true;
         triggerBtn.style.borderColor = '#f87171';
@@ -11618,6 +11722,21 @@ function renderEvolutionDecisionMakerUI() {
       ? `<img src="${escapeHtml(item.sprite)}" style="width: 24px; height: 24px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0;" onerror="this.style.display='none';">`
       : '';
 
+    const isBlockedForGmax = Boolean(item.isBlockedForGmax);
+
+    let statusPillHtml = '';
+    if (isBlockedForGmax) {
+      statusPillHtml = '<span style="font-size: 8.5px; font-weight: 700; color: #fbbf24; padding: 1px 5px; background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px;">Hold for G-Max</span>';
+    } else if (isBranchDup) {
+      statusPillHtml = '<span style="font-size: 8.5px; font-weight: 700; color: #f87171; padding: 1px 5px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: 3px;">Owned</span>';
+    } else {
+      statusPillHtml = '<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 5px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">Ready</span>';
+    }
+
+    const branchSubtitleHtml = isBlockedForGmax
+      ? `<span style="color: #fbbf24;">&#8594; Hold for ${escapeHtml(item.gmaxTarget || 'G-Max')}</span>`
+      : `<span style="color: ${isBranchDup ? '#f87171' : '#388bfd'};">&#8594; ${escapeHtml(branchName)}</span>`;
+
     card.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
@@ -11627,14 +11746,12 @@ function renderEvolutionDecisionMakerUI() {
               ${escapeHtml(item.name)}
             </div>
             <div style="font-size: 9px; color: #8eaad0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              Lv ${item.level} &bull; <span style="color: #388bfd;">&#8594; ${escapeHtml(branchName)}</span>
+              Lv ${item.level} &bull; ${branchSubtitleHtml}
             </div>
           </div>
         </div>
         <div style="flex-shrink: 0; display: flex; align-items: center; gap: 6px;">
-          ${isBranchDup
-            ? '<span style="font-size: 8.5px; font-weight: 700; color: #f87171; padding: 1px 5px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: 3px;">Owned</span>'
-            : '<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 5px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">Ready</span>'}
+          ${statusPillHtml}
         </div>
       </div>
     `;

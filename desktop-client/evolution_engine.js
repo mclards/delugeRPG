@@ -1353,11 +1353,14 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
       ? `${variant} ${branch.name}`
       : branch.name;
     const ownership = checkEvolutionOwnership(fullBranchName, userCollection, variant);
-    const isDuplicate = branch.mega
-      ? Boolean(ownership.hasMegaOwned || ownership.hasExactOwned)
-      : (branch.gmax
-          ? Boolean(ownership.hasGmaxOwned || ownership.hasExactOwned)
-          : Boolean(ownership.hasExactOwned));
+    const isBranchMega = branch.mega && /\b[XY]\b/i.test(branch.name);
+    const isDuplicate = isBranchMega
+      ? Boolean(ownership.hasExactOwned)
+      : (branch.mega
+          ? Boolean(ownership.hasMegaOwned || ownership.hasExactOwned)
+          : (branch.gmax
+              ? Boolean(ownership.hasGmaxOwned || ownership.hasExactOwned)
+              : Boolean(ownership.hasExactOwned)));
     const isImmediateStage = directSet.has(branch.name.toLowerCase());
     const bTypes = branch.types || resolvePokemonTypes(branch.name);
     const defProfile = teamEngine.getDefensiveProfile(bTypes);

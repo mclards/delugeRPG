@@ -8600,7 +8600,12 @@ function extractMoveNameFromCheckbox(cb, container) {
     if (!name && cb.nextSibling) {
         name = (cb.nextSibling.textContent || '').trim();
     }
-    name = name.replace(/^[\s\d\.\-\(\)]+/, '').replace(/[\r\n]+/g, ' ').trim();
+    name = name.replace(/^[\s\d\.\-\(\)]+/, '')
+               .replace(/\s*\([A-Za-z0-9\s/+\-%]+\)\s*$/, '')
+               .replace(/\s*\[[A-Za-z0-9\s/+\-%]+\]\s*$/, '')
+               .replace(/\s*-\s*[A-Za-z0-9\s/+\-%]+$/, '')
+               .replace(/[\r\n]+/g, ' ')
+               .trim();
     return name;
 }
 
@@ -8761,7 +8766,10 @@ async function applyModalMoveCheckboxes(modalContainer, data) {
 
         let bestIdx = -1;
         for (let i = 0; i < checkboxes.length; i++) {
-            if (chosenIdxSet.has(i) || cbMoveNames[i] !== recMove) continue;
+            if (chosenIdxSet.has(i)) continue;
+            const cbName = cbMoveNames[i];
+            const isMatch = (cbName === recMove) || cbName.startsWith(recMove + ' ') || (recMove.length > 3 && cbName.includes(recMove));
+            if (!isMatch) continue;
             if (checkboxes[i].checked) {
                 bestIdx = i;
                 break;
@@ -9165,17 +9173,33 @@ function detectEvolveCard() {
 
                 let optName = labelText;
                 let optReq = '';
-                const optMatch = labelText.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
-                if (optMatch) {
-                    optName = optMatch[1].trim();
-                    optReq = optMatch[2] ? optMatch[2].trim() : '';
-                }
-                if (radio.value && radio.value.length > 2 && !/^(on|1|true)$/i.test(radio.value)) {
-                    const cleanVal = radio.value.replace(/\s*\([^)]*\)/g, '').trim();
-                    if (cleanVal.length > 2 && !/^(evolve|close|cancel|submit|evolutionary)/i.test(cleanVal)) {
-                        optName = cleanVal;
+                const parenReqMatch = labelText.match(/\((?:at\s+level\s+\d+|using\b|trade\b|holding\b|with\b|during\b)([^)]*)\)/i);
+                if (parenReqMatch) {
+                    optReq = parenReqMatch[0].replace(/^\(|\)$/g, '').trim();
+                    optName = labelText.replace(parenReqMatch[0], ' ').trim();
+                } else {
+                    const bareReqMatch = labelText.match(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i);
+                    if (bareReqMatch) {
+                        optReq = bareReqMatch[0].trim();
+                        optName = labelText.replace(bareReqMatch[0], ' ').trim();
                     }
                 }
+
+                if (radio.value && radio.value.length > 2 && !/^(on|1|true)$/i.test(radio.value)) {
+                    let cleanVal = radio.value.replace(/\s*\([^)]*\)/g, ' ')
+                                              .replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ')
+                                              .trim();
+                    if (cleanVal.length > 2 && !/^(evolve|close|cancel|submit|evolutionary)/i.test(cleanVal)) {
+                        if (!optName || optName.length < 3) {
+                            optName = cleanVal;
+                        }
+                    }
+                }
+
+                optName = optName.replace(/\s*\([^)]*\)/g, ' ')
+                                 .replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ')
+                                 .replace(/\s{2,}/g, ' ')
+                                 .trim();
 
                 if (/^(evolve|close|cancel|submit|evolutionary)/i.test(optName) || /\bg-?max\b/i.test(optName)) {
                     continue;
@@ -9222,7 +9246,14 @@ function detectEvolveCard() {
                     if (/\bg-?max\b/i.test(line) || /g-?max\s*challenge/i.test(line)) continue;
                     const m = line.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
                     if (m) {
-                        const optName = m[1].trim();
+                        let optName = m[1].trim();
+                        let optReq = m[2] ? m[2].trim() : '';
+                        const bareReqMatch = optName.match(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i);
+                        if (bareReqMatch) {
+                            if (!optReq) optReq = bareReqMatch[0].trim();
+                            optName = optName.replace(bareReqMatch[0], ' ').trim();
+                        }
+                        optName = optName.replace(/\s*\([^)]*\)/g, ' ').replace(/\s{2,}/g, ' ').trim();
                         if (optName.length < 3 || /^(?:evolve|close|cancel|submit|evolutionary|ad|homepage|news|about|mobile)/i.test(optName) || /\bg-?max\b/i.test(optName)) continue;
                         const optFullName = (variant !== 'Normal' && !optName.match(VARIANT_PREFIX_REGEX))
                             ? `${variant} ${optName}`
@@ -9230,12 +9261,13 @@ function detectEvolveCard() {
                         const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optFullName, variant);
                         const isMegaTarget = /\bMega\s+/i.test(optFullName);
                         const isGmaxTarget = /\bG-Max\b/i.test(optFullName);
+                        const isBranchMega = isMegaTarget && /\b[XY]\b/i.test(optFullName);
                         const isExactOrMegaOwned = optOwnStatus
-                            ? (isMegaTarget ? Boolean(optOwnStatus.hasMegaOwned || optOwnStatus.hasExactOwned) : (isGmaxTarget ? Boolean(optOwnStatus.hasGmaxOwned || optOwnStatus.hasExactOwned) : Boolean(optOwnStatus.hasExactOwned)))
+                            ? (isBranchMega ? Boolean(optOwnStatus.hasExactOwned) : (isMegaTarget ? Boolean(optOwnStatus.hasMegaOwned || optOwnStatus.hasExactOwned) : (isGmaxTarget ? Boolean(optOwnStatus.hasGmaxOwned || optOwnStatus.hasExactOwned) : Boolean(optOwnStatus.hasExactOwned))))
                             : false;
                         options.push({
                             fullName: optFullName,
-                            requirement: m[2] ? m[2].trim() : '',
+                            requirement: optReq,
                             isOwned: isExactOrMegaOwned,
                             hasExactOwned: optOwnStatus ? Boolean(optOwnStatus.hasExactOwned) : false,
                             hasMegaOwned: optOwnStatus ? optOwnStatus.hasMegaOwned : false,
@@ -9436,7 +9468,12 @@ ipcRenderer.on('apply-recommended-moves', async (event, data) => {
 
                 for (let optIdx = 0; optIdx < sel.options.length; optIdx++) {
                     const opt = sel.options[optIdx];
-                    const optName = (opt.text || opt.value || '').replace(/\s*\([^)]*\)/g, '').toLowerCase().trim();
+                    const optName = (opt.text || opt.value || '')
+                        .replace(/\s*\([^)]*\)/g, '')
+                        .replace(/\s*\[[^\]]*\]/g, '')
+                        .replace(/\s*-\s*[A-Za-z0-9\s/+\-%]+$/, '')
+                        .toLowerCase()
+                        .trim();
                     if (optName === targetMove) {
                         matchedIdx = optIdx;
                         break;
@@ -9514,6 +9551,43 @@ ipcRenderer.on('submit-modal-evolve', async (event, data) => {
 ipcRenderer.on('apply-recommended-moves-and-submit', async (event, data) => {
     try {
         if (!data || !Array.isArray(data.recommendedMoves)) return;
+
+        // Check if on Change Attacks page with selects
+        const selects = Array.from(document.querySelectorAll('form select')).slice(0, 4);
+        if (selects.length >= 4) {
+            const recMoves = data.recommendedMoves;
+            for (let slot = 0; slot < 4; slot++) {
+                const targetMove = (recMoves[slot] || '').toLowerCase().trim();
+                const sel = selects[slot];
+                let matchedIdx = -1;
+
+                for (let optIdx = 0; optIdx < sel.options.length; optIdx++) {
+                    const opt = sel.options[optIdx];
+                    const optName = (opt.text || opt.value || '')
+                        .replace(/\s*\([^)]*\)/g, '')
+                        .replace(/\s*\[[^\]]*\]/g, '')
+                        .replace(/\s*-\s*[A-Za-z0-9\s/+\-%]+$/, '')
+                        .toLowerCase()
+                        .trim();
+                    if (optName === targetMove) {
+                        matchedIdx = optIdx;
+                        break;
+                    }
+                }
+
+                if (matchedIdx !== -1) {
+                    sel.selectedIndex = matchedIdx;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    sel.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+            await new Promise(r => setTimeout(r, getGaussianDelay(280, 70, 180)));
+            const submitBtn = document.querySelector('form input[type="submit"], form button[type="submit"], input[type="submit"][value*="Change" i]');
+            if (submitBtn) {
+                await humanClickElementVerified(submitBtn, { skipScroll: true });
+            }
+            return;
+        }
 
         const dModal = document.getElementById('DModal');
         const dmBody = document.getElementById('DMbody');
@@ -9733,6 +9807,10 @@ ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
 ipcRenderer.on('trigger-change-attack', (event, data) => {
     try {
         const pokeId = data && data.pokemonId;
+        if (pokeId && window.location.pathname.indexOf('/change_attack/' + pokeId) !== -1) {
+            syncEvolveCardState(true);
+            return;
+        }
         if (pokeId) {
             const link = document.querySelector(`a.chgattack[href*="${pokeId}"]`) ||
                          document.querySelector(`a[href*="/pokemon/change_attack/${pokeId}"]`);

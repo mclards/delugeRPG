@@ -10876,16 +10876,20 @@ function handleEvolveCardDetected(card) {
     if (Array.isArray(card.options) && card.options.length > 0) {
       card.options.forEach(opt => {
         const optRaw = opt.fullName || opt.name || '';
-        const fullTargetName = (normCardVariant !== 'Normal' && !optRaw.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
-          ? `${normCardVariant} ${optRaw}`
-          : optRaw;
+        const cleanOptName = optRaw.replace(/\s*\([^)]*\)/g, ' ')
+                                   .replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ')
+                                   .replace(/\s{2,}/g, ' ')
+                                   .trim();
+        const fullTargetName = (normCardVariant !== 'Normal' && !cleanOptName.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
+          ? `${normCardVariant} ${cleanOptName}`
+          : cleanOptName;
         const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
-        const isMegaOpt = /\bMega\s+/i.test(optRaw);
-        const isGmaxOpt = /\bG-Max\b/i.test(optRaw);
-        const isBranchMega = isMegaOpt && /\b[XY]\b/i.test(optRaw);
+        const isMegaOpt = /\bMega\s+/i.test(cleanOptName);
+        const isGmaxOpt = /\bG-Max\b/i.test(cleanOptName);
+        const isBranchMega = isMegaOpt && /\b[XY]\b/i.test(cleanOptName);
         const isTargetOwned = isBranchMega ? Boolean(own.hasExactOwned) : (isMegaOpt ? Boolean(own.hasMegaOwned || own.hasExactOwned) : (isGmaxOpt ? Boolean(own.hasGmaxOwned || own.hasExactOwned) : Boolean(own.hasExactOwned)));
         const optBase = getBaseSpecies ? getBaseSpecies(fullTargetName) : fullTargetName;
-        const isBest = !isBlockedForGmax && Boolean(bestBranchName && (optBase.toLowerCase() === bestBranchName.toLowerCase() || fullTargetName.toLowerCase().includes(bestBranchName.toLowerCase()) || optRaw.toLowerCase().includes(bestBranchName.toLowerCase())));
+        const isBest = !isBlockedForGmax && Boolean(bestBranchName && (optBase.toLowerCase() === bestBranchName.toLowerCase() || fullTargetName.toLowerCase().includes(bestBranchName.toLowerCase()) || cleanOptName.toLowerCase().includes(bestBranchName.toLowerCase())));
 
         let badgeHtml = '';
         if (isBlockedForGmax) {
@@ -10907,11 +10911,11 @@ function handleEvolveCardDetected(card) {
 
         html += `
           <div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-top: 1px solid #1a283e; margin-top: 2px;">
-            <div style="font-size: 10px; font-weight: 600; color: #e0ecfa;">
-              ${escapeHtml(optRaw)}
-              <span style="font-size: 9px; color: #8eaad0; margin-left: 3px;">${escapeHtml(opt.requirement || '')}</span>
+            <div style="font-size: 10px; font-weight: 600; color: #e0ecfa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; margin-right: 6px;">
+              ${escapeHtml(cleanOptName)}
+              ${opt.requirement ? `<span style="font-size: 8.5px; color: #8eaad0; margin-left: 3px;">(${escapeHtml(opt.requirement)})</span>` : ''}
             </div>
-            <div style="display: flex; align-items: center;">
+            <div style="display: flex; align-items: center; flex-shrink: 0;">
               ${badgeHtml}
               ${metaHtml}
             </div>
@@ -10961,13 +10965,17 @@ function handleEvolveCardDetected(card) {
     } else {
       const isModalOptionOwned = (opt) => {
         const optRaw = opt.fullName || opt.name || '';
-        const fullTargetName = (normCardVariant !== 'Normal' && !optRaw.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
-          ? `${normCardVariant} ${optRaw}`
-          : optRaw;
+        const cleanOpt = optRaw.replace(/\s*\([^)]*\)/g, ' ')
+                               .replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ')
+                               .replace(/\s{2,}/g, ' ')
+                               .trim();
+        const fullTargetName = (normCardVariant !== 'Normal' && !cleanOpt.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
+          ? `${normCardVariant} ${cleanOpt}`
+          : cleanOpt;
         const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
-        const isMegaOpt = /\bMega\s+/i.test(optRaw);
-        const isGmaxOpt = /\bG-Max\b/i.test(optRaw);
-        const isBranchMega = isMegaOpt && /\b[XY]\b/i.test(optRaw);
+        const isMegaOpt = /\bMega\s+/i.test(cleanOpt);
+        const isGmaxOpt = /\bG-Max\b/i.test(cleanOpt);
+        const isBranchMega = isMegaOpt && /\b[XY]\b/i.test(cleanOpt);
         return isBranchMega ? Boolean(own.hasExactOwned) : (isMegaOpt ? Boolean(own.hasMegaOwned || own.hasExactOwned) : (isGmaxOpt ? Boolean(own.hasGmaxOwned || own.hasExactOwned) : Boolean(own.hasExactOwned)));
       };
 
@@ -11000,6 +11008,12 @@ function handleEvolveCardDetected(card) {
         }
         if (!targetChoice) {
           targetChoice = bestBranchName || 'Evolved Form';
+        }
+        if (targetChoice) {
+          targetChoice = targetChoice.replace(/\s*\([^)]*\)/g, ' ')
+                                     .replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ')
+                                     .replace(/\s{2,}/g, ' ')
+                                     .trim();
         }
 
         const defaultEvolveBtnHtml = `&#129516; Confirm Evolve into ${escapeHtml(targetChoice)}`;

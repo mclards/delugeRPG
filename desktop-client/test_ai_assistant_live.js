@@ -1132,6 +1132,24 @@ assert(appJsSource.includes('Hold for G-Max'), 'app.js must display Hold for G-M
 assert(preloadContent.includes('GMAX_CAPABLE_SPECIES'), 'game-preload.js must define GMAX_CAPABLE_SPECIES');
 assert(preloadContent.includes('isBlockedForGmax'), 'game-preload.js must detect G-Max block status in detectEvolveCard');
 
+// F. Option & Checkbox String Polishing Audit
+assert(preloadContent.includes('.replace(/\\s*\\([A-Za-z0-9\\s/+\\-%]+\\)\\s*$/, \'\')'), 'game-preload.js must strip trailing parenthetical annotations from checkbox move names');
+assert(appJsSource.includes('cleanOptName'), 'app.js must strip bare and parenthetical requirements from modal option names');
+assert(appJsSource.includes('isModalOptionOwned'), 'app.js must provide hardened option duplicate check');
+
+// Verify requirement cleaner regex behavior
+const dirtySolgaleo = 'Chrome Solgaleo at Level 70';
+const cleanSolgaleo = dirtySolgaleo.replace(/\s*\([^)]*\)/g, ' ').replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ').replace(/\s{2,}/g, ' ').trim();
+assert.strictEqual(cleanSolgaleo, 'Chrome Solgaleo', 'Requirement cleaner must strip bare "at Level 70" suffix');
+
+const dirtyCharizardX = 'Ghostly Mega Charizard X (at Level 100 using Charizardite X)';
+const cleanCharizardX = dirtyCharizardX.replace(/\s*\([^)]*\)/g, ' ').replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ').replace(/\s{2,}/g, ' ').trim();
+assert.strictEqual(cleanCharizardX, 'Ghostly Mega Charizard X', 'Requirement cleaner must strip parenthetical item requirements');
+
+const dirtyMove = 'Flamethrower (Fire / 95 Pwr)';
+const cleanMove = dirtyMove.replace(/^[\s\d\.\-\(\)]+/, '').replace(/\s*\([A-Za-z0-9\s/+\-%]+\)\s*$/, '').replace(/\s*\[[A-Za-z0-9\s/+\-%]+\]\s*$/, '').replace(/\s*-\s*[A-Za-z0-9\s/+\-%]+$/, '').replace(/[\r\n]+/g, ' ').trim();
+assert.strictEqual(cleanMove, 'Flamethrower', 'Checkbox cleaner must strip type and power annotations');
+
 console.log('[PASS] AUDIT 13: G-Max Challenge & Evolution Duplicate Prevention Verified');
 
 // 14. AUDIT 100% 7-BIT CLEAN ASCII

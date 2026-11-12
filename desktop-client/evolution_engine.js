@@ -2651,9 +2651,7 @@ function getEvolveReadyPokemon(userCollection) {
     }
 
     // Exclude untrained wild catches below Level 20 (all wild catches in DelugeRPG are Lv 2-16)
-    if ((poke.level || 1) < 20) {
-      continue;
-    }
+    
 
     const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)(?:\s+|$)/i;
     const cleanNoVariant = rawName.replace(VARIANT_PREFIX_REGEX, '').trim().toLowerCase();
@@ -2672,7 +2670,7 @@ function getEvolveReadyPokemon(userCollection) {
       for (const tr of filteredTransitions) {
         if (tr.name.toLowerCase() === cleanNoVariant || tr.name.toLowerCase() === baseSpecies) continue;
         if (/\bg-?max\b/i.test(tr.name)) continue; // Exclude G-Max Challenge evolutions from Box Evolve list
-        const minLvl = (tr.mega || tr.gmax) ? 100 : Math.max(20, tr.minLevel || 20);
+        const minLvl = (tr.mega || tr.gmax) ? 100 : (tr.minLevel || 1);
         if ((poke.level || 1) < minLvl) {
           continue; // Strict level enforcement: under-leveled Pokemon can NEVER evolve
         }
@@ -2692,7 +2690,7 @@ function getEvolveReadyPokemon(userCollection) {
           let stageMinLvl = 20;
           const trCheck = STAGE_TRANSITIONS[cleanNoVariant] || STAGE_TRANSITIONS[baseSpecies];
           if (trCheck && trCheck[0] && trCheck[0].minLevel) {
-            stageMinLvl = Math.max(20, trCheck[0].minLevel);
+            stageMinLvl = (trCheck && trCheck[0] && trCheck[0].minLevel) ? trCheck[0].minLevel : 16;
           }
           if ((poke.level || 1) >= stageMinLvl) {
             branches.push({
@@ -2706,7 +2704,7 @@ function getEvolveReadyPokemon(userCollection) {
           for (const br of fam.branches) {
             if (br.name.toLowerCase() === baseSpecies) continue;
             if (/\bg-?max\b/i.test(br.name)) continue; // Exclude G-Max Challenge evolutions from Box Evolve list
-            const minLvl = (br.mega || br.gmax) ? 100 : Math.max(20, br.minLevel || 30);
+            const minLvl = (br.mega || br.gmax) ? 100 : (br.minLevel || 1);
             if ((poke.level || 1) < minLvl) {
               continue; // Strict level enforcement: under-leveled Pokemon can NEVER evolve
             }

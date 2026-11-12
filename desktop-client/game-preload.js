@@ -9444,16 +9444,27 @@ function detectEvolveCard() {
             }
         }
 
-        const allDuplicates = options.length > 0 && options.every(opt => opt.isOwned);
-        const hasUnique = options.some(opt => !opt.isOwned) && !isBlockedForGmax;
+        const modalText = (modalContainer.textContent || '');
+        const levelLockMatch = modalText.match(/This evolution is level[- ]locked\s*[-:]?\s*([^.\r\n]+)/i);
+        const isLevelLocked = Boolean(levelLockMatch || /level[- ]locked/i.test(modalText));
+        let levelLockReason = '';
+        let requiredLevel = null;
+        if (isLevelLocked) {
+            levelLockReason = levelLockMatch ? levelLockMatch[0].trim() : 'This evolution is level-locked';
+            const reqM = modalText.match(/must reach level\s+(\d+)/i) || modalText.match(/level[- ]locked.*?(\d+)/i) || (options[0] && options[0].requirement && options[0].requirement.match(/level\s+(\d+)/i));
+            if (reqM) requiredLevel = parseInt(reqM[1], 10);
+        }
 
-        // Auto-select in live webview modal:
+        const allDuplicates = options.length > 0 && options.every(opt => opt.isOwned);
+        const hasUnique = options.some(opt => !opt.isOwned) && !isBlockedForGmax && !isLevelLocked;
+
+        // Auto-select in live webview modal (only if not level-locked):
         // Priority 1: If modal offers an unowned G-Max option, auto-select it!
         const gmaxOptIdx = options.findIndex(o => /\bg-?max\b/i.test(o.fullName || o.name));
-        if (gmaxOptIdx !== -1 && radios && radios[gmaxOptIdx] && !options[gmaxOptIdx].isOwned) {
+        if (!isLevelLocked && gmaxOptIdx !== -1 && radios && radios[gmaxOptIdx] && !options[gmaxOptIdx].isOwned) {
             radios[gmaxOptIdx].checked = true;
             try { radios[gmaxOptIdx].dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
-        } else if (!isBlockedForGmax && radios && radios.length > 1) {
+        } else if (!isLevelLocked && !isBlockedForGmax && radios && radios.length > 1) {
             const firstUnownedIdx = options.findIndex(o => !o.isOwned);
             if (firstUnownedIdx !== -1 && radios[firstUnownedIdx] && !radios[firstUnownedIdx].checked) {
                 radios[firstUnownedIdx].checked = true;
@@ -9511,7 +9522,10 @@ function detectEvolveCard() {
             hasUnique: hasUnique,
             isBlockedForGmax: isBlockedForGmax,
             gmaxTarget: gmaxTarget,
-            blockReason: blockReason
+            blockReason: blockReason,
+            isLevelLocked: isLevelLocked,
+            levelLockReason: levelLockReason,
+            requiredLevel: requiredLevel
         };
     } catch (err) {
         return null;

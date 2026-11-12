@@ -10817,7 +10817,10 @@ function handleEvolveCardDetected(card) {
 
   // 1. Update AI Assistant Panel Header Badges
   if (aiBattleOpponentBadge) {
-    if (isBlockedForGmax) {
+    if (card.isLevelLocked) {
+      aiBattleOpponentBadge.textContent = `Level Locked: ${card.fullName}`;
+      aiBattleOpponentBadge.style.color = '#f87171';
+    } else if (isBlockedForGmax) {
       aiBattleOpponentBadge.textContent = `Hold for G-Max: ${card.fullName}`;
       aiBattleOpponentBadge.style.color = '#fbbf24';
     } else {
@@ -10826,7 +10829,10 @@ function handleEvolveCardDetected(card) {
     }
   }
   if (aiStatusChip) {
-    if (isBlockedForGmax) {
+    if (card.isLevelLocked) {
+      aiStatusChip.textContent = 'Level Locked';
+      aiStatusChip.style.color = '#f87171';
+    } else if (isBlockedForGmax) {
       aiStatusChip.textContent = 'Hold for G-Max';
       aiStatusChip.style.color = '#fbbf24';
     } else {
@@ -10838,14 +10844,20 @@ function handleEvolveCardDetected(card) {
   // 2. Render Tactical Briefing Card
   if (aiTacticalBriefing) {
     let html = `
-      <div style="background: #0e1b30; border: 1px solid ${isBlockedForGmax ? '#fbbf24' : '#1a283e'}; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+      <div style="background: #0e1b30; border: 1px solid ${card.isLevelLocked ? '#f87171' : (isBlockedForGmax ? '#fbbf24' : '#1a283e')}; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
           <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(card.fullName)}</span>
           <span style="font-size: 9.5px; color: #8eaad0;">Lv ${card.level || 50} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(resolvedTypes.join('/'))}</span></span>
         </div>
     `;
 
-    if (isBlockedForGmax) {
+    if (card.isLevelLocked) {
+      html += `
+        <div style="font-size: 9.5px; font-weight: 700; color: #f87171; padding: 4px 6px; background: rgba(248, 81, 73, 0.12); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: 3px; margin-bottom: 6px;">
+          &#9888; LEVEL LOCKED: ${escapeHtml(card.levelLockReason || `This Pokemon must reach level ${card.requiredLevel || 'higher'} to evolve.`)}
+        </div>
+      `;
+    } else if (isBlockedForGmax) {
       html += `
         <div style="font-size: 9.5px; font-weight: 700; color: #fbbf24; padding: 4px 6px; background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px; margin-bottom: 6px;">
           &#9888; HOLD FOR G-MAX: Evolving now consumes your base Pokemon before obtaining ${escapeHtml(gmaxTarget)}.
@@ -10888,7 +10900,9 @@ function handleEvolveCardDetected(card) {
         const isBest = !isBlockedForGmax && Boolean(bestBranchName && (optBase.toLowerCase() === bestBranchName.toLowerCase() || fullTargetName.toLowerCase().includes(bestBranchName.toLowerCase()) || cleanOptName.toLowerCase().includes(bestBranchName.toLowerCase())));
 
         let badgeHtml = '';
-        if (isBlockedForGmax) {
+        if (card.isLevelLocked) {
+          badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #f87171; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: 3px;">LEVEL LOCKED (Lv ${card.requiredLevel || '?'})</span>`;
+        } else if (isBlockedForGmax) {
           badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #8eaad0; padding: 1px 4px; background: rgba(142, 170, 208, 0.1); border: 1px solid rgba(142, 170, 208, 0.25); border-radius: 3px;">BLOCKED (HOLD FOR G-MAX)</span>`;
         } else if (isTargetOwned) {
           if (isMegaOpt && own.hasMegaOwned) {
@@ -10922,11 +10936,18 @@ function handleEvolveCardDetected(card) {
           </div>
         `;
       });
-    } else if (!isBlockedForGmax) {
+    } else if (!isBlockedForGmax && !card.isLevelLocked) {
       html += `<div style="font-size: 9.5px; color: #8eaad0; padding: 4px 0;">No evolution targets detected</div>`;
     }
 
-    if (isBlockedForGmax) {
+    if (card.isLevelLocked) {
+      html += `
+        <div style="margin-top: 5px; padding: 3px 6px; background: #2a1215; border: 1px solid #f87171; border-radius: 3px; font-size: 9.5px; color: #f87171; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 700;">STATUS:</span>
+          <span style="font-weight: 700;">Requires Level ${card.requiredLevel || 'Higher'} before Evolving</span>
+        </div>
+      `;
+    } else if (isBlockedForGmax) {
       html += `
         <div style="margin-top: 5px; padding: 3px 6px; background: #18190c; border: 1px solid #fbbf24; border-radius: 3px; font-size: 9.5px; color: #fbbf24; display: flex; justify-content: space-between; align-items: center;">
           <span style="font-weight: 700;">RECOMMENDED:</span>
@@ -10955,7 +10976,14 @@ function handleEvolveCardDetected(card) {
     actionBtn.id = 'aiEvolveActionBtn';
     actionBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
 
-    if (isBlockedForGmax) {
+    if (card.isLevelLocked) {
+      actionBtn.className = 'btn';
+      actionBtn.disabled = true;
+      actionBtn.style.borderColor = '#f87171';
+      actionBtn.style.color = '#f87171';
+      actionBtn.style.background = '#2a1215';
+      actionBtn.innerHTML = `&#9888; Level Locked (Requires Lv ${card.requiredLevel || 'Higher'})`;
+    } else if (isBlockedForGmax) {
       actionBtn.className = 'btn';
       actionBtn.disabled = true;
       actionBtn.style.borderColor = '#fbbf24';

@@ -3417,6 +3417,18 @@ delugeView.addEventListener('will-navigate', (event) => {
   }
 });
 
+delugeView.addEventListener('new-window', (event) => {
+  if (event && event.url) {
+    const targetUrl = event.url;
+    if (targetUrl.includes('delugerpg.com') || targetUrl.startsWith('http')) {
+      try {
+        if (event.preventDefault) event.preventDefault();
+        delugeView.loadURL(targetUrl).catch(() => {});
+      } catch (_) {}
+    }
+  }
+});
+
 // IPC Listener from webview (game-preload.js)
 delugeView.addEventListener('ipc-message', (event) => {
   if (event.channel === 'trusted-mouse-telemetry') {
@@ -10693,9 +10705,6 @@ function handleEvolveCardDetected(card) {
           }
           renderEvolutionDecisionMakerUI();
         });
-        if (delugeView && typeof delugeView.send === 'function') {
-          delugeView.send('start-scan-pokemon');
-        }
       } else if (canEvolveFurther) {
         actionBtn.innerHTML = `&#129516; Proceed to Evolve into ${escapeHtml(nextAnalysis.bestBranch.name)}`;
         actionBtn.addEventListener('click', () => {

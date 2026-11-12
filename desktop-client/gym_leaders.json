@@ -2432,13 +2432,29 @@
           "types": [
             "Dark"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mightyena.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Take Down",
+              "type": "Normal",
+              "power": 90,
+              "category": "Physical"
+            },
+            {
+              "name": "Sucker Punch",
+              "type": "Dark",
+              "power": 80,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Dark"
+          ]
         },
         {
           "name": "Shiftry",
@@ -2446,13 +2462,36 @@
             "Grass",
             "Dark"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/shiftry.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Tackle",
+              "type": "Normal",
+              "power": 35,
+              "category": "Physical"
+            },
+            {
+              "name": "Leaf Storm",
+              "type": "Grass",
+              "power": 140,
+              "category": "Special"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark",
+              "power": 60,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Grass",
+            "Dark"
+          ]
         },
         {
           "name": "Cacturne",
@@ -2460,13 +2499,28 @@
             "Grass",
             "Dark"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/cacturne.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Sucker Punch",
+              "type": "Dark",
+              "power": 80,
+              "category": "Physical"
+            },
+            {
+              "name": "Payback",
+              "type": "Dark",
+              "power": 70,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Dark"
+          ]
         },
         {
           "name": "Sharpedo",
@@ -2474,34 +2528,78 @@
             "Water",
             "Dark"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/sharpedo.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ice Fang",
+              "type": "Ice",
+              "power": 65,
+              "category": "Physical"
+            },
+            {
+              "name": "Bite",
+              "type": "Dark",
+              "power": 60,
+              "category": "Physical"
+            },
+            {
+              "name": "Assurance",
+              "type": "Dark",
+              "power": 50,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ice",
+            "Dark"
+          ]
         },
         {
           "name": "Absol",
           "types": [
             "Dark"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/absol.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Razor Wind",
+              "type": "Normal",
+              "power": 80,
+              "category": "Special"
+            },
+            {
+              "name": "Scratch",
+              "type": "Normal",
+              "power": 40,
+              "category": "Physical"
+            },
+            {
+              "name": "Pursuit",
+              "type": "Dark",
+              "power": 50,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Dark"
+          ]
         }
       ],
       "expYield": {
-        "baselinePool": 27334,
-        "lastGainedExp": 13667,
-        "lastCoinsWon": 2392,
+        "baselinePool": 29388,
+        "lastGainedExp": 14694,
+        "lastCoinsWon": 2572,
         "lastParticipantsCount": 2,
-        "lastCalibratedAt": 1794232313528
+        "lastCalibratedAt": 1794448072003
       },
       "npcId": 351
     },
@@ -3438,13 +3536,29 @@
             "Bug",
             "Flying"
           ],
-          "level": 49,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/yanmega.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Air Slash",
+              "type": "Flying",
+              "power": 75,
+              "category": "Special"
+            },
+            {
+              "name": "Slash",
+              "type": "Normal",
+              "power": 70,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Flying",
+            "Normal"
+          ]
         },
         {
           "name": "Scizor",
@@ -3452,13 +3566,29 @@
             "Bug",
             "Steel"
           ],
-          "level": 49,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/scizor.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Double Hit",
+              "type": "Normal",
+              "power": 70,
+              "category": "Physical"
+            },
+            {
+              "name": "X-scissor",
+              "type": "Bug",
+              "power": 80,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Bug"
+          ]
         },
         {
           "name": "Heracross",
@@ -3466,13 +3596,29 @@
             "Bug",
             "Fighting"
           ],
-          "level": 51,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/heracross.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Close Combat",
+              "type": "Fighting",
+              "power": 120,
+              "category": "Physical"
+            },
+            {
+              "name": "Take Down",
+              "type": "Normal",
+              "power": 90,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Fighting",
+            "Normal"
+          ]
         },
         {
           "name": "Vespiquen",
@@ -3480,13 +3626,29 @@
             "Bug",
             "Flying"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/vespiquen.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Power Gem",
+              "type": "Rock",
+              "power": 70,
+              "category": "Special"
+            },
+            {
+              "name": "Poison Powder",
+              "type": "Poison",
+              "power": 40,
+              "category": "Status"
+            }
+          ],
+          "knownMoveTypes": [
+            "Rock",
+            "Poison"
+          ]
         },
         {
           "name": "Drapion",
@@ -3494,16 +3656,46 @@
             "Poison",
             "Dark"
           ],
-          "level": 53,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/drapion.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Crunch",
+              "type": "Dark",
+              "power": 80,
+              "category": "Physical"
+            },
+            {
+              "name": "Cross Poison",
+              "type": "Poison",
+              "power": 70,
+              "category": "Physical"
+            },
+            {
+              "name": "Water Pulse",
+              "type": "Water",
+              "power": 60,
+              "category": "Special"
+            }
+          ],
+          "knownMoveTypes": [
+            "Dark",
+            "Poison",
+            "Water"
+          ]
         }
       ],
-      "npcId": 451
+      "npcId": 451,
+      "expYield": {
+        "baselinePool": 37941,
+        "lastGainedExp": 12647,
+        "lastCoinsWon": 3984,
+        "lastParticipantsCount": 3,
+        "lastCalibratedAt": 1794447092199
+      }
     },
     {
       "name": "Bertha",
@@ -9101,13 +9293,29 @@
             "Bug",
             "Flying"
           ],
-          "level": 49,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/yanmega.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Air Slash",
+              "type": "Flying",
+              "power": 75,
+              "category": "Special"
+            },
+            {
+              "name": "Slash",
+              "type": "Normal",
+              "power": 70,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Flying",
+            "Normal"
+          ]
         },
         {
           "name": "Scizor",
@@ -9115,13 +9323,29 @@
             "Bug",
             "Steel"
           ],
-          "level": 49,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/scizor.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Double Hit",
+              "type": "Normal",
+              "power": 70,
+              "category": "Physical"
+            },
+            {
+              "name": "X-scissor",
+              "type": "Bug",
+              "power": 80,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Bug"
+          ]
         },
         {
           "name": "Heracross",
@@ -9129,13 +9353,29 @@
             "Bug",
             "Fighting"
           ],
-          "level": 51,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/heracross.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Close Combat",
+              "type": "Fighting",
+              "power": 120,
+              "category": "Physical"
+            },
+            {
+              "name": "Take Down",
+              "type": "Normal",
+              "power": 90,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Fighting",
+            "Normal"
+          ]
         },
         {
           "name": "Vespiquen",
@@ -9143,13 +9383,29 @@
             "Bug",
             "Flying"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/vespiquen.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Power Gem",
+              "type": "Rock",
+              "power": 70,
+              "category": "Special"
+            },
+            {
+              "name": "Poison Powder",
+              "type": "Poison",
+              "power": 40,
+              "category": "Status"
+            }
+          ],
+          "knownMoveTypes": [
+            "Rock",
+            "Poison"
+          ]
         },
         {
           "name": "Drapion",
@@ -9157,13 +9413,36 @@
             "Poison",
             "Dark"
           ],
-          "level": 53,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/drapion.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Crunch",
+              "type": "Dark",
+              "power": 80,
+              "category": "Physical"
+            },
+            {
+              "name": "Cross Poison",
+              "type": "Poison",
+              "power": 70,
+              "category": "Physical"
+            },
+            {
+              "name": "Water Pulse",
+              "type": "Water",
+              "power": 60,
+              "category": "Special"
+            }
+          ],
+          "knownMoveTypes": [
+            "Dark",
+            "Poison",
+            "Water"
+          ]
         }
       ]
     },
@@ -16906,13 +17185,29 @@
           "types": [
             "Dark"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mightyena.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Take Down",
+              "type": "Normal",
+              "power": 90,
+              "category": "Physical"
+            },
+            {
+              "name": "Sucker Punch",
+              "type": "Dark",
+              "power": 80,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Dark"
+          ]
         },
         {
           "name": "Shiftry",
@@ -16920,13 +17215,36 @@
             "Grass",
             "Dark"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/shiftry.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Tackle",
+              "type": "Normal",
+              "power": 35,
+              "category": "Physical"
+            },
+            {
+              "name": "Leaf Storm",
+              "type": "Grass",
+              "power": 140,
+              "category": "Special"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark",
+              "power": 60,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Grass",
+            "Dark"
+          ]
         },
         {
           "name": "Cacturne",
@@ -16934,13 +17252,28 @@
             "Grass",
             "Dark"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/cacturne.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Sucker Punch",
+              "type": "Dark",
+              "power": 80,
+              "category": "Physical"
+            },
+            {
+              "name": "Payback",
+              "type": "Dark",
+              "power": 70,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Dark"
+          ]
         },
         {
           "name": "Sharpedo",
@@ -16948,26 +17281,70 @@
             "Water",
             "Dark"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/sharpedo.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ice Fang",
+              "type": "Ice",
+              "power": 65,
+              "category": "Physical"
+            },
+            {
+              "name": "Bite",
+              "type": "Dark",
+              "power": 60,
+              "category": "Physical"
+            },
+            {
+              "name": "Assurance",
+              "type": "Dark",
+              "power": 50,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ice",
+            "Dark"
+          ]
         },
         {
           "name": "Absol",
           "types": [
             "Dark"
           ],
-          "level": 50,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/absol.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Razor Wind",
+              "type": "Normal",
+              "power": 80,
+              "category": "Special"
+            },
+            {
+              "name": "Scratch",
+              "type": "Normal",
+              "power": 40,
+              "category": "Physical"
+            },
+            {
+              "name": "Pursuit",
+              "type": "Dark",
+              "power": 50,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Normal",
+            "Dark"
+          ]
         }
       ]
     },

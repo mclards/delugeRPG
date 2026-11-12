@@ -627,7 +627,19 @@ if (!gotTheLock) {
 
   // Register zoom shortcuts and security policies across all window frames, iframes and webviews
   app.on('web-contents-created', (event, contents) => {
-    contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    contents.setWindowOpenHandler((details) => {
+      const url = details && details.url ? details.url : '';
+      if (url && (url.includes('delugerpg.com') || url.startsWith('http'))) {
+        setImmediate(() => {
+          try {
+            if (!contents.isDestroyed() && typeof contents.loadURL === 'function') {
+              contents.loadURL(url).catch(() => {});
+            }
+          } catch (_) {}
+        });
+      }
+      return { action: 'deny' };
+    });
     try {
       if (typeof contents.setBackgroundThrottling === 'function') {
         contents.setBackgroundThrottling(false);

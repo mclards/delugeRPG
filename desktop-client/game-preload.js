@@ -503,6 +503,7 @@ const COSMETIC_AD_CSS = [
     '    border: none !important;',
     '    overflow: hidden !important;',
     '    background: transparent !important;',
+    '    pointer-events: none !important;',
     '}',
     '/* Restore viewport scroll/interaction if interstitial scripts attempt to lock it */',
     'html, body {',
@@ -528,7 +529,15 @@ const COSMETIC_AD_CSS = [
     '#navid,',
     '#navid *,',
     '#navinf,',
-    '#navinf * {',
+    '#navinf *,',
+    '#content,',
+    '#content *,',
+    '.alert,',
+    '.alert *,',
+    '.notify_done,',
+    '.notify_done *,',
+    '.notify,',
+    '.notify * {',
     '    visibility: visible !important;',
     '    opacity: 1 !important;',
     '    pointer-events: auto !important;',
@@ -629,11 +638,11 @@ function dismissGoogleVignetteOverlay() {
         const fixedElements = document.querySelectorAll('div[style*="position: fixed"], div[style*="position:fixed"], ins.adsbygoogle[data-vignette-loaded]');
         for (let f = 0; f < fixedElements.length; f++) {
             const el = fixedElements[f];
-            if (el.id === 'del_header' || el.id === 'navwrap' || (el.closest && el.closest('#del_header, #navwrap, nav, .modal, .modal-backdrop, .modal-dialog, [role="dialog"], #cboxContent, #colorbox, .ui-dialog, form, #user_pokes, #showmon, .boxwrap, #pokedex, #team, main, #main, #content, .content, table'))) {
+            if (el.id === 'del_header' || el.id === 'navwrap' || (el.closest && el.closest('#del_header, #navwrap, nav, .modal, .modal-backdrop, .modal-dialog, [role="dialog"], #cboxContent, #colorbox, .ui-dialog, form, #user_pokes, #showmon, .boxwrap, #pokedex, #team, main, #main, #content, .content, table, .alert, .notify_done, .notify'))) {
                 continue;
             }
-            const hasAdChild = el.querySelector('iframe[src*="google"], iframe[src*="doubleclick"], iframe[id^="aswift"], ins.adsbygoogle, #dismiss-button');
-            const isAd = el.id && (el.id.indexOf('aswift') !== -1 || el.id.indexOf('google') !== -1);
+            const hasAdChild = el.querySelector('iframe[src*="google"], iframe[src*="doubleclick"], iframe[id^="aswift"], ins.adsbygoogle, #dismiss-button, div[id^="oa-360-"], div[class*="optad360"]');
+            const isAd = el.id && (el.id.indexOf('aswift') !== -1 || el.id.indexOf('google') !== -1 || el.id.indexOf('oa-360') !== -1 || el.id.indexOf('optad360') !== -1);
             if (hasAdChild || isAd || el.hasAttribute('data-vignette-loaded')) {
                 if (el.style.getPropertyValue('display') !== 'none') {
                     el.style.setProperty('display', 'none', 'important');
@@ -814,7 +823,7 @@ function smoothCollapseAd(el, adInfo) {
             'del_header', 'navwrap', 'navid', 'navinf', 'logo', 'menuad', 'map',
             'del_main', 'col1', 'col2', 'ncol1', 'ba-map', 'ba-map-ext', 'loadmap', 'show-poke', 'showpoke',
             'catch', 'battle', 'opponent', 'player', 'viewpokes', 'pokebox',
-            'userloggedin', 'content', 'main', 'userpokeballs', 'myteam'
+            'userloggedin', 'content', 'main', 'userpokeballs', 'myteam', 'alert', 'notify', 'notify_done'
         ]);
 
         let parent = el.parentElement;
@@ -839,10 +848,10 @@ function smoothCollapseAd(el, adInfo) {
                 parent.tagName === 'LI' ||
                 pid === 'del_header' ||
                 pid === 'navwrap' ||
-                /(^|[-_ ])(card|col|gym|trainer|leader|badge|member|team|battle|arena|challenge|viewpokes|showteam|pokebox|slot|box|grid)([-_ ]|$)/i.test(pcls) ||
-                /(^|[-_ ])(card|col|gym|trainer|leader|badge|member|team|battle|arena|challenge|viewpokes|showteam|pokebox|slot|box|grid)([-_ ]|$)/i.test(pid) ||
-                (parent.querySelector && parent.querySelector('#navwrap, nav, #logo, #userloggedin, #map, #opponent, #player, #viewpokes')) ||
-                (parent.closest && parent.closest('#navwrap, nav, #logo, #userloggedin'))
+                /(^|[-_ ])(card|col|gym|trainer|leader|badge|member|team|battle|arena|challenge|viewpokes|showteam|pokebox|slot|box|grid|alert|notify)([-_ ]|$)/i.test(pcls) ||
+                /(^|[-_ ])(card|col|gym|trainer|leader|badge|member|team|battle|arena|challenge|viewpokes|showteam|pokebox|slot|box|grid|alert|notify)([-_ ]|$)/i.test(pid) ||
+                (parent.querySelector && parent.querySelector('#navwrap, nav, #logo, #userloggedin, #map, #opponent, #player, #viewpokes, .alert, .notify_done, .notify')) ||
+                (parent.closest && parent.closest('#navwrap, nav, #logo, #userloggedin, .alert, .notify_done, .notify'))
             ) {
                 break;
             }
@@ -4521,6 +4530,30 @@ window.addEventListener('click', (e) => {
     } catch (_) {}
 }, true);
 
+// Link Target Normalization: Ensure all in-game links navigate smoothly within the webview
+window.addEventListener('click', (e) => {
+    try {
+        const link = e.target && e.target.closest ? e.target.closest('a') : null;
+        if (!link) return;
+        if (link.target === '_blank') {
+            link.target = '_self';
+            try { link.removeAttribute('target'); } catch (_) {}
+        }
+        const href = (link.getAttribute('href') || link.href || '').trim();
+        const txt = (link.textContent || '').trim().toLowerCase();
+        if (txt.includes('gmax challenge') || href.includes('/challenge/gmax') || href.includes('/challenge')) {
+            const targetUrl = link.href || (href.startsWith('http') ? href : `https://www.delugerpg.com${href.startsWith('/') ? '' : '/'}${href}`);
+            if (targetUrl) {
+                setTimeout(() => {
+                    if (window.location.href !== targetUrl) {
+                        window.location.href = targetUrl;
+                    }
+                }, 50);
+            }
+        }
+    } catch (_) {}
+}, true);
+
 // Passive Real-time User Interaction Telemetry (Non-blocking, bubbling phase)
 window.addEventListener('click', (e) => {
     try {
@@ -4683,6 +4716,15 @@ window.addEventListener('DOMContentLoaded', () => {
         const creds = config && config.dummyAccount;
         if (creds && creds.username && creds.password) {
             performLoginAutoFill(creds);
+        }
+    }
+    if (path.indexOf('/gmax/confirm') !== -1) {
+        const challengeLinks = document.querySelectorAll('a[href*="/challenge"], .alert a, .notify_done a, .notify a');
+        for (let i = 0; i < challengeLinks.length; i++) {
+            const clk = challengeLinks[i];
+            if (clk.target === '_blank') clk.target = '_self';
+            clk.style.setProperty('pointer-events', 'auto', 'important');
+            clk.style.setProperty('cursor', 'pointer', 'important');
         }
     }
     ensureMapObserversAttached();
@@ -9010,33 +9052,36 @@ function detectEvolveCard() {
             };
         }
 
-        // CASE 0.2: G-Max Evolution Confirmation Screen (/gmax/evolve/confirm/<token> or /gmax/confirm/<token>)
-        if (path.indexOf('/gmax/evolve/confirm') !== -1 || path.indexOf('/gmax/confirm') !== -1) {
+        // CASE 0.2: G-Max Evolution Confirmation Screen (/gmax/evolve/confirm/<token>)
+        if (path.indexOf('/gmax/evolve/confirm') !== -1) {
             let evolvedPokeName = '';
-            const spriteImg = document.querySelector('img[src*="/pokemon/"], img[src*="sprites"]');
-            if (spriteImg) {
-                const alt = spriteImg.getAttribute('alt') || spriteImg.getAttribute('title');
-                if (alt && alt.length > 2 && !/logo|icon|button/i.test(alt)) evolvedPokeName = alt.trim();
+            const docText = document.body ? (document.body.textContent || '') : '';
+            const gmaxMatch = docText.match(/([A-Za-z0-9\s\(\)\-]+?)\s+(?:has evolved into|evolved into|Gigantamax evolved into)\s+([A-Za-z0-9\s\(\)\-]+)/i);
+            if (gmaxMatch && gmaxMatch[2]) {
+                evolvedPokeName = gmaxMatch[2].trim();
             }
             if (!evolvedPokeName) {
-                const docText = document.body ? (document.body.textContent || '') : '';
-                const gmaxMatch = docText.match(/([A-Za-z0-9\s\(\)\-]+?)\s+(?:has evolved into|evolved into|Gigantamax evolved into)\s+([A-Za-z0-9\s\(\)\-]+)/i);
-                if (gmaxMatch && gmaxMatch[2]) {
-                    evolvedPokeName = gmaxMatch[2].trim();
+                const spriteImg = document.querySelector('img[src*="/pokemon/"], img[src*="sprites"]');
+                if (spriteImg) {
+                    const alt = spriteImg.getAttribute('alt') || spriteImg.getAttribute('title');
+                    if (alt && alt.length > 2 && !/logo|icon|button/i.test(alt)) evolvedPokeName = alt.trim();
                 }
             }
             if (!evolvedPokeName && lastClickedPokemonInfo && lastClickedPokemonInfo.name) {
                 evolvedPokeName = lastClickedPokemonInfo.name;
             }
-            return {
-                isOpen: true,
-                isComplete: true,
-                isGmax: true,
-                fromPokemon: (lastClickedPokemonInfo && lastClickedPokemonInfo.name) || '',
-                toPokemon: evolvedPokeName || 'Gigantamax Pokemon',
-                fullName: evolvedPokeName || 'Gigantamax Pokemon',
-                message: evolvedPokeName ? `Gigantamax evolution complete: ${evolvedPokeName}` : 'Gigantamax evolution complete!'
-            };
+            const hasEvolutionText = /(?:has evolved into|evolved into|Gigantamax evolved into)/i.test(docText);
+            if (evolvedPokeName || hasEvolutionText) {
+                return {
+                    isOpen: true,
+                    isComplete: true,
+                    isGmax: true,
+                    fromPokemon: (lastClickedPokemonInfo && lastClickedPokemonInfo.name) || '',
+                    toPokemon: evolvedPokeName || 'Gigantamax Pokemon',
+                    fullName: evolvedPokeName || 'Gigantamax Pokemon',
+                    message: evolvedPokeName ? `Gigantamax evolution complete: ${evolvedPokeName}` : 'Gigantamax evolution complete!'
+                };
+            }
         }
 
         if (!modalContainer) return null;

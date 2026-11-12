@@ -8365,6 +8365,17 @@ function renderTeamLineup(leader, team) {
     teamResultList.appendChild(row);
   });
 
+  for (let s = team.length + 1; s <= 6; s++) {
+    const emptyRow = document.createElement('div');
+    emptyRow.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:4px 8px; background:rgba(14, 27, 48, 0.4); border:1px dashed #1a283e; border-radius:4px; font-size:11px; opacity:0.6; box-shadow:none !important;';
+    emptyRow.innerHTML = `<div style="display:flex; align-items:center; gap:8px;">` +
+      `<span style="font-weight:700; color:#64748b; width:14px; flex-shrink:0;">${s}.</span>` +
+      `<span style="color:#64748b; font-size:10.5px; font-style:italic;">Empty Slot</span>` +
+      `</div>` +
+      `<div><span style="display:inline-block; padding:2px 6px; font-size:9.5px; color:#64748b; border:1px dashed #1a283e; border-radius:4px;">EMPTY</span></div>`;
+    teamResultList.appendChild(emptyRow);
+  }
+
   if (teamActionRow) teamActionRow.style.display = 'flex';
   if (teamActionStatus && !isBattleLoopRunning) teamActionStatus.textContent = '';
   if (typeof updateTeamBuilderBattleAction === 'function') {
@@ -8387,14 +8398,27 @@ function executeTeamBuild(targetLeader) {
   }
 
   if (teamRosterMode === 'TRAINING') {
-    // 1. Identify all trainees (< Lv 100) across the user's entire collection
-    const allBoxTrainees = (currentCollection || []).filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
+    // 1. Identify trainees (< Lv 100) strictly matching the selected candidate pool filter
+    const effectivePool = getEffectiveFilteredPool(currentCollection || [], teamPoolFilter);
+    const filterTrainees = effectivePool.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
 
-    // If the entire collection has 0 Pokemon under Lv 100, prompt user to switch to Maxed mode
-    if (allBoxTrainees.length === 0) {
+    const filterLabels = {
+      ANY: 'Pokemon',
+      GMAX: 'G-Max Pokemon',
+      MEGA: 'Mega Pokemon',
+      GMAX_MEGA: 'G-Max & Mega Pokemon',
+      LEGENDARY: 'Legendaries',
+      ULTRABEAST: 'Ultra Beasts',
+      PARADOX: 'Paradox Pokemon',
+      COMMON: 'Common Pokemon'
+    };
+    const label = filterLabels[teamPoolFilter] || 'Pokemon';
+
+    // If there are no eligible trainees in the selected pool, do NOT build a team (prevents building a team with only a carry)
+    if (filterTrainees.length === 0) {
       if (teamResultContainer) teamResultContainer.style.display = 'block';
       if (teamResultList) {
-        teamResultList.innerHTML = '<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">All Pokemon in your collection are Level 100!<br><span style="color:rgba(244, 238, 232, 0.5); font-size:10px;">Switch to <b>Maxed Team</b> mode.</span></div>';
+        teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">No training ${label} (&lt; Lv 100) available in your collection.<br><span style="color:rgba(244, 238, 232, 0.5); font-size:10px;">Switch Candidate Pool Filter or choose <b>Maxed (Lv 100)</b> mode.</span></div>`;
       }
       if (teamActionRow) teamActionRow.style.display = 'none';
       return;
@@ -8497,9 +8521,7 @@ function executeTeamBuild(targetLeader) {
       });
     }
 
-    // 3. Trainees matching the selected candidate pool filter (e.g. G-Max Only, Mega Only, etc.)
-    const effectivePool = getEffectiveFilteredPool(currentCollection || [], teamPoolFilter);
-    const filterTrainees = effectivePool.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
+    // 3. Trainees strictly matching the selected candidate pool filter (e.g. G-Max Only, Mega Only, etc.)
     const carryIds = new Set([carry ? carry.id : null, carry2 ? carry2.id : null].filter(Boolean));
     const carrySpeciesSet = new Set([
       carry ? teamEngine.getBaseSpecies(carry.name) : null,
@@ -8581,92 +8603,8 @@ function executeTeamBuild(targetLeader) {
       });
     }
 
-    // 4. Backfill from entire collection's trainees (< Lv 100) if the candidate pool lacks or has fewer than 5 candidates
-    if (hybridTeam.length < 6) {
-      const remainingBoxTrainees = allBoxTrainees.filter(p => !usedIds.has(p.id) && !carrySpeciesSet.has(teamEngine.getBaseSpecies(p.name)));
-      const rankedBackfill = (typeof teamEngine.rankTraineePartners === 'function')
-        ? teamEngine.rankTraineePartners(remainingBoxTrainees, targetLeader)
-        : remainingBoxTrainees.map(t => ({ poke: t }));
-
-      // Pass 4a: Unique species backfill
-      for (let i = 0; i < rankedBackfill.length && hybridTeam.length < 6; i++) {
-        const t = rankedBackfill[i].poke;
-        if (usedIds.has(t.id)) continue;
-        const sp = teamEngine.getBaseSpecies(t.name);
-        if (usedSpecies.has(sp)) continue;
-        usedIds.add(t.id);
-        usedSpecies.add(sp);
-
-        const isPrimary = !hasPrimaryTrainee;
-        if (isPrimary) hasPrimaryTrainee = true;
-
-        hybridTeam.push({
-          slot: hybridTeam.length + 1,
-          id: t.id,
-          name: t.name,
-          variant: t.variant,
-          level: t.level,
-          types: t.types,
-          sprite: t.sprite,
-          bestMove: teamEngine.getRosterWideBestAttack(t, targetLeader),
-          targetName: isPrimary ? 'Primary Trainee Partner' : ('Trainee #' + (hybridTeam.length + 1)),
-          role: isPrimary ? ('Primary Trainee Duo (Lv ' + t.level + ')') : ('Trainee EXP Receiver (Lv ' + t.level + ')'),
-          score: rankedBackfill[i].score || 100,
-          isCarry: false
-        });
-      }
-
-      // Pass 4b: If still slots, allow duplicate species trainees (< Lv 100)
-      for (let i = 0; i < rankedBackfill.length && hybridTeam.length < 6; i++) {
-        const t = rankedBackfill[i].poke;
-        if (usedIds.has(t.id)) continue;
-        usedIds.add(t.id);
-        usedSpecies.add(teamEngine.getBaseSpecies(t.name));
-
-        const isPrimary = !hasPrimaryTrainee;
-        if (isPrimary) hasPrimaryTrainee = true;
-
-        hybridTeam.push({
-          slot: hybridTeam.length + 1,
-          id: t.id,
-          name: t.name,
-          variant: t.variant,
-          level: t.level,
-          types: t.types,
-          sprite: t.sprite,
-          bestMove: teamEngine.getRosterWideBestAttack(t, targetLeader),
-          targetName: isPrimary ? 'Primary Trainee Partner' : ('Trainee #' + (hybridTeam.length + 1)),
-          role: isPrimary ? ('Primary Trainee Duo (Lv ' + t.level + ')') : ('Trainee EXP Receiver (Lv ' + t.level + ')'),
-          score: rankedBackfill[i].score || 100,
-          isCarry: false
-        });
-      }
-    }
-
-    // 5. If the entire collection has fewer than 5 trainees in total, fill remaining slots with reserve anchors
-    if (hybridTeam.length < 6) {
-      const reservePool = (currentCollection || [])
-        .filter(p => !usedIds.has(p.id))
-        .sort((a, b) => (b.level || 0) - (a.level || 0));
-      for (let i = 0; i < reservePool.length && hybridTeam.length < 6; i++) {
-        const res = reservePool[i];
-        usedIds.add(res.id);
-        hybridTeam.push({
-          slot: hybridTeam.length + 1,
-          id: res.id,
-          name: res.name,
-          variant: res.variant,
-          level: res.level,
-          types: res.types,
-          sprite: res.sprite,
-          bestMove: teamEngine.getRosterWideBestAttack(res, targetLeader),
-          targetName: 'Reserve Anchor',
-          role: 'Reserve Anchor (Lv ' + res.level + ')',
-          score: 200,
-          isCarry: false
-        });
-      }
-    }
+    // Zero-Backfill Enforcement: Remaining unfilled slots are strictly left empty!
+    // (Never backfill from outside candidate pool or with reserve anchors)
 
     lastRecommendedTeam = hybridTeam;
     renderTeamLineup(targetLeader, hybridTeam);

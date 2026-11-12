@@ -926,15 +926,17 @@ runTest('app.js: Training Mode Carry Anchor Leads in Slot 1 Audit', () => {
   assert(appJsContent.includes("targetName: 'Primary Trainee Partner'") && appJsContent.includes("targetName: 'Trainee #' + (hybridTeam.length + 1)"), 'Trainee counters must follow sequentially in slots 2 through 6');
 });
 
-runTest('app.js: Training Mode Candidate Pool Fallback & Trainee Backfill Audit', () => {
+runTest('app.js: Training Mode Strict Candidate Pool Isolation & Zero Backfill Audit', () => {
   const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
   // Carry selection must come from collectionLvl100s regardless of filter
   assert(appJsContent.includes('const collectionLvl100s = (currentCollection || []).filter(p => (p.level || 0) === 100);'), 'Carry must evaluate entire collection Level 100s');
-  // Must check if entire box has trainees
-  assert(appJsContent.includes("const allBoxTrainees = (currentCollection || []).filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);"), 'Must check all box trainees under Lv 100');
-  // Must backfill remaining slots from allBoxTrainees
-  assert(appJsContent.includes('const remainingBoxTrainees = allBoxTrainees.filter(p => !usedIds.has(p.id)'), 'Must backfill open slots from remaining box trainees');
-  assert(appJsContent.includes('All Pokemon in your collection are Level 100!'), 'Must only warn when entire box is Lv 100');
+  // Must check if candidate pool filter has trainees under Lv 100
+  assert(appJsContent.includes('const filterTrainees = effectivePool.filter(p => (typeof p.level === \'number\' ? p.level : 100) < 100);'), 'Must check trainees under Lv 100 in selected candidate pool filter');
+  // Must abort build if candidate pool has 0 trainees
+  assert(appJsContent.includes('if (filterTrainees.length === 0)'), 'Must not build team if selected pool has 0 trainees');
+  // Must strictly enforce zero-backfill and leave open slots empty
+  assert(appJsContent.includes('// Zero-Backfill Enforcement: Remaining unfilled slots are strictly left empty!'), 'Must strictly enforce zero-backfill and leave open slots empty');
+  assert(appJsContent.includes('Empty Slot'), 'renderTeamLineup must render Empty Slot for unfilled positions');
 
   // Algorithmic validation with simulated box
   const testBox = [
@@ -947,7 +949,6 @@ runTest('app.js: Training Mode Candidate Pool Fallback & Trainee Backfill Audit'
     { id: 't5', name: 'Pidgey', level: 12, types: ['Normal', 'Flying'], attacks: [{ name: 'Gust', type: 'Flying', power: 40 }] }
   ];
 
-  const dummyLeader = { name: 'Acerola', avgLevel: 56, roster: [{ name: 'Mimikyu', types: ['Ghost', 'Fairy'], level: 56 }] };
   const teamEngine = require(path.join(__dirname, 'team_engine.js'));
 
   // When G-Max filter is applied: 4 G-Max trainees exist + 1 non-G-Max trainee
@@ -955,13 +956,14 @@ runTest('app.js: Training Mode Candidate Pool Fallback & Trainee Backfill Audit'
   const gmaxTrainees = gmaxPool.filter(p => p.level < 100);
   assert.strictEqual(gmaxTrainees.length, 4, 'Should detect 4 G-Max trainees');
 
-  // Verify that backfill from box trainees fills slot 6 with Pidgey (< Lv 100), NOT Coalossal (Lv 100)
-  const allTrainees = testBox.filter(p => p.level < 100);
-  const used = new Set(gmaxTrainees.map(t => t.id));
-  const backfilled = allTrainees.filter(t => !used.has(t.id));
-  assert.strictEqual(backfilled.length, 1, 'Should find 1 remaining box trainee for backfill');
-  assert.strictEqual(backfilled[0].name, 'Pidgey', 'Backfill must be low level trainee Pidgey');
-  assert(backfilled[0].level < 100, 'Backfilled member must be under Level 100');
+  // Zero-backfill validation: Non-G-Max trainee Pidgey is NEVER backfilled
+  const isBackfilled = gmaxTrainees.some(t => t.id === 't5');
+  assert.strictEqual(isBackfilled, false, 'Non-matching trainee Pidgey must not be included');
+
+  // When a pool has 0 trainees, filter returns 0
+  const emptyPool = teamEngine.filterCandidatePool(testBox, 'ULTRABEAST');
+  const emptyTrainees = emptyPool.filter(p => p.level < 100);
+  assert.strictEqual(emptyTrainees.length, 0, 'Ultra Beast filter correctly yields 0 trainees, stopping team build');
 });
 
 runTest('app.html & app.js: Ads Inspector docked panel & telemetry UI audit', () => {

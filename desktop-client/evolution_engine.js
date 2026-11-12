@@ -1241,6 +1241,7 @@ function checkGmaxPrerequisite(pokemonOrName, userCollection, explicitVariant) {
     variant = vM ? (vM[1].toLowerCase() === 'ghost' ? 'Ghostly' : vM[1].charAt(0).toUpperCase() + vM[1].slice(1).toLowerCase()) : 'Normal';
   }
   const cleanSpecies = cleanSpeciesKey(rawName);
+  const isDirectlyGmaxCapable = Boolean(GMAX_CAPABLE_SPECIES[cleanSpecies]);
   const gmaxBaseName = getGmaxFormForSpecies(rawName);
   if (!gmaxBaseName) {
     return { hasGmaxForm: false, isBlockedForGmax: false };
@@ -1249,6 +1250,20 @@ function checkGmaxPrerequisite(pokemonOrName, userCollection, explicitVariant) {
   const targetGmaxFullName = (variant && variant !== 'Normal')
     ? `${variant} ${gmaxBaseName}`
     : gmaxBaseName;
+
+  if (!isDirectlyGmaxCapable) {
+    // Pre-evolution stage (e.g. Bulbasaur, Ivysaur, Charmander, Charmeleon, Gastly, Sobble):
+    // Evolving forward is a required progression towards G-Max, NEVER block pre-evolutions!
+    return {
+      hasGmaxForm: true,
+      isPreEvolution: true,
+      gmaxTarget: targetGmaxFullName,
+      hasGmaxOwned: false,
+      baseCopiesCount: 1,
+      isBlockedForGmax: false,
+      blockReason: ''
+    };
+  }
 
   const gmaxOwn = checkEvolutionOwnership(targetGmaxFullName, userCollection, variant);
   const hasGmaxOwned = Boolean(gmaxOwn.hasGmaxOwned || gmaxOwn.hasExactOwned || gmaxOwn.isOwned);
@@ -1266,17 +1281,18 @@ function checkGmaxPrerequisite(pokemonOrName, userCollection, explicitVariant) {
   }
 
   // If user does NOT own G-Max form yet, and has 1 or fewer base copies:
-  // BLOCK THE EVOLUTION! Must preserve base pokemon for G-Max!
+  // Must preserve base pokemon for G-Max (do not evolve into Mega if G-Max is unowned)!
   const isBlockedForGmax = !hasGmaxOwned && baseCopiesCount <= 1;
 
   return {
     hasGmaxForm: true,
+    isPreEvolution: false,
     gmaxTarget: targetGmaxFullName,
     hasGmaxOwned,
     baseCopiesCount,
     isBlockedForGmax,
     blockReason: isBlockedForGmax
-      ? `Hold ${rawName} for G-Max Challenge! Evolving now will consume your only base Pokemon before obtaining ${targetGmaxFullName}.`
+      ? `Hold ${rawName} for G-Max Challenge! Evolving into Mega will consume your only base Pokemon before obtaining ${targetGmaxFullName}.`
       : ''
   };
 }
@@ -2348,8 +2364,7 @@ const STAGE_TRANSITIONS = {
     { name: 'Solgaleo', minLevel: 53, types: ['Psychic', 'Steel'], bst: 680, keyMoves: ['Sunsteel Strike', 'Zen Headbutt', 'Earthquake', 'Flare Blitz'] },
     { name: 'Lunala', minLevel: 53, types: ['Psychic', 'Ghost'], bst: 680, keyMoves: ['Moongeist Beam', 'Psychic', 'Ice Beam', 'Focus Blast'] }
   ],
-  rayquaza: [{ name: 'Mega Rayquaza', minLevel: 100, types: ['Dragon', 'Flying'], bst: 780, mega: true, keyMoves: ['Dragon Ascent', 'Extreme Speed', 'Earthquake', 'V-create'] }],
-  venusaur: [{ name: 'Mega Venusaur', minLevel: 100, types: ['Grass', 'Poison'], bst: 625, mega: true, keyMoves: ['Giga Drain', 'Sludge Bomb', 'Earthquake', 'Synthesis'] }]
+  rayquaza: [{ name: 'Mega Rayquaza', minLevel: 100, types: ['Dragon', 'Flying'], bst: 780, mega: true, keyMoves: ['Dragon Ascent', 'Extreme Speed', 'Earthquake', 'V-create'] }]
 };
 
 // Comprehensive Gen 1-9 Universal Immediate Stage Transitions (Guarantees 100% Future-Proof Species Coverage)
@@ -2732,6 +2747,7 @@ function getEvolveReadyPokemon(userCollection) {
           types: br.types || ['Normal'],
           bst: br.bst || 500,
           mega: Boolean(br.mega),
+          gmax: Boolean(br.gmax || /\bg-?max\b/i.test(br.name)),
           minLevel: br.minLevel || 1,
           isDuplicate,
           status: isDuplicate ? 'DUPLICATE_BLOCKED' : 'NEW_UNIQUE',
@@ -2754,7 +2770,10 @@ function getEvolveReadyPokemon(userCollection) {
       const bestBranch = evaluatedBranches[0];
 
       // G-Max Precedence Rule: If user does not own G-Max form yet, hold base Pokemon for G-Max!
-      const isBlockedForGmax = gmaxPrereq.isBlockedForGmax;
+      // But if the Pokemon has an unowned G-Max branch available (e.g. Venusaur -> G-Max Venusaur),
+      // it is NOT blocked - it is ready for G-Max!
+      const hasUnownedGmaxBranch = evaluatedBranches.some(b => b.gmax && !b.isDuplicate);
+      const isBlockedForGmax = gmaxPrereq.isBlockedForGmax && !hasUnownedGmaxBranch;
       const isAllowed = hasUnique && !isBlockedForGmax;
 
       readyList.push({

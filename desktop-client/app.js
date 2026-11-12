@@ -3629,6 +3629,14 @@ delugeView.addEventListener('ipc-message', (event) => {
         scanStatusBadge.textContent = 'Scanning page 1...';
       }
     }
+    if (refreshEvoBoxBtn) {
+      refreshEvoBoxBtn.disabled = true;
+      if (data.page && data.total) {
+        refreshEvoBoxBtn.innerHTML = `&#9203; ${data.page}/${data.total}`;
+      } else {
+        refreshEvoBoxBtn.innerHTML = '&#9203; Scanning...';
+      }
+    }
   }
 
   if (event.channel === 'pokemon-page-synced') {
@@ -3697,6 +3705,10 @@ delugeView.addEventListener('ipc-message', (event) => {
         scanStatusBadge.textContent = `${currentCollection.length} Pokemon Synced (${data.pageCount || 1} pgs)`;
       }
       if (typeof updateRosterModeUI === 'function') updateRosterModeUI();
+      if (refreshEvoBoxBtn) {
+        refreshEvoBoxBtn.disabled = false;
+        refreshEvoBoxBtn.innerHTML = '&#8635; Scan Box';
+      }
       if (aiAssistantModal && aiAssistantModal.style.display === 'flex' && typeof renderEvolutionDecisionMakerUI === 'function') {
         renderEvolutionDecisionMakerUI();
       }
@@ -10789,10 +10801,18 @@ function handleEvolveCardDetected(card) {
   }
   const bestBranchName = bestBranch ? (bestBranch.fullName || bestBranch.name) : '';
 
+  const hasGmaxModalOption = Array.isArray(card.options) && card.options.some(opt => /\bg-?max\b/i.test(opt.fullName || opt.name));
+  const gmaxModalOpt = hasGmaxModalOption ? card.options.find(opt => /\bg-?max\b/i.test(opt.fullName || opt.name)) : null;
+  const isGmaxModalOptUnowned = gmaxModalOpt ? !gmaxModalOpt.isOwned : false;
+
   const gmaxPrereq = (evolutionEngine && typeof evolutionEngine.checkGmaxPrerequisite === 'function')
     ? evolutionEngine.checkGmaxPrerequisite(card.fullName || species, currentCollection, normCardVariant)
     : { isBlockedForGmax: false };
-  const isBlockedForGmax = Boolean(card.isBlockedForGmax || gmaxPrereq.isBlockedForGmax || (evoAnalysis && evoAnalysis.isBlockedForGmax));
+  // If the live modal ITSELF offers an unowned G-Max evolution (e.g. Venusaur -> G-Max Venusaur),
+  // NEVER block evolution! Evolving into G-Max is the exact priority!
+  const isBlockedForGmax = isGmaxModalOptUnowned
+    ? false
+    : Boolean(card.isBlockedForGmax || gmaxPrereq.isBlockedForGmax || (evoAnalysis && evoAnalysis.isBlockedForGmax));
   const gmaxTarget = card.gmaxTarget || gmaxPrereq.gmaxTarget || (evoAnalysis && evoAnalysis.gmaxTarget) || 'G-Max Form';
 
   // 1. Update AI Assistant Panel Header Badges
@@ -10835,7 +10855,7 @@ function handleEvolveCardDetected(card) {
 
     html += `<div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 4px;">TARGET EVOLUTIONS</div>`;
 
-    if (isBlockedForGmax && gmaxTarget) {
+    if (isBlockedForGmax && gmaxTarget && !hasGmaxModalOption) {
       html += `
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-top: 1px solid #1a283e; margin-top: 2px;">
           <div style="font-size: 10px; font-weight: 600; color: #fbbf24;">
@@ -10876,6 +10896,10 @@ function handleEvolveCardDetected(card) {
           } else {
             badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #ff7b72; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: 3px;">OWNED (Lv ${own.bestLevel})</span>`;
           }
+        } else if (isGmaxOpt) {
+          badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #fbbf24; padding: 1px 4px; background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px;">TOP PRIORITY (UNOWNED)</span>`;
+        } else if (hasGmaxModalOption && isGmaxModalOptUnowned && gmaxPrereq.isBlockedForGmax) {
+          badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #8eaad0; padding: 1px 4px; background: rgba(142, 170, 208, 0.1); border: 1px solid rgba(142, 170, 208, 0.25); border-radius: 3px;">BLOCKED (HOLD FOR G-MAX)</span>`;
         } else {
           badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">100% UNIQUE</span>`;
         }
@@ -10970,7 +10994,10 @@ function handleEvolveCardDetected(card) {
         if (Array.isArray(card.options)) {
           const unownedOpts = card.options.filter(opt => !isModalOptionOwned(opt));
           if (unownedOpts.length > 0) {
-            if (bestBranchName) {
+            const unownedGmax = unownedOpts.find(opt => /\bg-?max\b/i.test(opt.fullName || opt.name));
+            if (unownedGmax) {
+              targetChoice = unownedGmax.fullName || unownedGmax.name;
+            } else if (bestBranchName) {
               const matchedBest = unownedOpts.find(opt => {
                 const optRaw = (opt.fullName || opt.name || '').toLowerCase();
                 const bName = bestBranchName.toLowerCase();
@@ -11057,19 +11084,21 @@ function refreshEvolveBoxList() {
       delugeView.send('sync-current-pokemon-page');
       delugeView.send('check-evolve-card');
     } catch (_) {}
-    if (!Array.isArray(currentCollection) || currentCollection.length === 0) {
-      if (scanStatusDot) scanStatusDot.style.background = '#388bfd';
-      if (scanStatusBadge) {
-        scanStatusBadge.style.color = '#388bfd';
-        scanStatusBadge.textContent = 'Scanning live box...';
-      }
-      updateStatus('Scanning live DelugeRPG box for evolve-ready Pokemon...', '#388bfd');
-      delugeView.send('start-scan-pokemon');
-      return;
+    if (scanStatusDot) scanStatusDot.style.background = '#388bfd';
+    if (scanStatusBadge) {
+      scanStatusBadge.style.color = '#388bfd';
+      scanStatusBadge.textContent = 'Scanning live box...';
     }
+    if (refreshEvoBoxBtn) {
+      refreshEvoBoxBtn.disabled = true;
+      refreshEvoBoxBtn.innerHTML = '&#9203; Scanning...';
+    }
+    updateStatus('Scanning and analyzing live DelugeRPG box for evolutions & moves...', '#388bfd');
+    delugeView.send('start-scan-pokemon');
+    return;
   }
   renderEvolutionDecisionMakerUI();
-  updateStatus('Evolve-ready Pokemon box refreshed (0 network requests)', '#10b981');
+  updateStatus('Evolve-ready Pokemon box refreshed', '#10b981');
 }
 
 function selectEvolvePokemon(poke, branch) {

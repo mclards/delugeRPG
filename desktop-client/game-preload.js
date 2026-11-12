@@ -9243,9 +9243,6 @@ function detectEvolveCard() {
                 if (!labelText || /^(evolve|close|cancel|submit|evolutionary)/i.test(labelText)) {
                     continue;
                 }
-                if (/\bg-?max\b/i.test(labelText) || /g-?max\s*challenge/i.test(labelText)) {
-                    continue;
-                }
 
                 let optName = labelText;
                 let optReq = '';
@@ -9277,7 +9274,7 @@ function detectEvolveCard() {
                                  .replace(/\s{2,}/g, ' ')
                                  .trim();
 
-                if (/^(evolve|close|cancel|submit|evolutionary)/i.test(optName) || /\bg-?max\b/i.test(optName)) {
+                if (/^(evolve|close|cancel|submit|evolutionary)/i.test(optName)) {
                     continue;
                 }
 
@@ -9319,7 +9316,6 @@ function detectEvolveCard() {
                 }
                 if (afterPrompt) {
                     if (/^(?:evolve|close|cancel|submit|evolutionary|pokedex|pokemon|homepage|news|update log|about|mobile)/i.test(line)) break;
-                    if (/\bg-?max\b/i.test(line) || /g-?max\s*challenge/i.test(line)) continue;
                     const m = line.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
                     if (m) {
                         let optName = m[1].trim();
@@ -9330,7 +9326,7 @@ function detectEvolveCard() {
                             optName = optName.replace(bareReqMatch[0], ' ').trim();
                         }
                         optName = optName.replace(/\s*\([^)]*\)/g, ' ').replace(/\s{2,}/g, ' ').trim();
-                        if (optName.length < 3 || /^(?:evolve|close|cancel|submit|evolutionary|ad|homepage|news|about|mobile)/i.test(optName) || /\bg-?max\b/i.test(optName)) continue;
+                        if (optName.length < 3 || /^(?:evolve|close|cancel|submit|evolutionary|ad|homepage|news|about|mobile)/i.test(optName)) continue;
                         const optFullName = (variant !== 'Normal' && !optName.match(VARIANT_PREFIX_REGEX))
                             ? `${variant} ${optName}`
                             : optName;
@@ -9417,10 +9413,13 @@ function detectEvolveCard() {
         };
 
         const cleanBase = baseSpecies.replace(/[^a-z0-9]/g, '');
-        const gmaxBase = GMAX_CAPABLE_SPECIES[cleanBase] || null;
+        const isDirectGmaxCapable = Boolean(GMAX_CAPABLE_SPECIES[cleanBase]);
+        const gmaxBase = isDirectGmaxCapable ? GMAX_CAPABLE_SPECIES[cleanBase] : null;
         let isBlockedForGmax = false;
         let gmaxTarget = null;
         let blockReason = '';
+
+        const hasGmaxModalOption = options.some(opt => /\bg-?max\b/i.test(opt.fullName || opt.name));
 
         if (gmaxBase) {
             gmaxTarget = (variant !== 'Normal') ? `${variant} ${gmaxBase}` : gmaxBase;
@@ -9437,16 +9436,24 @@ function detectEvolveCard() {
                 }).length;
             }
             if (!hasGmaxOwned && baseCount <= 1) {
-                isBlockedForGmax = true;
-                blockReason = `Hold ${rawFullName} for G-Max Challenge! Evolving now will consume your base Pokemon before obtaining ${gmaxTarget}.`;
+                // If the modal does NOT offer G-Max, hold base Pokemon from evolving into Mega!
+                if (!hasGmaxModalOption) {
+                    isBlockedForGmax = true;
+                    blockReason = `Hold ${rawFullName} for G-Max Challenge! Evolving now will consume your base Pokemon before obtaining ${gmaxTarget}.`;
+                }
             }
         }
 
         const allDuplicates = options.length > 0 && options.every(opt => opt.isOwned);
         const hasUnique = options.some(opt => !opt.isOwned) && !isBlockedForGmax;
 
-        // Auto-select first unowned radio option in the live webview modal
-        if (!isBlockedForGmax && radios && radios.length > 1) {
+        // Auto-select in live webview modal:
+        // Priority 1: If modal offers an unowned G-Max option, auto-select it!
+        const gmaxOptIdx = options.findIndex(o => /\bg-?max\b/i.test(o.fullName || o.name));
+        if (gmaxOptIdx !== -1 && radios && radios[gmaxOptIdx] && !options[gmaxOptIdx].isOwned) {
+            radios[gmaxOptIdx].checked = true;
+            try { radios[gmaxOptIdx].dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
+        } else if (!isBlockedForGmax && radios && radios.length > 1) {
             const firstUnownedIdx = options.findIndex(o => !o.isOwned);
             if (firstUnownedIdx !== -1 && radios[firstUnownedIdx] && !radios[firstUnownedIdx].checked) {
                 radios[firstUnownedIdx].checked = true;

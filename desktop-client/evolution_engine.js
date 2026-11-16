@@ -1126,10 +1126,23 @@ const GMAX_CAPABLE_SPECIES = {
   urshifu: 'G-Max Urshifu'
 };
 
+function resolveDirectGmaxKey(speciesOrName) {
+  if (!speciesOrName) return null;
+  const raw = typeof speciesOrName === 'object' ? (speciesOrName.name || '') : String(speciesOrName);
+  if (/\b(?:alolan|galarian|hisuian|paldean)\b/i.test(raw)) return null;
+  const clean = cleanSpeciesKey(raw);
+  if (GMAX_CAPABLE_SPECIES[clean]) return clean;
+  const noParens = clean.replace(/\s*\([^)]*\)/g, '').trim();
+  if (GMAX_CAPABLE_SPECIES[noParens]) return noParens;
+  return null;
+}
+
 function getGmaxFormForSpecies(speciesOrName) {
   if (!speciesOrName) return null;
-  const clean = cleanSpeciesKey(speciesOrName);
-  if (GMAX_CAPABLE_SPECIES[clean]) return GMAX_CAPABLE_SPECIES[clean];
+  const raw = typeof speciesOrName === 'object' ? (speciesOrName.name || '') : String(speciesOrName);
+  if (/\b(?:alolan|galarian|hisuian|paldean)\b/i.test(raw)) return null;
+  const directKey = resolveDirectGmaxKey(raw);
+  if (directKey) return GMAX_CAPABLE_SPECIES[directKey];
   const fam = findFamily(speciesOrName);
   if (fam && Array.isArray(fam.stages)) {
     for (const st of fam.stages) {
@@ -1241,7 +1254,8 @@ function checkGmaxPrerequisite(pokemonOrName, userCollection, explicitVariant) {
     variant = vM ? (vM[1].toLowerCase() === 'ghost' ? 'Ghostly' : vM[1].charAt(0).toUpperCase() + vM[1].slice(1).toLowerCase()) : 'Normal';
   }
   const cleanSpecies = cleanSpeciesKey(rawName);
-  const isDirectlyGmaxCapable = Boolean(GMAX_CAPABLE_SPECIES[cleanSpecies]);
+  const directKey = resolveDirectGmaxKey(rawName);
+  const isDirectlyGmaxCapable = Boolean(directKey);
   const gmaxBaseName = getGmaxFormForSpecies(rawName);
   if (!gmaxBaseName) {
     return { hasGmaxForm: false, isBlockedForGmax: false };
@@ -1276,7 +1290,9 @@ function checkGmaxPrerequisite(pokemonOrName, userCollection, explicitVariant) {
       const pClean = cleanSpeciesKey(p.name);
       const pVar = (p.variant || 'Normal').toLowerCase();
       const targetVar = (variant || 'Normal').toLowerCase();
-      return pClean === cleanSpecies && (pVar === targetVar || (pVar === 'normal' && targetVar === 'normal'));
+      const varMatch = (pVar === targetVar || (pVar === 'normal' && targetVar === 'normal'));
+      const speciesMatch = pClean === cleanSpecies || (directKey && !cleanSpecies.includes('(') && resolveDirectGmaxKey(p.name) === directKey);
+      return speciesMatch && varMatch;
     }).length;
   }
 

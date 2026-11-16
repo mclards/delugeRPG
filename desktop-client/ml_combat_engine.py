@@ -83,24 +83,44 @@ def normalize_type(t: str) -> str:
         return "Normal"
     return clean[0].upper() + clean[1:].lower()
 
-def get_effectiveness(attack_type: str, defender_types: List[str]) -> float:
+def is_negative_pokemon(poke: Any) -> bool:
+    if not poke:
+        return False
+    if isinstance(poke, str):
+        s = poke.strip().lower()
+        return s == "negative" or s.startswith("negative ") or " negative " in f" {s} "
+    if isinstance(poke, dict):
+        if str(poke.get("variant", "")).strip().lower() == "negative":
+            return True
+        name = str(poke.get("name", "")).strip().lower()
+        if name.startswith("negative ") or " negative " in f" {name} ":
+            return True
+    return False
+
+def get_effectiveness(attack_type: str, defender_types: List[str], inverse: bool = False) -> float:
     atk = normalize_type(attack_type)
     if atk not in RAW_TYPE_CHART:
         return 1.0
     mult = 1.0
+    chart = RAW_TYPE_CHART.get(atk, {})
     for dt in defender_types:
         d = normalize_type(dt)
-        chart = RAW_TYPE_CHART.get(atk, {})
-        mult *= chart.get(d, 1.0)
+        raw = chart.get(d, 1.0)
+        if inverse:
+            if raw == 1.0:
+                continue
+            mult *= 2.0 if (raw == 0.0 or raw < 1.0) else 0.5
+        else:
+            mult *= raw
     return mult
 
-def get_incoming_effectiveness(defender_types: List[str], attack_type: str) -> float:
-    return get_effectiveness(attack_type, defender_types)
+def get_incoming_effectiveness(defender_types: List[str], attack_type: str, inverse: bool = False) -> float:
+    return get_effectiveness(attack_type, defender_types, inverse=inverse)
 
-def get_defensive_quad_weaknesses(types: List[str]) -> List[str]:
+def get_defensive_quad_weaknesses(types: List[str], inverse: bool = False) -> List[str]:
     quads = []
     for at in ALL_TYPES:
-        if get_incoming_effectiveness(types, at) >= 4.0:
+        if get_incoming_effectiveness(types, at, inverse=inverse) >= 4.0:
             quads.append(at)
     return quads
 
@@ -109,7 +129,7 @@ def get_defensive_quad_weaknesses(types: List[str]) -> List[str]:
 # =====================================================================
 
 LOCKING_MOVES = {"outrage", "thrash", "petaldance"}
-RECHARGE_MOVES = {"hyperbeam", "gigaimpact", "blastburn", "frenzyplant", "hydrocannon", "roaroftime", "prismaticlaser", "eternabeam"}
+RECHARGE_MOVES = {"hyperbeam", "gigaimpact", "blastburn", "frenzyplant", "hydrocannon", "roaroftime", "prismaticlaser", "eternabeam", "rockwrecker", "meteorassault"}
 CHARGE_MOVES = {"skyattack", "solarbeam", "solarblade", "skullbash", "razorwind", "geomancy", "fly", "dig", "dive", "bounce", "shadowforce"}
 OHKO_MOVES = {"fissure", "guillotine", "horndrill", "sheercold"}
 SUICIDE_MOVES = {"explosion", "selfdestruct", "mistyexplosion", "finalgambit"}
@@ -168,8 +188,8 @@ class MoveResolver:
             accuracy = 0.30
         elif ck in ["focusblast", "zapcannon", "dynamicpunch"]:
             accuracy = 0.50
-        elif ck in ["stoneedge", "ironhead", "blizzard", "thunder", "fireblast", "hydropump"]:
-            accuracy = 0.85
+        elif ck in ["rockwrecker", "rockslide", "overheat", "dracometeor", "leafstorm", "heatwave", "playrough", "highjumpkick", "hydropump", "stoneedge", "precipiceblades"]:
+            accuracy = 0.85 if ck in ["precipiceblades", "hydropump", "stoneedge"] else 0.90
 
         return {
             "name": name,
@@ -185,8 +205,9 @@ class MoveResolver:
         }
 
 # Variant Multipliers in DelugeRPG
-def get_variant_stats(variant: str) -> Dict[str, Any]:
+def get_variant_stats(variant: str, opp_variant: str = None) -> Dict[str, Any]:
     v = (variant or "").strip().lower()
+    opp_v = (opp_variant or "").strip().lower()
     offense = 1.0
     hp = 1.0
     crit = 0.0625  # default 6.25% crit rate
@@ -197,8 +218,13 @@ def get_variant_stats(variant: str) -> Dict[str, Any]:
     elif v == "chrome":
         hp = 1.35
         crit = 0.50  # 50% critical hit chance
-    elif v == "metallic":
-        pass  # status immune
+    elif v == "mirage":
+        if opp_v == "dark":
+            offense = 1.20
+        elif opp_v == "shiny":
+            hp = 1.20
+        elif opp_v == "normal":
+            hp = 0.90
     return {"offense": offense, "hp": hp, "crit": crit}
 
 # =====================================================================
@@ -226,14 +252,15 @@ class DelugeBattleSimulator:
         atk_types = [normalize_type(t) for t in attacker.get("types", ["Normal"])]
         def_types = [normalize_type(t) for t in defender.get("types", ["Normal"])]
 
-        eff = get_effectiveness(move["type"], def_types)
+        is_inverse = bool(is_negative_pokemon(attacker) ^ is_negative_pokemon(defender))
+        eff = get_effectiveness(move["type"], def_types, inverse=is_inverse)
         if eff == 0.0:
             return 0.0
 
         is_stab = normalize_type(move["type"]) in atk_types
         stab_mult = 1.5 if is_stab else 1.0
 
-        v_stats = get_variant_stats(attacker.get("variant", "Normal"))
+        v_stats = get_variant_stats(attacker.get("variant", "Normal"), defender.get("variant", "Normal"))
         is_crit = random.random() < v_stats["crit"]
         crit_mult = 1.5 if is_crit else 1.0
 
@@ -277,12 +304,13 @@ class DelugeBattleSimulator:
         total_turns = 0
 
         for opp in roster:
-            opp_hp = 200.0 * (opp.get("level", 80) / 100.0)
+            opp_v = get_variant_stats(opp.get("variant", "Normal"), carry.get("variant", "Normal"))
+            opp_hp = 200.0 * opp_v["hp"] * (opp.get("level", 80) / 100.0)
             opp_types = [normalize_type(t) for t in opp.get("types", ["Normal"])]
+            is_inverse = bool(is_negative_pokemon(carry) ^ is_negative_pokemon(opp))
 
-            # Opponent attack estimate
-            opp_atk_type = opp_types[0] if opp_types else "Normal"
-            inc_eff = get_incoming_effectiveness(carry.get("types", ["Normal"]), opp_atk_type)
+            # Opponent attack estimate (worst STAB against carry under Negative/Inverse parity)
+            inc_eff = max([get_incoming_effectiveness(carry.get("types", ["Normal"]), ot, inverse=is_inverse) for ot in opp_types] or [1.0])
 
             round_turns = 0
             while opp_hp > 0 and curr_hp > 0 and round_turns < 10:
@@ -293,7 +321,7 @@ class DelugeBattleSimulator:
                 best_m = None
                 best_score = -1.0
                 for m in carry_moves:
-                    eff = get_effectiveness(m["type"], opp_types)
+                    eff = get_effectiveness(m["type"], opp_types, inverse=is_inverse)
                     is_stab = normalize_type(m["type"]) in [normalize_type(t) for t in carry.get("types", ["Normal"])]
                     score = m["power"] * m["accuracy"] * eff * (1.5 if is_stab else 1.0)
                     if m["is_ohko"]:
@@ -312,7 +340,7 @@ class DelugeBattleSimulator:
 
                 # If opponent survives, opponent retaliates
                 if opp_hp > 0:
-                    opp_dmg = 45.0 * inc_eff * (opp.get("level", 80) / carry.get("level", 100))
+                    opp_dmg = 45.0 * inc_eff * opp_v["offense"] * (opp.get("level", 80) / carry.get("level", 100))
                     curr_hp -= opp_dmg
 
                 if curr_hp <= 0:
@@ -345,7 +373,7 @@ class DelugeBattleSimulator:
         is_mixed = any("mixed" in str(t).lower() for t in trainer.get("types", [])) or not trainer.get("roster")
         quad_penalty = 0
         if is_mixed:
-            quads = get_defensive_quad_weaknesses(carry.get("types", ["Normal"]))
+            quads = get_defensive_quad_weaknesses(carry.get("types", ["Normal"]), inverse=is_negative_pokemon(carry))
             if quads:
                 quad_penalty = 800  # Disqualifies 4x quad-weak carries on Mixed trainers
 

@@ -117,6 +117,41 @@ const TARGETS = {
         "Duraludon", "Urshifu"
     ],
 
+    // Complete Evolutionary Families (73 species: Pre-Evolutions + Final Stages) for All 32 G-Max Lines
+    gmaxLines: [
+        "Bulbasaur", "Ivysaur", "Venusaur",
+        "Charmander", "Charmeleon", "Charizard",
+        "Squirtle", "Wartortle", "Blastoise",
+        "Caterpie", "Metapod", "Butterfree",
+        "Pichu", "Pikachu",
+        "Meowth",
+        "Machop", "Machoke", "Machamp",
+        "Gastly", "Haunter", "Gengar",
+        "Krabby", "Kingler",
+        "Lapras",
+        "Eevee",
+        "Munchlax", "Snorlax",
+        "Trubbish", "Garbodor",
+        "Meltan", "Melmetal",
+        "Grookey", "Thwackey", "Rillaboom",
+        "Scorbunny", "Raboot", "Cinderace",
+        "Sobble", "Drizzile", "Inteleon",
+        "Rookidee", "Corvisquire", "Corviknight",
+        "Blipbug", "Dottler", "Orbeetle",
+        "Chewtle", "Drednaw",
+        "Rolycoly", "Carkol", "Coalossal",
+        "Applin", "Flapple", "Appletun",
+        "Silicobra", "Sandaconda",
+        "Toxel", "Toxtricity",
+        "Sizzlipede", "Centiskorch",
+        "Hatenna", "Hattrem", "Hatterene",
+        "Impidimp", "Morgrem", "Grimmsnarl",
+        "Milcery", "Alcremie",
+        "Cufant", "Copperajah",
+        "Duraludon",
+        "Kubfu", "Urshifu"
+    ],
+
     // 2c. All 27 Starter Lines Across Gen 1-9 (81 species) - Verified directly against DelugeRPG Dex
     starters: [
         // Gen 1 (G-Max/Mega/Starter)

@@ -1488,10 +1488,31 @@ runTest('Strict Mega and Legendary Exclusion Guards & Per-Tier Variant Assignmen
   assert(treeckoEncounter, 'Treecko must be caught via Starter sub-tier');
   assert.strictEqual(treeckoEncounter.category, 'Mega/Starter', 'Treecko category must be Mega/Starter');
 
-  // G-Max Sub-Tier Form Filtering
+  // G-Max Sub-Tier Form Filtering & Complete 32-Family Coverage (73 Species)
   assert.strictEqual(simulateEncounter(gmaxOffMegasOnCfg, 'A wild G-Max Butterfree appeared!'), null, 'G-Max Butterfree must be skipped when G-Max is OFF');
+  assert.strictEqual(simulateEncounter(gmaxOffMegasOnCfg, 'A wild G-Max Venusaur appeared!'), null, 'G-Max Venusaur must be skipped when G-Max is OFF even if Megas are ON');
   const butterfreeGMax = simulateEncounter(gmaxOnMegasOffCfg, 'A wild G-Max Butterfree appeared!');
   assert(butterfreeGMax, 'G-Max Butterfree must be caught when G-Max is ON');
+  assert(Array.isArray(TARGETS_DB.gmaxLines) && TARGETS_DB.gmaxLines.length === 73, 'targets.gmaxLines must cover all 73 species across 32 G-Max families');
+  TARGETS_DB.gmaxLines.forEach(sp => {
+    assert(simulateEncounter(gmaxOnMegasOffCfg, `A wild ${sp} appeared!`), `G-Max hunting must detect ${sp} with zero false skips`);
+  });
+  assert.strictEqual(simulateEncounter(gmaxOnMegasOffCfg, 'A wild Alolan Meowth appeared!'), null, 'Alolan Meowth must not false-match G-Max Meowth line');
+  assert.strictEqual(simulateEncounter(gmaxOnMegasOffCfg, 'A wild Galarian Meowth appeared!'), null, 'Galarian Meowth must not false-match G-Max Meowth line');
+  assert(simulateEncounter(Object.assign({}, gmaxOnMegasOffCfg, {
+    findLegendaries: true,
+    legendaryClassic: true,
+    legendaryVariants: ['Chrome']
+  }), 'A wild Shiny Meltan appeared!'), 'Shiny Meltan must fall through to G-Max tier when Legendary tier only accepts Chrome');
+
+  // Engine parity checks for Alolan/Galarian Meowth & Toxtricity/Urshifu forms
+  const evolutionEngine = require('./evolution_engine');
+  assert.strictEqual(teamEngine.isGmaxChallengeTargetEligible({ name: 'Alolan Meowth', level: 100 }, []), false, 'Alolan Meowth must not be G-Max Arena eligible');
+  assert.strictEqual(teamEngine.isGmaxChallengeTargetEligible({ name: 'Galarian Meowth', level: 100 }, []), false, 'Galarian Meowth must not be G-Max Arena eligible');
+  assert.strictEqual(evolutionEngine.getGmaxFormForSpecies('Alolan Meowth'), null, 'Alolan Meowth has no G-Max evolution');
+  assert.strictEqual(evolutionEngine.getGmaxFormForSpecies('Toxtricity (Amped)'), 'G-Max Toxtricity', 'Toxtricity (Amped) must map to G-Max Toxtricity');
+  assert.strictEqual(evolutionEngine.getGmaxFormForSpecies('Urshifu (Rapid Strike)'), 'G-Max Urshifu', 'Urshifu (Rapid Strike) must map to G-Max Urshifu');
+  assert(preloadJs.includes("catLow.includes('g-max')"), 'game-preload.js smart ball routing must match G-Max categories');
 
   // Rare lines without Megas
   const slowkingEncounter = simulateEncounter(allSubTiersOnCfg, 'A wild Slowking appeared!');
@@ -1506,7 +1527,7 @@ runTest('Strict Mega and Legendary Exclusion Guards & Per-Tier Variant Assignmen
 
   const CATCH_STARTER_FAMILIES = TARGETS_DB.starters.map(s => s.toLowerCase());
   const CATCH_MEGA_EVOLUTION_FAMILIES = TARGETS_DB.megas.map(m => m.toLowerCase());
-  const CATCH_GMAX_SPECIES = TARGETS_DB.gmaxSpecies.map(g => g.toLowerCase());
+  const CATCH_GMAX_SPECIES = (TARGETS_DB.gmaxLines || TARGETS_DB.gmaxSpecies).map(g => g.toLowerCase());
   const CATCH_GMAX_MEGA_STARTER_FAMILIES = ['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise'];
   const CATCH_MEGA_STARTER_FAMILIES = ['treecko', 'grovyle', 'sceptile', 'torchic', 'combusken', 'blaziken', 'mudkip', 'marshtomp', 'swampert'];
   const CATCH_GMAX_STARTER_FAMILIES = ['grookey', 'thwackey', 'rillaboom', 'scorbunny', 'raboot', 'cinderace', 'sobble', 'drizzile', 'inteleon'];
@@ -1550,6 +1571,10 @@ runTest('Strict Mega and Legendary Exclusion Guards & Per-Tier Variant Assignmen
   assert.strictEqual(kindFn({ name: 'Slowking', category: 'Rare Line' }), 'Rare Line');
   assert.strictEqual(kindFn({ name: 'Weedle', category: 'Mega Evolution' }), 'Mega Line');
   assert.strictEqual(kindFn({ name: 'Mega Lopunny', category: 'Special Form' }), 'Mega');
+  assert.strictEqual(kindFn({ name: 'Rookidee', category: 'Wild Encounter' }), 'G-Max Line');
+  assert.strictEqual(kindFn({ name: 'DARK Chewtle', category: 'G-Max Line' }), 'G-Max Line');
+  assert.strictEqual(kindFn({ name: 'Applin', category: 'Wild Encounter' }), 'G-Max Line');
+  assert.strictEqual(kindFn({ name: 'Alolan Meowth', category: 'Wild Encounter' }), 'Common');
 
   // Badge HTML formatting checks: Starter badge must be Emerald Green (#34d399) and contain 'Starter'
   const chespinBadge = badgeFn({ name: 'Chespin', category: 'Starter' });

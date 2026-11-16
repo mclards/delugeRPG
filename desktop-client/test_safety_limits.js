@@ -205,6 +205,19 @@ runTest('Preload and host Captcha Emergency Signal audit', () => {
   assert(appJs.includes('startContinuousCaptchaAlarm()'), 'app.js must start continuous alarm on captcha');
 });
 
+runTest('Anti-Ban Stealth Integrity: Hard Delay Floor, Hardware Input, & Zero localStorage Leakage', () => {
+  assert(appJs.includes('const HARD_ANTI_BAN_STEP_FLOOR_MS = 1700;'), 'app.js must enforce HARD_ANTI_BAN_STEP_FLOOR_MS = 1700');
+  assert(appJs.includes('spdMin = Math.max(1.7, spdMin);'), 'app.js must clamp movementSpeedMinSec >= 1.7s');
+  assert(appJs.includes('if (isUnlockChallengeActive || isCaptchaAlarmActive || isPendingSessionAutoStop)'), 'app.js must halt AI/battle actions when session stop or challenge is active');
+  assert(appJs.includes("delugeView.send('abort-gmax-challenge-flow')"), 'handleCaptchaEmergencyHalt must abort G-Max challenge automation');
+  assert(appJs.includes("delugeView.send('abort-scan-trainer-rosters')"), 'handleCaptchaEmergencyHalt must abort trainer roster scanner');
+  assert(!preloadJs.includes("localStorage.setItem('deluge_cached_"), 'game-preload.js must not leak bot caches into guest window.localStorage');
+  assert(preloadJs.includes("window.localStorage.removeItem('deluge_cached_target_config')"), 'game-preload.js must scrub legacy deluge_cached_target_config from localStorage');
+  assert(preloadJs.includes('// Retry cleanly with genuine hardware input only'), 'game-preload.js must rely solely on native hardware click retries');
+  assert(preloadJs.includes('window.__delugeLastEvoAutoPickSig = modalPickSig;'), 'detectEvolveCard must click unowned G-Max radio option once per modal signature');
+  assert(preloadJs.includes('getGaussianDelay(1150, 280, 780)'), 'G-Max step transitions must use Gaussian human delays');
+});
+
 // -----------------------------------------------------------------------------
 // SECTION 4: 100% 7-BIT CLEAN ASCII INTEGRITY
 // -----------------------------------------------------------------------------

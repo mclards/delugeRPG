@@ -2410,20 +2410,23 @@ function toggleHunting() {
 }
 
 // Hardened Gaussian Human Reaction Delays with Fatigue Drift & Configurable Speed Bounds
+const HARD_ANTI_BAN_STEP_FLOOR_MS = 1700;
 function getHardenedHumanDelay() {
-  let minMs = 1700;
+  let minMs = HARD_ANTI_BAN_STEP_FLOOR_MS;
   let maxMs = 2800;
   const s = config.safety || {};
   if (s.enableMovementSpeed !== false && typeof s.movementSpeedMinSec === 'number' && typeof s.movementSpeedMaxSec === 'number' && s.movementSpeedMinSec > 0 && s.movementSpeedMaxSec > 0) {
     minMs = Math.round(Math.min(s.movementSpeedMinSec, s.movementSpeedMaxSec) * 1000);
     maxMs = Math.round(Math.max(s.movementSpeedMinSec, s.movementSpeedMaxSec) * 1000);
   } else if (config.settings && config.settings.baseDelay) {
-    const base = config.settings.baseDelay || 2100;
-    const jitter = config.settings.jitter || 550;
-    const floor = config.settings.minSafetyFloor || 1700;
+    const base = config.settings.baseDelay || 2250;
+    const jitter = config.settings.jitter || 1100;
+    const floor = config.settings.minSafetyFloor || HARD_ANTI_BAN_STEP_FLOOR_MS;
     minMs = Math.max(floor, base - Math.round(jitter / 2));
-    maxMs = Math.max(minMs + 200, base + Math.round(jitter / 2));
+    maxMs = Math.max(minMs + 300, base + Math.round(jitter / 2));
   }
+  minMs = Math.max(HARD_ANTI_BAN_STEP_FLOOR_MS, minMs);
+  maxMs = Math.max(minMs + 300, maxMs);
 
   // True Gaussian distribution centered at midpoint between minMs and maxMs
   const mean = (minMs + maxMs) / 2;
@@ -3328,9 +3331,31 @@ delugeView.addEventListener('did-navigate-in-page', (event) => {
   handleMapNavigation(url);
 });
 
+let isGuestWebviewHung = false;
+let guestGmaxNoActiveErrorUrl = '';
+let pendingGmaxEntryFlow = null;
+
 delugeView.addEventListener('did-finish-load', () => {
+  isGuestWebviewHung = false;
   const url = (delugeView && delugeView.getURL()) || '';
   handleMapNavigation(url);
+  if (pendingGmaxEntryFlow && (Date.now() - (pendingGmaxEntryFlow.startedAt || 0) < 120000)) {
+    try {
+      const parsedGmax = new URL(url, 'https://www.delugerpg.com');
+      const gmaxPath = (parsedGmax.pathname || '').toLowerCase();
+      if (gmaxPath === '/gmax' || gmaxPath === '/gmax/') {
+        if (delugeView && typeof delugeView.focus === 'function') {
+          try { delugeView.focus(); } catch (_) {}
+        }
+        if (delugeView && typeof delugeView.send === 'function') {
+          delugeView.send('start-gmax-challenge-flow', pendingGmaxEntryFlow);
+        }
+        pendingGmaxEntryFlow = null;
+      }
+    } catch (_) {}
+  } else if (pendingGmaxEntryFlow) {
+    pendingGmaxEntryFlow = null;
+  }
   if (url && (url.indexOf('/battle') !== -1 || url.indexOf('/challenge') !== -1)) {
     setTimeout(() => {
       if (delugeView && typeof delugeView.send === 'function') {
@@ -3346,7 +3371,9 @@ delugeView.addEventListener('did-finish-load', () => {
     }
     const reloadSvg = refreshBtn ? refreshBtn.querySelector('.reload-icon') : null;
     if (reloadSvg) reloadSvg.classList.remove('spinning');
-    if (!isRunning && isCurrentPageMap()) updateStatus('Ready', '#10b981');
+    if (!isRunning) {
+      updateStatus(isCurrentPageMap() ? 'Ready' : 'Paused (Outside Map)', isCurrentPageMap() ? '#10b981' : '#f59e0b');
+    }
   }
 });
 
@@ -3359,11 +3386,73 @@ delugeView.addEventListener('did-stop-loading', () => {
     }
     const reloadSvg = refreshBtn ? refreshBtn.querySelector('.reload-icon') : null;
     if (reloadSvg) reloadSvg.classList.remove('spinning');
-    if (!isRunning && isCurrentPageMap()) updateStatus('Ready', '#10b981');
+    if (!isRunning) {
+      updateStatus(isCurrentPageMap() ? 'Ready' : 'Paused (Outside Map)', isCurrentPageMap() ? '#10b981' : '#f59e0b');
+    }
   }
 });
 
+let isHungWebviewRecoveryInProgress = false;
+let guestLoadEventSeq = 0;
+
+if (delugeView) {
+  delugeView.addEventListener('did-start-loading', () => { guestLoadEventSeq++; });
+  delugeView.addEventListener('dom-ready', () => { guestLoadEventSeq++; });
+  delugeView.addEventListener('did-finish-load', () => { guestLoadEventSeq++; });
+  delugeView.addEventListener('did-stop-loading', () => { guestLoadEventSeq++; });
+}
+
+if (typeof ipcRenderer !== 'undefined' && ipcRenderer && typeof ipcRenderer.on === 'function') {
+  ipcRenderer.on('webview-hung-state', (event, data) => {
+    if (data && data.hung) {
+      isGuestWebviewHung = true;
+      backendLog('WEBVIEW', `Host detected unresponsive guest renderer on ${data.url || ''}`);
+      updateStatus('Webview hung. Click Reload to recover.', '#f59e0b');
+    } else if (data && data.hung === false) {
+      isGuestWebviewHung = false;
+      backendLog('WEBVIEW', `Host detected guest renderer recovered on ${data.url || ''}`);
+      updateStatus(isRunning ? 'Hunting Active' : 'Ready', isRunning ? '#22c55e' : '#10b981');
+    }
+  });
+}
+
+async function recoverHungWebviewAndLoad(targetUrl, sourceLabel = 'Watchdog') {
+  if (!delugeView || isHungWebviewRecoveryInProgress) return false;
+  const safeTarget = (typeof targetUrl === 'string' && /^https?:\/\//i.test(targetUrl))
+    ? targetUrl
+    : 'https://www.delugerpg.com/map';
+  isHungWebviewRecoveryInProgress = true;
+  isGuestWebviewHung = false;
+  delugeView.style.pointerEvents = 'auto';
+  backendLog('RELOAD_RECOVERY', `${sourceLabel}: crashing hung webview renderer and reloading ${safeTarget}`);
+  updateStatus('Resetting frozen webview...', '#38bdf8');
+  try {
+    const wcId = (typeof delugeView.getWebContentsId === 'function') ? delugeView.getWebContentsId() : null;
+    if (wcId && typeof ipcRenderer !== 'undefined' && ipcRenderer && typeof ipcRenderer.invoke === 'function') {
+      const res = await ipcRenderer.invoke('recover-hung-webview', { webContentsId: wcId, targetUrl: safeTarget });
+      if (res && res.success) {
+        return true;
+      }
+    }
+  } catch (err) {
+    backendLog('RELOAD_WARN', `Renderer recovery fallback error: ${err.message}`);
+  } finally {
+    setTimeout(() => { isHungWebviewRecoveryInProgress = false; }, 1200);
+  }
+  try {
+    if (typeof delugeView.stop === 'function') delugeView.stop();
+    if (typeof delugeView.loadURL === 'function') {
+      delugeView.loadURL(safeTarget).catch(() => { delugeView.src = safeTarget; });
+    } else {
+      delugeView.src = safeTarget;
+    }
+  } catch (_) {}
+  return false;
+}
+
 delugeView.addEventListener('did-fail-load', (e) => {
+  guestLoadEventSeq++;
+  isGuestWebviewHung = false;
   if (isManualReloadInProgress) {
     isManualReloadInProgress = false;
     if (manualReloadUnlockTimer) {
@@ -3377,17 +3466,25 @@ delugeView.addEventListener('did-fail-load', (e) => {
 });
 
 delugeView.addEventListener('render-process-gone', (details) => {
+  guestLoadEventSeq++;
+  isGuestWebviewHung = false;
   const reason = details ? (details.reason || details.status) : 'unknown';
   backendLog('WEBVIEW', `Webview render process gone: reason=${reason}`);
+  if (isHungWebviewRecoveryInProgress) {
+    updateStatus('Reloading clean webview...', '#38bdf8');
+    return;
+  }
   updateStatus(`Webview process terminated (${reason}). Click Reload to restore.`, '#ef4444');
 });
 
 delugeView.addEventListener('unresponsive', () => {
+  isGuestWebviewHung = true;
   backendLog('WEBVIEW', 'Webview became unresponsive');
   updateStatus('Webview unresponsive. Waiting for recovery...', '#f59e0b');
 });
 
 delugeView.addEventListener('responsive', () => {
+  isGuestWebviewHung = false;
   backendLog('WEBVIEW', 'Webview recovered responsiveness');
   updateStatus(isRunning ? 'Hunting Active' : 'Ready', isRunning ? '#22c55e' : '#10b981');
 });
@@ -3699,6 +3796,9 @@ delugeView.addEventListener('ipc-message', (event) => {
         fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
       } catch (_) {}
       syncUserCollectionToGuest();
+      if (typeof refreshCandidateListsCache === 'function') {
+        refreshCandidateListsCache({ resetCursors: true });
+      }
       if (scanStatusDot) scanStatusDot.style.background = '#10b981';
       if (scanStatusBadge) {
         scanStatusBadge.style.color = '#c9d8ec';
@@ -4050,6 +4150,29 @@ delugeView.addEventListener('ipc-message', (event) => {
     handleEvolveCardClosed();
   }
 
+  if (event.channel === 'gmax-challenge-flow-status') {
+    const data = event.args[0] || {};
+    if (data.step === 'completed' || data.step === 'error' || data.step === 'aborted') {
+      pendingGmaxEntryFlow = null;
+      if (battleOpponentBtn) {
+        battleOpponentBtn.disabled = false;
+        battleOpponentBtn.innerHTML = '<span>&#9876;</span> <span>Battle Now</span>';
+      }
+      if (applyTeamBtn) applyTeamBtn.disabled = false;
+    }
+    if (teamActionStatus && data.message) {
+      teamActionStatus.textContent = data.message;
+      teamActionStatus.style.color = data.step === 'error'
+        ? '#f87171'
+        : (data.step === 'completed' ? '#10b981' : '#388bfd');
+    }
+    if (data.step === 'completed' && delugeView && typeof delugeView.send === 'function') {
+      setTimeout(() => {
+        try { delugeView.send('check-battle-opponents'); } catch (_) {}
+      }, 450);
+    }
+  }
+
   if (event.channel === 'request-user-collection') {
     syncUserCollectionToGuest();
   }
@@ -4300,6 +4423,11 @@ delugeView.addEventListener('ipc-message', (event) => {
       return;
     }
     guestReportsMap = !!(data.isMap && data.hasMapEl !== false);
+    if (data.isGmaxNoActiveError) {
+      guestGmaxNoActiveErrorUrl = String(data.url || data.pathname || '');
+    } else if (data.url && guestGmaxNoActiveErrorUrl && guestGmaxNoActiveErrorUrl !== data.url) {
+      guestGmaxNoActiveErrorUrl = '';
+    }
     const prevEncounter = isEncounterOnScreen;
     isEncounterOnScreen = !!data.hasEncounter;
     if (data.username) {
@@ -4487,6 +4615,7 @@ delugeView.addEventListener('ipc-message', (event) => {
   }
 
   if (event.channel === 'unlock-detected') {
+    pendingGmaxEntryFlow = null;
     handleCaptchaEmergencyHalt('Captcha (/unlock) security challenge detected');
   }
 
@@ -5849,6 +5978,61 @@ function flushBattleSessionCache() {
 let isManualReloadInProgress = false;
 let manualReloadUnlockTimer = null;
 
+function resolveSafeReloadTargetUrl(currentUrl) {
+  const fallbackMapUrl = 'https://www.delugerpg.com/map';
+  const gmaxHubUrl = 'https://www.delugerpg.com/gmax';
+  if (!currentUrl || typeof currentUrl !== 'string') return fallbackMapUrl;
+
+  let parsed;
+  try {
+    parsed = new URL(currentUrl, 'https://www.delugerpg.com');
+  } catch (_) {
+    return currentUrl;
+  }
+  const path = (parsed.pathname || '/').toLowerCase();
+
+  let errPath = '';
+  if (guestGmaxNoActiveErrorUrl) {
+    try {
+      errPath = (new URL(guestGmaxNoActiveErrorUrl, 'https://www.delugerpg.com').pathname || '').toLowerCase();
+    } catch (_) {
+      errPath = guestGmaxNoActiveErrorUrl.toLowerCase();
+    }
+  }
+
+  const isTerminalGmaxSubpage =
+    path.startsWith('/gmax/evolve') ||
+    path.startsWith('/gmax/confirm') ||
+    path.startsWith('/gmax/forfeit') ||
+    path.startsWith('/gmax/abandon');
+
+  const isSameErrorPage = Boolean(
+    guestGmaxNoActiveErrorUrl &&
+    (guestGmaxNoActiveErrorUrl === currentUrl || (errPath && errPath === path))
+  );
+
+  const isChallengeDone = Boolean(
+    activeAiBattleData && activeAiBattleData.isGmaxChallengeComplete &&
+    (path.startsWith('/challenge/gmax') || path.startsWith('/battle/challenge'))
+  );
+
+  if (isTerminalGmaxSubpage || isSameErrorPage || isChallengeDone) {
+    if (path === '/gmax' || path === '/gmax/') {
+      return fallbackMapUrl;
+    }
+    return gmaxHubUrl;
+  }
+
+  if (isGuestWebviewHung && (path === '/gmax' || path === '/gmax/')) {
+    return fallbackMapUrl;
+  }
+  if (isGuestWebviewHung && path.startsWith('/challenge/gmax')) {
+    return gmaxHubUrl;
+  }
+
+  return currentUrl;
+}
+
 if (refreshBtn) {
   refreshBtn.addEventListener('click', () => {
     if (manualReloadUnlockTimer) {
@@ -5878,12 +6062,17 @@ if (refreshBtn) {
       fallbackCollisionTimer = null;
     }
 
-    // 2. Abort guest hunting ticks without disrupting active client UI panels or state
-    if (delugeView && typeof delugeView.send === 'function') {
-      try {
-        delugeView.send('abort-autocatch');
-        delugeView.send('hunting-state-changed', { isRunning: false });
-      } catch (_) {}
+    // 2. Abort guest hunting & G-Max entry ticks cleanly and ensure webview pointer events stay enabled
+    pendingGmaxEntryFlow = null;
+    if (delugeView) {
+      delugeView.style.pointerEvents = 'auto';
+      if (typeof delugeView.send === 'function') {
+        try {
+          delugeView.send('abort-autocatch');
+          delugeView.send('abort-gmax-challenge-flow');
+          delugeView.send('hunting-state-changed', { isRunning: false });
+        } catch (_) {}
+      }
     }
     isEncounterOnScreen = false;
     isAutoCatchCountdownActive = false;
@@ -5896,53 +6085,80 @@ if (refreshBtn) {
       reloadSvg.classList.add('spinning');
     }
 
-    // 4. Dispatch reload strictly to the DelugeRPG webpage inside the webview (never reload desktop client)
+    // 4. Stop any stalled navigation/socket first, then redirect off dead/error G-Max pages or reload in place
     if (delugeView) {
       const currentTargetUrl = (typeof delugeView.getURL === 'function' && delugeView.getURL())
         || delugeView.src
         || 'https://www.delugerpg.com/map';
-      backendLog('RELOAD', `Manual reload triggered for DelugeRPG webpage: ${currentTargetUrl}`);
+      const reloadTargetUrl = resolveSafeReloadTargetUrl(currentTargetUrl);
+      const isRedirectTarget = reloadTargetUrl !== currentTargetUrl;
 
-      // Direct in-guest page reload execution
+      if (isRedirectTarget) {
+        guestGmaxNoActiveErrorUrl = '';
+        backendLog('RELOAD_REDIRECT', `Manual reload redirecting off stale/error page ${currentTargetUrl} -> ${reloadTargetUrl}`);
+        updateStatus('Redirecting away from G-Max page...', '#38bdf8');
+      } else {
+        backendLog('RELOAD', `Manual reload triggered for DelugeRPG webpage: ${reloadTargetUrl}`);
+      }
+
       try {
-        if (typeof delugeView.executeJavaScript === 'function') {
-          delugeView.executeJavaScript('window.location.reload()').catch(() => {});
+        if (typeof delugeView.stop === 'function') {
+          delugeView.stop();
         }
       } catch (_) {}
 
-      // Authoritative native webview reload dispatch
-      try {
-        if (typeof delugeView.reload === 'function') {
-          delugeView.reload();
-        } else if (typeof delugeView.reloadIgnoringCache === 'function') {
-          delugeView.reloadIgnoringCache();
-        } else if (typeof delugeView.loadURL === 'function') {
-          delugeView.loadURL(currentTargetUrl).catch(() => { delugeView.src = currentTargetUrl; });
-        } else {
-          delugeView.src = currentTargetUrl;
+      const loadTargetCleanly = () => {
+        if (isGuestWebviewHung) {
+          isManualReloadInProgress = false;
+          if (manualReloadUnlockTimer) {
+            clearTimeout(manualReloadUnlockTimer);
+            manualReloadUnlockTimer = null;
+          }
+          if (reloadSvg) reloadSvg.classList.remove('spinning');
+          recoverHungWebviewAndLoad(reloadTargetUrl, isRedirectTarget ? 'Manual reload redirect (hung)' : 'Manual reload (hung)').catch(() => {});
+          return;
         }
-      } catch (err) {
-        backendLog('RELOAD_WARN', `Native reload failed: ${err.message}`);
         try {
-          if (typeof delugeView.reloadIgnoringCache === 'function') {
+          if (isRedirectTarget) {
+            if (typeof delugeView.loadURL === 'function') {
+              delugeView.loadURL(reloadTargetUrl).catch(() => { delugeView.src = reloadTargetUrl; });
+            } else {
+              delugeView.src = reloadTargetUrl;
+            }
+          } else if (typeof delugeView.reload === 'function') {
+            delugeView.reload();
+          } else if (typeof delugeView.reloadIgnoringCache === 'function') {
             delugeView.reloadIgnoringCache();
           } else if (typeof delugeView.loadURL === 'function') {
-            delugeView.loadURL(currentTargetUrl).catch(() => { delugeView.src = currentTargetUrl; });
+            delugeView.loadURL(reloadTargetUrl).catch(() => { delugeView.src = reloadTargetUrl; });
           } else {
-            delugeView.src = currentTargetUrl;
+            delugeView.src = reloadTargetUrl;
           }
-        } catch (_) {}
-      }
-    }
+        } catch (err) {
+          backendLog('RELOAD_WARN', `Native reload failed: ${err.message}`);
+          try {
+            if (typeof delugeView.loadURL === 'function') {
+              delugeView.loadURL(reloadTargetUrl).catch(() => { delugeView.src = reloadTargetUrl; });
+            } else {
+              delugeView.src = reloadTargetUrl;
+            }
+          } catch (_) {}
+        }
 
-    // 5. Safety timeout in case webview navigation finishes without event
-    manualReloadUnlockTimer = setTimeout(() => {
-      if (isManualReloadInProgress) {
-        isManualReloadInProgress = false;
-        manualReloadUnlockTimer = null;
-        if (reloadSvg) reloadSvg.classList.remove('spinning');
-      }
-    }, 3000);
+        // Hard recovery if reload() stalls on a pending/hung request or frozen guest renderer
+        manualReloadUnlockTimer = setTimeout(() => {
+          if (isManualReloadInProgress) {
+            backendLog('RELOAD_WARN', `Reload timed out; forcing fresh loadURL(${reloadTargetUrl})`);
+            isManualReloadInProgress = false;
+            manualReloadUnlockTimer = null;
+            if (reloadSvg) reloadSvg.classList.remove('spinning');
+            recoverHungWebviewAndLoad(reloadTargetUrl, 'Manual reload timeout').catch(() => {});
+          }
+        }, 2500);
+      };
+
+      loadTargetCleanly();
+    }
   });
 }
 
@@ -6259,6 +6475,36 @@ let isBuildSyncInProgress = false;
 let pendingBuildLeader = null;
 let lastSelectedBattleUrl = null;
 
+const CANDIDATE_POOL_KEYS = ['ANY', 'GMAX', 'MEGA', 'GMAX_MEGA', 'LEGENDARY', 'ULTRABEAST', 'PARADOX', 'COMMON'];
+const candidateListsCache = {
+  gmaxTargets: [],
+  gmaxLastDisplayedId: null,
+  trainingByPool: {},
+  trainingCursorsByPool: {},
+  lastTrainingBuiltCtx: null
+};
+
+function refreshCandidateListsCache(options = {}) {
+  const col = Array.isArray(currentCollection) ? currentCollection : [];
+  const gmaxFiltered = getEffectiveFilteredPool(col, 'GMAX').filter(p => !teamEngine.isAlreadyGmax(p));
+  candidateListsCache.gmaxTargets = (teamEngine && typeof teamEngine.getRankedGmaxChallengeCandidates === 'function')
+    ? teamEngine.getRankedGmaxChallengeCandidates(gmaxFiltered, col)
+    : [];
+
+  const nextTrainingByPool = {};
+  CANDIDATE_POOL_KEYS.forEach(poolKey => {
+    const filtered = getEffectiveFilteredPool(col, poolKey);
+    nextTrainingByPool[poolKey] = filtered.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
+  });
+  candidateListsCache.trainingByPool = nextTrainingByPool;
+
+  if (options && options.resetCursors) {
+    candidateListsCache.gmaxLastDisplayedId = null;
+    candidateListsCache.trainingCursorsByPool = {};
+    candidateListsCache.lastTrainingBuiltCtx = null;
+  }
+}
+
 function getEffectiveFilteredPool(collection, filterType) {
   if (!collection || !Array.isArray(collection)) return [];
   const type = (filterType || 'ANY').toUpperCase();
@@ -6352,6 +6598,8 @@ function updateRosterModeUI() {
 
 function resetTeamPrompt() {
   lastRecommendedTeam = null;
+  candidateListsCache.gmaxLastDisplayedId = null;
+  candidateListsCache.lastTrainingBuiltCtx = null;
   if (teamResultContainer) teamResultContainer.style.display = 'none';
   if (teamResultList) teamResultList.innerHTML = '';
   if (teamActionRow) teamActionRow.style.display = 'none';
@@ -7242,6 +7490,9 @@ function loadTeamBuilderData() {
       if (pvpCandidateTierSelect && pvpCandidateTier) {
         pvpCandidateTierSelect.value = pvpCandidateTier;
       }
+      if (typeof refreshCandidateListsCache === 'function') {
+        refreshCandidateListsCache({ resetCursors: false });
+      }
       updateRosterModeUI();
       syncUserCollectionToGuest();
       if (aiAssistantModal && aiAssistantModal.style.display === 'flex' && typeof renderEvolutionDecisionMakerUI === 'function') {
@@ -7977,6 +8228,9 @@ if (adsFilterTabs) {
 
 if (scanPokesBtn) {
   scanPokesBtn.addEventListener('click', () => {
+    candidateListsCache.gmaxLastDisplayedId = null;
+    candidateListsCache.trainingCursorsByPool = {};
+    candidateListsCache.lastTrainingBuiltCtx = null;
     if (scanStatusDot) scanStatusDot.style.background = '#388bfd';
     if (scanStatusBadge) {
       scanStatusBadge.style.color = '#388bfd';
@@ -8407,7 +8661,7 @@ function renderTeamLineup(leader, team) {
   }
 }
 
-function executeTeamBuild(targetLeader) {
+function executeTeamBuild(targetLeader, buildOptions = {}) {
   if (!targetLeader) return;
 
   if (!currentCollection || currentCollection.length === 0) {
@@ -8423,8 +8677,10 @@ function executeTeamBuild(targetLeader) {
 
   if (teamRosterMode === 'TRAINING') {
     // 1. Identify trainees (< Lv 100) strictly matching the selected candidate pool filter
+    const poolKey = String(teamPoolFilter || 'ANY').toUpperCase();
     const effectivePool = getEffectiveFilteredPool(currentCollection || [], teamPoolFilter);
     const filterTrainees = effectivePool.filter(p => (typeof p.level === 'number' ? p.level : 100) < 100);
+    candidateListsCache.trainingByPool[poolKey] = filterTrainees;
 
     const filterLabels = {
       ANY: 'Pokemon',
@@ -8557,9 +8813,38 @@ function executeTeamBuild(targetLeader) {
       ? teamEngine.rankTraineePartners(availableMatching, targetLeader)
       : availableMatching.map(t => ({ poke: t }));
 
-    let hasPrimaryTrainee = false;
-    if (rankedMatching.length > 0 && hybridTeam.length < 6) {
-      const primaryPartner = rankedMatching[0].poke;
+    const maxTraineeSlots = Math.max(1, 6 - hybridTeam.length);
+    const trainerKey = String((targetLeader && (targetLeader.npcId || targetLeader.name)) || 'DEFAULT');
+    const prevCtx = candidateListsCache.lastTrainingBuiltCtx;
+    const shouldAdvance = Boolean(
+      buildOptions &&
+      buildOptions.advanceCandidate &&
+      prevCtx &&
+      prevCtx.poolKey === poolKey &&
+      prevCtx.trainerKey === trainerKey &&
+      Array.isArray(lastRecommendedTeam) &&
+      lastRecommendedTeam.length > 0 &&
+      rankedMatching.length > 1
+    );
+    let startOffset = (candidateListsCache.trainingCursorsByPool[poolKey] || 0);
+    if (shouldAdvance) {
+      const step = rankedMatching.length > maxTraineeSlots
+        ? Math.min(maxTraineeSlots, prevCtx.traineeCount || maxTraineeSlots)
+        : 1;
+      startOffset = (startOffset + step) % rankedMatching.length;
+    } else if (rankedMatching.length > 0) {
+      startOffset = startOffset % rankedMatching.length;
+    } else {
+      startOffset = 0;
+    }
+
+    const rotatedMatching = (startOffset > 0 && rankedMatching.length > 0)
+      ? rankedMatching.slice(startOffset).concat(rankedMatching.slice(0, startOffset))
+      : rankedMatching;
+
+    let builtTraineeCount = 0;
+    if (rotatedMatching.length > 0 && hybridTeam.length < 6) {
+      const primaryPartner = rotatedMatching[0].poke;
       usedIds.add(primaryPartner.id);
       usedSpecies.add(teamEngine.getBaseSpecies(primaryPartner.name));
       const partnerMove = teamEngine.getRosterWideBestAttack(primaryPartner, targetLeader);
@@ -8574,13 +8859,13 @@ function executeTeamBuild(targetLeader) {
         bestMove: partnerMove,
         targetName: 'Primary Trainee Partner',
         role: 'Primary Trainee Duo (Lv ' + primaryPartner.level + ')',
-        score: rankedMatching[0].score || 500,
+        score: rotatedMatching[0].score || 500,
         isCarry: false
       });
-      hasPrimaryTrainee = true;
+      builtTraineeCount++;
     }
 
-    const otherMatching = rankedMatching.slice(1).map(r => r.poke);
+    const otherMatching = rotatedMatching.slice(1).map(r => r.poke);
     // 3a. Add unique species from filter-matching trainees
     for (let i = 0; i < otherMatching.length && hybridTeam.length < 6; i++) {
       const t = otherMatching[i];
@@ -8603,6 +8888,7 @@ function executeTeamBuild(targetLeader) {
         score: 100,
         isCarry: false
       });
+      builtTraineeCount++;
     }
 
     // 3b. If still open slots, add any remaining filter-matching trainees
@@ -8625,10 +8911,18 @@ function executeTeamBuild(targetLeader) {
         score: 100,
         isCarry: false
       });
+      builtTraineeCount++;
     }
 
     // Zero-Backfill Enforcement: Remaining unfilled slots are strictly left empty!
     // (Never backfill from outside candidate pool or with reserve anchors)
+
+    candidateListsCache.trainingCursorsByPool[poolKey] = startOffset;
+    candidateListsCache.lastTrainingBuiltCtx = {
+      poolKey: poolKey,
+      trainerKey: trainerKey,
+      traineeCount: Math.max(1, builtTraineeCount)
+    };
 
     lastRecommendedTeam = hybridTeam;
     renderTeamLineup(targetLeader, hybridTeam);
@@ -8636,6 +8930,11 @@ function executeTeamBuild(targetLeader) {
       const leadMember = hybridTeam[0];
       if (leadMember && leadMember.isAtRisk) {
         teamActionStatus.innerHTML = '<span style="color:#f87171; font-weight:600;">&#9888; Carry has elemental vulnerability - change trainer recommended.</span>';
+        teamActionStatus.style.display = 'block';
+      } else if (rankedMatching.length > 1) {
+        const rangeEnd = Math.min(startOffset + builtTraineeCount, rankedMatching.length);
+        teamActionStatus.textContent = `Training ${startOffset + 1}-${rangeEnd}/${rankedMatching.length} (${label})`;
+        teamActionStatus.style.color = '#388bfd';
         teamActionStatus.style.display = 'block';
       } else {
         teamActionStatus.style.display = 'none';
@@ -8662,6 +8961,38 @@ function executeTeamBuild(targetLeader) {
       teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:rgba(244, 238, 232, 0.5); font-size:10px;">Switch pool filter to <b>Any</b> or click 'Scan My Box'.</span></div>`;
     }
     if (teamActionRow) teamActionRow.style.display = 'none';
+    return;
+  }
+
+  const isChallenge = Boolean(
+    targetLeader.isChallenge ||
+    (targetLeader.name && targetLeader.name.toLowerCase().includes('challenge')) ||
+    (targetLeader.battleUrl && targetLeader.battleUrl.toLowerCase().includes('challenge'))
+  );
+
+  if (isChallenge && (!targetLeader.roster || targetLeader.roster.length === 0)) {
+    const gmaxTargets = (teamEngine && typeof teamEngine.getRankedGmaxChallengeCandidates === 'function')
+      ? teamEngine.getRankedGmaxChallengeCandidates(candidates, currentCollection)
+      : [];
+    candidateListsCache.gmaxTargets = gmaxTargets;
+
+    let targetIndex = 0;
+    if (buildOptions && buildOptions.advanceCandidate && candidateListsCache.gmaxLastDisplayedId && gmaxTargets.length > 0) {
+      const prevIdx = gmaxTargets.findIndex(p => p && String(p.id) === String(candidateListsCache.gmaxLastDisplayedId));
+      targetIndex = (prevIdx !== -1) ? ((prevIdx + 1) % gmaxTargets.length) : 0;
+    }
+
+    const team = teamEngine.buildBestTeam(targetLeader, candidates, currentCollection, { targetIndex: targetIndex });
+    candidateListsCache.gmaxLastDisplayedId = (team && team[0] && team[0].id) ? team[0].id : null;
+    lastRecommendedTeam = team;
+    renderTeamLineup(targetLeader, team);
+    if (teamActionStatus && team && team[0] && gmaxTargets.length > 0) {
+      teamActionStatus.textContent = gmaxTargets.length > 1
+        ? `G-Max Candidate ${targetIndex + 1}/${gmaxTargets.length}: ${team[0].name}`
+        : `G-Max Candidate: ${team[0].name}`;
+      teamActionStatus.style.color = '#388bfd';
+      teamActionStatus.style.display = 'block';
+    }
     return;
   }
 
@@ -8769,28 +9100,6 @@ if (buildTeamBtn) {
     if (isUnlockChallengeActive || isCaptchaAlarmActive) return;
     if (teamBattleMode === 'PVP') {
       executePvPTeamBuild();
-      const pvpTarget = (activePvpTargetType === 'LIVE' && liveBattleOpponent)
-        ? liveBattleOpponent
-        : (scoutedPlayerOpponent || liveBattleOpponent);
-      const canSyncBox = (pvpStrategy === 'GODSQUAD') || (pvpTarget && Array.isArray(pvpTarget.roster) && pvpTarget.roster.length > 0);
-      if (canSyncBox && delugeView && typeof delugeView.send === 'function' && !isBuildSyncInProgress) {
-        if (isRunning) {
-          wasHuntingBeforeBoxScan = true;
-          isRunning = false;
-          updateToggleButton();
-          updateStatus('Paused (Syncing Box...)', '#388bfd');
-        }
-        isBuildSyncInProgress = true;
-        pendingBuildLeader = (pvpStrategy === 'GODSQUAD')
-          ? { name: 'Live PvP Universal Meta', isPvpMeta: true, isPvp: true }
-          : (pvpTarget || { name: 'Live Challenger', isPvp: true });
-        buildTeamBtn.innerHTML = '<span>&#8635;</span><span>Syncing Box...</span>';
-        if (scanStatusBadge) {
-          scanStatusBadge.textContent = 'Syncing box...';
-          scanStatusBadge.style.color = '#388bfd';
-        }
-        delugeView.send('start-scan-pokemon');
-      }
       return;
     }
     const isGmaxChallenge = (teamCategorySelect && teamCategorySelect.value === 'GMAX_CHALLENGE') ||
@@ -8855,26 +9164,8 @@ if (buildTeamBtn) {
       lastSelectedBattleUrl = '/battle/trainer/' + targetLeader.npcId;
     }
 
-    // 1. Build immediately with existing cached collection for zero latency
-    executeTeamBuild(targetLeader);
-
-    // 2. Automatically sync freshest Pokemon data from Box (doing the same as Scan My Box)
-    if (delugeView && typeof delugeView.send === 'function' && !isBuildSyncInProgress) {
-      if (isRunning) {
-        wasHuntingBeforeBoxScan = true;
-        isRunning = false;
-        updateToggleButton();
-        updateStatus('Paused (Syncing Box...)', '#388bfd');
-      }
-      isBuildSyncInProgress = true;
-      pendingBuildLeader = targetLeader;
-      buildTeamBtn.innerHTML = '<span>&#8635;</span><span>Syncing Box...</span>';
-      if (scanStatusBadge) {
-        scanStatusBadge.textContent = 'Syncing box...';
-        scanStatusBadge.style.color = '#388bfd';
-      }
-      delugeView.send('start-scan-pokemon');
-    }
+    // Build immediately from synced cache (advancing G-Max target / Training batch cleanly without re-scanning 17 box pages)
+    executeTeamBuild(targetLeader, { advanceCandidate: true });
   });
 }
 
@@ -8934,7 +9225,7 @@ function resolveTargetBattleUrl() {
     return '/battle/live';
   }
   if (teamCategorySelect && teamCategorySelect.value === 'GMAX_CHALLENGE') {
-    return '/challenge/gmax';
+    return '/gmax';
   }
 
   // The explicitly selected Target Battle Opponent in the dropdown ALWAYS takes highest priority
@@ -8987,25 +9278,62 @@ function resolveTargetBattleUrl() {
 if (battleOpponentBtn) {
   battleOpponentBtn.addEventListener('click', () => {
     if (isUnlockChallengeActive || isCaptchaAlarmActive) return;
+    const isGmaxEntry = Boolean(teamCategorySelect && teamCategorySelect.value === 'GMAX_CHALLENGE');
     const battleUrl = resolveTargetBattleUrl();
     const fullUrl = battleUrl.startsWith('http') ? battleUrl : `https://www.delugerpg.com${battleUrl}`;
+
+    if (isGmaxEntry) {
+      const slot0 = (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0) ? lastRecommendedTeam[0] : null;
+      pendingGmaxEntryFlow = {
+        targetName: slot0 ? String(slot0.name || '').trim() : '',
+        variant: slot0 ? String(slot0.variant || '').trim() : '',
+        startedAt: Date.now()
+      };
+      if (teamBattleAutoCheck && teamBattleAutoCheck.checked && teamBattleLoopCheck && !teamBattleLoopCheck.checked) {
+        teamBattleLoopCheck.disabled = false;
+        teamBattleLoopCheck.checked = true;
+        updateLoopCheckboxVisual();
+      }
+    } else {
+      pendingGmaxEntryFlow = null;
+      if (delugeView && typeof delugeView.send === 'function') {
+        try { delugeView.send('abort-gmax-challenge-flow'); } catch (_) {}
+      }
+    }
 
     battleOpponentBtn.disabled = true;
     if (applyTeamBtn) applyTeamBtn.disabled = true;
     battleOpponentBtn.innerHTML = '<span>&#8635;</span> <span>Entering...</span>';
     if (teamActionStatus) {
-      teamActionStatus.textContent = 'Entering battle arena on DelugeRPG...';
+      teamActionStatus.textContent = isGmaxEntry
+        ? 'Opening G-Max Challenge setup...'
+        : 'Entering battle arena on DelugeRPG...';
       teamActionStatus.style.color = '#388bfd';
     }
 
     // Natural human click-to-navigation pacing
     setTimeout(() => {
+      const navSeqBefore = guestLoadEventSeq;
       if (delugeView) {
         try {
+          if (isGmaxEntry && pendingGmaxEntryFlow && typeof delugeView.send === 'function') {
+            try {
+              delugeView.send('start-gmax-challenge-flow', pendingGmaxEntryFlow);
+            } catch (_) {}
+          }
           delugeView.loadURL(fullUrl).catch(() => {});
           delugeView.focus();
         } catch (err) {
           console.error('Error entering battle arena:', err);
+        }
+
+        if (isGmaxEntry) {
+          setTimeout(() => {
+            if (pendingGmaxEntryFlow && pendingGmaxEntryFlow.active && guestLoadEventSeq === navSeqBefore) {
+              backendLog('GMAX_FLOW', 'Guest renderer did not respond to G-Max navigation; resetting frozen webview.');
+              recoverHungWebviewAndLoad(fullUrl, 'Battle Now G-Max navigation timeout').catch(() => {});
+            }
+          }, 3000);
         }
       }
 
@@ -9112,8 +9440,16 @@ function handleBattleExpCalibrated(data) {
         }
       }
     });
-    if (collUpdated && typeof updateTrainerIntelStats === 'function') {
-      updateTrainerIntelStats();
+    if (collUpdated) {
+      if (typeof refreshCandidateListsCache === 'function') {
+        refreshCandidateListsCache({ resetCursors: false });
+      }
+      if (typeof updateRosterModeUI === 'function') {
+        updateRosterModeUI();
+      }
+      if (typeof updateTrainerIntelStats === 'function') {
+        updateTrainerIntelStats();
+      }
     }
   }
 }
@@ -9489,6 +9825,20 @@ if (teamBattleLoopCheck) {
   });
 }
 
+function setAutoAndLoopDefaultChecked() {
+  if (!teamBattleAutoCheck || !teamBattleLoopCheck) return;
+  teamBattleAutoCheck.checked = true;
+  if (teamBattleAutoLabel) {
+    teamBattleAutoLabel.style.borderColor = '#388bfd';
+    teamBattleAutoLabel.style.color = '#58a6ff';
+  }
+  teamBattleLoopCheck.disabled = false;
+  teamBattleLoopCheck.checked = true;
+  updateLoopCheckboxVisual();
+}
+
+setAutoAndLoopDefaultChecked();
+
 if (teamTrainerSelect) {
   teamTrainerSelect.addEventListener('change', () => {
     lastSelectedBattleUrl = null;
@@ -9795,13 +10145,37 @@ const CATCH_STARTER_FAMILIES = [
 ];
 
 const CATCH_GMAX_SPECIES = [
-  'venusaur', 'charizard', 'blastoise', 'butterfree', 'pikachu',
-  'meowth', 'machamp', 'gengar', 'kingler', 'lapras',
-  'eevee', 'snorlax', 'garbodor', 'melmetal', 'rillaboom',
-  'cinderace', 'inteleon', 'corviknight', 'orbeetle', 'drednaw',
-  'coalossal', 'flapple', 'appletun', 'sandaconda', 'toxtricity',
-  'centiskorch', 'hatterene', 'grimmsnarl', 'alcremie', 'copperajah',
-  'duraludon', 'urshifu'
+  'bulbasaur', 'ivysaur', 'venusaur',
+  'charmander', 'charmeleon', 'charizard',
+  'squirtle', 'wartortle', 'blastoise',
+  'caterpie', 'metapod', 'butterfree',
+  'pichu', 'pikachu',
+  'meowth',
+  'machop', 'machoke', 'machamp',
+  'gastly', 'haunter', 'gengar',
+  'krabby', 'kingler',
+  'lapras',
+  'eevee',
+  'munchlax', 'snorlax',
+  'trubbish', 'garbodor',
+  'meltan', 'melmetal',
+  'grookey', 'thwackey', 'rillaboom',
+  'scorbunny', 'raboot', 'cinderace',
+  'sobble', 'drizzile', 'inteleon',
+  'rookidee', 'corvisquire', 'corviknight',
+  'blipbug', 'dottler', 'orbeetle',
+  'chewtle', 'drednaw',
+  'rolycoly', 'carkol', 'coalossal',
+  'applin', 'flapple', 'appletun',
+  'silicobra', 'sandaconda',
+  'toxel', 'toxtricity',
+  'sizzlipede', 'centiskorch',
+  'hatenna', 'hattrem', 'hatterene',
+  'impidimp', 'morgrem', 'grimmsnarl',
+  'milcery', 'alcremie',
+  'cufant', 'copperajah',
+  'duraludon',
+  'kubfu', 'urshifu'
 ];
 
 const CATCH_MEGA_EVOLUTION_FAMILIES = [
@@ -9957,8 +10331,9 @@ function getCaughtPokemonKind(p) {
     return 'Mega Line';
   }
 
-  // 10. Pure G-Max family lines
-  if (CATCH_GMAX_SPECIES.includes(base)) {
+  // 10. Pure G-Max family lines (exclude non-G-Max regional Meowth forms)
+  const isNonGmaxRegional = /\b(?:alolan|galarian|hisuian|paldean)\b/i.test(lower);
+  if (CATCH_GMAX_SPECIES.includes(base) && !isNonGmaxRegional) {
     return 'G-Max Line';
   }
 
@@ -10696,6 +11071,13 @@ function handleEvolveCardDetected(card) {
           fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
         } catch (_) {}
         syncUserCollectionToGuest();
+        if (typeof refreshCandidateListsCache === 'function') {
+          refreshCandidateListsCache({ resetCursors: false });
+        }
+        candidateListsCache.gmaxLastDisplayedId = null;
+        if (typeof updateRosterModeUI === 'function') {
+          updateRosterModeUI();
+        }
       }
     }
 
@@ -12154,6 +12536,30 @@ function computeAiBattleActionConfig(battleData, collection) {
         };
       }
 
+      const shouldTacticalCounterSwitch = Boolean(
+        !isTrainingOnlyMode &&
+        analysis.shouldSwitchToCounter &&
+        analysis.switchCounterName &&
+        analysis.hasSwitchBtn &&
+        analysis.hasBenchRadios &&
+        currentMatchSwitchCount < 2 &&
+        !isRecentlySwitchedIn
+      );
+
+      if (shouldTacticalCounterSwitch) {
+        const shortCounter = formatCompactBattleName(analysis.switchCounterName);
+        backendLog('AI_TACTIC', `Tactical switch triggered: ${analysis.switchCounterReason}`);
+        return {
+          labelHtml: `&#8635; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Switch to ${escapeHtml(shortCounter)}</span>`,
+          hudText: `Switch: ${shortCounter}`,
+          disabled: false,
+          btnClass: 'btn btn-accent',
+          action: () => {
+            executeAiBattleAction('switch-pokemon', { pokemonName: analysis.switchCounterName, autoStart: true, isSwitch: true });
+          }
+        };
+      }
+
       if (analysis.shouldUseFullRestore && analysis.hasUseItemBtn && currentMatchItemCount < 1 && lastTurnActionType !== 'use-battle-item') {
         const frCount = typeof analysis.fullRestoreCount === 'number' ? analysis.fullRestoreCount : 1;
         backendLog('AI_TACTIC', `Full Restore triggered: ${analysis.fullRestoreReason}`);
@@ -12361,9 +12767,12 @@ function updateTeamBuilderBattleAction(battleData) {
       battleAutoStepTimer = null;
     }
     const isPrep = Boolean(battleData && battleData.isPreparationScreen);
+    const gU1 = Math.random() || 0.0001;
+    const gU2 = Math.random();
+    const gZ = Math.sqrt(-2.0 * Math.log(gU1)) * Math.sin(2.0 * Math.PI * gU2);
     const autoDelay = isPrep
-      ? (1200 + Math.floor(Math.random() * 500))
-      : (850 + Math.floor(Math.random() * 500));
+      ? Math.max(1150, Math.min(2100, Math.round(1500 + gZ * 260)))
+      : Math.max(920, Math.min(1800, Math.round(1220 + gZ * 220)));
     if (teamActionStatus) {
       teamActionStatus.textContent = isPrep
         ? `Auto deploying in ${(autoDelay / 1000).toFixed(1)}s...`
@@ -12372,7 +12781,7 @@ function updateTeamBuilderBattleAction(battleData) {
     }
     battleAutoStepTimer = setTimeout(() => {
       battleAutoStepTimer = null;
-      if (isUnlockChallengeActive || isCaptchaAlarmActive) {
+      if (isUnlockChallengeActive || isCaptchaAlarmActive || isPendingSessionAutoStop) {
         isBattleAutoRunning = false;
         return;
       }
@@ -12388,13 +12797,13 @@ function updateTeamBuilderBattleAction(battleData) {
         teamBattleActionBtn.disabled = true;
         config.action();
       } else if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isMatchOver) {
-        // If DOM was mid-animation or action briefly unready, re-poll rather than stopping
+        // If DOM was mid-animation or action briefly unready, re-poll with jitter rather than static interval
         battleAutoStepTimer = setTimeout(() => {
           battleAutoStepTimer = null;
-          if (delugeView && typeof delugeView.send === 'function') {
+          if (!isUnlockChallengeActive && !isCaptchaAlarmActive && delugeView && typeof delugeView.send === 'function') {
             delugeView.send('check-battle-opponents');
           }
-        }, 500);
+        }, 650 + Math.floor(Math.random() * 350));
       }
     }, autoDelay);
   }
@@ -13178,7 +13587,10 @@ function silenceCaptchaAlarm() {
   renderAiAssistantUI();
 }
 
+let lastCaptchaHaltDispatchTs = 0;
 function handleCaptchaEmergencyHalt(reason = 'Captcha challenge detected') {
+  const alreadyHalted = isUnlockChallengeActive;
+  const nowTs = Date.now();
   if (battleAutoStepTimer) {
     clearTimeout(battleAutoStepTimer);
     battleAutoStepTimer = null;
@@ -13187,6 +13599,7 @@ function handleCaptchaEmergencyHalt(reason = 'Captcha challenge detected') {
     clearTimeout(battleLoopTimer);
     battleLoopTimer = null;
   }
+  pendingGmaxEntryFlow = null;
   isBattleAutoRunning = false;
   isBattleLoopRunning = false;
   if (teamBattleAutoCheck) {
@@ -13213,9 +13626,15 @@ function handleCaptchaEmergencyHalt(reason = 'Captcha challenge detected') {
   isRestBreakActive = false;
   isRunning = false;
   userManuallyPaused = true;
+  if (alreadyHalted && (nowTs - lastCaptchaHaltDispatchTs) < 2500) {
+    return;
+  }
+  lastCaptchaHaltDispatchTs = nowTs;
   try {
     if (delugeView && typeof delugeView.send === 'function') {
       delugeView.send('abort-autocatch');
+      delugeView.send('abort-gmax-challenge-flow');
+      delugeView.send('abort-scan-trainer-rosters');
     }
   } catch (_) {}
   updateToggleButton();
@@ -13268,8 +13687,10 @@ function loadSafetySettingsIntoUI() {
   if (safetyAutoStopMax) safetyAutoStopMax.value = s.autoStopMaxMinutes || 30;
 
   if (safetySpeedToggle) safetySpeedToggle.checked = s.enableMovementSpeed !== false;
-  if (safetySpeedMin) safetySpeedMin.value = (typeof s.movementSpeedMinSec === 'number' && s.movementSpeedMinSec > 0) ? s.movementSpeedMinSec : 1.7;
-  if (safetySpeedMax) safetySpeedMax.value = (typeof s.movementSpeedMaxSec === 'number' && s.movementSpeedMaxSec > 0) ? s.movementSpeedMaxSec : 2.8;
+  const displaySpdMin = (typeof s.movementSpeedMinSec === 'number' && s.movementSpeedMinSec > 0) ? Math.max(1.7, s.movementSpeedMinSec) : 1.7;
+  const displaySpdMax = (typeof s.movementSpeedMaxSec === 'number' && s.movementSpeedMaxSec > 0) ? Math.max(parseFloat((displaySpdMin + 0.3).toFixed(2)), s.movementSpeedMaxSec) : 2.8;
+  if (safetySpeedMin) safetySpeedMin.value = displaySpdMin;
+  if (safetySpeedMax) safetySpeedMax.value = displaySpdMax;
 
   if (safetyMapRotationToggle) safetyMapRotationToggle.checked = (s.enableMapRotation === true || (config.settings && config.settings.randomMapHopping === true));
   if (safetyMapRotationMin) safetyMapRotationMin.value = s.mapRotationMinMinutes || 10;
@@ -13327,11 +13748,10 @@ function saveSafetySettingsFromUI() {
   if (isNaN(spdMax) || spdMax <= 0) spdMax = 2.8;
   if (spdMin > 50) spdMin = spdMin / 1000;
   if (spdMax > 50) spdMax = spdMax / 1000;
-  if (spdMin > spdMax) {
-    const tmp = spdMin;
-    spdMin = spdMax;
-    spdMax = tmp;
-  }
+  spdMin = Math.max(1.7, spdMin);
+  if (spdMax < spdMin + 0.3) spdMax = parseFloat((spdMin + 0.3).toFixed(2));
+  if (safetySpeedMin) safetySpeedMin.value = spdMin.toFixed(1);
+  if (safetySpeedMax) safetySpeedMax.value = spdMax.toFixed(1);
   config.safety.enableMovementSpeed = safetySpeedToggle ? safetySpeedToggle.checked : true;
   config.safety.movementSpeedMinSec = parseFloat(spdMin.toFixed(2));
   config.safety.movementSpeedMaxSec = parseFloat(spdMax.toFixed(2));

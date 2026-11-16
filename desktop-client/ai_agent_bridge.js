@@ -110,23 +110,26 @@ class DelugeAiAssistant {
     const resolveCand = (u, idx) => {
       const uClean = (u.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       const uLvl = u.level || null;
+      const uVar = (u.variant && u.variant !== 'Normal') ? u.variant : detectVariantFromName(u.name);
+      const uVarLow = uVar.toLowerCase();
+      const nameMatches = (c) => {
+        const cClean = (c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const fullName = ((c.variant || '') + ' ' + (c.name || '')).toLowerCase().replace(/[^a-z0-9]/g, '');
+        return cClean === uClean || fullName === uClean || (c.id && u.id && c.id === u.id);
+      };
+      const varMatches = (c) => (c.variant || 'Normal').toLowerCase() === uVarLow;
       const matched = Array.isArray(collection)
-        ? (collection.find(c => {
-            const cClean = (c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const fullName = ((c.variant || '') + ' ' + (c.name || '')).toLowerCase().replace(/[^a-z0-9]/g, '');
-            return (cClean === uClean || fullName === uClean || (c.id && c.id === u.id)) && (!uLvl || c.level === uLvl);
-          }) || collection.find(c => {
-            const cClean = (c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const fullName = ((c.variant || '') + ' ' + (c.name || '')).toLowerCase().replace(/[^a-z0-9]/g, '');
-            return cClean === uClean || fullName === uClean || (c.id && c.id === u.id);
-          }))
+        ? (collection.find(c => nameMatches(c) && varMatches(c) && (!uLvl || c.level === uLvl)) ||
+           collection.find(c => nameMatches(c) && (!uLvl || c.level === uLvl)) ||
+           collection.find(c => nameMatches(c) && varMatches(c)) ||
+           collection.find(nameMatches))
         : null;
       const slotIdx = u.index !== undefined ? u.index : (typeof idx === 'number' ? idx : 0);
       return {
         id: matched ? matched.id : ('cand_' + slotIdx),
         slotIndex: slotIdx,
         name: u.name,
-        variant: matched ? matched.variant : (u.variant || detectVariantFromName(u.name)),
+        variant: uVar !== 'Normal' ? uVar : (matched ? (matched.variant || 'Normal') : 'Normal'),
         types: (matched && Array.isArray(matched.types) && matched.types.length > 0) ? matched.types : (u.types || ['Normal']),
         level: u.level || (matched ? matched.level : 100),
         hp: u.hp !== undefined ? u.hp : (matched ? matched.hp : 400),
@@ -254,10 +257,13 @@ class DelugeAiAssistant {
           const scoreResult = teamEngine.scoreVsSingleOpponent(cand, oppNormTypes, oppLvl, opp.moves, oppEnriched);
           const candLvl = cand.level || 100;
           const lvlRatio = oppLvl > 0 ? (candLvl / oppLvl) : 1.0;
-          const oppHpMult = (teamEngine.getVariantMultipliers(oppVar).hp) || 1.0;
+          const oppHpMult = (teamEngine.getVariantMultipliers(oppVar, cand.variant).hp) || 1.0;
           const scaledEffPwr = scoreResult.bestMove ? ((scoreResult.bestMove.effectivePower * lvlRatio) / oppHpMult) : 0;
 
           let score = scoreResult.totalScore + (scaledEffPwr >= 180 ? 80 : 0) + ((candLvl - oppLvl) * 2.5);
+          if (scoreResult.worstDefRisk <= 1.0 && scoreResult.bestMove && scoreResult.bestMove.multiplier >= 2.0 && (!scoreResult.bestMove.accuracy || scoreResult.bestMove.accuracy >= 90)) {
+            score += 45;
+          }
           if (!candAlive) score -= 10000;
 
           if (isTrainingTeam && designatedTrainingBattler && candAlive) {
@@ -330,8 +336,8 @@ class DelugeAiAssistant {
         const atkLevel = activeBattler.level || 100;
         const defLevel = activeOppEnriched.level || 100;
         const lvlRatio = defLevel > 0 ? (atkLevel / defLevel) : 1.0;
-        const atkVarMult = teamEngine.getVariantMultipliers(activeBattler.variant);
-        const defVarMult = teamEngine.getVariantMultipliers(activeOppEnriched.variant);
+        const atkVarMult = teamEngine.getVariantMultipliers(activeBattler.variant, activeOppEnriched.variant);
+        const defVarMult = teamEngine.getVariantMultipliers(activeOppEnriched.variant, activeBattler.variant);
         const oppMaxHpVal = (activeOppEnriched.maxHp && activeOppEnriched.maxHp > 0)
           ? activeOppEnriched.maxHp
           : Math.round(defLevel * 4 * (defVarMult.hp || 1.0));
@@ -346,11 +352,13 @@ class DelugeAiAssistant {
           const eff = teamEngine.outgoingEffectiveness(activeBattler, resolved.type, oppTypes, activeOppEnriched);
           const battlerTypes = (activeBattler.types || []).map(teamEngine.normalizeType);
           const isStab = battlerTypes.includes(teamEngine.normalizeType(resolved.type));
-          const accFactor = resolved.isOhko ? 0.30 : (resolved.accuracy ? resolved.accuracy / 100 : 1.0);
+          const accPct = resolved.isOhko ? 30 : (resolved.accuracy || 100);
+          const accFactor = accPct / 100;
           const effectivePower = isStatusMove ? 0 : (resolved.power * eff * (isStab ? 1.5 : 1.0) * (atkVarMult.offense || 1.0));
           const scaledDamagePwr = (effectivePower * lvlRatio) / (defVarMult.hp || 1.0);
           const estDamageHp = Math.round((scaledDamagePwr / 180) * oppMaxHpVal);
-          const canKoCurrentHp = !isStatusMove && !resolved.isOhko && eff > 0 && (estDamageHp >= oppCurrHpVal);
+          const canKoCurrentHp = !isStatusMove && !resolved.isOhko && !resolved.isFixedDamage && !resolved.isCounterMove && eff > 0 && (estDamageHp >= oppCurrHpVal);
+          const canSafelyKo = !isStatusMove && !resolved.isOhko && !resolved.isFixedDamage && !resolved.isCounterMove && eff > 0 && (estDamageHp >= Math.ceil(oppCurrHpVal * 1.15));
 
           let score = (scaledDamagePwr * accFactor);
           if (isStatusMove) {
@@ -361,8 +369,12 @@ class DelugeAiAssistant {
             else if (eff < 1.0) score -= 300;
             if (eff === 0.0) score -= 2000;
             if (isStab) score += 75;
+            else if (eff <= 1.0) score -= 50;
             if (canKoCurrentHp && !resolved.isRecharge && !resolved.isCharge && !resolved.isLocking) {
               score += 250;
+              if (canSafelyKo) {
+                score += ((accPct - 70) * 6) - (resolved.isRecoil ? 60 : 0);
+              }
             }
           }
           if (resolved.isOhko) score -= 450;
@@ -370,6 +382,10 @@ class DelugeAiAssistant {
           if (resolved.isRecharge) score -= 260;
           if (resolved.isCharge) score -= 130;
           if (resolved.isSuicide) score -= 2500;
+          if (resolved.isFixedDamage) score -= 500;
+          if (resolved.isCounterMove) score -= 700;
+          if (accPct < 90 && !resolved.isOhko) score -= (90 - accPct) * 5;
+          if (accPct < 80 && !resolved.isOhko) score -= (80 - accPct) * 8;
 
           if (score > bestMoveScore) {
             bestMoveScore = score;
@@ -377,8 +393,13 @@ class DelugeAiAssistant {
               name: resolved.name,
               type: resolved.type,
               power: resolved.power,
+              accuracy: accPct,
               multiplier: eff,
               isStab: isStab,
+              isRecoil: !!resolved.isRecoil,
+              isOhko: !!resolved.isOhko,
+              isCharge: !!resolved.isCharge,
+              isRecharge: !!resolved.isRecharge,
               estDamageHp: estDamageHp,
               canKoCurrentHp: canKoCurrentHp,
               rawLabel: mObj.rawLabel || resolved.name,
@@ -502,8 +523,8 @@ class DelugeAiAssistant {
       // Evaluate opponent's known moves (or worst-case 100-power STAB attacks) against activeBattler.
       let maxIncomingDamage = 0;
       let worstIncomingMoveName = 'Attack';
-      const oppVarMult = teamEngine.getVariantMultipliers(activeOppEnriched.variant);
-      const battlerVarMult = teamEngine.getVariantMultipliers(activeBattler.variant);
+      const oppVarMult = teamEngine.getVariantMultipliers(activeOppEnriched.variant, activeBattler.variant);
+      const battlerVarMult = teamEngine.getVariantMultipliers(activeBattler.variant, activeOppEnriched.variant);
       const oppLvlRatio = (activeBattler.level && activeBattler.level > 0)
         ? ((activeOppEnriched.level || 100) / activeBattler.level)
         : 1.0;
@@ -529,6 +550,45 @@ class DelugeAiAssistant {
         if (estDmg > maxIncomingDamage) {
           maxIncomingDamage = estDmg;
           worstIncomingMoveName = resolvedM.name;
+        }
+      }
+
+      // 2B. Tactical Switch Evaluation when active battler is 0x walled or badly outmatched while a strong bench counter exists
+      let shouldSwitchToCounter = false;
+      let switchCounterName = null;
+      let switchCounterReason = '';
+      if (!isTrainingTeam && !isActiveOppFainted && !isActiveBattlerFainted && battleData.hasSwitchBtn && battleData.hasBenchRadios && !canPlayerKoFirst) {
+        const activeBestMult = bestMove ? (bestMove.multiplier || 0) : 0;
+        let worstActiveRisk = 0;
+        for (const ot of oppTypes) {
+          const r = teamEngine.incomingEffectiveness(activeBattler, ot, activeOppEnriched);
+          if (r > worstActiveRisk) worstActiveRisk = r;
+        }
+        const isWalled = (activeBestMult === 0);
+        const isBadlyOutmatched = (activeBestMult < 1.0 && worstActiveRisk >= 2.0 && maxIncomingDamage >= Math.round(activeBattlerHp * 0.45));
+        if (isWalled || isBadlyOutmatched) {
+          let bestBench = null;
+          let bestBenchScore = -Infinity;
+          for (const cand of teamCandidates) {
+            if (!cand || cand.isFainted || (cand.hp !== undefined && cand.hp <= 0)) continue;
+            if ((cand.name || '').toLowerCase() === (activeBattler.name || '').toLowerCase()) continue;
+            if ((cand.level || 0) < Math.max(60, (activeOpp.level || 100) - 20)) continue;
+            const benchScore = teamEngine.scoreVsSingleOpponent(cand, oppTypes, activeOpp.level || 100, activeOpp.moves, activeOppEnriched);
+            const benchMult = benchScore.bestMove ? (benchScore.bestMove.multiplier || 0) : 0;
+            if (isWalled && benchMult <= 0) continue;
+            if (!isWalled && (benchMult < 2.0 || benchScore.worstDefRisk > 1.0)) continue;
+            if (benchScore.totalScore > bestBenchScore) {
+              bestBenchScore = benchScore.totalScore;
+              bestBench = cand;
+            }
+          }
+          if (bestBench) {
+            shouldSwitchToCounter = true;
+            switchCounterName = bestBench.name;
+            switchCounterReason = isWalled
+              ? `${activeBattler.name} is 0x walled by ${activeOpp.name}; switching to ${bestBench.name}`
+              : `${activeBattler.name} faces ${worstActiveRisk}x/resisted bad matchup vs ${activeOpp.name}; switching to ${bestBench.name}`;
+          }
         }
       }
 
@@ -649,6 +709,9 @@ class DelugeAiAssistant {
         isCarryBattler: Boolean(isCarryBattler),
         maxIncomingDamage: maxIncomingDamage,
         canOpponentOneShotFromFull: canOpponentOneShotFromFull,
+        shouldSwitchToCounter: Boolean(shouldSwitchToCounter),
+        switchCounterName: switchCounterName,
+        switchCounterReason: switchCounterReason,
         isTrainingTeam: Boolean(isTrainingTeam),
         isHighLevelTrainee: Boolean(isHighLevelTrainee),
         designatedTrainingBattler: designatedTrainingBattler,

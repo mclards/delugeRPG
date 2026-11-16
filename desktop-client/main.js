@@ -1,7 +1,7 @@
 // main.js - Electron Main Process for DelugeRPG Desktop Client
 // Hardened against network tracking, WebRTC leaks, and fingerprinting
 
-const { app, BrowserWindow, globalShortcut, Menu, session, ipcMain } = require('electron');
+const { app, BrowserWindow, globalShortcut, Menu, session, ipcMain, webContents } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -597,6 +597,35 @@ if (!gotTheLock) {
     }
   });
 
+  // IPC Handler: Force-restart a hung guest <webview> renderer without restarting the desktop client
+  ipcMain.handle('recover-hung-webview', async (event, payload) => {
+    try {
+      const targetId = payload && Number.isFinite(Number(payload.webContentsId))
+        ? Number(payload.webContentsId)
+        : null;
+      const requestedUrl = (payload && typeof payload.targetUrl === 'string' && /^https?:\/\//i.test(payload.targetUrl))
+        ? payload.targetUrl
+        : 'https://www.delugerpg.com/map';
+      if (targetId === null) {
+        return { success: false, error: 'Missing webContentsId' };
+      }
+      const wc = webContents.fromId(targetId);
+      if (!wc || wc.isDestroyed() || (typeof wc.getType === 'function' && wc.getType() !== 'webview')) {
+        return { success: false, error: 'Target webview not found' };
+      }
+      const ts = new Date().toISOString().substring(11, 23);
+      appendSystemLog(`[${ts}] [RELOAD_RECOVERY] Force-restarting hung webview renderer for ${requestedUrl}\n`);
+      wc.forcefullyCrashRenderer();
+      await new Promise(resolve => setTimeout(resolve, 150));
+      if (!wc.isDestroyed()) {
+        wc.loadURL(requestedUrl).catch(() => {});
+      }
+      return { success: true, targetUrl: requestedUrl };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
   // IPC Handler: Dynamically update and apply proxy settings
   ipcMain.handle('apply-proxy', async (event, proxySettings) => {
     try {
@@ -662,6 +691,25 @@ if (!gotTheLock) {
       } catch (_) {}
       appendSystemLog(line);
     });
+
+    if (contents.getType && contents.getType() === 'webview') {
+      contents.on('unresponsive', () => {
+        const ts = new Date().toISOString().substring(11, 23);
+        const curUrl = (!contents.isDestroyed() && typeof contents.getURL === 'function') ? contents.getURL() : '';
+        appendSystemLog(`[${ts}] [WEBVIEW_UNRESPONSIVE] Guest renderer hung on ${curUrl}\n`);
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+          mainWindow.webContents.send('webview-hung-state', { hung: true, url: curUrl });
+        }
+      });
+      contents.on('responsive', () => {
+        const ts = new Date().toISOString().substring(11, 23);
+        const curUrl = (!contents.isDestroyed() && typeof contents.getURL === 'function') ? contents.getURL() : '';
+        appendSystemLog(`[${ts}] [WEBVIEW_RESPONSIVE] Guest renderer recovered on ${curUrl}\n`);
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+          mainWindow.webContents.send('webview-hung-state', { hung: false, url: curUrl });
+        }
+      });
+    }
 
     contents.on('before-input-event', (inputEvent, input) => {
       if (input.type === 'keyDown') {

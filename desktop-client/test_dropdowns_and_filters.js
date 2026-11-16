@@ -227,11 +227,180 @@ runTest('gym_leaders.json: Total count and regional league parity audit', () => 
   assert(tierTotal + leagueTotal === 449, `Total opponents must equal 449 (got ${tierTotal + leagueTotal})`);
 });
 
+// TEST 8B: G-Max Challenge Battle Now Routing & 6-Step Auto-Entry State Machine
+runTest('G-Max Challenge: Battle Now /gmax routing and 6-step entry state machine', () => {
+  const appJs = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const preloadJs = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
+
+  // 1. Verify app.js routing & IPC wiring (Step 1)
+  assert(/teamCategorySelect\s*&&\s*teamCategorySelect\.value\s*===\s*'GMAX_CHALLENGE'\)\s*\{\s*return\s*'\/gmax';/.test(appJs), 'resolveTargetBattleUrl() must route GMAX_CHALLENGE to /gmax');
+  assert(appJs.includes("'start-gmax-challenge-flow'"), 'app.js must dispatch start-gmax-challenge-flow IPC on Battle Now click / did-finish-load');
+  assert(appJs.includes("'gmax-challenge-flow-status'"), 'app.js must listen for gmax-challenge-flow-status updates');
+
+  // 2. Extract and execute the real G-Max state machine helpers from game-preload.js
+  const startMarker = '// --- 7B. G-MAX CHALLENGE AUTO-ENTRY STATE MACHINE (6-STEP SEQUENCE) ---';
+  const endMarker = 'function processGmaxChallengeEntryStep()';
+  const sIdx = preloadJs.indexOf(startMarker);
+  const eIdx = preloadJs.indexOf(endMarker);
+  assert(sIdx !== -1 && eIdx !== -1 && eIdx > sIdx, 'game-preload.js must define G-Max 6-step state machine helpers');
+
+  const vm = require('vm');
+  const helperCode = preloadJs.slice(sIdx, eIdx);
+
+  function makeMockEl(tagName, text, attrs = {}, opts = {}) {
+    const el = {
+      tagName: String(tagName || 'BUTTON').toUpperCase(),
+      innerText: text,
+      textContent: text,
+      value: tagName.toLowerCase() === 'input' ? text : undefined,
+      disabled: Boolean(opts.disabled),
+      parentElement: opts.parentElement || null,
+      offsetWidth: opts.hidden ? 0 : 120,
+      offsetHeight: opts.hidden ? 0 : 32,
+      classList: {
+        _set: new Set(opts.classes || []),
+        contains(c) { return this._set.has(c); }
+      },
+      getAttribute(k) { return Object.prototype.hasOwnProperty.call(attrs, k) ? attrs[k] : null; },
+      closest(sel) {
+        if (opts.inNav && /#del_header|#navwrap|nav|header|#footer/.test(sel)) return {};
+        return null;
+      },
+      querySelectorAll(q) {
+        if (Array.isArray(opts.children)) return opts.children;
+        return [];
+      }
+    };
+    return el;
+  }
+
+  const sandbox = {
+    document: {},
+    isElementVisible: (el) => Boolean(el && el.offsetWidth > 0 && el.offsetHeight > 0),
+    isCatchHoneypotTrap: (el) => Boolean(el && el.getAttribute && el.getAttribute('aria-hidden') === 'true'),
+    Date,
+    Set,
+    String,
+    Array,
+    Object,
+    Boolean,
+    RegExp
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(helperCode, sandbox);
+
+  // Step 2: /gmax Choose selection prefers exact Slot 1 G-MAX TARGET card over other eligible cards
+  const baseState = { active: true, targetName: 'Metallic Blastoise', clickedSteps: {} };
+  const wrongChoose = makeMockEl('button', 'Choose');
+  wrongChoose.parentElement = makeMockEl('div', 'Dark Charizard Level: 100 Exp: 100,000', {}, { children: [wrongChoose] });
+  const targetChoose = makeMockEl('button', 'Choose');
+  targetChoose.parentElement = makeMockEl('div', 'Metallic Blastoise Level: 100 Exp: 100,000', {}, { children: [targetChoose] });
+  const notEligibleBtn = makeMockEl('button', 'Not Eligible', { disabled: 'true' }, { disabled: true });
+  const navBattleLink = makeMockEl('a', 'Battle', { href: '/battle' }, { inNav: true });
+  const step2Controls = [notEligibleBtn, wrongChoose, targetChoose].filter(sandbox.isClickableGmaxControl);
+  const step2Match = sandbox.evaluateGmaxEntryStepOnPage(baseState, '/gmax', step2Controls);
+  assert(step2Match && step2Match.stage === 'choose', 'Step 2 on /gmax must match Choose stage');
+  assert.strictEqual(step2Match.el, targetChoose, 'Step 2 must pick the Choose button inside the Slot 1 G-MAX TARGET card');
+  assert(!sandbox.isClickableGmaxControl(notEligibleBtn), 'Not Eligible button must never be treated as clickable');
+  assert(!sandbox.isClickableGmaxControl(navBattleLink), 'Header/nav elements must never be treated as clickable');
+
+  // Step 3: /gmax/confirm/... Pay with varying coin prices (with or without space from coin icon)
+  const cancelBtn = makeMockEl('a', 'Cancel', { href: '/gmax' });
+  const pay23kBtn = makeMockEl('button', 'Pay 23,000 and Start Challenge');
+  const step3State = { active: true, targetName: 'Metallic Blastoise', clickedSteps: { choose: 1 } };
+  const step3Match = sandbox.evaluateGmaxEntryStepOnPage(step3State, '/gmax/confirm/991', [cancelBtn, pay23kBtn]);
+  assert(step3Match && step3Match.stage === 'pay' && step3Match.el === pay23kBtn, 'Step 3 must match variable price Pay ... and Start Challenge button');
+
+  const payLargeCompactBtn = makeMockEl('button', 'Pay 1,250,000and Start Challenge');
+  const step3LargeMatch = sandbox.evaluateGmaxEntryStepOnPage(step3State, '/gmax/confirm/992', [payLargeCompactBtn]);
+  assert(step3LargeMatch && step3LargeMatch.stage === 'pay' && step3LargeMatch.el === payLargeCompactBtn, 'Step 3 must match compact coin-icon Pay <price>and Start Challenge text');
+
+  // Idempotency: Pay must NEVER be selected twice once clickedSteps.pay is recorded; non-pay retries cleanly after 3s
+  const alreadyPaidState = { active: true, targetName: 'Metallic Blastoise', clickedSteps: { choose: 1, pay: 2 } };
+  assert.strictEqual(sandbox.evaluateGmaxEntryStepOnPage(alreadyPaidState, '/gmax/confirm/991', [pay23kBtn]), null, 'Pay button must not be clicked twice');
+  const timedPayState = { active: true, targetName: 'Metallic Blastoise', clickedSteps: { choose: { ts: Date.now() - 10000, count: 1 }, pay: { ts: Date.now() - 10000, count: 1 } } };
+  assert.strictEqual(sandbox.evaluateGmaxEntryStepOnPage(timedPayState, '/gmax/confirm/991', [pay23kBtn]), null, 'Pay button must never auto-retry even after timeout');
+  const staleChooseState = { active: true, targetName: 'Metallic Blastoise', clickedSteps: { choose: { ts: Date.now() - 3500, count: 1 } } };
+  const chooseRetryMatch = sandbox.evaluateGmaxEntryStepOnPage(staleChooseState, '/gmax', [targetChoose]);
+  assert(chooseRetryMatch && chooseRetryMatch.stage === 'choose', 'Non-pay Choose stage must allow 1 bounded retry if still on /gmax after 3s');
+  const exhaustedChooseState = { active: true, targetName: 'Metallic Blastoise', clickedSteps: { choose: { ts: Date.now() - 3500, count: 2 } } };
+  assert.strictEqual(sandbox.evaluateGmaxEntryStepOnPage(exhaustedChooseState, '/gmax', [targetChoose]), null, 'Non-pay Choose stage must stop after 2 attempts');
+
+  // Step 4: "GMax Challenge Page" green confirmation alert link
+  const gmaxPageBtn = makeMockEl('a', 'GMAX CHALLENGE PAGE', { href: '/challenge/gmax' });
+  const step4Match = sandbox.evaluateGmaxEntryStepOnPage(alreadyPaidState, '/gmax/confirm/991', [gmaxPageBtn]);
+  assert(step4Match && step4Match.stage === 'challengePage' && step4Match.el === gmaxPageBtn, 'Step 4 must match GMAX CHALLENGE PAGE button');
+
+  // Step 5: /gmax AND /challenge/gmax both click BATTLE! and strictly ignore Abandon Challenge
+  const abandonBtn = makeMockEl('button', 'Abandon Challenge');
+  const battleBtn = makeMockEl('a', 'Battle!');
+  const step5State = { active: true, targetName: 'Metallic Blastoise', clickedSteps: { choose: 1, pay: 2, challengePage: 3 } };
+  const step5OnGmaxMatch = sandbox.evaluateGmaxEntryStepOnPage(step5State, '/gmax', [abandonBtn, battleBtn]);
+  assert(step5OnGmaxMatch && step5OnGmaxMatch.stage === 'battle' && step5OnGmaxMatch.el === battleBtn, 'Step 5 must click BATTLE! on /gmax (challenge dashboard) and avoid Abandon Challenge');
+  const step5OnChallengeMatch = sandbox.evaluateGmaxEntryStepOnPage(step5State, '/challenge/gmax', [abandonBtn, battleBtn]);
+  assert(step5OnChallengeMatch && step5OnChallengeMatch.stage === 'battle' && step5OnChallengeMatch.el === battleBtn, 'Step 5 must also click BATTLE! on /challenge/gmax');
+
+  // Step 6: Battle screen clicks Continue after BATTLE! disappeared, or hands off when pokeselect radios + Auto > Loop default are active
+  const switchBtn = makeMockEl('button', 'Switch Pokemon');
+  const homeLink = makeMockEl('a', 'Continue Home', { href: '/home' });
+  const continueBtn = makeMockEl('input', 'Continue');
+  const step6State = { active: true, targetName: 'Metallic Blastoise', clickedSteps: { choose: 1, pay: 2, challengePage: 3, battle: 4 } };
+  const step6Match = sandbox.evaluateGmaxEntryStepOnPage(step6State, '/battle/challenge/555', [switchBtn, homeLink, continueBtn]);
+  assert(step6Match && step6Match.stage === 'continue' && step6Match.el === continueBtn, 'Step 6 must click Continue on the resulting battle screen');
+  assert(preloadJs.includes('const hasLeadRadios = document.querySelectorAll('), 'game-preload.js must hand off pokeselect lead prep screen to Auto + Loop AI deployer');
+  assert(appJs.includes('function setAutoAndLoopDefaultChecked()') && appJs.includes('setAutoAndLoopDefaultChecked();'), 'app.js must default-check Auto and Loop checkboxes on startup');
+});
+
+// TEST 8C: Instant Candidate Rotation (G-Max & Training Pools) & Scan-Only Box Refresh
+runTest('Candidate Cache & Instant Build Best Team Rotation (G-Max + Training Pools)', () => {
+  const appJs = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+
+  // 1. Verify Build Best Team no longer triggers slow multi-page box scan on click
+  const buildBtnStart = appJs.indexOf("buildTeamBtn.addEventListener('click'");
+  const buildBtnEnd = appJs.indexOf("applyTeamBtn.addEventListener('click'", buildBtnStart);
+  assert(buildBtnStart !== -1 && buildBtnEnd > buildBtnStart, 'Must locate buildTeamBtn click block');
+  const buildBtnSlice = appJs.slice(buildBtnStart, buildBtnEnd);
+  assert(!buildBtnSlice.includes("start-scan-pokemon"), 'buildTeamBtn must build from cached collection without re-scanning all box pages');
+  assert(buildBtnSlice.includes('executeTeamBuild(targetLeader, { advanceCandidate: true })'), 'buildTeamBtn must pass advanceCandidate: true for G-Max/Training rotation');
+
+  // 2. Verify Scan My Box & pokemon-scan-complete refresh behind-the-scenes lists and reset cursors
+  assert(appJs.includes('function refreshCandidateListsCache('), 'app.js must define refreshCandidateListsCache');
+  assert(appJs.includes('refreshCandidateListsCache({ resetCursors: true })'), 'pokemon-scan-complete must rebuild cached candidate lists and reset cursors');
+  assert(appJs.includes('trainingCursorsByPool[poolKey]'), 'Training mode must track independent candidate batch cursors per Candidate Pool filter');
+
+  // 3. Functional test: G-Max Slot 1 rotation across multiple Lv 100 G-Max candidates via teamEngine.buildBestTeam
+  const mockBox = [
+    { id: 'c1', name: 'Dark Mega Sableye', level: 100, types: ['Dark', 'Ghost'], attacks: [{ name: 'Astral Barrage', type: 'Ghost', power: 120 }] },
+    { id: 'c2', name: 'Dark Typhlosion', level: 100, types: ['Fire', 'Dark'], attacks: [{ name: 'Eruption', type: 'Fire', power: 150 }] },
+    { id: 'c3', name: 'Dark Zacian (Behemoth Blade)', level: 100, types: ['Fairy', 'Steel'], attacks: [{ name: 'Moonblast', type: 'Fairy', power: 95 }] },
+    { id: 'c4', name: 'Ghostly Iron Valiant', level: 100, types: ['Fairy', 'Fighting'], attacks: [{ name: 'Moonblast', type: 'Fairy', power: 95 }] },
+    { id: 'c5', name: 'Celesteela', level: 100, types: ['Steel', 'Flying'], attacks: [{ name: 'Air Slash', type: 'Flying', power: 75 }] },
+    { id: 'g1', name: 'Ghostly Blastoise', level: 100, types: ['Water', 'Ghost'], attacks: [{ name: 'Hydro Pump', type: 'Water', power: 110 }] },
+    { id: 'g2', name: 'Metallic Venusaur', level: 100, types: ['Grass', 'Poison'], attacks: [{ name: 'Solar Beam', type: 'Grass', power: 120 }] },
+    { id: 'g3', name: 'Shadow Charizard', level: 100, types: ['Fire', 'Flying'], attacks: [{ name: 'Flamethrower', type: 'Fire', power: 90 }] }
+  ];
+  const gmaxPool = teamEngine.filterCandidatePool(mockBox, 'GMAX');
+  const rankedGmax = teamEngine.getRankedGmaxChallengeCandidates(gmaxPool, mockBox);
+  assert.strictEqual(rankedGmax.length, 3, `Expected 3 unique Lv 100 G-Max candidates, got ${rankedGmax.length}`);
+
+  const challengeTarget = { name: 'G-Max Challenge Arena', types: ['Mixed'], avgLevel: 100, isChallenge: true, battleUrl: '/challenge/gmax' };
+  const team0 = teamEngine.buildBestTeam(challengeTarget, gmaxPool, mockBox, { targetIndex: 0 });
+  const team1 = teamEngine.buildBestTeam(challengeTarget, gmaxPool, mockBox, { targetIndex: 1 });
+  const team2 = teamEngine.buildBestTeam(challengeTarget, gmaxPool, mockBox, { targetIndex: 2 });
+
+  assert.strictEqual(team0[0].id, rankedGmax[0].id, 'targetIndex 0 must select 1st G-Max target in Slot 1');
+  assert.strictEqual(team1[0].id, rankedGmax[1].id, 'targetIndex 1 must rotate Slot 1 to 2nd G-Max target');
+  assert.strictEqual(team2[0].id, rankedGmax[2].id, 'targetIndex 2 must rotate Slot 1 to 3rd G-Max target');
+  assert.strictEqual(new Set([team0[0].id, team1[0].id, team2[0].id]).size, 3, 'Each Build click rotation must pick a distinct Slot 1 G-Max target');
+  assert(!team1.slice(1).some(p => p.id === team1[0].id), 'Rotated Slot 1 target must never duplicate in Slots 2-6 carries');
+});
+
 // TEST 9: 100% 7-Bit Clean ASCII Verification Across All Files
 runTest('7-Bit Clean ASCII Integrity Verification', () => {
   const filesToAudit = [
     'app.html',
     'app.js',
+    'game-preload.js',
     'team_engine.js',
     'test_deep_verification.js',
     'test_dropdowns_and_filters.js'

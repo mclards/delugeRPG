@@ -6477,6 +6477,12 @@
               "type": "Ghost",
               "power": 40,
               "category": "Physical"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark",
+              "power": 60,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
@@ -6528,11 +6534,11 @@
         }
       ],
       "expYield": {
-        "baselinePool": 35805,
-        "lastGainedExp": 11935,
-        "lastCoinsWon": 2089,
-        "lastParticipantsCount": 3,
-        "lastCalibratedAt": 1794324455038
+        "baselinePool": 19404,
+        "lastGainedExp": 9702,
+        "lastCoinsWon": 1698,
+        "lastParticipantsCount": 2,
+        "lastCalibratedAt": 1794809754980
       },
       "npcId": 708
     },
@@ -7019,6 +7025,12 @@
               "type": "Ghost",
               "power": 40,
               "category": "Physical"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark",
+              "power": 60,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
@@ -7183,6 +7195,12 @@
               "name": "Giga Drain",
               "type": "Grass",
               "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Astral Barrage",
+              "type": "Ghost",
+              "power": 120,
               "category": "Special"
             }
           ],
@@ -9500,6 +9518,12 @@
               "type": "Ghost",
               "power": 40,
               "category": "Physical"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark",
+              "power": 60,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
@@ -9590,6 +9614,12 @@
               "name": "Shadow Sneak",
               "type": "Ghost",
               "power": 40,
+              "category": "Physical"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark",
+              "power": 60,
               "category": "Physical"
             }
           ],
@@ -9755,6 +9785,12 @@
               "name": "Giga Drain",
               "type": "Grass",
               "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Astral Barrage",
+              "type": "Ghost",
+              "power": 120,
               "category": "Special"
             }
           ],

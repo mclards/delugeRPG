@@ -19,9 +19,11 @@ const appJsPath = path.join(__dirname, 'app.js');
 const preloadJsPath = path.join(__dirname, 'game-preload.js');
 const configJsonPath = path.join(__dirname, 'config.json');
 
+const mainJsPath = path.join(__dirname, 'main.js');
 const appHtml = fs.readFileSync(appHtmlPath, 'utf8');
 const appJs = fs.readFileSync(appJsPath, 'utf8');
 const preloadJs = fs.readFileSync(preloadJsPath, 'utf8');
+const mainJs = fs.readFileSync(mainJsPath, 'utf8');
 const configJson = JSON.parse(fs.readFileSync(configJsonPath, 'utf8'));
 
 let testsPassed = 0;
@@ -192,6 +194,7 @@ runTest('refreshBtn: Reload Button & Stale Guest Input Focus Reset Guard', () =>
   assert(appHtml.includes('id="refreshBtn"'), 'app.html must define refreshBtn');
   assert(appJs.includes("refreshBtn.addEventListener('click'"), 'refreshBtn must have click listener');
   assert(!appJs.includes('stopBot()'), 'app.js must never call undefined stopBot() inside refreshBtn');
+  assert(appJs.includes('delugeView.stop()'), 'refreshBtn must cancel stalled pending navigations with delugeView.stop() before reload');
   assert(appJs.includes('delugeView.reload()') || appJs.includes('delugeView.reloadIgnoringCache()'), 'refreshBtn must invoke reload');
 });
 
@@ -381,7 +384,8 @@ runTest('teamBattleAutoCheck: Safe In-Battle Auto Checkbox Button & Zero-Glow St
 
   // 3. Verify event listener and safe halts in app.js
   assert(appJs.includes("teamBattleAutoCheck.addEventListener('change'"), 'app.js must attach change listener to teamBattleAutoCheck');
-  assert(appJs.includes('850 + Math.floor(Math.random() * 500)'), 'app.js must use randomized human reaction delay');
+  assert(appJs.includes('Math.max(1150, Math.min(2100, Math.round(1500 + gZ * 260)))'), 'app.js must use Gaussian randomized human reaction delay for prep screen');
+  assert(appJs.includes('Math.max(920, Math.min(1800, Math.round(1220 + gZ * 220)))'), 'app.js must use Gaussian randomized human reaction delay for battle turns');
   assert(appJs.includes('isBattleAutoRunning = false'), 'app.js must halt auto mode on state changes');
 
   // 4. Verify Auto + Loop trainee levelKnown guard so bench placeholders never falsely trigger Lv 100 completion
@@ -407,6 +411,22 @@ runTest('Segmented Sliding Tab Component (.tab-container) & Unified Scan Box Cap
   assert(appHtml.includes('id="syncTrainersStatusDot"'), 'Team Builder must include syncTrainersStatusDot');
   assert(appHtml.includes('id="syncTrainersStatusBadge"'), 'Team Builder must include syncTrainersStatusBadge');
   assert(!appHtml.includes('id="scanTrainersBtn"'), 'Separate Trainer Intel button must be removed from app.html');
+});
+
+runTest('Hung Webview Recovery & G-Max Confirm Stall Diagnostics Audit', () => {
+  assert(mainJs.includes("ipcMain.handle('recover-hung-webview'"), 'main.js must expose recover-hung-webview IPC handler');
+  assert(mainJs.includes('wc.forcefullyCrashRenderer()'), 'recover-hung-webview must reset hung guest renderer cleanly');
+  assert(mainJs.includes("contents.on('unresponsive'"), 'main.js must attach unresponsive telemetry on webview WebContents');
+  assert(appJs.includes('async function recoverHungWebviewAndLoad('), 'app.js must define recoverHungWebviewAndLoad helper');
+  assert(appJs.includes('function resolveSafeReloadTargetUrl('), 'app.js must define resolveSafeReloadTargetUrl redirect helper');
+  assert(appJs.includes("path.startsWith('/gmax/evolve')"), 'resolveSafeReloadTargetUrl must redirect away from /gmax/evolve/confirm dead-end URLs');
+  assert(appJs.includes('guestGmaxNoActiveErrorUrl'), 'app.js must track inactive G-Max Challenge error URLs');
+  assert(preloadJs.includes('isGmaxNoActiveError'), 'game-preload.js must report inactive G-Max Challenge error state');
+  assert(appJs.includes("recoverHungWebviewAndLoad(reloadTargetUrl, 'Manual reload timeout')"), '#refreshBtn timeout must invoke hung-renderer recovery with safe target');
+  assert(appJs.includes("recoverHungWebviewAndLoad(fullUrl, 'Battle Now G-Max navigation timeout')"), 'G-Max Battle Now navigation timeout must invoke hung-renderer recovery');
+  assert(preloadJs.includes('function initConfirmDiagnosticsAndStallMonitor()'), 'game-preload.js must include G-Max confirm diagnostics & stall monitor');
+  assert(preloadJs.includes('[GMAX_CONFIRM_DIAG]'), 'game-preload.js must emit [GMAX_CONFIRM_DIAG] on confirm pages');
+  assert(preloadJs.includes('[GUEST_STALL]'), 'game-preload.js must log [GUEST_STALL] when renderer loop blocks');
 });
 
 console.log('================================================================');

@@ -284,6 +284,39 @@ const TARGETS = {
         "Centiskorch", "Hatterene", "Grimmsnarl", "Alcremie", "Copperajah",
         "Duraludon", "Urshifu"
     ],
+    gmaxLines: [
+        "Bulbasaur", "Ivysaur", "Venusaur",
+        "Charmander", "Charmeleon", "Charizard",
+        "Squirtle", "Wartortle", "Blastoise",
+        "Caterpie", "Metapod", "Butterfree",
+        "Pichu", "Pikachu",
+        "Meowth",
+        "Machop", "Machoke", "Machamp",
+        "Gastly", "Haunter", "Gengar",
+        "Krabby", "Kingler",
+        "Lapras",
+        "Eevee",
+        "Munchlax", "Snorlax",
+        "Trubbish", "Garbodor",
+        "Meltan", "Melmetal",
+        "Grookey", "Thwackey", "Rillaboom",
+        "Scorbunny", "Raboot", "Cinderace",
+        "Sobble", "Drizzile", "Inteleon",
+        "Rookidee", "Corvisquire", "Corviknight",
+        "Blipbug", "Dottler", "Orbeetle",
+        "Chewtle", "Drednaw",
+        "Rolycoly", "Carkol", "Coalossal",
+        "Applin", "Flapple", "Appletun",
+        "Silicobra", "Sandaconda",
+        "Toxel", "Toxtricity",
+        "Sizzlipede", "Centiskorch",
+        "Hatenna", "Hattrem", "Hatterene",
+        "Impidimp", "Morgrem", "Grimmsnarl",
+        "Milcery", "Alcremie",
+        "Cufant", "Copperajah",
+        "Duraludon",
+        "Kubfu", "Urshifu"
+    ],
     starters: [
         "Bulbasaur", "Ivysaur", "Venusaur",
         "Charmander", "Charmeleon", "Charizard",
@@ -342,6 +375,7 @@ const TARGETS = {
 const LEGENDARY_LOWER = TARGETS.legendaries.map(l => l.toLowerCase());
 const MEGAS_LOWER = TARGETS.megas.map(m => m.toLowerCase());
 const GMAX_SPECIES_LOWER = TARGETS.gmaxSpecies.map(g => g.toLowerCase());
+const GMAX_LINES_LOWER = (TARGETS.gmaxLines || TARGETS.gmaxSpecies).map(g => g.toLowerCase());
 const startersList = TARGETS.starters.map(s => s.toLowerCase());
 const rareLinesList = TARGETS.rareLines.map(r => r.toLowerCase());
 const PSEUDO_LOWER = (TARGETS.pseudoLegendaries || []).map(p => p.toLowerCase());
@@ -386,6 +420,9 @@ let config = {
     legendaryUltraBeasts: true,
     legendaryParadox: true,
     findMegasAndGigantamax: false,
+    megaTierMegas: true,
+    megaTierGMax: true,
+    megaTierStarters: true,
     findAnySpecialVariant: false,
     enableVariantFilter: false,
     selectedVariants: ['normal', ...VARIANTS],
@@ -399,7 +436,14 @@ let config = {
     hideAdsCosmetically: true
 };
 try {
-    const cachedCfgRaw = localStorage.getItem('deluge_cached_target_config') || sessionStorage.getItem('deluge_cached_target_config');
+    // Scrub any legacy bot keys from shared origin localStorage so site scripts cannot inspect them
+    if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem('deluge_cached_target_config');
+        window.localStorage.removeItem('deluge_cached_collection');
+    }
+} catch (_) {}
+try {
+    const cachedCfgRaw = sessionStorage.getItem('deluge_cached_target_config');
     if (cachedCfgRaw) {
         const parsedCfg = JSON.parse(cachedCfgRaw);
         if (parsedCfg && typeof parsedCfg === 'object') {
@@ -634,15 +678,20 @@ function dismissGoogleVignetteOverlay() {
             }
         }
 
-        // C. Collapse any fixed full-screen interstitial overlays holding ad iframes
-        const fixedElements = document.querySelectorAll('div[style*="position: fixed"], div[style*="position:fixed"], ins.adsbygoogle[data-vignette-loaded]');
+        // C. Collapse any fixed or class-based full-screen ad/interstitial overlays holding ad frames or blocking clicks
+        const fixedElements = document.querySelectorAll(
+            'div[style*="position: fixed"], div[style*="position:fixed"], ins.adsbygoogle[data-vignette-loaded], .fc-ab-root, .fc-dialog-overlay, div[class*="vignette" i], div[id*="vignette" i], ins[class*="vignette" i], div[class*="interstitial" i], div[id*="interstitial" i]'
+        );
         for (let f = 0; f < fixedElements.length; f++) {
             const el = fixedElements[f];
             if (el.id === 'del_header' || el.id === 'navwrap' || (el.closest && el.closest('#del_header, #navwrap, nav, .modal, .modal-backdrop, .modal-dialog, [role="dialog"], #cboxContent, #colorbox, .ui-dialog, form, #user_pokes, #showmon, .boxwrap, #pokedex, #team, main, #main, #content, .content, table, .alert, .notify_done, .notify'))) {
                 continue;
             }
             const hasAdChild = el.querySelector('iframe[src*="google"], iframe[src*="doubleclick"], iframe[id^="aswift"], ins.adsbygoogle, #dismiss-button, div[id^="oa-360-"], div[class*="optad360"]');
-            const isAd = el.id && (el.id.indexOf('aswift') !== -1 || el.id.indexOf('google') !== -1 || el.id.indexOf('oa-360') !== -1 || el.id.indexOf('optad360') !== -1);
+            const clsLow = (el.className && typeof el.className === 'string') ? el.className.toLowerCase() : '';
+            const idLow = (el.id || '').toLowerCase();
+            const isAd = (idLow && (idLow.indexOf('aswift') !== -1 || idLow.indexOf('google') !== -1 || idLow.indexOf('oa-360') !== -1 || idLow.indexOf('optad360') !== -1 || idLow.indexOf('vignette') !== -1)) ||
+                clsLow.indexOf('fc-ab-root') !== -1 || clsLow.indexOf('fc-dialog-overlay') !== -1 || clsLow.indexOf('vignette') !== -1 || clsLow.indexOf('interstitial') !== -1;
             if (hasAdChild || isAd || el.hasAttribute('data-vignette-loaded')) {
                 if (el.style.getPropertyValue('display') !== 'none') {
                     el.style.setProperty('display', 'none', 'important');
@@ -1192,8 +1241,10 @@ ipcRenderer.on('update-config', (event, newSettings) => {
         applyCosmeticAdHiding();
         const currentStr = JSON.stringify(config);
         try {
-            localStorage.setItem('deluge_cached_target_config', currentStr);
             sessionStorage.setItem('deluge_cached_target_config', currentStr);
+            if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.removeItem('deluge_cached_target_config');
+            }
         } catch (_) {}
         if (currentStr !== lastSyncedConfigStr) {
             lastSyncedConfigStr = currentStr;
@@ -1312,10 +1363,20 @@ function getPreloadBaseSpecies(name) {
         .toLowerCase();
 }
 
+const PRELOAD_TARGET_TAG_REGEX = /\b(?:G-Max\/Mega\/Starter|Mega\/Starter|G-Max\/Starter|Mega\/G-Max|Mega Line|G-Max Line|Rare Line|Special Form|Special Variant|Mega Evolution|G-Max|Gigantamax|Mega|Starter|Custom Target|Ultra Beast|Paradox Pokemon|Paradox|Legendary|Rare\/Legendary|Pseudo-Legendary|Pseudo|Dex Missing|Missing Dex|New Dex|New Variant|Dex Completionist|Type Match(?:\s*\([^)]*\))?|Elemental Type Match|Wild Encounter)\s*:\s*/gi;
+
 function isPreloadActualMega(name) {
     if (!name) return false;
     const lower = String(name).toLowerCase().trim();
     return lower.includes('mega ') || lower.includes('primal ') || lower.startsWith('mega-') || lower.endsWith(' mega') || lower.endsWith(' primal');
+}
+
+function isPreloadAlreadyGmax(pokeOrName) {
+    if (!pokeOrName) return false;
+    const raw = typeof pokeOrName === 'string' ? pokeOrName : (pokeOrName.name || '');
+    const lower = raw.replace(PRELOAD_TARGET_TAG_REGEX, '').toLowerCase().trim();
+    const variant = (typeof pokeOrName === 'object' && pokeOrName.variant) ? String(pokeOrName.variant).toLowerCase() : '';
+    return lower.includes('g-max') || lower.includes('gigantamax') || /\bgmax\b/.test(lower) || variant.includes('g-max') || variant.includes('gmax');
 }
 
 function isPreloadLegendaryOrSpecial(name) {
@@ -1327,10 +1388,10 @@ function isPreloadLegendaryOrSpecial(name) {
         return true;
     }
     const clean = String(name)
+        .replace(PRELOAD_TARGET_TAG_REGEX, '')
         .replace(/^(Dark|Shiny|Shadow|Ghostly|Ghost|Metallic|Mirage|Negative|Chrome|Retro)\s+/i, '')
         .replace(/^(Mega|Primal|G-Max|Gigantamax)\s+/i, '')
         .replace(/\s*\(Lv\s*\d+[^)]*\)\s*/gi, '')
-        .replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mythical|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '')
         .replace(/\s*\([^)]*\)/g, '')
         .trim()
         .toLowerCase();
@@ -1355,9 +1416,13 @@ function checkEncounterHasFormeIndicator(container, name) {
             }
         }
         if (name) {
-            const nLower = String(name).toLowerCase();
+            const cleanedName = String(name)
+                .replace(/\s*\(Lv[.:\s]*\d+[^)]*\)\s*/gi, ' ')
+                .replace(PRELOAD_TARGET_TAG_REGEX, '')
+                .trim();
+            const nLower = cleanedName.toLowerCase();
             if (/\([a-z0-9\s'%+\-]+\)/i.test(nLower) ||
-                /\b(?:galarian|alolan|hisuian|paldean|dada|bloodmoon|origin|therian|primal|sensu|pom-pom|pa'u|baile|dawn|dusk|ultra|gulping|gorging|hangry|single strike|rapid strike|ice rider|shadow rider|cornerstone|wellspring|hearthflame|stellar|hero|blade)\b/i.test(nLower)) {
+                /\b(?:mega|primal|g-?max|gigantamax|galarian|alolan|hisuian|paldean|dada|bloodmoon|origin|therian|sensu|pom-pom|pa'u|baile|dawn|dusk|ultra|gulping|gorging|hangry|single strike|rapid strike|ice rider|shadow rider|cornerstone|wellspring|hearthflame|stellar|hero|blade)\b/i.test(nLower)) {
                 return true;
             }
         }
@@ -1416,7 +1481,7 @@ function updateUserCollectionIndex(collection) {
 }
 
 try {
-    const cachedCollRaw = localStorage.getItem('deluge_cached_collection') || sessionStorage.getItem('deluge_cached_collection');
+    const cachedCollRaw = sessionStorage.getItem('deluge_cached_collection');
     if (cachedCollRaw) {
         const cachedColl = JSON.parse(cachedCollRaw);
         if (Array.isArray(cachedColl) && cachedColl.length > 0) {
@@ -1430,8 +1495,10 @@ ipcRenderer.on('sync-user-collection', (event, collection) => {
         updateUserCollectionIndex(collection);
         try {
             const collStr = JSON.stringify(collection);
-            localStorage.setItem('deluge_cached_collection', collStr);
             sessionStorage.setItem('deluge_cached_collection', collStr);
+            if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.removeItem('deluge_cached_collection');
+            }
         } catch (_) {}
     }
 });
@@ -1446,6 +1513,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
             isDuplicate: false,
             isOwned: false,
             hasMegaOwned: false,
+            hasGmaxOwned: false,
             hasExactOwned: false,
             ownedPokemon: null,
             type: 'UNOWNED',
@@ -1457,7 +1525,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
 
     let candidate = String(nameOrText).trim();
     candidate = candidate.replace(/\s*\(Lv\s*\d+[^)]*\)\s*/gi, ' ');
-    candidate = candidate.replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '');
+    candidate = candidate.replace(PRELOAD_TARGET_TAG_REGEX, '');
     candidate = candidate.replace(/^(?:ULTRABEAST|ULTRA BEASTS?|PARADOX POKEMON|PARADOX|LEGENDARY POKEMON|LEGENDARY|MEGA EVOLUTION|MEGA POKEMON)\s+/i, '');
     const appearedMatch = candidate.match(/(?:(?:a\s+)?wild\s+|caught\s+)?([A-Za-z0-9\s\(\)\-':.%]+?)\s+appeared/i);
     if (appearedMatch && appearedMatch[1]) {
@@ -1472,7 +1540,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
     candidate = candidate.replace(/^(?:ULTRABEAST|ULTRA BEASTS?|PARADOX POKEMON|PARADOX|LEGENDARY POKEMON|LEGENDARY|MEGA EVOLUTION|MEGA POKEMON)\s+/i, '');
     candidate = candidate.replace(/^(?:a\s+)?wild\s+/i, '');
     candidate = candidate.replace(/^caught\s+/i, '');
-    candidate = candidate.replace(/\b(?:Custom Target|Ultra Beast|Paradox|Legendary|Mega Line|Mega|Wild Encounter)\s*:\s*/gi, '').trim();
+    candidate = candidate.replace(PRELOAD_TARGET_TAG_REGEX, '').trim();
 
     const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
     let candidateVariant = 'normal';
@@ -1498,6 +1566,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
             isDuplicate: false,
             isOwned: false,
             hasMegaOwned: false,
+            hasGmaxOwned: false,
             hasExactOwned: false,
             ownedPokemon: null,
             type: 'UNOWNED',
@@ -1508,8 +1577,10 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
     }
 
     const isTargetMega = isPreloadActualMega(candidate) || isPreloadActualMega(candSpecies);
+    const isTargetGmax = isPreloadAlreadyGmax(candidate) || isPreloadAlreadyGmax(candSpecies);
     const matchingSpecies = [];
     const matchingMegas = [];
+    const matchingGmax = [];
     let exactMatch = null;
 
     for (let i = 0; i < ownedUserCollection.length; i++) {
@@ -1551,13 +1622,22 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
                     matchingMegas.push(p);
                 }
             }
+            if (isPreloadAlreadyGmax(p)) {
+                if (hasExplicitVariant || isTargetGmax) {
+                    if (pVariant === candidateVariant) {
+                        matchingGmax.push(p);
+                    }
+                } else {
+                    matchingGmax.push(p);
+                }
+            }
         }
     }
 
     const capitalize = (s) => s ? (s.charAt(0).toUpperCase() + s.slice(1)) : '';
 
     const isLegendarySpecial = isPreloadLegendaryOrSpecial(candSpecies) || isPreloadLegendaryOrSpecial(baseSpecies);
-    if (isLegendarySpecial && !isTargetMega) {
+    if (isLegendarySpecial && !isTargetMega && !isTargetGmax) {
         // High-Value Legendary / Ultra Beast / Paradox Hardened Shield:
         // A wild base legendary can NEVER be marked duplicate due to Mega equivalence or variant cross-matching!
         // It can ONLY be marked duplicate if an EXACT match of the exact same variant is already owned in collection!
@@ -1566,6 +1646,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
                 isDuplicate: false,
                 isOwned: matchingSpecies.length > 0,
                 hasMegaOwned: matchingMegas.length > 0,
+                hasGmaxOwned: matchingGmax.length > 0,
                 hasExactOwned: false,
                 ownedPokemon: matchingSpecies[0] || null,
                 type: matchingSpecies.length > 0 ? 'SPECIES_ALREADY_OWNED' : 'UNOWNED',
@@ -1587,12 +1668,34 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
             isDuplicate: true,
             isOwned: true,
             hasMegaOwned: true,
+            hasGmaxOwned: matchingGmax.length > 0,
             hasExactOwned: Boolean(exactMatch),
             ownedPokemon: topMega,
             type: 'MEGA_ALREADY_OWNED',
             alertTitle: 'STOP: MEGA EVOLUTION ALREADY OWNED',
             alertMessage: `You already own ${fullMegaName} (Lv ${topMega.level || 100})!`,
             reason: `You already own the Mega Evolution of ${capitalize(baseSpecies)}. 100% uniqueness protection active.`
+        };
+    }
+
+    if (isTargetGmax && matchingGmax.length > 0) {
+        matchingGmax.sort((a, b) => (b.level || 0) - (a.level || 0));
+        const topGmax = matchingGmax[0];
+        const fullGmaxName = (topGmax.name.toLowerCase().startsWith((topGmax.variant || 'Normal').toLowerCase()) || topGmax.variant === 'Normal')
+            ? topGmax.name
+            : `${topGmax.variant} ${topGmax.name}`;
+
+        return {
+            isDuplicate: true,
+            isOwned: true,
+            hasMegaOwned: matchingMegas.length > 0,
+            hasGmaxOwned: true,
+            hasExactOwned: Boolean(exactMatch),
+            ownedPokemon: topGmax,
+            type: 'GMAX_ALREADY_OWNED',
+            alertTitle: 'STOP: G-MAX EVOLUTION ALREADY OWNED',
+            alertMessage: `You already own ${fullGmaxName} (Lv ${topGmax.level || 100})!`,
+            reason: `You already own the G-Max Evolution of ${capitalize(baseSpecies)}. 100% uniqueness protection active.`
         };
     }
 
@@ -1605,6 +1708,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
             isDuplicate: true,
             isOwned: true,
             hasMegaOwned: matchingMegas.length > 0,
+            hasGmaxOwned: matchingGmax.length > 0,
             hasExactOwned: true,
             ownedPokemon: exactMatch,
             type: 'EXACT_ALREADY_OWNED',
@@ -1624,6 +1728,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
             isDuplicate: false,
             isOwned: true,
             hasMegaOwned: matchingMegas.length > 0,
+            hasGmaxOwned: matchingGmax.length > 0,
             hasExactOwned: false,
             ownedPokemon: topSp,
             type: 'SPECIES_ALREADY_OWNED',
@@ -1637,6 +1742,7 @@ function evaluateOwnershipAndMegaEquivalence(nameOrText, explicitVariant) {
         isDuplicate: false,
         isOwned: false,
         hasMegaOwned: false,
+        hasGmaxOwned: false,
         hasExactOwned: false,
         ownedPokemon: null,
         type: 'UNOWNED',
@@ -2679,12 +2785,22 @@ function checkAndSyncMapPresence() {
             }
         }
 
+        let isGmaxNoActiveError = false;
+        if (!isMapPage && (path.indexOf('/gmax') !== -1 || path.indexOf('/challenge') !== -1)) {
+            const errContainer = document.querySelector('.info, .notify_error, .alert-danger, #content');
+            const errTxt = errContainer ? (errContainer.textContent || '') : '';
+            if (/you do not have an active g[- ]?max challenge/i.test(errTxt)) {
+                isGmaxNoActiveError = true;
+            }
+        }
+
         const mapPayload = {
             isMap: isMapPage,
             hasMapEl: hasPlayableMapDom,
             isForbidden: isForbiddenPage,
             hasEncounter: !!(hasCatchUI && lastFoundTarget),
             hasCaptcha: hasCaptcha,
+            isGmaxNoActiveError: isGmaxNoActiveError,
             username: extractLoggedInUsername(document),
             pathname: path,
             url: window.location.href
@@ -2711,6 +2827,9 @@ function scanForTargets() {
     const hasCaptchaElement = checkHasCaptchaElement();
 
     if (!isLoginPath && (isUnlockPath || hasCaptchaElement)) {
+        if (typeof clearGmaxEntryFlow === 'function' && typeof readGmaxEntryState === 'function' && readGmaxEntryState()) {
+            clearGmaxEntryFlow('Paused: Captcha/Unlock detected during G-Max entry.', true);
+        }
         if (!unlockNoticeSent) {
             unlockNoticeSent = true;
             ipcRenderer.sendToHost('unlock-detected');
@@ -2892,8 +3011,11 @@ function scanForTargets() {
     const megaStarters = ((typeof TARGETS !== "undefined" && TARGETS && TARGETS.megaStarters) || ["treecko", "grovyle", "sceptile", "torchic", "combusken", "blaziken", "mudkip", "marshtomp", "swampert"]);
     const gmaxStarters = ((typeof TARGETS !== "undefined" && TARGETS && TARGETS.gmaxStarters) || ["grookey", "thwackey", "rillaboom", "scorbunny", "raboot", "cinderace", "sobble", "drizzile", "inteleon"]);
     const megaGMax = ((typeof TARGETS !== "undefined" && TARGETS && TARGETS.megaGMax) || ["gastly", "haunter", "gengar"]);
+    const gmaxLinesDisplay = ((typeof TARGETS !== "undefined" && TARGETS && TARGETS.gmaxLines) ? TARGETS.gmaxLines : ((typeof TARGETS !== "undefined" && TARGETS && TARGETS.gmaxSpecies) || []));
+    const gmaxLinesList = gmaxLinesDisplay.map(g => g.toLowerCase());
     const startersList = ((typeof TARGETS !== "undefined" && TARGETS && TARGETS.starters) ? TARGETS.starters.map(s => s.toLowerCase()) : []);
     const rareLinesList = ((typeof TARGETS !== "undefined" && TARGETS && TARGETS.rareLines) ? TARGETS.rareLines.map(r => r.toLowerCase()) : ["slowking", "kleavor", "froslass"]);
+    const isNonGmaxMeowth = (speciesLower) => speciesLower === 'meowth' && /\b(?:alolan|galarian)\s+meowth\b/i.test(textLower);
 
     // Parse wild encounter level directly from encounter container, then fallback to page
     let currentLevel = extractWildLevel(encounterBoxText);
@@ -3263,39 +3385,64 @@ function scanForTargets() {
             }
         }
 
+        const isAcceptedByActiveMegaOrGmax = (speciesLower) => {
+            if (!findMegas || !speciesLower) return false;
+            const cleanS = speciesLower.replace(/^(?:mega|primal|g-?max|gigantamax)\s+/i, '').replace(/\s*\([^)]*\)/g, '').trim();
+            if (!isVariantAcceptedForMega()) return false;
+            if (subGMax && gmaxLinesList.includes(cleanS) && !isNonGmaxMeowth(cleanS)) return true;
+            if (subMegas && MEGAS_LOWER.includes(cleanS)) return true;
+            return false;
+        };
+
         // 2C. Category Header Banner: Mythical Pokemon (e.g. MYTHICAL POKEMON / MYTHICAL)
         if (boxCheckText.indexOf('mythical') !== -1 || /\bmythical\s*pok[e\u00e9]mon\b/i.test(boxCheckText)) {
-            if (!allowClassic) {
-                if (isNewEncounter) console.log('[TargetEngine] IGNORED: Mythical skipped (Classic/Legendary sub-filter disabled)');
-                return;
-            }
             const spec = extractEncounterSpeciesName();
-            if (spec) {
+            if (!allowClassic) {
+                if (isAcceptedByActiveMegaOrGmax((spec || '').toLowerCase())) {
+                    // Fall through to Tier 3 Mega/G-Max evaluation
+                } else {
+                    if (isNewEncounter) console.log('[TargetEngine] IGNORED: Mythical skipped (Classic/Legendary sub-filter disabled)');
+                    return;
+                }
+            } else if (spec) {
                 if (isVariantAcceptedForLegendary()) {
                     const foundName = varPrefix + 'Mythical: ' + spec.toUpperCase() + lvlSuffix;
                     triggerTargetFound(foundName, 'Mythical Pokemon');
-                } else if (isNewEncounter) {
-                    console.log('[TargetEngine] IGNORED: Mythical ' + spec + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Legendaries)');
+                    return;
+                } else if (isAcceptedByActiveMegaOrGmax(spec.toLowerCase())) {
+                    // Fall through to Tier 3 Mega/G-Max evaluation
+                } else {
+                    if (isNewEncounter) {
+                        console.log('[TargetEngine] IGNORED: Mythical ' + spec + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Legendaries)');
+                    }
+                    return;
                 }
-                return;
             }
         }
 
         // 2D. Category Header Banner: Rare & Legendary Pokemon (e.g. LEGENDARY POKEMON / LEGENDARY)
         if (boxCheckText.indexOf('legendary') !== -1 || /\blegendary\s*pok[e\u00e9]mon\b/i.test(boxCheckText)) {
-            if (!allowClassic) {
-                if (isNewEncounter) console.log('[TargetEngine] IGNORED: Classic Legendary skipped (Classic sub-filter disabled)');
-                return;
-            }
             const spec = extractEncounterSpeciesName();
-            if (spec) {
+            if (!allowClassic) {
+                if (isAcceptedByActiveMegaOrGmax((spec || '').toLowerCase())) {
+                    // Fall through to Tier 3 Mega/G-Max evaluation
+                } else {
+                    if (isNewEncounter) console.log('[TargetEngine] IGNORED: Classic Legendary skipped (Classic sub-filter disabled)');
+                    return;
+                }
+            } else if (spec) {
                 if (isVariantAcceptedForLegendary()) {
                     const foundName = varPrefix + 'Legendary: ' + spec.toUpperCase() + lvlSuffix;
                     triggerTargetFound(foundName, 'Rare/Legendary');
-                } else if (isNewEncounter) {
-                    console.log('[TargetEngine] IGNORED: Legendary ' + spec + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Legendaries)');
+                    return;
+                } else if (isAcceptedByActiveMegaOrGmax(spec.toLowerCase())) {
+                    // Fall through to Tier 3 Mega/G-Max evaluation
+                } else {
+                    if (isNewEncounter) {
+                        console.log('[TargetEngine] IGNORED: Legendary ' + spec + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Legendaries)');
+                    }
+                    return;
                 }
-                return;
             }
         }
 
@@ -3314,6 +3461,9 @@ function scanForTargets() {
                     return;
                 }
                 if (!isUB && !isParadox && !allowClassic) {
+                    if (isAcceptedByActiveMegaOrGmax(leg)) {
+                        break; // Overlapping G-Max/Mega species (e.g. Meltan, Kubfu, Rayquaza) governed by Tier 3
+                    }
                     if (isNewEncounter) console.log('[TargetEngine] IGNORED: Classic Legendary ' + TARGETS.legendaries[k] + ' skipped (Classic sub-filter disabled)');
                     return;
                 }
@@ -3322,6 +3472,8 @@ function scanForTargets() {
                     const foundName = varPrefix + TARGETS.legendaries[k] + lvlSuffix;
                     triggerTargetFound(foundName, isParadox ? 'Paradox Pokemon' : (isUB ? 'Ultra Beast' : 'Rare/Legendary'));
                     return;
+                } else if (isAcceptedByActiveMegaOrGmax(leg)) {
+                    break; // Variant rejected by Legendary tier, but accepted by active G-Max/Mega tier
                 } else if (isNewEncounter) {
                     console.log('[TargetEngine] IGNORED: ' + TARGETS.legendaries[k] + ' matched Legendary tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked for Legendaries');
                 }
@@ -3340,10 +3492,11 @@ function scanForTargets() {
             if (LEGENDARY_LOWER.indexOf(targetPseudo) !== -1) continue;
             if (textLower.indexOf(targetPseudo) !== -1 && matchesSpeciesInText(textLower, targetPseudo)) {
                 if (isVariantAcceptedForPseudo()) {
-                    const preferredPseudoBall = (config.ballRouting && config.ballRouting.pseudo) || 'Ultra Ball';
                     const foundName = varPrefix + 'Pseudo-Legendary: ' + pseudoList[ps] + lvlSuffix;
-                    triggerTargetFound(foundName, 'Pseudo-Legendary', preferredPseudoBall);
+                    triggerTargetFound(foundName, 'Pseudo-Legendary', detectedVariant);
                     return;
+                } else if (subMegas && MEGAS_LOWER.includes(targetPseudo) && isVariantAcceptedForMega()) {
+                    break; // Overlapping Pseudo/Mega family accepted by Mega tier
                 } else if (isNewEncounter) {
                     console.log('[TargetEngine] IGNORED: ' + pseudoList[ps] + ' matched Pseudo-Legendary tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked for Pseudo tier');
                 }
@@ -3352,8 +3505,9 @@ function scanForTargets() {
         }
     }
 
-    // 3. Tier 3: Mega Evolutions & Rare Evolution Lines
+    // 3. Tier 3: Mega Evolutions, Gigantamax & Rare Evolution Lines
     const hasMegaBanner = /\bmega\s*(?:evolution|pok[e\u00e9]mon)\b/i.test(encounterBoxText || textLower);
+    const hasGmaxBanner = /\b(?:g-?max|gigantamax)\s*(?:evolution|pok[e\u00e9]mon|form)\b/i.test(encounterBoxText || textLower);
     let matchedExplicitForm = null;
     for (let j = 0; j < FORMS.length; j++) {
         const form = FORMS[j];
@@ -3368,9 +3522,17 @@ function scanForTargets() {
         }
     }
 
+    const explicitFormLower = matchedExplicitForm ? matchedExplicitForm.form.toLowerCase() : '';
+    const explicitIsGmax = !!(explicitFormLower && (explicitFormLower.includes('g-max') || explicitFormLower.includes('gigantamax') || explicitFormLower.includes('gmax')));
+    const explicitIsMega = !!(explicitFormLower && (explicitFormLower.includes('mega') || explicitFormLower.includes('primal')));
+
     if (findMegas) {
         // A. Category Header Banner check: "MEGA EVOLUTION" or "MEGA POKEMON"
-        if (hasMegaBanner && subMegas) {
+        if (hasMegaBanner) {
+            if (!subMegas) {
+                if (isNewEncounter) console.log('[TargetEngine] IGNORED: Mega banner encounter skipped (Megas sub-filter is disabled)');
+                return;
+            }
             const spec = extractEncounterSpeciesName();
             if (spec) {
                 if (isVariantAcceptedForMega()) {
@@ -3393,24 +3555,52 @@ function scanForTargets() {
             }
         }
 
+        // A2. Category Header Banner check: "G-MAX POKEMON" or "GIGANTAMAX POKEMON"
+        if (hasGmaxBanner) {
+            if (!subGMax) {
+                if (isNewEncounter) console.log('[TargetEngine] IGNORED: G-Max banner encounter skipped (G-Max sub-filter is disabled)');
+                return;
+            }
+            const spec = extractEncounterSpeciesName();
+            if (spec) {
+                if (isVariantAcceptedForMega()) {
+                    const specLower = spec.toLowerCase();
+                    let prefixTag = 'G-Max: ';
+                    let catTag = 'G-Max';
+                    if (gmaxMegaStarters.includes(specLower)) {
+                        prefixTag = 'G-Max/Mega/Starter: ';
+                        catTag = 'G-Max/Mega/Starter';
+                    } else if (gmaxStarters.includes(specLower)) {
+                        prefixTag = 'G-Max/Starter: ';
+                        catTag = 'G-Max/Starter';
+                    } else if (megaGMax.includes(specLower)) {
+                        prefixTag = 'Mega/G-Max: ';
+                        catTag = 'Mega/G-Max';
+                    }
+                    const foundName = varPrefix + prefixTag + spec.toUpperCase() + lvlSuffix;
+                    triggerTargetFound(foundName, catTag);
+                } else if (isNewEncounter) {
+                    console.log('[TargetEngine] IGNORED: G-Max ' + spec + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for G-Max tier)');
+                }
+                return;
+            }
+        }
+
         // B. Form prefix match (e.g. "Mega Charizard", "Gigantamax Pikachu", "G-Max Blastoise")
         if (matchedExplicitForm) {
-            const formLower = matchedExplicitForm.form.toLowerCase();
             const targetLower = matchedExplicitForm.target.toLowerCase();
-            const isGMaxForm = formLower.includes('g-max') || formLower.includes('gigantamax') || formLower.includes('gmax');
-            const isMegaForm = formLower.includes('mega') || formLower.includes('primal');
 
-            if ((isGMaxForm && subGMax) || (isMegaForm && subMegas)) {
+            if ((explicitIsGmax && subGMax) || (explicitIsMega && subMegas)) {
                 if (isVariantAcceptedForMega()) {
                     let formTag = matchedExplicitForm.form.toUpperCase() + ' ';
-                    let catTag = 'Special Form';
+                    let catTag = explicitIsGmax ? 'G-Max' : 'Special Form';
                     if (gmaxMegaStarters.includes(targetLower)) {
                         formTag = 'G-Max/Mega/Starter: ';
                         catTag = 'G-Max/Mega/Starter';
-                    } else if (megaStarters.includes(targetLower) && isMegaForm) {
+                    } else if (megaStarters.includes(targetLower) && explicitIsMega) {
                         formTag = 'Mega/Starter: ';
                         catTag = 'Mega/Starter';
-                    } else if (gmaxStarters.includes(targetLower) && isGMaxForm) {
+                    } else if (gmaxStarters.includes(targetLower) && explicitIsGmax) {
                         formTag = 'G-Max/Starter: ';
                         catTag = 'G-Max/Starter';
                     } else if (megaGMax.includes(targetLower)) {
@@ -3420,7 +3610,12 @@ function scanForTargets() {
                     const foundName = varPrefix + formTag + matchedExplicitForm.target + lvlSuffix;
                     triggerTargetFound(foundName, catTag);
                 } else if (isNewEncounter) {
-                    console.log('[TargetEngine] IGNORED: ' + matchedExplicitForm.form.toUpperCase() + ' ' + matchedExplicitForm.target + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Mega tier)');
+                    console.log('[TargetEngine] IGNORED: ' + matchedExplicitForm.form.toUpperCase() + ' ' + matchedExplicitForm.target + ' skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Mega/G-Max tier)');
+                }
+                return;
+            } else if ((explicitIsGmax && !subGMax) || (explicitIsMega && !subMegas)) {
+                if (isNewEncounter) {
+                    console.log('[TargetEngine] IGNORED: ' + matchedExplicitForm.form.toUpperCase() + ' ' + matchedExplicitForm.target + ' skipped (' + (explicitIsGmax ? 'G-Max' : 'Mega') + ' sub-filter is disabled)');
                 }
                 return;
             }
@@ -3436,7 +3631,10 @@ function scanForTargets() {
                         const foundName = varPrefix + 'G-Max/Mega/Starter: ' + cap + lvlSuffix;
                         triggerTargetFound(foundName, 'G-Max/Mega/Starter');
                         return;
+                    } else if (isNewEncounter) {
+                        console.log('[TargetEngine] IGNORED: ' + sp + ' matched G-Max/Mega/Starter tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked for Mega/G-Max tier');
                     }
+                    return;
                 }
             }
         }
@@ -3451,7 +3649,10 @@ function scanForTargets() {
                         const foundName = varPrefix + 'Mega/Starter: ' + cap + lvlSuffix;
                         triggerTargetFound(foundName, 'Mega/Starter');
                         return;
+                    } else if (isNewEncounter) {
+                        console.log('[TargetEngine] IGNORED: ' + sp + ' matched Mega/Starter tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked for Mega/G-Max tier');
                     }
+                    return;
                 }
             }
         }
@@ -3466,7 +3667,10 @@ function scanForTargets() {
                         const foundName = varPrefix + 'G-Max/Starter: ' + cap + lvlSuffix;
                         triggerTargetFound(foundName, 'G-Max/Starter');
                         return;
+                    } else if (isNewEncounter) {
+                        console.log('[TargetEngine] IGNORED: ' + sp + ' matched G-Max/Starter tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked for Mega/G-Max tier');
                     }
+                    return;
                 }
             }
         }
@@ -3481,16 +3685,19 @@ function scanForTargets() {
                         const foundName = varPrefix + 'Mega/G-Max: ' + cap + lvlSuffix;
                         triggerTargetFound(foundName, 'Mega/G-Max');
                         return;
+                    } else if (isNewEncounter) {
+                        console.log('[TargetEngine] IGNORED: ' + sp + ' matched Mega/G-Max tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked for Mega/G-Max tier');
                     }
+                    return;
                 }
             }
         }
 
-        // G. True Mega Evolution families (skip base Legendaries so Legendary tier governs them)
+        // G. True Mega Evolution families (skip base Legendaries unless Legendary tier allowed fallthrough)
         if (subMegas) {
             for (let mg = 0; mg < MEGAS_LOWER.length; mg++) {
                 const megaTarget = MEGAS_LOWER[mg];
-                if (LEGENDARY_LOWER.indexOf(megaTarget) !== -1) continue;
+                if (LEGENDARY_LOWER.indexOf(megaTarget) !== -1 && !findLegend) continue;
                 if (textLower.indexOf(megaTarget) !== -1 && matchesSpeciesInText(textLower, megaTarget)) {
                     if (isVariantAcceptedForMega()) {
                         const foundName = varPrefix + 'Mega Line: ' + TARGETS.megas[mg] + lvlSuffix;
@@ -3504,7 +3711,25 @@ function scanForTargets() {
             }
         }
 
-        // H. Pure Starter lines (Gen 2, 4, 5, 6, 7, 9)
+        // H. Pure Gigantamax Evolution Lines (All 32 Official DelugeRPG G-Max Families & Pre-Evolutions)
+        if (subGMax) {
+            for (let gm = 0; gm < gmaxLinesList.length; gm++) {
+                const gmaxTarget = gmaxLinesList[gm];
+                if (isNonGmaxMeowth(gmaxTarget)) continue;
+                if (textLower.indexOf(gmaxTarget) !== -1 && matchesSpeciesInText(textLower, gmaxTarget)) {
+                    if (isVariantAcceptedForMega()) {
+                        const foundName = varPrefix + 'G-Max Line: ' + gmaxLinesDisplay[gm] + lvlSuffix;
+                        triggerTargetFound(foundName, 'G-Max Line');
+                        return;
+                    } else if (isNewEncounter) {
+                        console.log('[TargetEngine] IGNORED: ' + gmaxLinesDisplay[gm] + ' matched G-Max tier, but ' + detectedVariant.toUpperCase() + ' variant is not checked for Mega/G-Max tier');
+                    }
+                    return;
+                }
+            }
+        }
+
+        // I. Pure Starter lines (Gen 2, 4, 5, 6, 7, 9)
         if (subStarters) {
             for (let st = 0; st < startersList.length; st++) {
                 const starterTarget = startersList[st];
@@ -3531,7 +3756,7 @@ function scanForTargets() {
                 }
             }
         }
-    } else if (hasMegaBanner || matchedExplicitForm) {
+    } else if (hasMegaBanner || hasGmaxBanner || matchedExplicitForm) {
         if (isNewEncounter) {
             console.log('[TargetEngine] IGNORED: Explicit Mega/G-Max form skipped (Mega tier is disabled)');
         }
@@ -3544,16 +3769,16 @@ function scanForTargets() {
         const selectedTypesLower = config.selectedTypes.map(t => t.toLowerCase());
         const hasTypeMatch = encTypes.some(t => selectedTypesLower.includes(t.toLowerCase()));
         if (hasTypeMatch && isVariantAcceptedForSpecies()) {
-            const preferredTypeBall = (config.ballRouting && config.ballRouting.types) || 'Ultra Ball';
             const specName = extractEncounterSpeciesName();
             const foundName = varPrefix + 'Type Match (' + encTypes.join('/') + '): ' + (specName ? specName.toUpperCase() : 'WILD') + lvlSuffix;
-            triggerTargetFound(foundName, 'Elemental Type Match', preferredTypeBall);
+            triggerTargetFound(foundName, 'Elemental Type Match', detectedVariant);
             return;
         }
     }
 
     // 4. Tier 4: Special Sprite Variants (Generic Wild Pokemon)
     const isMegaFamilyOrForm = MEGAS_LOWER.some(m => textLower.indexOf(m) !== -1 && matchesSpeciesInText(textLower, m)) || !!matchedExplicitForm;
+    const isGmaxFamilySpecies = gmaxLinesList.some(g => !isNonGmaxMeowth(g) && textLower.indexOf(g) !== -1 && matchesSpeciesInText(textLower, g));
     const isLegendarySpecies = LEGENDARY_LOWER.some(l => textLower.indexOf(l) !== -1 && matchesSpeciesInText(textLower, l));
 
     // CRITICAL GUARD: If Megas are disabled (!findMegas), NEVER catch any Mega form or Mega line species!
@@ -3569,9 +3794,9 @@ function scanForTargets() {
                 return;
             }
         }
-    } else if (isMegaFamilyOrForm && !isLegendarySpecies && !isVariantAcceptedForMega()) {
+    } else if (((subMegas && isMegaFamilyOrForm) || (subGMax && isGmaxFamilySpecies) || !!matchedExplicitForm) && !isLegendarySpecies && !isVariantAcceptedForMega()) {
         if (isNewEncounter) {
-            console.log('[TargetEngine] IGNORED: Mega encounter skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Mega tier)');
+            console.log('[TargetEngine] IGNORED: Mega/G-Max encounter skipped (' + detectedVariant.toUpperCase() + ' variant is not checked for Mega/G-Max tier)');
         }
         return;
     }
@@ -3730,17 +3955,18 @@ function triggerTargetFound(targetName, category, variant) {
         const catchMode = (config.autoCatchMode || 'master_only');
         let preferredBall = 'Master Ball';
         if (catchMode === 'smart_routing' && config.ballRouting) {
-            if (category === 'Legendaries & Special' && config.ballRouting.legendaries) {
+            const catLow = (category || '').toLowerCase();
+            if ((category === 'Legendaries & Special' || catLow.includes('legendary') || catLow.includes('mythical') || catLow.includes('ultra beast') || catLow.includes('paradox')) && config.ballRouting.legendaries) {
                 preferredBall = config.ballRouting.legendaries;
             } else if (category === 'Pseudo-Legendary' && config.ballRouting.pseudo) {
                 preferredBall = config.ballRouting.pseudo;
-            } else if (category === 'Megas & Gigantamax' && config.ballRouting.megas) {
+            } else if ((category === 'Megas & Gigantamax' || catLow.includes('mega') || catLow.includes('g-max') || catLow.includes('gigantamax') || catLow === 'special form' || catLow === 'starter' || catLow === 'rare line') && config.ballRouting.megas) {
                 preferredBall = config.ballRouting.megas;
-            } else if (category === 'Selected Types' && config.ballRouting.types) {
+            } else if ((category === 'Selected Types' || catLow.includes('type match')) && config.ballRouting.types) {
                 preferredBall = config.ballRouting.types;
-            } else if (category === 'Missing Dex' && config.ballRouting.dex) {
+            } else if ((category === 'Missing Dex' || catLow.includes('dex completionist')) && config.ballRouting.dex) {
                 preferredBall = config.ballRouting.dex;
-            } else if (category === 'Custom Variants' && config.ballRouting.variants) {
+            } else if ((category === 'Custom Variants' || catLow.includes('variant') || catLow.includes('custom') || catLow.includes('level match')) && config.ballRouting.variants) {
                 preferredBall = config.ballRouting.variants;
             }
         }
@@ -4535,20 +4761,21 @@ window.addEventListener('click', (e) => {
     try {
         const link = e.target && e.target.closest ? e.target.closest('a') : null;
         if (!link) return;
-        if (link.target === '_blank') {
+        const wasBlank = link.target === '_blank' || link.getAttribute('target') === '_blank';
+        if (wasBlank) {
             link.target = '_self';
             try { link.removeAttribute('target'); } catch (_) {}
         }
         const href = (link.getAttribute('href') || link.href || '').trim();
         const txt = (link.textContent || '').trim().toLowerCase();
-        if (txt.includes('gmax challenge') || href.includes('/challenge/gmax') || href.includes('/challenge')) {
+        if (wasBlank && (txt.includes('gmax challenge') || href.includes('/challenge/gmax') || href.includes('/challenge'))) {
             const targetUrl = link.href || (href.startsWith('http') ? href : `https://www.delugerpg.com${href.startsWith('/') ? '' : '/'}${href}`);
             if (targetUrl) {
                 setTimeout(() => {
                     if (window.location.href !== targetUrl) {
                         window.location.href = targetUrl;
                     }
-                }, 50);
+                }, 350);
             }
         }
     } catch (_) {}
@@ -4729,6 +4956,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     ensureMapObserversAttached();
     scanForTargets();
+    setTimeout(() => {
+        if (typeof processGmaxChallengeEntryStep === 'function') {
+            processGmaxChallengeEntryStep();
+        }
+    }, 180);
 });
 
 window.addEventListener('load', () => {
@@ -6263,6 +6495,28 @@ let lastKnownTrainerName = '';
 const knownVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
 const observedOpponentMoveKeys = new Set();
 
+function extractBattleDomVariant(rawName, elOrSprite) {
+    const cleanName = String(rawName || '').trim();
+    const specialVariants = ['Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
+    for (let i = 0; i < specialVariants.length; i++) {
+        const vName = specialVariants[i];
+        if (new RegExp('^' + vName + '\\b', 'i').test(cleanName)) return vName;
+    }
+    let spriteSrc = '';
+    if (typeof elOrSprite === 'string') {
+        spriteSrc = elOrSprite;
+    } else if (elOrSprite && elOrSprite.querySelector) {
+        const img = elOrSprite.querySelector('.battlelistimg img, img');
+        if (img) spriteSrc = img.getAttribute('src') || '';
+    }
+    const lowerSrc = spriteSrc.toLowerCase();
+    for (let i = 0; i < specialVariants.length; i++) {
+        const vName = specialVariants[i];
+        if (lowerSrc && lowerSrc.includes('/' + vName.toLowerCase() + '/')) return vName;
+    }
+    return 'Normal';
+}
+
 function detectBattleOpponents(isManualCheck) {
     try {
         const path = (window.location.pathname || '').toLowerCase();
@@ -6618,14 +6872,7 @@ function detectBattleOpponents(isManualCheck) {
                 const pSprite = pImgEl ? (pImgEl.getAttribute('src') || '') : '';
 
                 if (pName) {
-                    let uVariant = 'Normal';
-                    for (let kv = 0; kv < knownVariants.length; kv++) {
-                        const vName = knownVariants[kv];
-                        if (new RegExp('^' + vName + '\\b', 'i').test(pName) || (pSprite && pSprite.toLowerCase().includes('/' + vName.toLowerCase() + '/'))) {
-                            uVariant = vName;
-                            break;
-                        }
-                    }
+                    const uVariant = extractBattleDomVariant(pName, pSprite || playerPokeEl);
                     userActivePokemon = {
                         name: pName,
                         variant: uVariant,
@@ -6783,8 +7030,10 @@ function detectBattleOpponents(isManualCheck) {
                     const rStyle = rItem.getAttribute('style') || '';
                     const rFainted = matchedWasFainted || (rHp <= 0) || Boolean(rRadioEl && rRadioEl.disabled) || Boolean(rZeroBar) || /\bfainted\b/i.test(rItem.textContent || '') || rItem.classList.contains('fainted') || rItem.classList.contains('dead') || rStyle.includes('opacity: 0.5') || rStyle.includes('opacity:0.5');
                     if (rFainted) rHp = 0;
+                    const rVariant = extractBattleDomVariant(rName, rItem);
                     userTeam.push({
                         name: rName,
+                        variant: rVariant,
                         types: rTypes.length > 0 ? rTypes : ['Normal'],
                         level: rLevel,
                         levelKnown: hasKnownLvl,
@@ -6822,8 +7071,12 @@ function detectBattleOpponents(isManualCheck) {
                         const cFainted = cMatchedWasFainted || Boolean(rad.disabled) || Boolean(cZeroBar) || /\bfainted\b/i.test(card.textContent || '') || card.classList.contains('fainted') || card.classList.contains('dead') || cStyle.includes('opacity: 0.5') || cStyle.includes('opacity:0.5');
                         const cHp = cFainted ? 0 : ((cMatched && typeof cMatched.hp === 'number' && cMatched.hp > 0) ? cMatched.hp : 100);
                         const cMaxHp = (cMatched && typeof cMatched.maxHp === 'number' && cMatched.maxHp > 0) ? cMatched.maxHp : 100;
+                        const cVariant = extractBattleDomVariant(cName, card) !== 'Normal'
+                            ? extractBattleDomVariant(cName, card)
+                            : ((cMatched && cMatched.variant) ? cMatched.variant : 'Normal');
                         userTeam.push({
                             name: cName,
+                            variant: cVariant,
                             types: (cMatched && Array.isArray(cMatched.types) && cMatched.types.length > 0) ? cMatched.types : ['Normal'],
                             level: cLevel,
                             levelKnown: cKnownLvl,
@@ -6924,14 +7177,7 @@ function detectBattleOpponents(isManualCheck) {
                     const isF = (rHp <= 0) || item.classList.contains('fainted') || item.classList.contains('dead') || itemStyle.includes('opacity: 0.5') || itemStyle.includes('opacity:0.5');
                     const imgEl2 = item.querySelector('.battlelistimg img, img');
                     const spr = imgEl2 ? (imgEl2.getAttribute('src') || '') : '';
-                    let rVar = 'Normal';
-                    for (let kv = 0; kv < knownVariants.length; kv++) {
-                        const vName = knownVariants[kv];
-                        if (new RegExp('^' + vName + '\\b', 'i').test(rName) || (spr && spr.toLowerCase().includes('/' + vName.toLowerCase() + '/'))) {
-                            rVar = vName;
-                            break;
-                        }
-                    }
+                    const rVar = extractBattleDomVariant(rName, spr || item);
                     roster.push({
                         name: rName,
                         variant: rVar,
@@ -6945,14 +7191,7 @@ function detectBattleOpponents(isManualCheck) {
                 }
             }
 
-            let oppVariant = 'Normal';
-            for (let kv = 0; kv < knownVariants.length; kv++) {
-                const vName = knownVariants[kv];
-                if (new RegExp('^' + vName + '\\b', 'i').test(pokeName) || (sprite && sprite.toLowerCase().includes('/' + vName.toLowerCase() + '/'))) {
-                    oppVariant = vName;
-                    break;
-                }
-            }
+            const oppVariant = extractBattleDomVariant(pokeName, sprite || oppEl);
 
             if (roster.length === 0) {
                 roster = [{
@@ -7190,6 +7429,7 @@ function detectBattleOpponents(isManualCheck) {
                     const sprite = imgEl ? (imgEl.getAttribute('src') || '') : '';
                     roster.push({
                         name: name,
+                        variant: extractBattleDomVariant(name, sprite || item),
                         types: types.length > 0 ? types : ['Normal'],
                         level: level,
                         hp: hp,
@@ -7245,6 +7485,7 @@ function detectBattleOpponents(isManualCheck) {
                             if (rFainted) rHp = 0;
                             userTeam.push({
                                 name: rName,
+                                variant: extractBattleDomVariant(rName, rItem),
                                 types: rTypes.length > 0 ? rTypes : ['Normal'],
                                 level: rLevel,
                                 levelKnown: rLevelKnown,
@@ -8750,6 +8991,7 @@ function getRadioOptionText(radio, modalContainer) {
 
 async function humanClickElementVerified(el, opts) {
     if (!el) return false;
+    if (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) return false;
     let clickFired = false;
     const onNativeClick = () => { clickFired = true; };
     try {
@@ -8758,35 +9000,34 @@ async function humanClickElementVerified(el, opts) {
         }
     } catch (_) {}
     await new Promise(resolve => dispatchHumanClick(el, resolve, opts));
-    await new Promise(resolve => setTimeout(resolve, 65));
+    await new Promise(resolve => setTimeout(resolve, 95));
     try {
         if (typeof el.removeEventListener === 'function') {
             el.removeEventListener('click', onNativeClick, { capture: true });
         }
     } catch (_) {}
-    if (!clickFired && typeof el.click === 'function') {
-        try { el.click(); } catch (_) {}
+    // Retry cleanly with genuine hardware input only; never emit untrusted el.click()
+    if (!clickFired && el.isConnected && !(typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement())) {
+        const retryWait = (typeof getGaussianDelay === 'function') ? getGaussianDelay(130, 30, 85) : 120;
+        await new Promise(resolve => setTimeout(resolve, retryWait));
+        await new Promise(resolve => dispatchHumanClick(el, resolve, opts));
     }
     return true;
 }
 
 async function toggleMoveCheckboxCleanly(cb, shouldCheck) {
     if (!cb) return false;
+    if (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) return false;
     const targetState = Boolean(shouldCheck);
     if (Boolean(cb.checked) === targetState) return true;
 
     await new Promise(resolve => dispatchHumanClick(cb, resolve, { skipScroll: true }));
-    await new Promise(resolve => setTimeout(resolve, 65));
+    await new Promise(resolve => setTimeout(resolve, 95));
 
-    if (Boolean(cb.checked) !== targetState) {
-        if (typeof cb.click === 'function') {
-            try { cb.click(); } catch (_) {}
-        }
-        if (Boolean(cb.checked) !== targetState) {
-            cb.checked = targetState;
-            try { cb.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
-            try { cb.dispatchEvent(new Event('click', { bubbles: true })); } catch (_) {}
-        }
+    if (Boolean(cb.checked) !== targetState && cb.isConnected && !(typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement())) {
+        const retryWait = (typeof getGaussianDelay === 'function') ? getGaussianDelay(130, 30, 85) : 120;
+        await new Promise(resolve => setTimeout(resolve, retryWait));
+        await new Promise(resolve => dispatchHumanClick(cb, resolve, { skipScroll: true }));
     }
     return Boolean(cb.checked) === targetState;
 }
@@ -9413,7 +9654,8 @@ function detectEvolveCard() {
         };
 
         const cleanBase = baseSpecies.replace(/[^a-z0-9]/g, '');
-        const isDirectGmaxCapable = Boolean(GMAX_CAPABLE_SPECIES[cleanBase]);
+        const isNonGmaxRegional = /\b(?:alolan|galarian|hisuian|paldean)\b/i.test(rawFullName);
+        const isDirectGmaxCapable = !isNonGmaxRegional && Boolean(GMAX_CAPABLE_SPECIES[cleanBase]);
         const gmaxBase = isDirectGmaxCapable ? GMAX_CAPABLE_SPECIES[cleanBase] : null;
         let isBlockedForGmax = false;
         let gmaxTarget = null;
@@ -9458,17 +9700,23 @@ function detectEvolveCard() {
         const allDuplicates = options.length > 0 && options.every(opt => opt.isOwned);
         const hasUnique = options.some(opt => !opt.isOwned) && !isBlockedForGmax && !isLevelLocked;
 
-        // Auto-select in live webview modal (only if not level-locked):
-        // Priority 1: If modal offers an unowned G-Max option, auto-select it!
+        // Auto-select in live webview modal ONCE cleanly via hardware click (only if not level-locked or captcha-gated):
+        // Priority 1: If modal offers an unowned G-Max option, auto-select it cleanly
         const gmaxOptIdx = options.findIndex(o => /\bg-?max\b/i.test(o.fullName || o.name));
-        if (!isLevelLocked && gmaxOptIdx !== -1 && radios && radios[gmaxOptIdx] && !options[gmaxOptIdx].isOwned) {
-            radios[gmaxOptIdx].checked = true;
-            try { radios[gmaxOptIdx].dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
-        } else if (!isLevelLocked && !isBlockedForGmax && radios && radios.length > 1) {
-            const firstUnownedIdx = options.findIndex(o => !o.isOwned);
-            if (firstUnownedIdx !== -1 && radios[firstUnownedIdx] && !radios[firstUnownedIdx].checked) {
-                radios[firstUnownedIdx].checked = true;
-                try { radios[firstUnownedIdx].dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
+        const modalPickSig = `${rawFullName}|${options.map(o => o.fullName).join(',')}`;
+        if (!isLevelLocked && !(typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) && window.__delugeLastEvoAutoPickSig !== modalPickSig) {
+            let pickRadio = null;
+            if (gmaxOptIdx !== -1 && radios && radios[gmaxOptIdx] && !options[gmaxOptIdx].isOwned && !radios[gmaxOptIdx].checked) {
+                pickRadio = radios[gmaxOptIdx];
+            } else if (!isBlockedForGmax && radios && radios.length > 1) {
+                const firstUnownedIdx = options.findIndex(o => !o.isOwned);
+                if (firstUnownedIdx !== -1 && radios[firstUnownedIdx] && !radios[firstUnownedIdx].checked) {
+                    pickRadio = radios[firstUnownedIdx];
+                }
+            }
+            if (pickRadio) {
+                window.__delugeLastEvoAutoPickSig = modalPickSig;
+                dispatchHumanClick(pickRadio, null, { skipScroll: true });
             }
         }
 
@@ -9852,8 +10100,7 @@ ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
             }
         }
 
-        // Pokemon link is not on the currently displayed page.
-        // Attempt synthetic a.evolve trigger on current page, or fallback to direct evolve navigation
+        // Pokemon link is not on the currently displayed page: navigate directly without synthetic DOM injection
         if (pokeId) {
             try {
                 sessionStorage.setItem('deluge_auto_evolve_target', JSON.stringify({
@@ -9863,35 +10110,7 @@ ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
                     timestamp: Date.now()
                 }));
             } catch (_) {}
-
-            const parentContainer = document.getElementById('viewpokes') || document.querySelector('.prow') || document.body;
-            if (parentContainer) {
-                const syntheticLink = document.createElement('a');
-                syntheticLink.className = 'evolve';
-                syntheticLink.href = `/pokemon/evolve/${pokeId}`;
-                syntheticLink.setAttribute('data-pkid', pokeId);
-                syntheticLink.style.cssText = 'position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: auto;';
-                parentContainer.appendChild(syntheticLink);
-
-                const clickEvt = new MouseEvent('click', {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window
-                });
-                syntheticLink.dispatchEvent(clickEvt);
-
-                setTimeout(() => {
-                    try {
-                        if (syntheticLink.parentNode) syntheticLink.parentNode.removeChild(syntheticLink);
-                    } catch (_) {}
-                }, 1200);
-            }
-
-            setTimeout(() => {
-                const checkCard = detectEvolveCard();
-                if (checkCard && checkCard.isOpen) return;
-                window.location.href = `/pokemon/evolve/${pokeId}`;
-            }, 450);
+            window.location.href = `/pokemon/evolve/${pokeId}`;
             return;
         }
 
@@ -9934,34 +10153,7 @@ ipcRenderer.on('trigger-change-attack', (event, data) => {
         }
 
         if (pokeId) {
-            const parentContainer = document.getElementById('viewpokes') || document.querySelector('.prow') || document.body;
-            if (parentContainer) {
-                const syntheticLink = document.createElement('a');
-                syntheticLink.className = 'chgattack';
-                syntheticLink.href = `/pokemon/change_attack/${pokeId}`;
-                syntheticLink.setAttribute('data-pkid', pokeId);
-                syntheticLink.style.cssText = 'position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: auto;';
-                parentContainer.appendChild(syntheticLink);
-
-                const clickEvt = new MouseEvent('click', {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window
-                });
-                syntheticLink.dispatchEvent(clickEvt);
-
-                setTimeout(() => {
-                    try {
-                        if (syntheticLink.parentNode) syntheticLink.parentNode.removeChild(syntheticLink);
-                    } catch (_) {}
-                }, 1200);
-            }
-
-            setTimeout(() => {
-                const checkCard = detectEvolveCard();
-                if (checkCard && checkCard.isOpen) return;
-                window.location.href = `/pokemon/change_attack/${pokeId}`;
-            }, 450);
+            window.location.href = `/pokemon/change_attack/${pokeId}`;
             return;
         }
 
@@ -10054,13 +10246,458 @@ function autoSyncCurrentPokemonPage() {
     } catch (_) {}
 }
 
+// --- 7B. G-MAX CHALLENGE AUTO-ENTRY STATE MACHINE (6-STEP SEQUENCE) ---
+const GMAX_ENTRY_STORAGE_KEY = 'deluge_gmax_entry_flow';
+const GMAX_ENTRY_TTL_MS = 180000;
+let gmaxEntryClickInFlight = false;
+let gmaxEntryTimer = null;
+let gmaxCurrentHref = '';
+let gmaxPageLoadedAt = Date.now();
+
+function readGmaxEntryState() {
+    try {
+        const raw = sessionStorage.getItem(GMAX_ENTRY_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.active) return null;
+        if (Date.now() - (parsed.startedAt || 0) > GMAX_ENTRY_TTL_MS) {
+            sessionStorage.removeItem(GMAX_ENTRY_STORAGE_KEY);
+            return null;
+        }
+        return parsed;
+    } catch (_) {
+        return null;
+    }
+}
+
+function writeGmaxEntryState(state) {
+    try {
+        if (!state) {
+            sessionStorage.removeItem(GMAX_ENTRY_STORAGE_KEY);
+        } else {
+            sessionStorage.setItem(GMAX_ENTRY_STORAGE_KEY, JSON.stringify(state));
+        }
+    } catch (_) {}
+}
+
+function clearGmaxEntryFlow(reason, isError) {
+    gmaxEntryClickInFlight = false;
+    if (gmaxEntryTimer) {
+        clearTimeout(gmaxEntryTimer);
+        gmaxEntryTimer = null;
+    }
+    writeGmaxEntryState(null);
+    if (reason) {
+        try {
+            ipcRenderer.sendToHost('gmax-challenge-flow-status', {
+                step: isError ? 'error' : 'completed',
+                message: reason
+            });
+        } catch (_) {}
+    }
+}
+
+function isGmaxNavOrFooterElement(el) {
+    if (!el) return true;
+    return Boolean(el.closest && el.closest('#del_header, #navwrap, nav, header, #logo, #userloggedin, #footer, footer'));
+}
+
+function getNormalizedControlText(el) {
+    if (!el) return '';
+    const raw = (el.value || el.innerText || el.textContent || '');
+    return String(raw).replace(/\s+/g, ' ').trim();
+}
+
+function isClickableGmaxControl(el) {
+    if (!el) return false;
+    if (isGmaxNavOrFooterElement(el)) return false;
+    if (!isElementVisible(el) || isCatchHoneypotTrap(el)) return false;
+    if (el.disabled || (el.getAttribute && el.getAttribute('disabled') !== null)) return false;
+    if (el.getAttribute && el.getAttribute('aria-disabled') === 'true') return false;
+    if (el.classList && (el.classList.contains('disabled') || el.classList.contains('btn-disabled'))) return false;
+    return true;
+}
+
+function queryGmaxControls(root) {
+    const scope = root || document;
+    const raw = scope.querySelectorAll('button, input[type="submit"], input[type="button"], a');
+    const out = [];
+    for (let i = 0; i < raw.length; i++) {
+        if (isClickableGmaxControl(raw[i])) out.push(raw[i]);
+    }
+    return out;
+}
+
+function findGmaxCardForButton(btn) {
+    let cur = btn ? btn.parentElement : null;
+    for (let depth = 0; cur && depth < 5; depth++) {
+        const btns = cur.querySelectorAll('button, input[type="submit"], input[type="button"], a');
+        let eligibilityBtnCount = 0;
+        for (let i = 0; i < btns.length; i++) {
+            const t = getNormalizedControlText(btns[i]).toLowerCase();
+            if (t === 'choose' || t === 'not eligible') {
+                eligibilityBtnCount++;
+            }
+        }
+        if (eligibilityBtnCount > 1) return null;
+        const cardTxt = getNormalizedControlText(cur);
+        if (cardTxt.length >= 12 && cardTxt.length <= 320 && /level\s*:?\s*\d+/i.test(cardTxt)) {
+            return cur;
+        }
+        cur = cur.parentElement;
+    }
+    return btn ? btn.parentElement : null;
+}
+
+function findGmaxChooseControl(controls, targetName) {
+    const candidates = [];
+    for (let i = 0; i < controls.length; i++) {
+        const el = controls[i];
+        if (getNormalizedControlText(el).toLowerCase() === 'choose') {
+            candidates.push(el);
+        }
+    }
+    if (candidates.length === 0) return null;
+    const cleanFull = String(targetName || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (cleanFull && candidates.length > 1) {
+        const cleanBase = cleanFull
+            .replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i, '')
+            .trim();
+        for (let i = 0; i < candidates.length; i++) {
+            const card = findGmaxCardForButton(candidates[i]);
+            const cardTxt = card ? getNormalizedControlText(card).toLowerCase() : '';
+            if (cardTxt && cardTxt.indexOf(cleanFull) !== -1) return candidates[i];
+        }
+        if (cleanBase) {
+            for (let i = 0; i < candidates.length; i++) {
+                const card = findGmaxCardForButton(candidates[i]);
+                const cardTxt = card ? getNormalizedControlText(card).toLowerCase() : '';
+                if (cardTxt && cardTxt.indexOf(cleanBase) !== -1) return candidates[i];
+            }
+        }
+    }
+    return candidates[0];
+}
+
+function findGmaxPayControl(controls) {
+    for (let i = 0; i < controls.length; i++) {
+        const el = controls[i];
+        const txt = getNormalizedControlText(el).toLowerCase();
+        if (!txt || txt.length > 90) continue;
+        if (/cancel|abandon|forfeit|change|back/.test(txt)) continue;
+        if ((/\bpay\b/.test(txt) && /\bstart\s*challenge\b/.test(txt)) ||
+            /^pay\s*[0-9,]+\s*(?:and\s+)?start\s*challenge/.test(txt) ||
+            /\bstart\s*challenge\b/.test(txt)) {
+            return el;
+        }
+    }
+    return null;
+}
+
+function findGmaxChallengePageControl(controls, currentPath) {
+    const p = String(currentPath || '').toLowerCase();
+    if (p === '/challenge/gmax' || p === '/challenge/gmax/') return null;
+    for (let i = 0; i < controls.length; i++) {
+        const el = controls[i];
+        const txt = getNormalizedControlText(el).toLowerCase();
+        const rawHref = (el.getAttribute && el.getAttribute('href')) || el.href || '';
+        const href = String(rawHref).toLowerCase();
+        if (/abandon|forfeit|cancel/.test(txt)) continue;
+        if (/\bg\s*-?\s*max\s+challenge\s+page\b/.test(txt)) {
+            return el;
+        }
+        if (el.tagName && el.tagName.toLowerCase() === 'a' && href.indexOf('/challenge/gmax') !== -1 && txt.length > 0 && txt.length <= 60) {
+            return el;
+        }
+    }
+    return null;
+}
+
+function findGmaxBattleControl(controls) {
+    for (let i = 0; i < controls.length; i++) {
+        const el = controls[i];
+        const txt = getNormalizedControlText(el).toLowerCase();
+        if (!txt || txt.length > 30) continue;
+        if (/abandon|forfeit|cancel|change|quit|back|home|login/.test(txt)) continue;
+        if (/^battle!?$/.test(txt) || /^start\s*battle!?$/.test(txt)) {
+            return el;
+        }
+    }
+    return null;
+}
+
+function findGmaxContinueControl(controls) {
+    let partialMatch = null;
+    for (let i = 0; i < controls.length; i++) {
+        const el = controls[i];
+        const txt = getNormalizedControlText(el).toLowerCase();
+        if (!txt || txt.length > 32) continue;
+        if (/switch|forfeit|abandon|cancel|home|login/.test(txt)) continue;
+        if (el.tagName && el.tagName.toLowerCase() === 'a') {
+            const rawHref = (el.getAttribute && el.getAttribute('href')) || el.href || '';
+            const href = String(rawHref).toLowerCase();
+            if (href === '/' || href.indexOf('/home') !== -1 || href.indexOf('/login') !== -1) continue;
+        }
+        if (/^continue!?$/.test(txt)) {
+            return el;
+        }
+        if (!partialMatch && /^continue\b/.test(txt)) {
+            partialMatch = el;
+        }
+    }
+    return partialMatch;
+}
+
+function isGmaxStageDone(clickedSteps, stage) {
+    const rec = clickedSteps && clickedSteps[stage];
+    if (!rec) return false;
+    if (typeof rec === 'number' || rec === true) return true;
+    const count = rec.count || 1;
+    const ts = rec.ts || 0;
+    if (stage === 'pay') return count >= 1;
+    if (count >= 2) return true;
+    return (Date.now() - ts) < 3000;
+}
+
+function getGmaxStageAttemptCount(clickedSteps, stage) {
+    const rec = clickedSteps && clickedSteps[stage];
+    if (!rec) return 0;
+    if (typeof rec === 'number' || rec === true) return 1;
+    return rec.count || 1;
+}
+
+function evaluateGmaxEntryStepOnPage(state, currentPath, controls) {
+    if (!state || !state.active) return null;
+    const clicked = state.clickedSteps || {};
+    const path = String(currentPath || '').toLowerCase();
+    const battleBtn = findGmaxBattleControl(controls);
+
+    if (clicked.battle && !battleBtn) {
+        const continueBtn = findGmaxContinueControl(controls);
+        if (continueBtn && !isGmaxStageDone(clicked, 'continue')) {
+            return { stage: 'continue', el: continueBtn, message: 'Clicking Continue to start battle...' };
+        }
+        return null;
+    }
+
+    if (path.indexOf('/challenge') === 0 || path.indexOf('/gmax') === 0) {
+        if (battleBtn && !isGmaxStageDone(clicked, 'battle')) {
+            return { stage: 'battle', el: battleBtn, message: 'Clicking Battle to enter arena...' };
+        }
+    }
+
+    if (path.indexOf('/gmax') === 0) {
+        const challengePageBtn = findGmaxChallengePageControl(controls, path);
+        if (challengePageBtn && !isGmaxStageDone(clicked, 'challengePage')) {
+            return { stage: 'challengePage', el: challengePageBtn, message: 'Opening G-Max Challenge Page...' };
+        }
+
+        const payBtn = findGmaxPayControl(controls);
+        if (payBtn && !isGmaxStageDone(clicked, 'pay')) {
+            return { stage: 'pay', el: payBtn, message: 'Paying fee & starting G-Max Challenge...' };
+        }
+
+        if (path === '/gmax' || path === '/gmax/' || path.indexOf('/gmax/choose') === 0) {
+            const chooseBtn = findGmaxChooseControl(controls, state.targetName);
+            if (chooseBtn && !isGmaxStageDone(clicked, 'choose')) {
+                return { stage: 'choose', el: chooseBtn, message: 'Choosing G-Max target Pokemon...' };
+            }
+        }
+    }
+
+    return null;
+}
+
+function checkGmaxEntryIdleState(state, path, elapsedMs) {
+    const clicked = state.clickedSteps || {};
+    if (clicked.battle && path.indexOf('/battle') !== -1 && elapsedMs >= 1500) {
+        const hasAttackControls = document.querySelectorAll('input[type="radio"][name*="attack" i], input[type="submit"][value*="attack" i]').length > 0;
+        if (hasAttackControls) {
+            clearGmaxEntryFlow('G-Max Challenge Battle ready!', false);
+            return true;
+        }
+    }
+
+    if (Object.keys(clicked).length > 0 && path.indexOf('/gmax') !== 0 && path.indexOf('/challenge') !== 0 && path.indexOf('/battle') !== 0 && elapsedMs >= 1000) {
+        clearGmaxEntryFlow(null, false);
+        return true;
+    }
+
+    const bodyTxt = (document.body && (document.body.innerText || document.body.textContent) || '').toLowerCase();
+    if ((path === '/gmax' || path === '/gmax/') && !clicked.choose && !clicked.challengePage && elapsedMs >= 1200) {
+        if (/you have 0 pokemon|no pokemon.*eligible|not eligible/i.test(bodyTxt) || document.querySelector('.notify_error, .alert-danger')) {
+            clearGmaxEntryFlow('No eligible Lv 100 G-Max Pokemon found on /gmax (use Change Team first).', true);
+            return true;
+        }
+    }
+
+    if (path.indexOf('/gmax/confirm') === 0 && !clicked.pay && elapsedMs >= 1200) {
+        if (/not enough|insufficient|don[']t have enough/i.test(bodyTxt) || document.querySelector('.notify_error, .alert-danger')) {
+            clearGmaxEntryFlow('Cannot start G-Max Challenge (insufficient coins or error).', true);
+            return true;
+        }
+    }
+
+    if ((path.indexOf('/challenge/gmax') === 0 || (path.indexOf('/gmax') === 0 && clicked.challengePage)) && !clicked.battle && elapsedMs >= 2500) {
+        if (/change it back|team has changed/i.test(bodyTxt) || document.querySelector('.notify_error, .alert-danger')) {
+            clearGmaxEntryFlow('Cannot start battle on G-Max Challenge page (check active team notice).', true);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function scheduleGmaxEntryStepCheck(delayMs) {
+    if (gmaxEntryTimer) {
+        clearTimeout(gmaxEntryTimer);
+        gmaxEntryTimer = null;
+    }
+    gmaxEntryTimer = setTimeout(() => {
+        gmaxEntryTimer = null;
+        processGmaxChallengeEntryStep();
+    }, typeof delayMs === 'number' ? delayMs : 150);
+}
+
+function processGmaxChallengeEntryStep() {
+    const state = readGmaxEntryState();
+    if (!state) return;
+
+    const hrefNow = window.location.href || '';
+    if (hrefNow !== gmaxCurrentHref) {
+        gmaxCurrentHref = hrefNow;
+        gmaxPageLoadedAt = Date.now();
+    }
+
+    const path = (window.location.pathname || '').toLowerCase();
+    if (path.indexOf('/login') !== -1) {
+        clearGmaxEntryFlow('G-Max entry stopped on login page.', false);
+        return;
+    }
+    if (path.indexOf('/unlock') !== -1 || (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement())) {
+        clearGmaxEntryFlow('Paused: Captcha/Unlock detected during G-Max entry.', true);
+        return;
+    }
+
+    if (state.clickedSteps && state.clickedSteps.continue) {
+        clearGmaxEntryFlow('G-Max Challenge Battle ready!', false);
+        return;
+    }
+
+    if (state.clickedSteps && state.clickedSteps.battle && path.indexOf('/battle') !== -1) {
+        const hasLeadRadios = document.querySelectorAll('input[type="radio"][name*="pokeselect" i], input[type="radio"][name*="spoke" i]').length > 0;
+        if (hasLeadRadios) {
+            clearGmaxEntryFlow('G-Max Challenge Battle ready! Deploying optimal lead...', false);
+            return;
+        }
+    }
+
+    if (gmaxEntryClickInFlight) return;
+
+    const controls = queryGmaxControls(document);
+    const match = evaluateGmaxEntryStepOnPage(state, path, controls);
+    if (!match || !match.el) {
+        checkGmaxEntryIdleState(state, path, Date.now() - gmaxPageLoadedAt);
+        return;
+    }
+
+    gmaxEntryClickInFlight = true;
+    const stepDelay = (typeof getGaussianDelay === 'function') ? getGaussianDelay(1150, 280, 780) : 1050;
+    setTimeout(async () => {
+        try {
+            const freshState = readGmaxEntryState();
+            if (!freshState || isGmaxStageDone(freshState.clickedSteps || {}, match.stage)) {
+                return;
+            }
+            const latestPath = (window.location.pathname || '').toLowerCase();
+            if (latestPath.indexOf('/unlock') !== -1 || (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement())) {
+                clearGmaxEntryFlow('Paused: Captcha/Unlock detected during G-Max entry.', true);
+                return;
+            }
+            if (!isClickableGmaxControl(match.el)) {
+                return;
+            }
+
+            if (match.el.tagName && match.el.tagName.toLowerCase() === 'a') {
+                if (match.el.target === '_blank') match.el.target = '_self';
+                try {
+                    match.el.style.setProperty('pointer-events', 'auto', 'important');
+                    match.el.style.setProperty('cursor', 'pointer', 'important');
+                } catch (_) {}
+            }
+
+            const prevCount = getGmaxStageAttemptCount(freshState.clickedSteps || {}, match.stage);
+            if (!freshState.clickedSteps) freshState.clickedSteps = {};
+            freshState.clickedSteps[match.stage] = { ts: Date.now(), count: prevCount + 1 };
+            writeGmaxEntryState(freshState);
+
+            const dbgCoords = (typeof getViewportDipCoords === 'function') ? getViewportDipCoords(match.el) : null;
+            console.log(
+                `[PokePreload] [G-Max Entry] Clicking stage=${match.stage} attempt=${prevCount + 1} <${match.el.tagName}> "${getNormalizedControlText(match.el)}" coords=${dbgCoords ? `${dbgCoords.x},${dbgCoords.y}(valid=${dbgCoords.valid})` : 'n/a'}`
+            );
+
+            try {
+                ipcRenderer.sendToHost('gmax-challenge-flow-status', {
+                    step: 'progress',
+                    stage: match.stage,
+                    message: match.message
+                });
+            } catch (_) {}
+
+            await humanClickElementVerified(match.el);
+
+            if (match.stage === 'continue') {
+                clearGmaxEntryFlow('G-Max Challenge Battle ready!', false);
+                setTimeout(() => {
+                    try { detectBattleOpponents(); } catch (_) {}
+                }, 350);
+            } else {
+                scheduleGmaxEntryStepCheck(650 + Math.floor(Math.random() * 350));
+            }
+        } catch (err) {
+            console.warn('[PokePreload] [G-Max Entry] Step click error:', err && err.message ? err.message : err);
+        } finally {
+            gmaxEntryClickInFlight = false;
+        }
+    }, stepDelay);
+}
+
+ipcRenderer.on('start-gmax-challenge-flow', (event, data) => {
+    try {
+        const incomingId = (data && data.startedAt) || Date.now();
+        const existing = readGmaxEntryState();
+        if (existing && existing.id === incomingId) {
+            scheduleGmaxEntryStepCheck(100);
+            return;
+        }
+        writeGmaxEntryState({
+            active: true,
+            id: incomingId,
+            startedAt: Date.now(),
+            targetName: (data && data.targetName) ? String(data.targetName).trim() : '',
+            variant: (data && data.variant) ? String(data.variant).trim() : '',
+            clickedSteps: {}
+        });
+        gmaxEntryClickInFlight = false;
+        gmaxCurrentHref = window.location.href || '';
+        gmaxPageLoadedAt = Date.now();
+        scheduleGmaxEntryStepCheck(120);
+    } catch (_) {}
+});
+
+ipcRenderer.on('abort-gmax-challenge-flow', () => {
+    clearGmaxEntryFlow(null, false);
+});
+
 setInterval(() => {
     syncEvolveCardState(false);
     autoSyncCurrentPokemonPage();
     checkPendingAutoEvolve();
+    processGmaxChallengeEntryStep();
 }, 500);
 
 setTimeout(() => checkPendingAutoEvolve(), 200);
+setTimeout(() => processGmaxChallengeEntryStep(), 220);
 
 window.addEventListener('click', () => {
     const path = (window.location.pathname || '').toLowerCase();
@@ -10068,9 +10705,43 @@ window.addEventListener('click', () => {
     setTimeout(() => syncEvolveCardState(false), 200);
 }, { passive: true });
 
-// --- 8. TEMPORARY HTML ACTION TRACKER FOR ACTIVE BATTLES ---
+// --- 8. TEMPORARY HTML ACTION TRACKER FOR ACTIVE BATTLES & HANG DIAGNOSTICS ---
+function initConfirmDiagnosticsAndStallMonitor() {
+    try {
+        const logConfirmDiag = () => {
+            try {
+                const p = (window.location.pathname || '').toLowerCase();
+                if (p.indexOf('/gmax/evolve/confirm') === -1) return;
+                const scripts = Array.from(document.querySelectorAll('script[src]')).map(s => {
+                    const src = s.getAttribute('src') || '';
+                    return src.split('/').pop().split('?')[0] || src.slice(0, 48);
+                });
+                const overlays = document.querySelectorAll('.modal-backdrop, #DModal.show, ins[data-vignette-loaded], .fc-dialog-overlay').length;
+                const bodyCls = (document.body && document.body.className) ? document.body.className : '';
+                console.log(`[GMAX_CONFIRM_DIAG] path=${p} scripts=${scripts.length} [${scripts.join(',')}] overlays=${overlays} bodyClass="${bodyCls}"`);
+            } catch (_) {}
+        };
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', logConfirmDiag);
+        } else {
+            logConfirmDiag();
+        }
+
+        let lastBeatTs = Date.now();
+        setInterval(() => {
+            const now = Date.now();
+            const delta = now - lastBeatTs;
+            lastBeatTs = now;
+            if (delta > 2500) {
+                const p = (window.location.pathname || '').toLowerCase();
+                console.warn(`[GUEST_STALL] Renderer event loop blocked for ${delta}ms on ${p}`);
+            }
+        }, 500);
+    } catch (_) {}
+}
+
 function initTemporaryBattleTracker() {
-    // Retained as clean no-op to ensure zero latency and native browser responsiveness
+    initConfirmDiagnosticsAndStallMonitor();
 }
 
 initTemporaryBattleTracker();

@@ -1152,6 +1152,58 @@ assert.strictEqual(cleanMove, 'Flamethrower', 'Checkbox cleaner must strip type 
 
 console.log('[PASS] AUDIT 13: G-Max Challenge & Evolution Duplicate Prevention Verified');
 
+// 13B. AUDIT: Variant Multipliers (Mirage/Shadow/Negative), Lethal Accuracy Tie-Break, & Walled Switch Intelligence
+const mirageVsDark = teamEngine.getVariantMultipliers('Mirage', 'Dark');
+assert.strictEqual(mirageVsDark.offense, 1.2, 'Mirage vs Dark must gain +20% offense');
+const mirageVsNormal = teamEngine.getVariantMultipliers('Mirage', 'Normal');
+assert.strictEqual(mirageVsNormal.hp, 0.9, 'Mirage vs Normal must take -10% HP penalty');
+const metallicVsShadow = teamEngine.getVariantMultipliers('Metallic', 'Shadow');
+assert.strictEqual(metallicVsShadow.statusImmune, false, 'Shadow opponent must nullify Metallic status immunity');
+const rockWreckerResolved = teamEngine.resolveMove('Rock Wrecker');
+assert.strictEqual(rockWreckerResolved.isRecharge, true, 'Rock Wrecker must carry recharge penalty');
+assert.strictEqual(rockWreckerResolved.accuracy, 90, 'Rock Wrecker accuracy must resolve to 90%');
+
+// Verify smart lethal accuracy tie-breaker picks 100% Surf over 80% Hydro Pump when opponent is low HP
+const lethalFinishBattle = {
+  trainerName: 'Arena Ace',
+  isInActiveBattle: true,
+  hasAttackBtn: true,
+  userActivePokemon: { name: 'Dark Swampert', variant: 'Dark', types: ['Water', 'Ground'], level: 100, hp: 400, maxHp: 400 },
+  roster: [{ name: 'Arcanine', variant: 'Normal', types: ['Fire'], level: 100, hp: 90, maxHp: 400, isCurrentActive: true }],
+  availableMoves: [
+    { name: 'Hydro Pump', type: 'Water', rawLabel: 'Hydro Pump (Water)' },
+    { name: 'Surf', type: 'Water', rawLabel: 'Surf (Water)' }
+  ]
+};
+const lethalFinishAnalysis = aiAssistant.analyzeBattle(lethalFinishBattle, []);
+assert.strictEqual(lethalFinishAnalysis.bestMoveObj.name, 'Surf', 'Must choose 100% accurate Surf over 80% Hydro Pump when both safely KO low-HP opponent');
+
+// Verify tactical switch recommendation when active battler is 0x walled with a bench counter
+const walledBattle = {
+  trainerName: 'Arena Ghost',
+  isInActiveBattle: true,
+  hasAttackBtn: true,
+  hasSwitchBtn: true,
+  hasBenchRadios: true,
+  userActivePokemon: { name: 'Machamp', variant: 'Normal', types: ['Fighting'], level: 100, hp: 400, maxHp: 400 },
+  userTeam: [
+    { name: 'Machamp', variant: 'Normal', types: ['Fighting'], level: 100, hp: 400, maxHp: 400, index: 0 },
+    { name: 'Dark Umbreon', variant: 'Dark', types: ['Dark'], level: 100, hp: 400, maxHp: 400, index: 1, moves: ['Crunch'] }
+  ],
+  roster: [{ name: 'Gengar', variant: 'Normal', types: ['Ghost', 'Poison'], level: 100, hp: 400, maxHp: 400, isCurrentActive: true }],
+  availableMoves: [
+    { name: 'Close Combat', type: 'Fighting', rawLabel: 'Close Combat (Fighting)' },
+    { name: 'Body Slam', type: 'Normal', rawLabel: 'Body Slam (Normal)' }
+  ]
+};
+const walledAnalysis = aiAssistant.analyzeBattle(walledBattle, []);
+assert.strictEqual(walledAnalysis.shouldSwitchToCounter, true, 'Must recommend tactical switch when active battler is 0x walled against Ghost');
+assert.strictEqual(walledAnalysis.switchCounterName, 'Dark Umbreon', 'Must switch to Dark Umbreon counter on the bench');
+assert(preloadContent.includes('function extractBattleDomVariant('), 'game-preload.js must extract variants consistently across prep and active DOM');
+assert(appJsSource.includes('const shouldTacticalCounterSwitch = Boolean('), 'app.js must execute tactical switch when active battler is walled');
+
+console.log('[PASS] AUDIT 13B: All Variants, Lethal Accuracy Tie-Break, & Walled Switch Intelligence Verified');
+
 // 14. AUDIT 100% 7-BIT CLEAN ASCII
 const filesToCheck = ['app.html', 'app.js', 'ai_agent_bridge.js', 'evolution_engine.js', 'team_engine.js', 'ml_combat_engine.py', 'package.json', 'game-preload.js'];
 filesToCheck.forEach(f => {

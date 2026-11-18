@@ -1,6 +1,6 @@
 {
   "name": "delugerpg-desktop-client",
-  "version": "1.4.29",
+  "version": "1.4.30",
   "description": "Standalone Stealth Desktop Client for DelugeRPG",
   "main": "main.js",
   "scripts": {
@@ -50,6 +50,8 @@
       "main.js",
       "app.html",
       "app.js",
+      "roaming_telemetry_ui.js",
+      "evolution_ui.js",
       "game-preload.js",
       "targets.js",
       "maps_catalog.js",

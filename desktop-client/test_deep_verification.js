@@ -34,6 +34,8 @@ console.log('--- PIPELINE 1: 100% 7-BIT CLEAN ASCII ENCODING AUDIT ---');
 const clientFiles = [
   'main.js',
   'app.js',
+  'roaming_telemetry_ui.js',
+  'evolution_ui.js',
   'game-preload.js',
   'team_engine.js',
   'ai_agent_bridge.js',
@@ -80,8 +82,12 @@ for (const f of clientFiles) {
     runTest(`JavaScript Syntax Compilation Audit: ${f}`, () => {
       const fullPath = path.join(__dirname, f);
       const content = fs.readFileSync(fullPath, 'utf8');
-      const wrapped = '(function (exports, require, module, __filename, __dirname) {\n' + content + '\n});';
-      new vm.Script(wrapped, { filename: f });
+      if (f === 'app.js' || f === 'roaming_telemetry_ui.js' || f === 'evolution_ui.js') {
+        new vm.Script(content, { filename: f });
+      } else {
+        const wrapped = '(function (exports, require, module, __filename, __dirname) {\n' + content + '\n});';
+        new vm.Script(wrapped, { filename: f });
+      }
     });
   }
 }

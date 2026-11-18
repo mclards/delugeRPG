@@ -1033,7 +1033,9 @@ const isGmaxDone = /successfully completed the (?:g[- ]?max|gmax)\s*challenge/i.
 assert.strictEqual(isGmaxDone, true, 'G-Max complete regex must match complete text');
 
 // Test 7: Post-battle Next Battle vs G-Max Challenge Complete detection
-const appJsSource = fs.readFileSync('app.js', 'utf8');
+const appJsSource = fs.readFileSync('app.js', 'utf8') + '\n' +
+  (fs.existsSync('roaming_telemetry_ui.js') ? fs.readFileSync('roaming_telemetry_ui.js', 'utf8') : '') + '\n' +
+  (fs.existsSync('evolution_ui.js') ? fs.readFileSync('evolution_ui.js', 'utf8') : '');
 assert(appJsSource.includes("labelHtml: '&#9889; Next Battle'"), 'app.js must provide Next Battle button');
 assert(appJsSource.includes("labelHtml: '&#10003; G-Max Challenge Complete'"), 'app.js must provide G-Max Challenge Complete button');
 assert(appJsSource.includes("isMatchOver"), 'app.js must define isMatchOver guard to stop Auto on post-battle');
@@ -1203,6 +1205,12 @@ assert(preloadContent.includes('function extractBattleDomVariant('), 'game-prelo
 assert(appJsSource.includes('const shouldTacticalCounterSwitch = Boolean('), 'app.js must execute tactical switch when active battler is walled');
 
 console.log('[PASS] AUDIT 13B: All Variants, Lethal Accuracy Tie-Break, & Walled Switch Intelligence Verified');
+
+// 13C. AUDIT: Wild Catch / Hunting Protection Against Battle Loop & Auto-Training Takeover
+assert(preloadContent.includes('if (path.indexOf(\'/map\') !== -1 || path.indexOf(\'/login\') !== -1 || isWildCatchContext())'), 'runRealtimeBattleSensors must skip /catch and active auto-catch');
+assert(preloadContent.includes('if (curPath.indexOf(\'/map\') !== -1 || isWildCatchContext())'), 'click-rematch-button and apply-ai-battle-action must abort on /map and wild catch screens');
+assert(appJsSource.includes('if (isWildHuntingOrCatchContext() || !isCurrentPageBattle())'), 'scheduleNextLoopBattle and executeAiBattleAction must abort when hunting, catching, or outside battle arena');
+console.log('[PASS] AUDIT 13C: Wild Catch / Map Hunting Shield Against Auto-Training Interference Verified');
 
 // 14. AUDIT 100% 7-BIT CLEAN ASCII
 const filesToCheck = ['app.html', 'app.js', 'ai_agent_bridge.js', 'evolution_engine.js', 'team_engine.js', 'ml_combat_engine.py', 'package.json', 'game-preload.js'];

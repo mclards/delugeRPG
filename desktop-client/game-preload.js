@@ -3971,6 +3971,7 @@ function triggerTargetFound(targetName, category, variant) {
             }
         }
         if ((catchMode === 'master_only' || preferredBall === 'Master Ball') && lastScrapedMasterBall === 0) {
+            clearAutoCatchSession('Master Ball out of stock');
             ipcRenderer.sendToHost('autocatch-status', {
                 step: 'out-of-stock',
                 delay: 0
@@ -6517,6 +6518,51 @@ function extractBattleDomVariant(rawName, elOrSprite) {
     return 'Normal';
 }
 
+function isWildCatchContext() {
+    try {
+        const path = (window.location.pathname || '').toLowerCase();
+        if (path.indexOf('/catch') !== -1 || path.indexOf('/battle/wild') !== -1) {
+            return true;
+        }
+        if (document.getElementById('wildbattle') || document.querySelector('form[action*="wildbattle"], form[action*="catch"]')) {
+            return true;
+        }
+        const oppEl = document.getElementById('opponent') || document.querySelector('.opponent, #opp, .opp');
+        const oppText = oppEl ? (oppEl.textContent || '').trim() : '';
+        if (/^wild\s+/i.test(oppText) && (
+            document.querySelector('input[type="submit"][value*="Throw" i], button[value*="Throw" i], input[value*="Catch" i], input[type="radio"][value*="ball" i], input[type="radio"][name*="ball" i]') ||
+            /master\s*ball|ultra\s*ball|great\s*ball|poke\s*ball|broke\s*free|was\s*caught|was\s*captured/i.test((document.body && document.body.textContent) || '')
+        )) {
+            return true;
+        }
+        const isExplicitArenaBattle = (
+            path.indexOf('/battle/trainer') !== -1 ||
+            path.indexOf('/battle/gym') !== -1 ||
+            path.indexOf('/battle/user') !== -1 ||
+            path.indexOf('/battle/live') !== -1 ||
+            path.indexOf('/battle/computer') !== -1 ||
+            path.indexOf('/battle/battle') !== -1 ||
+            path.indexOf('/challenge') !== -1 ||
+            path.indexOf('/gmax') !== -1 ||
+            path.indexOf('/npc') !== -1
+        );
+        if (isExplicitArenaBattle) {
+            if (sessionStorage.getItem('deluge_autocatch_active') === 'true') {
+                if (typeof clearAutoCatchSession === 'function') {
+                    clearAutoCatchSession('Entered non-wild battle arena');
+                } else if (typeof sessionStorage.removeItem === 'function') {
+                    sessionStorage.removeItem('deluge_autocatch_active');
+                }
+            }
+            return false;
+        }
+        if (sessionStorage.getItem('deluge_autocatch_active') === 'true') {
+            return true;
+        }
+    } catch (_) {}
+    return false;
+}
+
 function detectBattleOpponents(isManualCheck) {
     try {
         const path = (window.location.pathname || '').toLowerCase();
@@ -6525,6 +6571,13 @@ function detectBattleOpponents(isManualCheck) {
                 unlockNoticeSent = true;
                 ipcRenderer.sendToHost('unlock-detected', { path: path, url: window.location.href || '' });
             }
+            return;
+        }
+
+        // Strict Wild Catch Isolation: Never emit trainer/arena battle telemetry during /catch or auto-catch flows
+        const hasOpenProfileModal = Boolean(isManualCheck && isProfileModalOpen(document.getElementById('DModal') || document.getElementById('DMbody')));
+        if (!hasOpenProfileModal && isWildCatchContext()) {
+            lastBroadcastBattleSig = null;
             return;
         }
 
@@ -6563,6 +6616,31 @@ function detectBattleOpponents(isManualCheck) {
                 }
             }
         }
+
+function matchesTeamMemberEntry(domName, domVariant, member) {
+    if (!domName || !member || !member.name) return false;
+    const uLower = String(domName).toLowerCase().trim();
+    const mLower = String(member.name).toLowerCase().trim();
+    const uHasVar = Boolean(domVariant && String(domVariant).trim() !== '');
+    const uVar = (uHasVar && String(domVariant).trim().toLowerCase() !== 'normal')
+        ? (String(domVariant).trim().toLowerCase() + ' ')
+        : '';
+    const mVar = (member.variant && String(member.variant).trim().toLowerCase() !== 'normal')
+        ? (String(member.variant).trim().toLowerCase() + ' ')
+        : '';
+    if (uHasVar && uVar !== mVar) {
+        if ((!mVar || !uLower.startsWith(mVar)) && (!uVar || !mLower.startsWith(uVar))) {
+            return false;
+        }
+    }
+    if (uLower === mLower) return true;
+    if (mVar && uLower === mVar + mLower) return true;
+    if (uVar && mLower === uVar + uLower) return true;
+    if (mVar && mLower.startsWith(mVar) && uLower === mLower.slice(mVar.length)) {
+        return !uHasVar || uVar === mVar;
+    }
+    return false;
+}
 
         // Mode 1: Post-Battle Screen (Victory or Defeat) - Top priority when match concludes
         const viewPokes = document.getElementById('viewpokes');
@@ -6683,6 +6761,12 @@ function detectBattleOpponents(isManualCheck) {
             }
             lastBroadcastBattleSig = postSig;
 
+            const postBattleUrlLower = (window.location.pathname || '').toLowerCase();
+            const isExplicitTrainerPostBattle = (
+                postBattleUrlLower.indexOf('/battle/trainer') !== -1 ||
+                postBattleUrlLower.indexOf('/battle/gym') !== -1 ||
+                postBattleUrlLower.indexOf('/npc/') !== -1
+            );
             const postBattlePayload = {
                 trainerName: trainerName,
                 trainerTitle: trainerName + (trainerName.includes('Opponent') ? '' : "'s Team"),
@@ -6699,7 +6783,8 @@ function detectBattleOpponents(isManualCheck) {
                 totalExpPool: totalExpPool,
                 participatingPokemon: userTeam,
                 hasNextBattleBtn: Boolean(hasNextBattle),
-                isGmaxChallengeComplete: Boolean(isGmaxComplete)
+                isGmaxChallenge: Boolean(!isExplicitTrainerPostBattle && (isGmaxComplete || isChallengeVictory || hasNextBattle || postBattleUrlLower.indexOf('/challenge') !== -1 || postBattleUrlLower.indexOf('gmax') !== -1)),
+                isGmaxChallengeComplete: Boolean(!isExplicitTrainerPostBattle && isGmaxComplete)
             };
 
             console.log('[BATTLE_SENSOR] Post-battle state: trainer="' + trainerName + '" isVictory=' + Boolean(isVictory && !isDefeat) + ' hasNext=' + Boolean(hasNextBattle) + ' gmaxDone=' + Boolean(isGmaxComplete));
@@ -6795,7 +6880,7 @@ function detectBattleOpponents(isManualCheck) {
                 const allPokeEls = document.querySelectorAll('.pokemon');
                 for (let p = 0; p < allPokeEls.length; p++) {
                     const el = allPokeEls[p];
-                    if (oppEl && (el === oppEl || oppEl.contains(el))) continue;
+                    if (oppEl && (el === oppEl || oppEl.contains(el) || el.contains(oppEl))) continue;
                     if (el.closest && el.closest('#teamleft, #teamright, #switchpoke, .switchform, .switchpoke, .bench, #userteam')) continue;
                     playerPokeEl = el;
                     break;
@@ -6806,11 +6891,13 @@ function detectBattleOpponents(isManualCheck) {
                 const candEls = document.querySelectorAll('h3, h4, .smallcaps, strong, b, div, span');
                 for (let c = 0; c < candEls.length; c++) {
                     const el = candEls[c];
-                    if (oppEl && oppEl.contains(el)) continue;
+                    if (oppEl && (oppEl.contains(el) || el.contains(oppEl))) continue;
                     if (el.closest && el.closest('#teamleft, #teamright, #switchpoke, .switchform, .switchpoke, .bench, #userteam')) continue;
                     const t = (el.textContent || '').trim();
                     if (/^Your\s+[A-Za-z0-9]/i.test(t) && !t.includes('Your Opponent') && !t.includes('Your Team')) {
-                        playerPokeEl = el.closest('.pokemon') || el.parentElement || el;
+                        const candContainer = el.closest('.pokemon') || el.parentElement || el;
+                        if (oppEl && (candContainer === oppEl || oppEl.contains(candContainer) || candContainer.contains(oppEl))) continue;
+                        playerPokeEl = candContainer;
                         break;
                     }
                 }
@@ -6838,10 +6925,12 @@ function detectBattleOpponents(isManualCheck) {
                     const t = pTypeBtns[j].getAttribute('title') || pTypeBtns[j].textContent.trim();
                     if (t && pTypes.indexOf(t) === -1) pTypes.push(t);
                 }
+                const pImgEl = playerPokeEl.querySelector('img');
+                const pSprite = pImgEl ? (pImgEl.getAttribute('src') || '') : '';
+                const uVariant = pName ? extractBattleDomVariant(pName, pSprite || playerPokeEl) : 'Normal';
                 let matchedKnown = null;
                 if (Array.isArray(lastKnownUserTeam)) {
-                    matchedKnown = lastKnownUserTeam.find(u => (u.name || '').toLowerCase() === pName.toLowerCase()) ||
-                                   lastKnownUserTeam.find(u => u.name && pName.toLowerCase().includes(u.name.toLowerCase()));
+                    matchedKnown = lastKnownUserTeam.find(u => matchesTeamMemberEntry(pName, uVariant, u));
                     if (pTypes.length === 0 && matchedKnown && Array.isArray(matchedKnown.types)) {
                         pTypes.push(...matchedKnown.types);
                     }
@@ -6868,11 +6957,7 @@ function detectBattleOpponents(isManualCheck) {
                     }
                 }
 
-                const pImgEl = playerPokeEl.querySelector('img');
-                const pSprite = pImgEl ? (pImgEl.getAttribute('src') || '') : '';
-
                 if (pName) {
-                    const uVariant = extractBattleDomVariant(pName, pSprite || playerPokeEl);
                     userActivePokemon = {
                         name: pName,
                         variant: uVariant,
@@ -6995,11 +7080,12 @@ function detectBattleOpponents(isManualCheck) {
                         const t = rTypeBtns[j].getAttribute('title') || rTypeBtns[j].textContent.trim();
                         if (t && rTypes.indexOf(t) === -1) rTypes.push(t);
                     }
+                    const rVariant = extractBattleDomVariant(rName, rItem);
                     let rLevel = 100;
                     let hasKnownLvl = false;
                     let matched = null;
                     if (Array.isArray(lastKnownUserTeam)) {
-                        matched = lastKnownUserTeam.find(u => (u.name || '').toLowerCase() === rName.toLowerCase());
+                        matched = lastKnownUserTeam.find(u => matchesTeamMemberEntry(rName, rVariant, u));
                         if (matched && matched.levelKnown !== false && typeof matched.level === 'number') {
                             rLevel = matched.level;
                             hasKnownLvl = true;
@@ -7030,7 +7116,6 @@ function detectBattleOpponents(isManualCheck) {
                     const rStyle = rItem.getAttribute('style') || '';
                     const rFainted = matchedWasFainted || (rHp <= 0) || Boolean(rRadioEl && rRadioEl.disabled) || Boolean(rZeroBar) || /\bfainted\b/i.test(rItem.textContent || '') || rItem.classList.contains('fainted') || rItem.classList.contains('dead') || rStyle.includes('opacity: 0.5') || rStyle.includes('opacity:0.5');
                     if (rFainted) rHp = 0;
-                    const rVariant = extractBattleDomVariant(rName, rItem);
                     userTeam.push({
                         name: rName,
                         variant: rVariant,
@@ -7055,11 +7140,12 @@ function detectBattleOpponents(isManualCheck) {
                         const nameNode = card.querySelector('.batname span, .batname, h4, .name, .smallcaps');
                         let cName = nameNode ? nameNode.textContent.trim() : (card.textContent || '').replace(/Level:\s*\d+/gi, '').replace(/Lv\.?\s*\d+/gi, '').replace(/HP:\s*\d+(?:\s*\/\s*\d+)?/gi, '').replace(/\s+/g, ' ').trim();
                         if (!cName) continue;
+                        const cDomVar = extractBattleDomVariant(cName, card);
                         let cLevel = 100;
                         let cKnownLvl = false;
                         let cMatched = null;
                         if (Array.isArray(lastKnownUserTeam)) {
-                            cMatched = lastKnownUserTeam.find(u => (u.name || '').toLowerCase() === cName.toLowerCase());
+                            cMatched = lastKnownUserTeam.find(u => matchesTeamMemberEntry(cName, cDomVar, u));
                             if (cMatched && cMatched.levelKnown !== false && typeof cMatched.level === 'number') {
                                 cLevel = cMatched.level;
                                 cKnownLvl = true;
@@ -7071,8 +7157,8 @@ function detectBattleOpponents(isManualCheck) {
                         const cFainted = cMatchedWasFainted || Boolean(rad.disabled) || Boolean(cZeroBar) || /\bfainted\b/i.test(card.textContent || '') || card.classList.contains('fainted') || card.classList.contains('dead') || cStyle.includes('opacity: 0.5') || cStyle.includes('opacity:0.5');
                         const cHp = cFainted ? 0 : ((cMatched && typeof cMatched.hp === 'number' && cMatched.hp > 0) ? cMatched.hp : 100);
                         const cMaxHp = (cMatched && typeof cMatched.maxHp === 'number' && cMatched.maxHp > 0) ? cMatched.maxHp : 100;
-                        const cVariant = extractBattleDomVariant(cName, card) !== 'Normal'
-                            ? extractBattleDomVariant(cName, card)
+                        const cVariant = cDomVar !== 'Normal'
+                            ? cDomVar
                             : ((cMatched && cMatched.variant) ? cMatched.variant : 'Normal');
                         userTeam.push({
                             name: cName,
@@ -7472,8 +7558,9 @@ function detectBattleOpponents(isManualCheck) {
                                     if (hpM[2]) rMaxHp = parseInt(hpM[2], 10);
                                 }
                             }
+                            const rVariant = extractBattleDomVariant(rName, rItem);
                             if (!rLevelKnown && Array.isArray(lastKnownUserTeam)) {
-                                const prevMem = lastKnownUserTeam.find(u => (u.name || '').toLowerCase() === rName.toLowerCase());
+                                const prevMem = lastKnownUserTeam.find(u => matchesTeamMemberEntry(rName, rVariant, u));
                                 if (prevMem && prevMem.levelKnown !== false && typeof prevMem.level === 'number') {
                                     rLevel = prevMem.level;
                                     rLevelKnown = true;
@@ -7485,7 +7572,7 @@ function detectBattleOpponents(isManualCheck) {
                             if (rFainted) rHp = 0;
                             userTeam.push({
                                 name: rName,
-                                variant: extractBattleDomVariant(rName, rItem),
+                                variant: rVariant,
                                 types: rTypes.length > 0 ? rTypes : ['Normal'],
                                 level: rLevel,
                                 levelKnown: rLevelKnown,
@@ -7687,6 +7774,10 @@ function detectBattleOpponents(isManualCheck) {
 ipcRenderer.on('click-rematch-button', () => {
     try {
         lastBroadcastBattleSig = null;
+        const curPath = (window.location.pathname || '').toLowerCase();
+        if (curPath.indexOf('/map') !== -1 || isWildCatchContext()) {
+            return;
+        }
         if (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) {
             if (!unlockNoticeSent) {
                 unlockNoticeSent = true;
@@ -7695,21 +7786,25 @@ ipcRenderer.on('click-rematch-button', () => {
             return;
         }
         const allLinks = Array.from(document.querySelectorAll('a, input[type="button"], input[type="submit"], button'));
+        const isChallengePage = curPath.indexOf('/challenge') !== -1 || curPath.indexOf('gmax') !== -1;
+        const isTrainerPage = curPath.indexOf('/battle/trainer') !== -1 || curPath.indexOf('/battle/gym') !== -1 || curPath.indexOf('/npc/') !== -1;
         let rematchEl = null;
 
-        // Priority 1: Match specifically the "NORMAL BATTLE" rematch link / button
-        for (let i = 0; i < allLinks.length; i++) {
-            const el = allLinks[i];
-            if (!isElementVisible(el) || isCatchHoneypotTrap(el)) continue;
-            const txt = (el.textContent || el.value || '').trim().toLowerCase();
-            if (txt.includes('normal battle')) {
-                rematchEl = el;
-                break;
+        // Priority 1: Match specifically the "NORMAL BATTLE" rematch link / button (Training / Trainer battles only)
+        if (!isChallengePage) {
+            for (let i = 0; i < allLinks.length; i++) {
+                const el = allLinks[i];
+                if (!isElementVisible(el) || isCatchHoneypotTrap(el)) continue;
+                const txt = (el.textContent || el.value || '').trim().toLowerCase();
+                if (txt.includes('normal battle')) {
+                    rematchEl = el;
+                    break;
+                }
             }
         }
 
-        // Priority 1b: Match "NEXT BATTLE" link / button (G-Max Challenge and Challenge Arena)
-        if (!rematchEl) {
+        // Priority 1b: Match "NEXT BATTLE" link / button (G-Max Challenge and Challenge Arena only)
+        if (!rematchEl && !isTrainerPage) {
             for (let i = 0; i < allLinks.length; i++) {
                 const el = allLinks[i];
                 if (!isElementVisible(el) || isCatchHoneypotTrap(el)) continue;
@@ -7722,7 +7817,7 @@ ipcRenderer.on('click-rematch-button', () => {
         }
 
         // Priority 2: Match any link with /battle/trainer/ or /battle/gym/ that is NOT inverse or return
-        if (!rematchEl) {
+        if (!rematchEl && !isChallengePage) {
             for (let i = 0; i < allLinks.length; i++) {
                 const el = allLinks[i];
                 if (!isElementVisible(el) || isCatchHoneypotTrap(el)) continue;
@@ -7737,7 +7832,7 @@ ipcRenderer.on('click-rematch-button', () => {
         }
 
         // Priority 2b: Match any link or button with /challenge/ that links to next battle
-        if (!rematchEl) {
+        if (!rematchEl && !isTrainerPage) {
             for (let i = 0; i < allLinks.length; i++) {
                 const el = allLinks[i];
                 if (!isElementVisible(el) || isCatchHoneypotTrap(el)) continue;
@@ -7789,6 +7884,16 @@ ipcRenderer.on('check-battle-opponents', () => {
 
 ipcRenderer.on('apply-ai-battle-action', (event, data) => {
     if (!data || !data.action) return;
+    const curPath = (window.location.pathname || '').toLowerCase();
+    if (curPath.indexOf('/map') !== -1 || isWildCatchContext()) {
+        ipcRenderer.sendToHost('ai-battle-action-status', {
+            success: false,
+            blockedByCatch: true,
+            action: data.action,
+            message: 'Action ignored: Auto-Catch / Map session active.'
+        });
+        return;
+    }
     if (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) {
         console.warn('[PokePreload] Blocked apply-ai-battle-action: Captcha element present on page.');
         if (!unlockNoticeSent) {
@@ -8834,11 +8939,11 @@ window.addEventListener('DOMContentLoaded', () => {
                                 path.indexOf('/arena') !== -1 ||
                                 path.indexOf('/npc') !== -1 ||
                                 path.indexOf('/gym') !== -1;
-    if (isBattleOrChallenge) {
+    if (isBattleOrChallenge && !isWildCatchContext()) {
         detectBattleOpponents(false);
-        setTimeout(() => detectBattleOpponents(false), 300);
-        setTimeout(() => detectBattleOpponents(false), 800);
-        setTimeout(() => detectBattleOpponents(false), 1500);
+        setTimeout(() => { if (!isWildCatchContext()) detectBattleOpponents(false); }, 300);
+        setTimeout(() => { if (!isWildCatchContext()) detectBattleOpponents(false); }, 800);
+        setTimeout(() => { if (!isWildCatchContext()) detectBattleOpponents(false); }, 1500);
     }
 });
 
@@ -8846,7 +8951,10 @@ window.addEventListener('DOMContentLoaded', () => {
 function runRealtimeBattleSensors() {
     try {
         const path = (window.location.pathname || '').toLowerCase();
-        if (path.indexOf('/map') !== -1 || path.indexOf('/login') !== -1) return;
+        if (path.indexOf('/map') !== -1 || path.indexOf('/login') !== -1 || isWildCatchContext()) {
+            if (isWildCatchContext()) lastBroadcastBattleSig = null;
+            return;
+        }
         const isBattlePath = path.indexOf('/battle') !== -1 ||
                              path.indexOf('/challenge') !== -1 ||
                              path.indexOf('/arena') !== -1 ||
@@ -10572,6 +10680,14 @@ function processGmaxChallengeEntryStep() {
     const path = (window.location.pathname || '').toLowerCase();
     if (path.indexOf('/login') !== -1) {
         clearGmaxEntryFlow('G-Max entry stopped on login page.', false);
+        return;
+    }
+    if (path.indexOf('/battle/trainer') !== -1 || path.indexOf('/battle/gym') !== -1 || path.indexOf('/npc/') !== -1) {
+        clearGmaxEntryFlow(null, false);
+        return;
+    }
+    if (path.indexOf('/map') !== -1 || isWildCatchContext()) {
+        clearGmaxEntryFlow(null, false);
         return;
     }
     if (path.indexOf('/unlock') !== -1 || (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement())) {

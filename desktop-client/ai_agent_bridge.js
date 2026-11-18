@@ -572,7 +572,8 @@ class DelugeAiAssistant {
           for (const cand of teamCandidates) {
             if (!cand || cand.isFainted || (cand.hp !== undefined && cand.hp <= 0)) continue;
             if ((cand.name || '').toLowerCase() === (activeBattler.name || '').toLowerCase()) continue;
-            if ((cand.level || 0) < Math.max(60, (activeOpp.level || 100) - 20)) continue;
+            if ((activeBattler.level || 0) >= 100 && (cand.level || 0) < 100) continue;
+            if ((cand.level || 0) < Math.max(75, (activeOpp.level || 100) - 15)) continue;
             const benchScore = teamEngine.scoreVsSingleOpponent(cand, oppTypes, activeOpp.level || 100, activeOpp.moves, activeOppEnriched);
             const benchMult = benchScore.bestMove ? (benchScore.bestMove.multiplier || 0) : 0;
             if (isWalled && benchMult <= 0) continue;

@@ -955,11 +955,253 @@ console.log('[PASS] Hide Ads ON dependency strictly enforced.');
   console.log('[PASS] Forme Snowflake, Mythical Banner, and Unowned Forme Protection verified.');
 }
 
+// 3F. Auto-Training / Battle Loop Isolation from Map Hunting & Auto-Catching
+{
+  const vm = require('vm');
+  assert.strictEqual(preloadJs.includes('function isWildCatchContext()'), true, 'game-preload.js must define isWildCatchContext');
+  assert.strictEqual(preloadJs.includes('blockedByCatch: true'), true, 'game-preload.js must reject apply-ai-battle-action during wild catch / auto-catch');
+  assert.strictEqual(appJs.includes('function stopAllBattleAutomation('), true, 'app.js must define stopAllBattleAutomation');
+  assert.strictEqual(appJs.includes('function isWildHuntingOrCatchContext('), true, 'app.js must define isWildHuntingOrCatchContext');
+  assert.strictEqual(appJs.includes('let battleLoopFallbackTimer = null;'), true, 'app.js must track battleLoopFallbackTimer so navigating to map/catch cancels inner rematch');
+
+  // Execute extracted isWildCatchContext against real scenario fixtures
+  const fnMatch = preloadJs.match(/function isWildCatchContext\(\)\s*\{[\s\S]*?\n\}/);
+  assert(fnMatch, 'Could not extract isWildCatchContext from game-preload.js');
+
+  const evalCatchContext = ({ pathname = '/map/overworld', autoCatchActive = 'false', oppText = '', bodyText = '', hasCatchEl = false }) => {
+    let storedActive = autoCatchActive;
+    const ctx = {
+      window: { location: { pathname } },
+      sessionStorage: {
+        getItem: (k) => (k === 'deluge_autocatch_active' ? storedActive : null),
+        removeItem: (k) => { if (k === 'deluge_autocatch_active') storedActive = null; }
+      },
+      document: {
+        getElementById: (id) => (id === 'opponent' && oppText ? { textContent: oppText } : (id === 'wildbattle' && hasCatchEl ? {} : null)),
+        querySelector: (sel) => (hasCatchEl && /wildbattle|catch|throw|ball/i.test(sel) ? {} : null),
+        body: { textContent: bodyText }
+      }
+    };
+    vm.runInNewContext(fnMatch[0], ctx);
+    return ctx.isWildCatchContext();
+  };
+
+  assert.strictEqual(evalCatchContext({ pathname: '/catch/dark_lapras' }), true, '/catch/ route MUST isolate auto-battle sensors');
+  assert.strictEqual(evalCatchContext({ pathname: '/battle/wild/123' }), true, '/battle/wild route MUST isolate auto-battle sensors');
+  assert.strictEqual(evalCatchContext({ pathname: '/map/overworld', autoCatchActive: 'true' }), true, 'Active deluge_autocatch_active session flag on map MUST isolate auto-battle');
+  assert.strictEqual(evalCatchContext({ pathname: '/battle/trainer/753', autoCatchActive: 'true' }), false, 'Stale deluge_autocatch_active session flag on explicit Trainer Battle MUST NOT hide Auto/Loop/Deploy controls');
+  assert.strictEqual(evalCatchContext({ pathname: '/challenge/gmax', autoCatchActive: 'true' }), false, 'Stale deluge_autocatch_active session flag on G-Max Challenge MUST NOT hide challenge battle controls');
+  assert.strictEqual(evalCatchContext({ pathname: '/battle/arena', oppText: 'Wild Chrome Charizard Lv 50', bodyText: 'Throw Master Ball', hasCatchEl: true }), true, 'Wild Pokemon catch screen MUST isolate auto-battle');
+  assert.strictEqual(evalCatchContext({ pathname: '/battle/trainer/113', oppText: "Youngster Joey's Rattata", bodyText: 'Choose your move', hasCatchEl: false }), false, 'Genuine NPC trainer battle MUST NOT be treated as wild catch');
+
+  // Verify host-side URL context and G-Max vs Training Battle separation
+  const nonWildMatch = appJs.match(/function isExplicitNonWildBattleUrl\(urlStr\)\s*\{[\s\S]*?\n\}/);
+  const hostWildMatch = appJs.match(/function isWildHuntingOrCatchContext\(overrideUrl = ''\)\s*\{[\s\S]*?\n\}/);
+  const gmaxModeMatch = appJs.match(/function isGMaxChallengeModeActive\(\)\s*\{[\s\S]*?\n\}/);
+  assert(nonWildMatch && hostWildMatch && gmaxModeMatch, 'Host battle/challenge helpers must be present in app.js');
+
+  const evalHostCtx = ({ liveUrl = '', overrideUrl = '', isRunning = false, isAutoCatchCountdownActive = false, isEncounterOnScreen = false, targetEncounterActive = false, activeAiBattleData = null, teamRosterMode = 'TRAINING', teamCategory = 'ALL', teamTrainer = '' }) => {
+    const ctx = {
+      delugeView: { getURL: () => liveUrl },
+      isMapUrl: (u) => String(u || '').toLowerCase().includes('/map'),
+      isRunning,
+      isAutoCatchCountdownActive,
+      isEncounterOnScreen,
+      targetEncounterActive,
+      activeAiBattleData,
+      teamRosterMode,
+      teamCategorySelect: { value: teamCategory },
+      teamTrainerSelect: { value: teamTrainer }
+    };
+    vm.runInNewContext(nonWildMatch[0] + '\n' + hostWildMatch[0] + '\n' + gmaxModeMatch[0], ctx);
+    return {
+      isWild: ctx.isWildHuntingOrCatchContext(overrideUrl),
+      isGmax: ctx.isGMaxChallengeModeActive()
+    };
+  };
+
+  assert.strictEqual(
+    evalHostCtx({ liveUrl: 'https://www.delugerpg.com/battle/trainer/753', targetEncounterActive: true, isEncounterOnScreen: true, isAutoCatchCountdownActive: true }).isWild,
+    false,
+    'Stale map/catch flags on /battle/trainer/753 MUST NOT suppress Auto/Loop/Deploy battle controls'
+  );
+  assert.strictEqual(
+    evalHostCtx({ liveUrl: 'https://www.delugerpg.com/map/overworld', isRunning: true }).isWild,
+    true,
+    'Active hunting on /map MUST remain isolated as wild hunting context'
+  );
+  assert.strictEqual(
+    evalHostCtx({ liveUrl: 'https://www.delugerpg.com/battle/trainer/753', teamRosterMode: 'TRAINING', teamCategory: 'GMAX_CHALLENGE', activeAiBattleData: { battleUrl: '/battle/trainer/753', isGmaxChallenge: false } }).isGmax,
+    false,
+    'Training battle on /battle/trainer/753 MUST remain strictly separated from G-Max Challenge mode'
+  );
+  assert.strictEqual(
+    evalHostCtx({ liveUrl: 'https://www.delugerpg.com/challenge/gmax', teamRosterMode: 'ALL', teamCategory: 'GMAX_CHALLENGE', activeAiBattleData: { battleUrl: '/challenge/gmax', isGmaxChallenge: true } }).isGmax,
+    true,
+    'G-Max Challenge arena MUST evaluate as G-Max Challenge mode'
+  );
+
+  console.log('[PASS] Auto-Training / Battle Loop strictly isolated from Wild Hunting & Auto-Catching.');
+}
+
+// 3G. Live Level Persistence & Training Mode Stale-Maxed Guard
+console.log('\n--- TEST 3G: Live Level Persistence & Training Mode Stale-Maxed Guard ---');
+{
+  const vm = require('vm');
+  const os = require('os');
+  const roamingCode = fs.readFileSync(path.join(__dirname, 'roaming_telemetry_ui.js'), 'utf8');
+  const preloadCode = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'deluge-test-3g-'));
+  try {
+    const tmpCollPath = path.join(tmpDir, 'user_collection.json');
+    const mockCollection = [
+      { id: 'yyYDpm', name: 'Dark Mega Sableye', variant: 'Dark', level: 100, exp: '100,000' },
+      { id: 'fGHV4c', name: 'Ghostly Pikachu', variant: 'Ghostly', level: 19, exp: '19,000' },
+      { id: 's1MnN1', name: 'Ghostly Machop', variant: 'Ghostly', level: 10, exp: '10,000' },
+      { id: 'z2LGNw', name: 'Machop', variant: 'Normal', level: 13, exp: '13,000' },
+      { id: 'h5GKxw', name: 'Dark Sobble', variant: 'Dark', level: 8, exp: '8,000' }
+    ];
+
+    let rebuildCalls = 0;
+    let rosterUiCalls = 0;
+    let guestSyncCalls = 0;
+    const renderCalls = [];
+
+    const sandbox = {
+      fs,
+      currentCollection: mockCollection,
+      lastRecommendedTeam: [
+        { slot: 1, id: 'yyYDpm', name: 'Dark Mega Sableye', variant: 'Dark', level: 100, isCarry: true },
+        { slot: 2, id: 'fGHV4c', name: 'Ghostly Pikachu', variant: 'Ghostly', level: 19, isCarry: false, targetName: 'Primary Trainee Partner' },
+        { slot: 3, id: 'z2LGNw', name: 'Machop', variant: 'Normal', level: 13, isCarry: false, targetName: 'Trainee #3' }
+      ],
+      lastKnownUserTeam: [],
+      teamRosterMode: 'TRAINING',
+      teamPoolFilter: 'ANY',
+      isBattleLoopRunning: false,
+      liveBattleOpponent: null,
+      activeAiBattleData: null,
+      battleLoopTimer: null,
+      delugeView: null,
+      teamTrainerSelect: null,
+      teamActionStatus: { textContent: '', style: { color: '', display: 'none' } },
+      teamResultContainer: { style: { display: 'block' } },
+      currentMatchParticipants: new Set(),
+      justSwitchedActivePokemon: new Set(),
+      currentMatchSwitchCount: 0,
+      currentMatchItemCount: 0,
+      lastSelectedBattleUrl: '',
+      lastLoggedBattleOpponentSig: '',
+      gymLeadersData: null,
+      activePvpTargetType: 'NPC',
+      teamBattleMode: 'NPC',
+      pvpStrategy: 'COUNTERS',
+      lastTurnActionType: null,
+      candidateListsCache: { trainingByPool: {} },
+      getWritableDataPath: (fname) => path.join(tmpDir, fname),
+      refreshCandidateListsCache: () => {},
+      updateRosterModeUI: () => { rosterUiCalls++; },
+      updateTrainerIntelStats: () => {},
+      syncUserCollectionToGuest: () => { guestSyncCalls++; },
+      renderTeamLineup: (leader, team) => { renderCalls.push(team.map(t => t.name + ':' + t.level)); },
+      getSelectedTrainerInfo: () => ({ isLive: false, leader: { npcId: 753, name: 'Acerola', roster: [{ name: 'Banette', level: 100 }] } }),
+      executeTeamBuild: () => {
+        rebuildCalls++;
+        sandbox.lastRecommendedTeam = [
+          sandbox.currentCollection[0],
+          sandbox.currentCollection[1],
+          sandbox.currentCollection[2],
+          sandbox.currentCollection[4]
+        ].filter(p => p.level === 100 || p.level < 100);
+      },
+      backendLog: () => {},
+      updateTeamBuilderBattleAction: () => {},
+      isWildHuntingOrCatchContext: () => false,
+      stopAllBattleAutomation: () => {},
+      updateLiveBattleHUD: () => {},
+      syncTeamSelectorsWithLiveOpponent: () => {},
+      document: { getElementById: () => null }
+    };
+
+    const fnStart = roamingCode.indexOf('function matchesTeamEntryName');
+    assert(fnStart !== -1, 'matchesTeamEntryName must exist in roaming_telemetry_ui.js');
+    vm.runInNewContext(roamingCode.slice(fnStart), sandbox);
+
+    // 3G-1: Variant isolation in matchesTeamEntryName & matchesTeamMemberEntry
+    assert.strictEqual(
+      sandbox.matchesTeamEntryName({ name: 'Machop', variant: 'Normal' }, { name: 'Ghostly Machop', variant: 'Ghostly' }),
+      false,
+      'Normal Machop MUST NOT cross-match Ghostly Machop'
+    );
+    assert.strictEqual(
+      sandbox.matchesTeamEntryName({ name: 'Machop', variant: 'Normal' }, { name: 'Machop', variant: 'Normal' }),
+      true,
+      'Normal Machop MUST match Normal Machop'
+    );
+    assert.strictEqual(
+      sandbox.matchesTeamEntryName({ name: 'Machop', variant: 'Ghostly' }, { name: 'Ghostly Machop', variant: 'Ghostly' }),
+      true,
+      'Explicit Ghostly variant tag on bare species name MUST match Ghostly Machop'
+    );
+
+    const preloadFnStart = preloadCode.indexOf('function matchesTeamMemberEntry');
+    assert(preloadFnStart !== -1, 'matchesTeamMemberEntry must exist in game-preload.js');
+    const preloadFnEnd = preloadCode.indexOf('\n        // Mode 1:', preloadFnStart);
+    const preloadSandbox = {};
+    vm.runInNewContext(preloadCode.slice(preloadFnStart, preloadFnEnd), preloadSandbox);
+    assert.strictEqual(
+      preloadSandbox.matchesTeamMemberEntry('Machop', 'Normal', { name: 'Ghostly Machop', variant: 'Ghostly' }),
+      false,
+      'Preload matcher MUST isolate Normal Machop from Ghostly Machop'
+    );
+
+    // 3G-2: Preparation screen reveals Machop (z2LGNw) is ALREADY Lv 100 while stale cache says Lv 13
+    sandbox.handleLiveBattleOpponents({
+      trainerName: 'Acerola',
+      battleUrl: '/battle/trainer/753',
+      isPreparationScreen: true,
+      isInActiveBattle: false,
+      roster: [{ name: 'Banette', types: ['Ghost'], level: 100, hp: 400, maxHp: 400 }],
+      userTeam: [
+        { name: 'Dark Mega Sableye', variant: 'Dark', level: 100, levelKnown: true, hp: 400, maxHp: 400 },
+        { name: 'Ghostly Pikachu', variant: 'Ghostly', level: 19, levelKnown: true, hp: 76, maxHp: 76 },
+        { name: 'Machop', variant: 'Normal', level: 100, levelKnown: true, hp: 400, maxHp: 400 }
+      ]
+    });
+
+    assert.strictEqual(mockCollection[3].level, 100, 'Exact Machop (z2LGNw) MUST update to Lv 100 in currentCollection');
+    assert.strictEqual(mockCollection[2].level, 10, 'Ghostly Machop (s1MnN1) level MUST remain untouched at Lv 10');
+    assert(fs.existsSync(tmpCollPath), 'Updated collection MUST persist to user_collection.json immediately');
+    const persisted = JSON.parse(fs.readFileSync(tmpCollPath, 'utf8'));
+    assert.strictEqual(persisted.find(p => p.id === 'z2LGNw').level, 100, 'Persisted user_collection.json MUST retain Machop Lv 100 across restarts');
+    assert.strictEqual(rosterUiCalls >= 1, true, 'Roster Maxed/Training counter UI MUST refresh immediately');
+    assert.strictEqual(guestSyncCalls >= 1, true, 'Updated collection MUST sync to preload guest');
+    assert.strictEqual(rebuildCalls, 1, 'Stale already-maxed trainee on fresh Prep screen MUST auto-rebuild Training lineup');
+    assert(sandbox.teamActionStatus.textContent.includes('Machop'), 'User status MUST report synced already-maxed Machop');
+
+    // 3G-3: Guard against #opponent DOM leakage in playerPokeEl search
+    assert(
+      preloadCode.includes('candContainer.contains(oppEl)'),
+      'game-preload.js playerPokeEl lookup MUST guard against ancestors containing #opponent'
+    );
+    assert(
+      !preloadCode.includes("lastKnownUserTeam.find(u => u.name && pName.toLowerCase().includes(u.name.toLowerCase()))"),
+      'game-preload.js MUST NOT use loose substring includes matching for active user team levels'
+    );
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+  console.log('[PASS] Live Level Persistence, Variant Isolation & Stale-Maxed Training Guard verified.');
+}
+
 // 4. Verify 100% 7-bit Clean ASCII across all files
 console.log('\n--- TEST 4: 100% 7-bit Clean ASCII Verification ---');
 const clientFiles = [
   'main.js',
   'app.js',
+  'roaming_telemetry_ui.js',
+  'ai_agent_bridge.js',
   'game-preload.js',
   'team_engine.js',
   'targets.js',

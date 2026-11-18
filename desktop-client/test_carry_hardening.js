@@ -104,6 +104,65 @@ console.log('\n[PASS] AUDIT 4: STAB Consistency & Move Trait Penalization Verifi
 console.log('  Selected Move: ' + scoreResult.bestMove.name + ' (' + scoreResult.bestMove.type + ') [Power: ' + scoreResult.bestMove.power + ']');
 console.log('  STAB Status:   ' + (scoreResult.bestMove.isStab ? 'STAB Boosted' : 'Non-STAB'));
 
+// 5. Negative Glass-Cannon Solo Guard & Lv 100 Roster Sweep Integrity
+const acerolaLv100Roster = {
+  name: 'Acerola',
+  tier: 'VIP',
+  npcId: 753,
+  avgLevel: 56,
+  types: ['Ghost'],
+  roster: [
+    { name: 'Banette', types: ['Ghost'], level: 100, moves: [{ name: 'Sucker Punch', type: 'Dark', power: 80 }, { name: 'Shadow Ball', type: 'Ghost', power: 80 }] },
+    { name: 'Drifblim', types: ['Ghost', 'Flying'], level: 100, moves: [{ name: 'Ominous Wind', type: 'Ghost', power: 60 }, { name: 'Gust', type: 'Flying', power: 40 }] },
+    { name: 'Dhelmise', types: ['Ghost', 'Grass'], level: 100, moves: [{ name: 'Power Whip', type: 'Grass', power: 120 }] },
+    { name: 'Froslass', types: ['Ice', 'Ghost'], level: 100, moves: [{ name: 'Blizzard', type: 'Ice', power: 120 }, { name: 'Wake-up Slap', type: 'Fighting', power: 60 }] },
+    { name: 'Palossand', types: ['Ghost', 'Ground'], level: 100, moves: [{ name: 'Sand Tomb', type: 'Ground', power: 55 }] }
+  ]
+};
+const negMegaPinsir = {
+  id: 'neg_pinsir',
+  name: 'Negative Mega Pinsir',
+  variant: 'Negative',
+  level: 100,
+  types: ['Bug', 'Flying'],
+  moves: [
+    { name: 'Storm Throw', type: 'Fighting' },
+    { name: 'X-scissor', type: 'Bug' },
+    { name: 'Super Fang', type: 'Normal' },
+    { name: 'Guillotine', type: 'Normal' }
+  ]
+};
+const darkMegaSableye = {
+  id: 'dark_sableye',
+  name: 'Dark Mega Sableye',
+  variant: 'Dark',
+  level: 100,
+  types: ['Dark', 'Ghost'],
+  moves: [
+    { name: 'Hyperspace Fury', type: 'Dark' },
+    { name: 'Astral Barrage', type: 'Ghost' },
+    { name: 'Gigaton Hammer', type: 'Steel' },
+    { name: 'Earthquake', type: 'Ground' }
+  ]
+};
+assert.strictEqual(
+  teamEngine.canSoloTrainer(negMegaPinsir, acerolaLv100Roster),
+  false,
+  'Negative Mega Pinsir with 4x inverse Grass/Fighting weaknesses must NOT be allowed to solo Lv 100 Ghost/coverage roster'
+);
+assert.strictEqual(
+  teamEngine.canSoloTrainer(darkMegaSableye, acerolaLv100Roster),
+  true,
+  'Dark Mega Sableye must pass canSoloTrainer against Lv 100 Ghost roster'
+);
+const carryCompare = teamEngine.rankCarries([negMegaPinsir, darkMegaSableye], acerolaLv100Roster);
+assert.strictEqual(
+  carryCompare[0].poke.name,
+  'Dark Mega Sableye',
+  'Clean Dark Mega Sableye sweeper must beat brittle Negative Mega Pinsir'
+);
+console.log('\n[PASS] AUDIT 5: Fragile Negative Carry Guard & Safe Sweeper Selection Verified');
+
 console.log('\n================================================================');
 console.log('   ALL CARRY HARDENING & STAB ACCURACY AUDITS PASSED PERFECTLY  ');
 console.log('================================================================\n');

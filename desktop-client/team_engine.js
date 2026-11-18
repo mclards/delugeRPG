@@ -379,9 +379,25 @@ function rankCarries(pool, trainer) {
     ? trainer.roster
     : [{ types: (trainer && trainer.types) || ['Normal'] }];
   const avgLvl = (trainer && trainer.avgLevel) || 50;
+  let maxOppLvl = avgLvl;
+  let unscoutedOppCount = 0;
+  for (const opp of oppList) {
+    if (opp && opp.level && opp.level > maxOppLvl) maxOppLvl = opp.level;
+    const hasKnownMoves = Boolean(
+      (Array.isArray(opp && opp.moves) && opp.moves.length > 0) ||
+      (Array.isArray(opp && opp.knownMoveTypes) && opp.knownMoveTypes.length >= 2)
+    );
+    if (!hasKnownMoves) unscoutedOppCount++;
+  }
+  const effectiveOppPeakLvl = Math.max(avgLvl, maxOppLvl);
 
   const mapped = (pool || []).map(p => {
     const exposure = getRosterExposure(p, trainer);
+    const defProfile = getDefensiveProfile(p);
+    const isNegCarry = isNegativePokemon(p);
+    const pokeResolvedMoves = (p.moves || []).map(resolveMove);
+    const strongReliableMoves = pokeResolvedMoves.filter(m => !m.isStatus && !m.isOhko && !m.isFixedDamage && !m.isCounterMove && !m.isSuicide && !m.isRecharge && !m.isCharge && m.power >= 75);
+    const deadFillerMoves = pokeResolvedMoves.filter(m => m.isOhko || m.isFixedDamage || m.isCounterMove || m.isSuicide);
     let offense = 0;
     let superEffectiveCount = 0;
     let quadHitsCount = 0;
@@ -417,6 +433,7 @@ function rankCarries(pool, trainer) {
         ? (isReliableMove ? (bestMove.isRecoil ? bestMove.effectivePower * 0.75 : bestMove.effectivePower) : (bestMove.isOhko || bestMove.isFixedDamage ? 0 : bestMove.effectivePower * 0.5))
         : 0;
       const effPwr = (rawEffPwr * lvlRatio) / oppHpMult;
+      const requiredOhkoPwr = oppLvl >= 85 ? 210 : 180;
 
       if (bestMove && bestMove.isOhko) {
         hasOhkoTrap = true;
@@ -446,7 +463,7 @@ function rankCarries(pool, trainer) {
         if (inc > oppMaxInc) oppMaxInc = inc;
       }
 
-      const isFastOhko = (oppIdx > 0 && effPwr >= 180 && pokeLevel >= 95 && (pokeLevel >= oppLvl || pokeLevel >= (oppLvl + 25) || pokeLevel >= 100) && bestMove && !bestMove.isRecoil && !bestMove.isOhko && (bestMove.accuracy >= 90));
+      const isFastOhko = (oppIdx > 0 && effPwr >= requiredOhkoPwr && pokeLevel >= 95 && (pokeLevel >= (oppLvl + 20) || oppLvl <= 70) && bestMove && !bestMove.isRecoil && !bestMove.isOhko && (bestMove.accuracy >= 90));
       if (isFastOhko) {
         if (oppMaxInc >= 4.0) preemptedQuadCount++;
         else if (oppMaxInc >= 2.0) preemptedWeakCount++;
@@ -461,7 +478,7 @@ function rankCarries(pool, trainer) {
         stabSeHitsCount++;
       }
 
-      if (effPwr >= 180) {
+      if (effPwr >= requiredOhkoPwr) {
         ohkoTargetCount++;
       }
       if (effPwr < minEffectivePower) {
@@ -522,9 +539,9 @@ function rankCarries(pool, trainer) {
     // Lead Opponent (Slot 1) Safety:
     // Carry must never take super-effective damage on Turn 1
     const leadOpp = oppList[0] || { types: ['Normal'] };
-    const leadScoreObj = scoreVsSingleOpponent(p, leadOpp.types || ['Normal'], avgLvl, leadOpp.moves, leadOpp);
+    const leadScoreObj = scoreVsSingleOpponent(p, leadOpp.types || ['Normal'], leadOpp.level || avgLvl, leadOpp.moves, leadOpp);
     const leadEff = (leadScoreObj.bestMove && leadScoreObj.bestMove.multiplier) || 1.0;
-    const leadOHKO = (pokeLevel >= avgLvl) && ((leadEff >= 2.0 && leadScoreObj.bestMove.effectivePower >= 90) || (leadScoreObj.bestMove && leadScoreObj.bestMove.effectivePower >= 180));
+    const leadOHKO = (pokeLevel >= (leadOpp.level || avgLvl)) && ((leadEff >= 2.0 && leadScoreObj.bestMove.effectivePower >= 90) || (leadScoreObj.bestMove && leadScoreObj.bestMove.effectivePower >= 180));
 
     let leadDefenseScore = 0;
     if (exposure.leadExposure === 0.0) leadDefenseScore = +100;
@@ -541,35 +558,54 @@ function rankCarries(pool, trainer) {
       (!trainer.types || trainer.types.length === 0)
     ));
 
+    const hasDecisiveSpeedEdge = (pokeLevel >= (effectiveOppPeakLvl + 25)) || (effectiveOppPeakLvl <= 70 && pokeLevel >= 95);
     const isPureSpeedSweeper = Boolean(
       pokeLevel >= 95 &&
-      (pokeLevel >= (avgLvl + 25) || pokeLevel >= 100) &&
+      hasDecisiveSpeedEdge &&
       (isFullTeamOhko || (ohkoTargetCount >= oppList.length - 1 && exposure.leadExposure <= 0.5)) &&
       exposure.leadExposure <= 1.0 &&
       (exposure.worstStab || 0) <= 1.0 &&
+      exposure.quadWeakCount === 0 &&
       walledCount === 0 &&
       dualTypeResistedTrapCount === 0 &&
       !hasOhkoTrap &&
       recoilHitCount === 0 &&
       !isMixedTrainer &&
-      (exposure.quadWeakCount <= preemptedQuadCount)
+      (exposure.weakCount <= preemptedWeakCount)
     );
 
     // Roster-wide defense & 1-hit-KO sweep bonuses
-    // Prioritize carries that can 1-hit-KO the ENTIRE opponent team (>= 180 effective power on every opponent)
+    // Prioritize carries that can 1-hit-KO the ENTIRE opponent team
     // so opponents never get a chance to retaliate, while keeping strict defensive safety.
     const immunityScore = exposure.immuneCount * 100;
     const resistScore = exposure.resisted * 45;
     const weakPenalty = isPureSpeedSweeper
       ? (preemptedWeakCount * 35)
       : (exposure.weakCount * 150);
-    const quadPenalty = isPureSpeedSweeper
-      ? (preemptedQuadCount * 80)
-      : (exposure.quadWeakCount * 600);
+    const quadPenalty = exposure.quadWeakCount * 600;
     const walledPenalty = walledCount * 600;
     const resistedAttackPenalty = resistedAttackCount * 320;
     const multiTurnPenalty = hasMultiTurnTrap ? 300 : 0;
     const speedSweeperBonus = isPureSpeedSweeper ? 400 : 0;
+
+    // Global Defensive Typing & Moveset Reliability Hardening:
+    // Penalize brittle Inverse/Negative typings with multiple 4x/2x global coverage holes
+    // and shallow movesets padded with OHKO/Fixed-damage filler (e.g. Negative Mega Pinsir),
+    // while rewarding zero-weakness / clean-armor carries (e.g. Dark Mega Sableye).
+    const globalQuadCount = defProfile.quadWeaknesses.length;
+    const globalWeakCount = defProfile.weaknesses.length;
+    const hasUnscoutedOpp = unscoutedOppCount > 0;
+    const globalFragilityPenalty =
+      (globalQuadCount * (hasUnscoutedOpp ? 110 : 45)) +
+      (isNegCarry ? globalQuadCount * 70 : 0) +
+      (Math.max(0, globalWeakCount - 2) * (hasUnscoutedOpp ? 35 : 15)) +
+      (isNegCarry ? Math.max(0, globalWeakCount - 2) * 40 : 0);
+    const cleanArmorBonus =
+      ((exposure.worst <= 1.0 && exposure.opponentsWithWeakness === 0) ? 220 : 0) +
+      ((globalQuadCount === 0 && globalWeakCount <= 1) ? 140 : ((globalQuadCount === 0 && globalWeakCount <= 2) ? 60 : 0));
+    const movesetReliabilityPenalty =
+      (strongReliableMoves.length === 0 ? 220 : (strongReliableMoves.length === 1 ? 85 : 0)) +
+      (deadFillerMoves.length * 40);
 
     // Multi-opponent weakness attrition penalty:
     // In DelugeRPG battles with 50/50 turn order, taking super-effective damage from multiple opponents
@@ -610,6 +646,7 @@ function rankCarries(pool, trainer) {
       + leadDefenseScore
       + immunityScore
       + resistScore
+      + cleanArmorBonus
       + fullTeamOhkoBonus
       + fullTeamSeBonus
       + ohkoRatioBonus
@@ -627,6 +664,8 @@ function rankCarries(pool, trainer) {
       - dualTypeWeakPenalty
       - weakPenalty
       - quadPenalty
+      - globalFragilityPenalty
+      - movesetReliabilityPenalty
       - walledPenalty
       - neutralAttritionPenalty
       - attritionPenalty
@@ -2324,12 +2363,14 @@ function canSoloTrainer(poke, trainer) {
   // and have super-effective damage on majority of team (>= 60%, or 100% for <= 2 pkmn teams)
   let seCount = 0;
   let ohkoCount = 0;
+  let maxOppLvl = trainerAvgLvl;
   let lethalThreatsPreempted = true;
   const vMultipliers = getVariantMultipliers(poke.variant);
   for (let i = 0; i < oppList.length; i++) {
     const opp = oppList[i];
     const oppTypes = normalizeDefenderTypes(opp.types || ['Normal']);
     const oppLvl = opp.level || trainerAvgLvl;
+    if (oppLvl > maxOppLvl) maxOppLvl = oppLvl;
     const lvlRatio = oppLvl > 0 ? Math.min(1.5, Math.max(0.25, pokeLvl / oppLvl)) : 1.0;
     let bestEff = 0;
     let maxPower = 0;
@@ -2350,10 +2391,11 @@ function canSoloTrainer(poke, trainer) {
       }
     }
 
+    const reqOhkoPwr = oppLvl >= 85 ? 210 : 180;
     if (bestEff === 0.0) return false; // Opponent is completely immune to soloer attacks
     if (bestEff < 1.0 && maxReliableEffPower < 135) return false; // Resisted weak attack cannot reliably solo
-    if (maxReliableEffPower >= 180) ohkoCount++;
-    if (oppMaxDamages[i] >= 2.0 && (i === 0 || maxReliableEffPower < 180)) {
+    if (maxReliableEffPower >= reqOhkoPwr) ohkoCount++;
+    if (oppMaxDamages[i] >= 2.0 && (i === 0 || maxReliableEffPower < reqOhkoPwr)) {
       lethalThreatsPreempted = false;
     }
     if (bestEff >= 2.0) {
@@ -2367,17 +2409,18 @@ function canSoloTrainer(poke, trainer) {
   // Fatal weakness guard:
   // An opponent's STAB 4x attack (e.g. Lapras Ice STAB vs Landorus) is an inescapable 1-shot KO and can never solo.
   if (worstStabIncoming >= 4.0) return false;
+  if (worstIncoming >= 4.0) return false;
 
+  const hasTrueLevelSweepEdge = (pokeLvl >= (maxOppLvl + 25)) || (maxOppLvl <= 70 && pokeLvl >= 95);
   const isPureSpeedSweeper = Boolean(
     pokeLvl >= 95 &&
-    (pokeLvl >= (trainerAvgLvl + 25) || pokeLvl >= 100) &&
+    hasTrueLevelSweepEdge &&
     leadIncoming <= 1.0 &&
     (ohkoCount === oppList.length || (ohkoCount >= oppList.length - 1 && leadIncoming <= 0.5)) &&
     lethalThreatsPreempted &&
     worstStabIncoming <= 1.0 &&
     !isMixedTrainer
   );
-  if (worstIncoming >= 4.0 && !isPureSpeedSweeper) return false;
   if (worstIncoming >= 2.0 && !isPureSpeedSweeper) return false;
 
   const isHighLvlSafe = (pokeLvl >= 95 || pokeLvl >= trainerAvgLvl + 15) && worstIncoming <= 1.0;

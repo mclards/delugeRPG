@@ -2516,10 +2516,17 @@
               "type": "Dark",
               "power": 70,
               "category": "Physical"
+            },
+            {
+              "name": "Needle Arm",
+              "type": "Grass",
+              "power": 60,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
-            "Dark"
+            "Dark",
+            "Grass"
           ]
         },
         {
@@ -2595,11 +2602,11 @@
         }
       ],
       "expYield": {
-        "baselinePool": 29388,
-        "lastGainedExp": 14694,
-        "lastCoinsWon": 2572,
-        "lastParticipantsCount": 2,
-        "lastCalibratedAt": 1794448072003
+        "baselinePool": 12838,
+        "lastGainedExp": 12838,
+        "lastCoinsWon": 2247,
+        "lastParticipantsCount": 1,
+        "lastCalibratedAt": 1794970975338
       },
       "npcId": 351
     },
@@ -6534,11 +6541,11 @@
         }
       ],
       "expYield": {
-        "baselinePool": 19404,
-        "lastGainedExp": 9702,
-        "lastCoinsWon": 1698,
-        "lastParticipantsCount": 2,
-        "lastCalibratedAt": 1794809754980
+        "baselinePool": 13890,
+        "lastGainedExp": 13890,
+        "lastCoinsWon": 2431,
+        "lastParticipantsCount": 1,
+        "lastCalibratedAt": 1794986147505
       },
       "npcId": 708
     },
@@ -7082,15 +7089,15 @@
             "Grass"
           ],
           "level": 100,
-          "hp": 100,
+          "hp": 400,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dhelmise.png",
           "moves": [
             {
-              "name": "Power Whip",
-              "type": "Grass",
-              "power": 120,
+              "name": "Slam",
+              "type": "Normal",
+              "power": 80,
               "category": "Physical"
             },
             {
@@ -7100,22 +7107,43 @@
               "category": "Special"
             },
             {
+              "name": "Power Whip",
+              "type": "Grass",
+              "power": 120,
+              "category": "Physical"
+            },
+            {
               "name": "Anchor Shot",
               "type": "Steel",
               "power": 80,
               "category": "Physical"
             },
             {
-              "name": "Slam",
-              "type": "Normal",
-              "power": 80,
+              "name": "Astral Barrage",
+              "type": "Ghost",
+              "power": 120,
+              "category": "Special"
+            },
+            {
+              "name": "Confusion",
+              "type": "Psychic",
+              "power": 50,
+              "category": "Special"
+            },
+            {
+              "name": "Aerial Ace",
+              "type": "Flying",
+              "power": 60,
               "category": "Physical"
             }
           ],
           "knownMoveTypes": [
+            "Normal",
             "Grass",
             "Steel",
-            "Normal"
+            "Ghost",
+            "Psychic",
+            "Flying"
           ]
         },
         {
@@ -7125,7 +7153,7 @@
             "Ghost"
           ],
           "level": 100,
-          "hp": 100,
+          "hp": 400,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/froslass.png",
@@ -7137,16 +7165,16 @@
               "category": "Special"
             },
             {
-              "name": "Wake-up Slap",
-              "type": "Fighting",
-              "power": 60,
-              "category": "Physical"
-            },
-            {
               "name": "Ominous Wind",
               "type": "Ghost",
               "power": 60,
               "category": "Special"
+            },
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting",
+              "power": 60,
+              "category": "Physical"
             },
             {
               "name": "Ice Shard",
@@ -7157,8 +7185,8 @@
           ],
           "knownMoveTypes": [
             "Ice",
-            "Fighting",
-            "Ghost"
+            "Ghost",
+            "Fighting"
           ]
         },
         {
@@ -7168,17 +7196,11 @@
             "Ground"
           ],
           "level": 100,
-          "hp": 100,
+          "hp": 400,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/palossand.png",
           "moves": [
-            {
-              "name": "Shadow Ball",
-              "type": "Ghost",
-              "power": 80,
-              "category": "Special"
-            },
             {
               "name": "Sand Tomb",
               "type": "Ground",
@@ -7198,17 +7220,31 @@
               "category": "Special"
             },
             {
-              "name": "Astral Barrage",
+              "name": "Shadow Ball",
               "type": "Ghost",
-              "power": 120,
+              "power": 80,
               "category": "Special"
+            },
+            {
+              "name": "Water Pulse",
+              "type": "Water",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Sweet Kiss",
+              "type": "Normal",
+              "power": 40,
+              "category": "Status"
             }
           ],
           "knownMoveTypes": [
-            "Ghost",
             "Ground",
             "Psychic",
-            "Grass"
+            "Grass",
+            "Ghost",
+            "Water",
+            "Normal"
           ]
         }
       ],
@@ -9672,15 +9708,15 @@
             "Grass"
           ],
           "level": 100,
-          "hp": 100,
+          "hp": 400,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dhelmise.png",
           "moves": [
             {
-              "name": "Power Whip",
-              "type": "Grass",
-              "power": 120,
+              "name": "Slam",
+              "type": "Normal",
+              "power": 80,
               "category": "Physical"
             },
             {
@@ -9690,22 +9726,43 @@
               "category": "Special"
             },
             {
+              "name": "Power Whip",
+              "type": "Grass",
+              "power": 120,
+              "category": "Physical"
+            },
+            {
               "name": "Anchor Shot",
               "type": "Steel",
               "power": 80,
               "category": "Physical"
             },
             {
-              "name": "Slam",
-              "type": "Normal",
-              "power": 80,
+              "name": "Astral Barrage",
+              "type": "Ghost",
+              "power": 120,
+              "category": "Special"
+            },
+            {
+              "name": "Confusion",
+              "type": "Psychic",
+              "power": 50,
+              "category": "Special"
+            },
+            {
+              "name": "Aerial Ace",
+              "type": "Flying",
+              "power": 60,
               "category": "Physical"
             }
           ],
           "knownMoveTypes": [
+            "Normal",
             "Grass",
             "Steel",
-            "Normal"
+            "Ghost",
+            "Psychic",
+            "Flying"
           ]
         },
         {
@@ -9715,7 +9772,7 @@
             "Ghost"
           ],
           "level": 100,
-          "hp": 100,
+          "hp": 400,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/froslass.png",
@@ -9727,16 +9784,16 @@
               "category": "Special"
             },
             {
-              "name": "Wake-up Slap",
-              "type": "Fighting",
-              "power": 60,
-              "category": "Physical"
-            },
-            {
               "name": "Ominous Wind",
               "type": "Ghost",
               "power": 60,
               "category": "Special"
+            },
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting",
+              "power": 60,
+              "category": "Physical"
             },
             {
               "name": "Ice Shard",
@@ -9747,8 +9804,8 @@
           ],
           "knownMoveTypes": [
             "Ice",
-            "Fighting",
-            "Ghost"
+            "Ghost",
+            "Fighting"
           ]
         },
         {
@@ -9758,17 +9815,11 @@
             "Ground"
           ],
           "level": 100,
-          "hp": 100,
+          "hp": 400,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/palossand.png",
           "moves": [
-            {
-              "name": "Shadow Ball",
-              "type": "Ghost",
-              "power": 80,
-              "category": "Special"
-            },
             {
               "name": "Sand Tomb",
               "type": "Ground",
@@ -9788,17 +9839,31 @@
               "category": "Special"
             },
             {
-              "name": "Astral Barrage",
+              "name": "Shadow Ball",
               "type": "Ghost",
-              "power": 120,
+              "power": 80,
               "category": "Special"
+            },
+            {
+              "name": "Water Pulse",
+              "type": "Water",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Sweet Kiss",
+              "type": "Normal",
+              "power": 40,
+              "category": "Status"
             }
           ],
           "knownMoveTypes": [
-            "Ghost",
             "Ground",
             "Psychic",
-            "Grass"
+            "Grass",
+            "Ghost",
+            "Water",
+            "Normal"
           ]
         }
       ]
@@ -17305,10 +17370,17 @@
               "type": "Dark",
               "power": 70,
               "category": "Physical"
+            },
+            {
+              "name": "Needle Arm",
+              "type": "Grass",
+              "power": 60,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
-            "Dark"
+            "Dark",
+            "Grass"
           ]
         },
         {

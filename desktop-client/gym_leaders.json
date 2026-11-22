@@ -1366,13 +1366,42 @@
             "Psychic",
             "Flying"
           ],
-          "level": 40,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/xatu.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Psychic",
+              "type": "Psychic",
+              "power": 90,
+              "category": "Special"
+            },
+            {
+              "name": "Peck",
+              "type": "Flying",
+              "power": 35,
+              "category": "Physical"
+            },
+            {
+              "name": "Night Shade",
+              "type": "Ghost",
+              "power": 40,
+              "category": "Special"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Psychic",
+            "Flying"
+          ]
         },
         {
           "name": "Jynx",
@@ -1380,13 +1409,42 @@
             "Ice",
             "Psychic"
           ],
-          "level": 41,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/jynx.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ice Punch",
+              "type": "Ice",
+              "power": 75,
+              "category": "Physical"
+            },
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting",
+              "power": 60,
+              "category": "Physical"
+            },
+            {
+              "name": "Avalanche",
+              "type": "Ice",
+              "power": 60,
+              "category": "Physical"
+            },
+            {
+              "name": "Body Slam",
+              "type": "Normal",
+              "power": 85,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ice",
+            "Fighting",
+            "Normal"
+          ]
         },
         {
           "name": "Slowbro",
@@ -1394,13 +1452,41 @@
             "Water",
             "Psychic"
           ],
-          "level": 41,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/slowbro.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Water Pulse",
+              "type": "Water",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Confusion",
+              "type": "Psychic",
+              "power": 50,
+              "category": "Special"
+            },
+            {
+              "name": "Psycho Boost",
+              "type": "Psychic",
+              "power": 140,
+              "category": "Special"
+            },
+            {
+              "name": "Zen Headbutt",
+              "type": "Psychic",
+              "power": 80,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Water",
+            "Psychic"
+          ]
         },
         {
           "name": "Exeggutor",
@@ -1408,13 +1494,41 @@
             "Grass",
             "Psychic"
           ],
-          "level": 41,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/exeggutor.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Leaf Storm",
+              "type": "Grass",
+              "power": 140,
+              "category": "Special"
+            },
+            {
+              "name": "Wood Hammer",
+              "type": "Grass",
+              "power": 120,
+              "category": "Physical"
+            },
+            {
+              "name": "Egg Bomb",
+              "type": "Normal",
+              "power": 100,
+              "category": "Physical"
+            },
+            {
+              "name": "Stomp",
+              "type": "Normal",
+              "power": 65,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Grass",
+            "Normal"
+          ]
         },
         {
           "name": "Xatu",
@@ -1422,21 +1536,50 @@
             "Psychic",
             "Flying"
           ],
-          "level": 42,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/xatu.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Psychic",
+              "type": "Psychic",
+              "power": 90,
+              "category": "Special"
+            },
+            {
+              "name": "Peck",
+              "type": "Flying",
+              "power": 35,
+              "category": "Physical"
+            },
+            {
+              "name": "Night Shade",
+              "type": "Ghost",
+              "power": 40,
+              "category": "Special"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Psychic",
+            "Flying"
+          ]
         }
       ],
       "expYield": {
-        "baselinePool": 36837,
-        "lastGainedExp": 12279,
-        "lastCoinsWon": 2149,
-        "lastParticipantsCount": 3,
-        "lastCalibratedAt": 1794066159198
+        "baselinePool": 17174,
+        "lastGainedExp": 17174,
+        "lastCoinsWon": 3006,
+        "lastParticipantsCount": 1,
+        "lastCalibratedAt": 1795093850546
       },
       "npcId": 251
     },
@@ -6443,25 +6586,11 @@
       "defeated": true,
       "roster": [
         {
-          "name": "Haunter",
-          "types": [
-            "Ghost",
-            "Poison"
-          ],
-          "level": 30,
-          "hp": 100,
-          "maxHp": 100,
-          "isFainted": false,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/haunter.png",
-          "moves": [],
-          "knownMoveTypes": []
-        },
-        {
           "name": "Banette",
           "types": [
             "Ghost"
           ],
-          "level": 31,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
@@ -6498,54 +6627,68 @@
           ]
         },
         {
-          "name": "Gengar",
+          "name": "Drifblim",
           "types": [
             "Ghost",
-            "Poison"
+            "Flying"
           ],
-          "level": 32,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/gengar.png",
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/drifblim.png",
           "moves": [],
           "knownMoveTypes": []
         },
         {
-          "name": "Jellicent",
+          "name": "Dhelmise",
           "types": [
-            "Water",
+            "Ghost",
+            "Grass"
+          ],
+          "level": 100,
+          "hp": 400,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dhelmise.png",
+          "moves": [],
+          "knownMoveTypes": []
+        },
+        {
+          "name": "Froslass",
+          "types": [
+            "Ice",
             "Ghost"
           ],
-          "level": 32,
-          "hp": 100,
+          "level": 100,
+          "hp": 400,
           "maxHp": 100,
           "isFainted": false,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/jellicent.png",
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/froslass.png",
           "moves": [],
           "knownMoveTypes": []
         },
         {
-          "name": "Mimikyu (Disguised Form)",
+          "name": "Palossand",
           "types": [
             "Ghost",
-            "Fairy"
+            "Ground"
           ],
-          "level": 35,
-          "hp": 100,
+          "level": 100,
+          "hp": 400,
           "maxHp": 100,
           "isFainted": false,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mimikyu%20%28disguised%20form%29.png",
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/palossand.png",
           "moves": [],
           "knownMoveTypes": []
         }
       ],
       "expYield": {
-        "baselinePool": 13890,
-        "lastGainedExp": 13890,
-        "lastCoinsWon": 2431,
+        "baselinePool": 14121,
+        "lastGainedExp": 14121,
+        "lastCoinsWon": 2472,
         "lastParticipantsCount": 1,
-        "lastCalibratedAt": 1794986147505
+        "lastCalibratedAt": 1795267781949
       },
       "npcId": 708
     },
@@ -7010,22 +7153,22 @@
             "Ghost"
           ],
           "level": 100,
-          "hp": 100,
+          "hp": 400,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/banette.png",
           "moves": [
             {
-              "name": "Sucker Punch",
-              "type": "Dark",
-              "power": 80,
-              "category": "Physical"
-            },
-            {
               "name": "Shadow Ball",
               "type": "Ghost",
               "power": 80,
               "category": "Special"
+            },
+            {
+              "name": "Sucker Punch",
+              "type": "Dark",
+              "power": 80,
+              "category": "Physical"
             },
             {
               "name": "Shadow Sneak",
@@ -7041,8 +7184,8 @@
             }
           ],
           "knownMoveTypes": [
-            "Dark",
-            "Ghost"
+            "Ghost",
+            "Dark"
           ]
         },
         {
@@ -7052,7 +7195,7 @@
             "Flying"
           ],
           "level": 100,
-          "hp": 100,
+          "hp": 400,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/drifblim.png",
@@ -7093,58 +7236,8 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dhelmise.png",
-          "moves": [
-            {
-              "name": "Slam",
-              "type": "Normal",
-              "power": 80,
-              "category": "Physical"
-            },
-            {
-              "name": "Energy Ball",
-              "type": "Grass",
-              "power": 80,
-              "category": "Special"
-            },
-            {
-              "name": "Power Whip",
-              "type": "Grass",
-              "power": 120,
-              "category": "Physical"
-            },
-            {
-              "name": "Anchor Shot",
-              "type": "Steel",
-              "power": 80,
-              "category": "Physical"
-            },
-            {
-              "name": "Astral Barrage",
-              "type": "Ghost",
-              "power": 120,
-              "category": "Special"
-            },
-            {
-              "name": "Confusion",
-              "type": "Psychic",
-              "power": 50,
-              "category": "Special"
-            },
-            {
-              "name": "Aerial Ace",
-              "type": "Flying",
-              "power": 60,
-              "category": "Physical"
-            }
-          ],
-          "knownMoveTypes": [
-            "Normal",
-            "Grass",
-            "Steel",
-            "Ghost",
-            "Psychic",
-            "Flying"
-          ]
+          "moves": [],
+          "knownMoveTypes": []
         },
         {
           "name": "Froslass",
@@ -7157,37 +7250,8 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/froslass.png",
-          "moves": [
-            {
-              "name": "Blizzard",
-              "type": "Ice",
-              "power": 120,
-              "category": "Special"
-            },
-            {
-              "name": "Ominous Wind",
-              "type": "Ghost",
-              "power": 60,
-              "category": "Special"
-            },
-            {
-              "name": "Wake-up Slap",
-              "type": "Fighting",
-              "power": 60,
-              "category": "Physical"
-            },
-            {
-              "name": "Ice Shard",
-              "type": "Ice",
-              "power": 40,
-              "category": "Physical"
-            }
-          ],
-          "knownMoveTypes": [
-            "Ice",
-            "Ghost",
-            "Fighting"
-          ]
+          "moves": [],
+          "knownMoveTypes": []
         },
         {
           "name": "Palossand",
@@ -7200,52 +7264,8 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/palossand.png",
-          "moves": [
-            {
-              "name": "Sand Tomb",
-              "type": "Ground",
-              "power": 55,
-              "category": "Physical"
-            },
-            {
-              "name": "Hypnosis",
-              "type": "Psychic",
-              "power": 40,
-              "category": "Status"
-            },
-            {
-              "name": "Giga Drain",
-              "type": "Grass",
-              "power": 60,
-              "category": "Special"
-            },
-            {
-              "name": "Shadow Ball",
-              "type": "Ghost",
-              "power": 80,
-              "category": "Special"
-            },
-            {
-              "name": "Water Pulse",
-              "type": "Water",
-              "power": 60,
-              "category": "Special"
-            },
-            {
-              "name": "Sweet Kiss",
-              "type": "Normal",
-              "power": 40,
-              "category": "Status"
-            }
-          ],
-          "knownMoveTypes": [
-            "Ground",
-            "Psychic",
-            "Grass",
-            "Ghost",
-            "Water",
-            "Normal"
-          ]
+          "moves": [],
+          "knownMoveTypes": []
         }
       ],
       "npcId": 753
@@ -9513,117 +9533,6 @@
       "avatar": "https://i.dstatic.com/images/trainers/league/acerola.png",
       "roster": [
         {
-          "name": "Haunter",
-          "types": [
-            "Ghost",
-            "Poison"
-          ],
-          "level": 30,
-          "hp": 100,
-          "maxHp": 100,
-          "isFainted": false,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/haunter.png",
-          "moves": [],
-          "knownMoveTypes": []
-        },
-        {
-          "name": "Banette",
-          "types": [
-            "Ghost"
-          ],
-          "level": 31,
-          "hp": 100,
-          "maxHp": 100,
-          "isFainted": false,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/banette.png",
-          "moves": [
-            {
-              "name": "Sucker Punch",
-              "type": "Dark",
-              "power": 80,
-              "category": "Physical"
-            },
-            {
-              "name": "Shadow Ball",
-              "type": "Ghost",
-              "power": 80,
-              "category": "Special"
-            },
-            {
-              "name": "Shadow Sneak",
-              "type": "Ghost",
-              "power": 40,
-              "category": "Physical"
-            },
-            {
-              "name": "Feint Attack",
-              "type": "Dark",
-              "power": 60,
-              "category": "Physical"
-            }
-          ],
-          "knownMoveTypes": [
-            "Dark",
-            "Ghost"
-          ]
-        },
-        {
-          "name": "Gengar",
-          "types": [
-            "Ghost",
-            "Poison"
-          ],
-          "level": 32,
-          "hp": 100,
-          "maxHp": 100,
-          "isFainted": false,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/gengar.png",
-          "moves": [],
-          "knownMoveTypes": []
-        },
-        {
-          "name": "Jellicent",
-          "types": [
-            "Water",
-            "Ghost"
-          ],
-          "level": 32,
-          "hp": 100,
-          "maxHp": 100,
-          "isFainted": false,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/jellicent.png",
-          "moves": [],
-          "knownMoveTypes": []
-        },
-        {
-          "name": "Mimikyu (Disguised Form)",
-          "types": [
-            "Ghost",
-            "Fairy"
-          ],
-          "level": 35,
-          "hp": 100,
-          "maxHp": 100,
-          "isFainted": false,
-          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/mimikyu%20%28disguised%20form%29.png",
-          "moves": [],
-          "knownMoveTypes": []
-        }
-      ]
-    },
-    {
-      "name": "Acerola",
-      "tier": "VIP",
-      "npcId": 753,
-      "avgLevel": 56,
-      "types": [
-        "Ghost"
-      ],
-      "battleUrl": "/battle/trainer/753",
-      "inverseUrl": "/battle/trainer/753/inverse",
-      "avatar": "https://i.dstatic.com/images/trainers/league/acerola.png",
-      "roster": [
-        {
           "name": "Banette",
           "types": [
             "Ghost"
@@ -9675,6 +9584,117 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/drifblim.png",
+          "moves": [],
+          "knownMoveTypes": []
+        },
+        {
+          "name": "Dhelmise",
+          "types": [
+            "Ghost",
+            "Grass"
+          ],
+          "level": 100,
+          "hp": 400,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dhelmise.png",
+          "moves": [],
+          "knownMoveTypes": []
+        },
+        {
+          "name": "Froslass",
+          "types": [
+            "Ice",
+            "Ghost"
+          ],
+          "level": 100,
+          "hp": 400,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/froslass.png",
+          "moves": [],
+          "knownMoveTypes": []
+        },
+        {
+          "name": "Palossand",
+          "types": [
+            "Ghost",
+            "Ground"
+          ],
+          "level": 100,
+          "hp": 400,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/palossand.png",
+          "moves": [],
+          "knownMoveTypes": []
+        }
+      ]
+    },
+    {
+      "name": "Acerola",
+      "tier": "VIP",
+      "npcId": 753,
+      "avgLevel": 56,
+      "types": [
+        "Ghost"
+      ],
+      "battleUrl": "/battle/trainer/753",
+      "inverseUrl": "/battle/trainer/753/inverse",
+      "avatar": "https://i.dstatic.com/images/trainers/league/acerola.png",
+      "roster": [
+        {
+          "name": "Banette",
+          "types": [
+            "Ghost"
+          ],
+          "level": 100,
+          "hp": 400,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/banette.png",
+          "moves": [
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost",
+              "power": 80,
+              "category": "Special"
+            },
+            {
+              "name": "Sucker Punch",
+              "type": "Dark",
+              "power": 80,
+              "category": "Physical"
+            },
+            {
+              "name": "Shadow Sneak",
+              "type": "Ghost",
+              "power": 40,
+              "category": "Physical"
+            },
+            {
+              "name": "Feint Attack",
+              "type": "Dark",
+              "power": 60,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Dark"
+          ]
+        },
+        {
+          "name": "Drifblim",
+          "types": [
+            "Ghost",
+            "Flying"
+          ],
+          "level": 100,
+          "hp": 400,
+          "maxHp": 100,
+          "isFainted": false,
+          "sprite": "https://i.dstatic.com/images/pokemon/front/normal/drifblim.png",
           "moves": [
             {
               "name": "Payback",
@@ -9712,58 +9732,8 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dhelmise.png",
-          "moves": [
-            {
-              "name": "Slam",
-              "type": "Normal",
-              "power": 80,
-              "category": "Physical"
-            },
-            {
-              "name": "Energy Ball",
-              "type": "Grass",
-              "power": 80,
-              "category": "Special"
-            },
-            {
-              "name": "Power Whip",
-              "type": "Grass",
-              "power": 120,
-              "category": "Physical"
-            },
-            {
-              "name": "Anchor Shot",
-              "type": "Steel",
-              "power": 80,
-              "category": "Physical"
-            },
-            {
-              "name": "Astral Barrage",
-              "type": "Ghost",
-              "power": 120,
-              "category": "Special"
-            },
-            {
-              "name": "Confusion",
-              "type": "Psychic",
-              "power": 50,
-              "category": "Special"
-            },
-            {
-              "name": "Aerial Ace",
-              "type": "Flying",
-              "power": 60,
-              "category": "Physical"
-            }
-          ],
-          "knownMoveTypes": [
-            "Normal",
-            "Grass",
-            "Steel",
-            "Ghost",
-            "Psychic",
-            "Flying"
-          ]
+          "moves": [],
+          "knownMoveTypes": []
         },
         {
           "name": "Froslass",
@@ -9776,37 +9746,8 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/froslass.png",
-          "moves": [
-            {
-              "name": "Blizzard",
-              "type": "Ice",
-              "power": 120,
-              "category": "Special"
-            },
-            {
-              "name": "Ominous Wind",
-              "type": "Ghost",
-              "power": 60,
-              "category": "Special"
-            },
-            {
-              "name": "Wake-up Slap",
-              "type": "Fighting",
-              "power": 60,
-              "category": "Physical"
-            },
-            {
-              "name": "Ice Shard",
-              "type": "Ice",
-              "power": 40,
-              "category": "Physical"
-            }
-          ],
-          "knownMoveTypes": [
-            "Ice",
-            "Ghost",
-            "Fighting"
-          ]
+          "moves": [],
+          "knownMoveTypes": []
         },
         {
           "name": "Palossand",
@@ -9819,52 +9760,8 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/palossand.png",
-          "moves": [
-            {
-              "name": "Sand Tomb",
-              "type": "Ground",
-              "power": 55,
-              "category": "Physical"
-            },
-            {
-              "name": "Hypnosis",
-              "type": "Psychic",
-              "power": 40,
-              "category": "Status"
-            },
-            {
-              "name": "Giga Drain",
-              "type": "Grass",
-              "power": 60,
-              "category": "Special"
-            },
-            {
-              "name": "Shadow Ball",
-              "type": "Ghost",
-              "power": 80,
-              "category": "Special"
-            },
-            {
-              "name": "Water Pulse",
-              "type": "Water",
-              "power": 60,
-              "category": "Special"
-            },
-            {
-              "name": "Sweet Kiss",
-              "type": "Normal",
-              "power": 40,
-              "category": "Status"
-            }
-          ],
-          "knownMoveTypes": [
-            "Ground",
-            "Psychic",
-            "Grass",
-            "Ghost",
-            "Water",
-            "Normal"
-          ]
+          "moves": [],
+          "knownMoveTypes": []
         }
       ]
     },
@@ -18440,13 +18337,42 @@
             "Psychic",
             "Flying"
           ],
-          "level": 40,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/xatu.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Psychic",
+              "type": "Psychic",
+              "power": 90,
+              "category": "Special"
+            },
+            {
+              "name": "Peck",
+              "type": "Flying",
+              "power": 35,
+              "category": "Physical"
+            },
+            {
+              "name": "Night Shade",
+              "type": "Ghost",
+              "power": 40,
+              "category": "Special"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Psychic",
+            "Flying"
+          ]
         },
         {
           "name": "Jynx",
@@ -18454,13 +18380,42 @@
             "Ice",
             "Psychic"
           ],
-          "level": 41,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/jynx.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ice Punch",
+              "type": "Ice",
+              "power": 75,
+              "category": "Physical"
+            },
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting",
+              "power": 60,
+              "category": "Physical"
+            },
+            {
+              "name": "Avalanche",
+              "type": "Ice",
+              "power": 60,
+              "category": "Physical"
+            },
+            {
+              "name": "Body Slam",
+              "type": "Normal",
+              "power": 85,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ice",
+            "Fighting",
+            "Normal"
+          ]
         },
         {
           "name": "Slowbro",
@@ -18468,13 +18423,41 @@
             "Water",
             "Psychic"
           ],
-          "level": 41,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/slowbro.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Water Pulse",
+              "type": "Water",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Confusion",
+              "type": "Psychic",
+              "power": 50,
+              "category": "Special"
+            },
+            {
+              "name": "Psycho Boost",
+              "type": "Psychic",
+              "power": 140,
+              "category": "Special"
+            },
+            {
+              "name": "Zen Headbutt",
+              "type": "Psychic",
+              "power": 80,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Water",
+            "Psychic"
+          ]
         },
         {
           "name": "Exeggutor",
@@ -18482,13 +18465,41 @@
             "Grass",
             "Psychic"
           ],
-          "level": 41,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/exeggutor.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Leaf Storm",
+              "type": "Grass",
+              "power": 140,
+              "category": "Special"
+            },
+            {
+              "name": "Wood Hammer",
+              "type": "Grass",
+              "power": 120,
+              "category": "Physical"
+            },
+            {
+              "name": "Egg Bomb",
+              "type": "Normal",
+              "power": 100,
+              "category": "Physical"
+            },
+            {
+              "name": "Stomp",
+              "type": "Normal",
+              "power": 65,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Grass",
+            "Normal"
+          ]
         },
         {
           "name": "Xatu",
@@ -18496,13 +18507,42 @@
             "Psychic",
             "Flying"
           ],
-          "level": 42,
+          "level": 100,
           "hp": 100,
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/xatu.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Psychic",
+              "type": "Psychic",
+              "power": 90,
+              "category": "Special"
+            },
+            {
+              "name": "Peck",
+              "type": "Flying",
+              "power": 35,
+              "category": "Physical"
+            },
+            {
+              "name": "Night Shade",
+              "type": "Ghost",
+              "power": 40,
+              "category": "Special"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Psychic",
+            "Flying"
+          ]
         }
       ]
     },

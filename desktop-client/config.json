@@ -138,9 +138,9 @@
     },
     "ballFallbackPolicy": "downgrade",
     "autoCatchMode": "smart_routing",
-    "megaTierMegas": false,
+    "megaTierMegas": true,
     "megaTierGMax": true,
-    "megaTierStarters": false
+    "megaTierStarters": true
   },
   "safety": {
     "enableDeadManSwitch": true,

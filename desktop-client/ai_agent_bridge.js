@@ -487,8 +487,10 @@ class DelugeAiAssistant {
         return false;
       });
 
+      const hasUnparsedBenchRadios = Boolean(battleData.hasBenchRadios && teamCandidates.length <= 1);
       const shouldForfeitBattle = Boolean(
         !isChallLocked &&
+        !hasUnparsedBenchRadios &&
         remainingOppCount >= 1 &&
         totalRemOppHp >= 80 &&
         allCapableFightersFainted &&

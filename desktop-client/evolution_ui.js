@@ -123,6 +123,9 @@ function handleEvolveMoveSelection(card) {
   }
 
   // 3. Render Instant Action Buttons
+  if (typeof syncEvoAutoToggleUI === 'function') {
+    syncEvoAutoToggleUI();
+  }
   if (aiInstantActionSlot) {
     aiInstantActionSlot.innerHTML = '';
 
@@ -145,29 +148,85 @@ function handleEvolveMoveSelection(card) {
           updateStatus('Optimal moves applied to DelugeRPG form!', '#238636');
         }
       });
+      aiInstantActionSlot.appendChild(autoPickBtn);
     } else {
       const defaultBtnHtml = '&#9876; Apply Best 4 Moves & Confirm Evolve';
+      const recNames = (evalResult.recommendedMoves || []).map(m => m.name);
+      const dropNamesPayload = (evalResult.dropMoves || []).map(m => m.name);
+      const slot1Name = evalResult.slotOrder ? evalResult.slotOrder[0] : null;
       autoPickBtn.innerHTML = defaultBtnHtml;
       autoPickBtn.addEventListener('click', () => {
         if (delugeView && typeof delugeView.send === 'function') {
+          if (typeof startAutoEvolveCycle === 'function' && (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active)) {
+            startAutoEvolveCycle({
+              pokemonId: (selectedEvoPoke && selectedEvoPoke.id) || null,
+              name: pName,
+              targetBranch: pName,
+              level: card.level || 100
+            });
+          }
+          if (typeof activeAutoEvolveCycle !== 'undefined' && activeAutoEvolveCycle && activeAutoEvolveCycle.active) {
+            activeAutoEvolveCycle.awaitingPostConfirm = true;
+            activeAutoEvolveCycle.expectedEvolvedName = pName;
+            activeAutoEvolveCycle.targetBranch = pName;
+          }
           autoPickBtn.innerHTML = '&#9203; Applying Moves & Evolving...';
           autoPickBtn.disabled = true;
           delugeView.send('apply-recommended-moves-and-submit', {
-            recommendedMoves: evalResult.recommendedMoves.map(m => m.name),
-            dropMoves: evalResult.dropMoves.map(m => m.name),
-            slot1: evalResult.slotOrder[0]
+            recommendedMoves: recNames,
+            dropMoves: dropNamesPayload,
+            slot1: slot1Name
           });
           updateStatus('Optimal moves applied & confirming evolve!', '#10b981');
-          setTimeout(() => {
-            if (autoPickBtn && autoPickBtn.isConnected && autoPickBtn.disabled) {
-              autoPickBtn.disabled = false;
-              autoPickBtn.innerHTML = defaultBtnHtml;
-            }
-          }, 3800);
+          if (typeof setTimeout === 'function') {
+            setTimeout(() => {
+              if (autoPickBtn && autoPickBtn.isConnected && autoPickBtn.disabled) {
+                autoPickBtn.disabled = false;
+                autoPickBtn.innerHTML = defaultBtnHtml;
+              }
+            }, 3800);
+          }
         }
       });
+      aiInstantActionSlot.appendChild(autoPickBtn);
+
+      if (typeof activeAutoEvolveCycle !== 'undefined' && activeAutoEvolveCycle && activeAutoEvolveCycle.active) {
+        const autoMatches = (typeof matchesAutoEvolveCyclePokemon === 'function') &&
+          (matchesAutoEvolveCyclePokemon(pName, selectedEvoPoke && selectedEvoPoke.id) || matchesAutoEvolveCyclePokemon(card.sourcePokemon, null));
+        if (typeof isEvoAutoEnabled === 'function' && !isEvoAutoEnabled()) {
+          if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Auto disabled');
+        } else if (!autoMatches) {
+          if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Different Pokemon move modal');
+        } else if (typeof scheduleAutoEvolveStep === 'function') {
+          activeAutoEvolveCycle.expectedEvolvedName = pName;
+          activeAutoEvolveCycle.targetBranch = pName;
+          const stepSig = `moves:${pName}:${recNames.join(',')}`;
+          const delayMs = 600 + Math.floor(Math.random() * 350);
+          scheduleAutoEvolveStep(stepSig, delayMs, () => {
+            if (!delugeView || typeof delugeView.send !== 'function') return;
+            activeAutoEvolveCycle.awaitingPostConfirm = true;
+            autoPickBtn.innerHTML = '&#9203; Auto-Applying Moves &amp; Evolving...';
+            autoPickBtn.disabled = true;
+            delugeView.send('apply-recommended-moves-and-submit', {
+              recommendedMoves: recNames,
+              dropMoves: dropNamesPayload,
+              slot1: slot1Name
+            });
+            if (typeof updateStatus === 'function') {
+              updateStatus(`Auto-Evolve: Applying optimal moves for ${pName}...`, '#10b981');
+            }
+            if (typeof setTimeout === 'function') {
+              setTimeout(() => {
+                if (autoPickBtn && autoPickBtn.isConnected && autoPickBtn.disabled) {
+                  autoPickBtn.disabled = false;
+                  autoPickBtn.innerHTML = defaultBtnHtml;
+                }
+              }, 4200);
+            }
+          });
+        }
+      }
     }
-    aiInstantActionSlot.appendChild(autoPickBtn);
   }
 
   // 4. Post to AI Chat Stream only ONCE per unique evolve modal signature
@@ -182,8 +241,438 @@ function handleEvolveMoveSelection(card) {
   }
 }
 
+const disregardedEvoPokeIds = new Set();
+const disregardedEvoPokeNames = new Set();
+
+let activeAutoEvolveCycle = null;
+let autoEvolveStepTimer = null;
+let autoEvolvePostConfirmTimer = null;
+
+function getEvoAutoCheckEl() {
+  if (typeof evoAutoCheck !== 'undefined' && evoAutoCheck) return evoAutoCheck;
+  if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+    return document.getElementById('evoAutoCheck');
+  }
+  return null;
+}
+
+function getEvoAutoLabelEl() {
+  if (typeof evoAutoLabel !== 'undefined' && evoAutoLabel) return evoAutoLabel;
+  if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+    return document.getElementById('evoAutoLabel');
+  }
+  return null;
+}
+
+function isEvoAutoEnabled() {
+  if (typeof isUnlockChallengeActive !== 'undefined' && isUnlockChallengeActive) return false;
+  if (typeof isCaptchaAlarmActive !== 'undefined' && isCaptchaAlarmActive) return false;
+  const chk = getEvoAutoCheckEl();
+  return Boolean(chk && chk.checked);
+}
+
+function syncEvoAutoToggleUI() {
+  const lbl = getEvoAutoLabelEl();
+  const chk = getEvoAutoCheckEl();
+  const isModalActive = Boolean(typeof activeEvolveCardData !== 'undefined' && activeEvolveCardData && activeEvolveCardData.isOpen && !activeEvolveCardData.isChangeAttackPage);
+  const filterMode = (typeof currentEvoFilter === 'string') ? currentEvoFilter : 'UNIQUE';
+  const showAuto = Boolean(isModalActive || filterMode === 'UNIQUE');
+  if (lbl && lbl.style) {
+    lbl.style.display = showAuto ? 'flex' : 'none';
+    const checked = Boolean(chk && chk.checked);
+    lbl.style.borderColor = checked ? '#388bfd' : '#1a283e';
+    lbl.style.color = checked ? '#58a6ff' : '#8eaad0';
+  }
+}
+
+function normalizeEvoCycleName(name) {
+  return String(name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function stopAutoEvolveCycle(reason) {
+  if (autoEvolveStepTimer) {
+    if (typeof clearTimeout === 'function') clearTimeout(autoEvolveStepTimer);
+    autoEvolveStepTimer = null;
+  }
+  if (autoEvolvePostConfirmTimer) {
+    if (typeof clearTimeout === 'function') clearTimeout(autoEvolvePostConfirmTimer);
+    autoEvolvePostConfirmTimer = null;
+  }
+  activeAutoEvolveCycle = null;
+}
+
+function startAutoEvolveCycle(info) {
+  if (!isEvoAutoEnabled()) {
+    stopAutoEvolveCycle('Auto disabled');
+    return false;
+  }
+  stopAutoEvolveCycle();
+  activeAutoEvolveCycle = {
+    active: true,
+    pokemonId: info && info.pokemonId ? String(info.pokemonId) : null,
+    currentName: String((info && info.name) || '').trim(),
+    targetBranch: String((info && info.targetBranch) || '').trim(),
+    level: (info && typeof info.level === 'number') ? info.level : 100,
+    startedAt: Date.now(),
+    stepCount: 0,
+    maxSteps: 12,
+    lastStepSig: '',
+    awaitingPostConfirm: false,
+    expectedEvolvedName: ''
+  };
+  return true;
+}
+
+function matchesAutoEvolveCyclePokemon(candidateName, candidateId) {
+  if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active) return false;
+  if (Date.now() - (activeAutoEvolveCycle.startedAt || 0) > 90000 || (activeAutoEvolveCycle.stepCount || 0) >= (activeAutoEvolveCycle.maxSteps || 12)) {
+    stopAutoEvolveCycle('Cycle safety limit reached');
+    return false;
+  }
+  if (activeAutoEvolveCycle.pokemonId && candidateId && String(activeAutoEvolveCycle.pokemonId) === String(candidateId)) {
+    return true;
+  }
+  const cand = normalizeEvoCycleName(candidateName);
+  if (!cand) return false;
+  const candNoParen = cand.replace(/\s*\([^)]*\)/g, '').trim();
+  const targets = [
+    activeAutoEvolveCycle.currentName,
+    activeAutoEvolveCycle.targetBranch,
+    activeAutoEvolveCycle.expectedEvolvedName
+  ];
+  for (let i = 0; i < targets.length; i++) {
+    const t = normalizeEvoCycleName(targets[i]);
+    if (!t) continue;
+    if (cand === t) return true;
+    const tNoParen = t.replace(/\s*\([^)]*\)/g, '').trim();
+    if ((cand.includes('(') !== t.includes('(')) && candNoParen && candNoParen === tNoParen) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function scheduleAutoEvolveStep(stepSig, delayMs, fn) {
+  if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active || !isEvoAutoEnabled()) return false;
+  if (stepSig && activeAutoEvolveCycle.lastStepSig === stepSig) return false;
+  if ((activeAutoEvolveCycle.stepCount || 0) >= (activeAutoEvolveCycle.maxSteps || 12)) {
+    stopAutoEvolveCycle('Max steps reached');
+    return false;
+  }
+  if (autoEvolveStepTimer) {
+    if (typeof clearTimeout === 'function') clearTimeout(autoEvolveStepTimer);
+    autoEvolveStepTimer = null;
+  }
+  activeAutoEvolveCycle.stepCount = (activeAutoEvolveCycle.stepCount || 0) + 1;
+  activeAutoEvolveCycle.lastStepSig = stepSig || '';
+  if (typeof setTimeout === 'function') {
+    autoEvolveStepTimer = setTimeout(() => {
+      autoEvolveStepTimer = null;
+      if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active || !isEvoAutoEnabled()) return;
+      fn();
+    }, delayMs);
+    return true;
+  }
+  return false;
+}
+
+function continueAutoEvolveAfterFullPageConfirm() {
+  if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active || !activeAutoEvolveCycle.awaitingPostConfirm) return;
+  if (!isEvoAutoEnabled()) {
+    stopAutoEvolveCycle('Auto disabled');
+    return;
+  }
+  if (typeof activeEvolveCardData !== 'undefined' && activeEvolveCardData && activeEvolveCardData.isOpen) return;
+
+  activeAutoEvolveCycle.awaitingPostConfirm = false;
+  const cycleId = activeAutoEvolveCycle.pokemonId;
+  const fallbackName = String(activeAutoEvolveCycle.expectedEvolvedName || activeAutoEvolveCycle.targetBranch || '').trim();
+  const prevNameLower = normalizeEvoCycleName(activeAutoEvolveCycle.currentName);
+  let evolvedEntry = null;
+  if (Array.isArray(currentCollection)) {
+    if (cycleId) {
+      evolvedEntry = currentCollection.find(p => p && p.id && String(p.id) === String(cycleId)) || null;
+    }
+    if (evolvedEntry && fallbackName && normalizeEvoCycleName(evolvedEntry.name) === prevNameLower && normalizeEvoCycleName(fallbackName) !== prevNameLower) {
+      evolvedEntry.name = fallbackName;
+      if (evolutionEngine && typeof evolutionEngine.resolvePokemonTypes === 'function') {
+        evolvedEntry.types = evolutionEngine.resolvePokemonTypes(fallbackName, currentCollection);
+      }
+      evolvedEntry.canEvolve = undefined;
+      try {
+        fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
+      } catch (_) {}
+      if (typeof syncUserCollectionToGuest === 'function') syncUserCollectionToGuest();
+      if (typeof refreshCandidateListsCache === 'function') refreshCandidateListsCache({ resetCursors: false });
+      if (typeof updateRosterModeUI === 'function') updateRosterModeUI();
+    }
+  }
+  const evolvedName = (evolvedEntry && evolvedEntry.name) ? evolvedEntry.name : fallbackName;
+  const evolvedLevel = (evolvedEntry && typeof evolvedEntry.level === 'number') ? evolvedEntry.level : (activeAutoEvolveCycle.level || 100);
+  if (typeof renderEvolutionDecisionMakerUI === 'function') {
+    renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+  }
+  const evolvedNameLower = evolvedName.toLowerCase().trim();
+  const refreshedMatch = (cycleId && Array.isArray(cachedEvolveReadyList))
+    ? cachedEvolveReadyList.find(p => p && String(p.id) === String(cycleId) && String(p.name || '').toLowerCase().trim() === evolvedNameLower)
+    : null;
+
+  const allowableNextBranch = (typeof findAllowableNextEvolutionBranch === 'function')
+    ? findAllowableNextEvolutionBranch(evolvedEntry && evolvedEntry.id, evolvedName, evolvedLevel, refreshedMatch, false)
+    : null;
+
+  if (!allowableNextBranch) {
+    stopAutoEvolveCycle('Cycle complete');
+    if (typeof updateStatus === 'function' && evolvedName) {
+      updateStatus(`Auto-Evolve complete: ${evolvedName}`, '#10b981');
+    }
+    return;
+  }
+
+  const nextTarget = allowableNextBranch.fullName || allowableNextBranch.name;
+  activeAutoEvolveCycle.currentName = evolvedName;
+  activeAutoEvolveCycle.targetBranch = nextTarget;
+  activeAutoEvolveCycle.expectedEvolvedName = '';
+  activeAutoEvolveCycle.level = evolvedLevel;
+  const stepSig = `postconfirm:${cycleId || evolvedName}:${nextTarget}`;
+  scheduleAutoEvolveStep(stepSig, 450 + Math.floor(Math.random() * 250), () => {
+    if (typeof delugeView !== 'undefined' && delugeView && typeof delugeView.send === 'function') {
+      delugeView.send('trigger-evolve-pokemon', {
+        pokemonId: cycleId || (evolvedEntry && evolvedEntry.id) || null,
+        name: evolvedName,
+        level: evolvedLevel,
+        types: evolvedEntry && evolvedEntry.types,
+        variant: evolvedEntry && evolvedEntry.variant,
+        targetBranch: nextTarget,
+        closeModalFirst: false,
+        managedByHostAuto: true
+      });
+      if (typeof updateStatus === 'function') {
+        updateStatus(`Auto-Evolve: Continuing ${evolvedName} -> ${nextTarget}...`, '#388bfd');
+      }
+    }
+  });
+}
+
+function handleEvoAutoCycleNavigation(url) {
+  if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active) return;
+  try {
+    const u = String(url || '');
+    const p = u.startsWith('/') ? u.toLowerCase() : new URL(u, 'https://www.delugerpg.com').pathname.toLowerCase();
+    if (!p.startsWith('/pokemon')) {
+      stopAutoEvolveCycle('Left Pokemon page');
+    }
+  } catch (_) {
+    stopAutoEvolveCycle('Left Pokemon page');
+  }
+}
+
+function handleEvoAutoCyclePageLoaded(url) {
+  if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active || !activeAutoEvolveCycle.awaitingPostConfirm) return;
+  if (!isEvoAutoEnabled()) {
+    stopAutoEvolveCycle('Auto disabled');
+    return;
+  }
+  try {
+    const u = String(url || '');
+    const p = u.startsWith('/') ? u.toLowerCase() : new URL(u, 'https://www.delugerpg.com').pathname.toLowerCase();
+    if (p.startsWith('/pokemon') && p.indexOf('/evolve') === -1) {
+      if (autoEvolvePostConfirmTimer) {
+        if (typeof clearTimeout === 'function') clearTimeout(autoEvolvePostConfirmTimer);
+        autoEvolvePostConfirmTimer = null;
+      }
+      if (typeof setTimeout === 'function') {
+        autoEvolvePostConfirmTimer = setTimeout(() => {
+          autoEvolvePostConfirmTimer = null;
+          continueAutoEvolveAfterFullPageConfirm();
+        }, 500);
+      }
+    }
+  } catch (_) {}
+}
+
+function handleEvoAutoCyclePageSynced(livePokemons) {
+  if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active || !activeAutoEvolveCycle.awaitingPostConfirm) return;
+  if (!Array.isArray(livePokemons) || livePokemons.length === 0) return;
+  const cid = activeAutoEvolveCycle.pokemonId;
+  const matched = cid ? livePokemons.find(p => p && p.id && String(p.id) === String(cid)) : null;
+  if (!matched) return;
+  const prevLower = normalizeEvoCycleName(activeAutoEvolveCycle.currentName);
+  const liveLower = normalizeEvoCycleName(matched.name);
+  if (liveLower && liveLower !== prevLower) {
+    activeAutoEvolveCycle.expectedEvolvedName = matched.name;
+    if (typeof matched.level === 'number') activeAutoEvolveCycle.level = matched.level;
+    if (autoEvolvePostConfirmTimer) {
+      if (typeof clearTimeout === 'function') clearTimeout(autoEvolvePostConfirmTimer);
+      autoEvolvePostConfirmTimer = null;
+    }
+    if (typeof setTimeout === 'function') {
+      autoEvolvePostConfirmTimer = setTimeout(() => {
+        autoEvolvePostConfirmTimer = null;
+        continueAutoEvolveAfterFullPageConfirm();
+      }, 350);
+    }
+  }
+}
+
+function cleanEvolveOptionLabel(rawText) {
+  return String(rawText || '')
+    .replace(/\s*\((?:at\s+level\s+\d+|using\b|trade\b|holding\b|with\b|during\b|when\b|if\s+|level\s*up\b|happiness\b|friendship\b|daytime\b|nighttime\b|rain\b|high\b|low\b|(?:male|female)\s+only\b)[^)]*(?:\)|$)\s*/ig, ' ')
+    .replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+|during\s+[\w\s\-]+|when\s+[\w\s\-]+).*$/i, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function evaluateModalOptionOwnership(opt, normCardVariant) {
+  const optRaw = (opt && (opt.fullName || opt.name)) || '';
+  const cleanOptName = cleanEvolveOptionLabel(optRaw);
+  const fullTargetName = (normCardVariant !== 'Normal' && !cleanOptName.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
+    ? `${normCardVariant} ${cleanOptName}`
+    : cleanOptName;
+  const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
+  const isMegaOpt = /\bMega\s+/i.test(cleanOptName);
+  const isGmaxOpt = /\bG-Max\b/i.test(cleanOptName);
+  const requiresGmaxChallenge = Boolean((opt && opt.requiresGmaxChallenge) || isGmaxOpt || /g[- ]?max\s*challenge/i.test(String((opt && opt.requirement) || '')));
+  const isBranchMega = isMegaOpt && /\b[XY]\b/i.test(cleanOptName);
+  const isTargetOwnedByBox = isBranchMega ? Boolean(own.hasExactOwned) : (isMegaOpt ? Boolean(own.hasMegaOwned || own.hasExactOwned) : (isGmaxOpt ? Boolean(own.hasGmaxOwned || own.hasExactOwned) : Boolean(own.hasExactOwned)));
+  const isTargetOwned = Boolean((opt && (opt.hasCaughtIcon || opt.isOwned)) || isTargetOwnedByBox);
+  return { cleanOptName, fullTargetName, own, isMegaOpt, isGmaxOpt, requiresGmaxChallenge, isTargetOwned };
+}
+
+function getNextAllowableEvolvePokemon(excludeInfo) {
+  if (!Array.isArray(cachedEvolveReadyList) || cachedEvolveReadyList.length === 0) return null;
+  const exId = excludeInfo && excludeInfo.id ? String(excludeInfo.id) : '';
+  const exName = excludeInfo && excludeInfo.name ? String(excludeInfo.name).toLowerCase().trim() : '';
+
+  const isAllowableItem = (p) => {
+    if (!p || !p.hasUnique || p.isBlockedForGmax || p.status === 'DISREGARDED') return false;
+    const pId = p.id ? String(p.id) : '';
+    const pName = (p.name || '').toLowerCase().trim();
+    if (exId && pId && pId === exId) return false;
+    if (exName && pName && pName === exName) return false;
+    if (pId && typeof disregardedEvoPokeIds !== 'undefined' && disregardedEvoPokeIds.has(pId)) return false;
+    if (pName && typeof disregardedEvoPokeNames !== 'undefined' && disregardedEvoPokeNames.has(pName)) return false;
+    const targetBranch = p.bestBranch || (Array.isArray(p.branches) ? p.branches.find(b => b && !b.isDuplicate && !/\bg-?max\b/i.test(b.fullName || b.name || '')) : null);
+    if (!targetBranch || targetBranch.isDuplicate) return false;
+    const targetLabel = targetBranch.fullName || targetBranch.name || '';
+    if (!targetLabel || /\bg-?max\b/i.test(targetLabel)) return false;
+    return true;
+  };
+
+  const candidates = cachedEvolveReadyList.filter(isAllowableItem);
+  if (candidates.length === 0) return null;
+
+  const searchQ = (typeof currentEvoSearch === 'string' && currentEvoSearch.trim()) ? currentEvoSearch.trim().toLowerCase() : '';
+  if (searchQ) {
+    const matchedSearch = candidates.find(p => {
+      const pName = (p.name || '').toLowerCase();
+      const bName = ((p.bestBranch && (p.bestBranch.fullName || p.bestBranch.name)) || '').toLowerCase();
+      return pName.includes(searchQ) || bName.includes(searchQ);
+    });
+    if (matchedSearch) return matchedSearch;
+  }
+  return candidates[0];
+}
+
+function findAllowableNextEvolutionBranch(evolvedPokeId, evolvedName, evolvedLevel, refreshedReadyMatch, isGmaxComplete) {
+  if (isGmaxComplete || !evolvedName) return null;
+  if (refreshedReadyMatch) {
+    if (!refreshedReadyMatch.hasUnique || refreshedReadyMatch.isBlockedForGmax) return null;
+    const readyBranches = Array.isArray(refreshedReadyMatch.branches)
+      ? refreshedReadyMatch.branches
+      : (refreshedReadyMatch.bestBranch ? [refreshedReadyMatch.bestBranch] : []);
+    return readyBranches.find(b => b && !b.isDuplicate && !/\bg-?max\b/i.test(b.fullName || b.name || '')) || null;
+  }
+  const nextAnalysis = (typeof aiAssistant !== 'undefined' && aiAssistant && typeof aiAssistant.analyzeEvolutionPath === 'function')
+    ? aiAssistant.analyzeEvolutionPath(evolvedName, currentCollection)
+    : null;
+  if (!nextAnalysis || nextAnalysis.isBlockedForGmax || nextAnalysis.requiresGmaxChallenge || !Array.isArray(nextAnalysis.branches)) {
+    return null;
+  }
+  return nextAnalysis.branches.find(b => {
+    if (!b || b.isDuplicate) return false;
+    const bLabel = String(b.fullName || b.name || '');
+    if (/\bg-?max\b/i.test(bLabel)) return false;
+    const isActualMega = /\b(?:Mega|Primal)\s+/i.test(bLabel);
+    const reqLvl = isActualMega ? 100 : (b.minLevel || 1);
+    return (evolvedLevel || 100) >= reqLvl;
+  }) || null;
+}
+
+function wireNextAllowableEvolveButton(actionBtn, nextPoke, opts) {
+  const options = opts || {};
+  const nextBranch = nextPoke.bestBranch || (Array.isArray(nextPoke.branches) ? nextPoke.branches.find(b => b && !b.isDuplicate && !b.gmax) : null);
+  const nextTargetName = (nextBranch && (nextBranch.fullName || nextBranch.name)) || '';
+  const prefix = options.prefix || 'Skip &amp; Evolve';
+  const defaultHtml = nextTargetName
+    ? `&#10140; ${prefix}: ${escapeHtml(nextPoke.name)} &#8594; ${escapeHtml(nextTargetName)}`
+    : `&#10140; ${prefix}: ${escapeHtml(nextPoke.name)}`;
+
+  actionBtn.className = 'btn btn-accent';
+  actionBtn.disabled = false;
+  actionBtn.style.borderColor = '';
+  actionBtn.style.color = '';
+  actionBtn.style.background = '';
+  actionBtn.innerHTML = defaultHtml;
+  if (typeof actionBtn.setAttribute === 'function') {
+    actionBtn.setAttribute('data-next-evo-id', String(nextPoke.id || ''));
+    actionBtn.setAttribute('data-next-evo-name', String(nextPoke.name || ''));
+  }
+
+  actionBtn.addEventListener('click', () => {
+    selectedEvoPoke = nextPoke;
+    if (evoReadyList) {
+      const cards = evoReadyList.querySelectorAll('.evo-item-card');
+      cards.forEach(c => {
+        const isMatch = c.getAttribute('data-poke-id') === String(nextPoke.id);
+        c.style.borderColor = isMatch ? '#388bfd' : '#1a283e';
+        c.style.background = isMatch ? '#0c182c' : '#070e1a';
+      });
+    }
+    if (delugeView && typeof delugeView.send === 'function') {
+      const autoStarted = (typeof startAutoEvolveCycle === 'function') && startAutoEvolveCycle({
+        pokemonId: nextPoke.id,
+        name: nextPoke.name,
+        targetBranch: nextTargetName,
+        level: nextPoke.level
+      });
+      actionBtn.disabled = true;
+      actionBtn.innerHTML = `&#9203; Opening ${escapeHtml(nextPoke.name)}...`;
+      delugeView.send('trigger-evolve-pokemon', {
+        pokemonId: nextPoke.id,
+        name: nextPoke.name,
+        level: nextPoke.level,
+        types: nextPoke.types,
+        variant: nextPoke.variant,
+        targetBranch: nextTargetName,
+        closeModalFirst: Boolean(options.closeModalFirst),
+        managedByHostAuto: Boolean(autoStarted)
+      });
+      if (typeof updateStatus === 'function') {
+        updateStatus(`Proceeding to next allowable evolution: ${nextPoke.name}...`, '#388bfd');
+      }
+      setTimeout(() => {
+        if (actionBtn && actionBtn.isConnected && actionBtn.disabled) {
+          actionBtn.disabled = false;
+          actionBtn.innerHTML = defaultHtml;
+        }
+      }, 4500);
+    }
+  });
+}
+
 function handleEvolveCardDetected(card) {
   if (!card) return;
+  if (handleEvolveCardDetected._active) return;
+  handleEvolveCardDetected._active = true;
+  try {
+    return handleEvolveCardDetectedImpl(card);
+  } finally {
+    handleEvolveCardDetected._active = false;
+  }
+}
+
+function handleEvolveCardDetectedImpl(card) {
   // If active battle is taking place on a battle screen, battle intel has precedence
   const curUrl = (delugeView && delugeView.getURL && delugeView.getURL()) ? delugeView.getURL().toLowerCase() : '';
   const isActuallyInBattle = (curUrl.indexOf('/battle') !== -1 || curUrl.indexOf('/challenge') !== -1) &&
@@ -197,6 +686,16 @@ function handleEvolveCardDetected(card) {
 
   // CASE 0: Evolution Complete (Success Screen)
   if (card.isComplete) {
+    const sanitizeEvoName = (s) => String(s || '')
+      .split(/[\r\n]+/)[0]
+      .replace(/^(?:evolve|close)\s+/i, '')
+      .replace(/\s+(?:close|ok|continue)$/i, '')
+      .replace(/[!.\s]+$/, '')
+      .trim();
+    const fromNameClean = sanitizeEvoName(card.fromPokemon || '');
+    const evolvedName = sanitizeEvoName(card.toPokemon || card.fullName || '');
+    const fromLower = (fromNameClean || (selectedEvoPoke && selectedEvoPoke.name) || '').toLowerCase().trim();
+
     if (aiBattleOpponentBadge) {
       aiBattleOpponentBadge.textContent = 'Evolution Complete';
       aiBattleOpponentBadge.style.color = '#10b981';
@@ -212,38 +711,65 @@ function handleEvolveCardDetected(card) {
             &#10003; ${escapeHtml(card.message || 'Evolution Complete!')}
           </div>
           <div style="font-size: 9.5px; color: #8eaad0;">
-            ${escapeHtml(card.fromPokemon || '')} &#8594; <strong style="color: #e0ecfa;">${escapeHtml(card.toPokemon || card.fullName)}</strong>
+            ${escapeHtml(fromNameClean || '')} &#8594; <strong style="color: #e0ecfa;">${escapeHtml(evolvedName)}</strong>
           </div>
         </div>
       `;
     }
 
-    if (Array.isArray(currentCollection) && (card.toPokemon || card.fullName)) {
-      const evolvedName = card.toPokemon || card.fullName;
-      const fromLower = (card.fromPokemon || (selectedEvoPoke && selectedEvoPoke.name) || '').toLowerCase();
-      const pIdx = currentCollection.findIndex(p => (fromLower && (p.name || '').toLowerCase() === fromLower) || (p.id && selectedEvoPoke && p.id === selectedEvoPoke.id));
-      if (pIdx !== -1) {
-        currentCollection[pIdx].name = evolvedName;
-        if (evolutionEngine && typeof evolutionEngine.resolvePokemonTypes === 'function') {
-          currentCollection[pIdx].types = evolutionEngine.resolvePokemonTypes(evolvedName, currentCollection);
-        }
-        currentCollection[pIdx].canEvolve = undefined;
-        try {
-          fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
-        } catch (_) {}
-        syncUserCollectionToGuest();
-        if (typeof refreshCandidateListsCache === 'function') {
-          refreshCandidateListsCache({ resetCursors: false });
-        }
-        candidateListsCache.gmaxLastDisplayedId = null;
-        if (typeof updateRosterModeUI === 'function') {
-          updateRosterModeUI();
-        }
+    const selMatchesFrom = Boolean(
+      selectedEvoPoke && selectedEvoPoke.id &&
+      (!fromLower || String(selectedEvoPoke.name || '').toLowerCase().trim() === fromLower)
+    );
+    let pIdx = -1;
+    if (Array.isArray(currentCollection)) {
+      if (selMatchesFrom) {
+        pIdx = currentCollection.findIndex(p => p && p.id && String(p.id) === String(selectedEvoPoke.id));
+      }
+      if (pIdx === -1 && fromLower) {
+        pIdx = currentCollection.findIndex(p => p && (p.name || '').toLowerCase().trim() === fromLower);
       }
     }
+    let evolvedLevel = (pIdx !== -1 && typeof currentCollection[pIdx].level === 'number')
+      ? currentCollection[pIdx].level
+      : ((selMatchesFrom && selectedEvoPoke.level) || card.level || 100);
+    const evolvedPokeId = (pIdx !== -1 && currentCollection[pIdx] && currentCollection[pIdx].id)
+      ? currentCollection[pIdx].id
+      : (selMatchesFrom ? selectedEvoPoke.id : null);
 
-    const nextAnalysis = (card.toPokemon && aiAssistant) ? aiAssistant.analyzeEvolutionPath(card.toPokemon, currentCollection) : null;
-    const canEvolveFurther = !card.isGmax && nextAnalysis && nextAnalysis.bestBranch && !nextAnalysis.bestBranch.isDuplicate && !/\bg-?max\b/i.test(nextAnalysis.bestBranch.name);
+    if (pIdx !== -1 && evolvedName) {
+      currentCollection[pIdx].name = evolvedName;
+      if (evolutionEngine && typeof evolutionEngine.resolvePokemonTypes === 'function') {
+        currentCollection[pIdx].types = evolutionEngine.resolvePokemonTypes(evolvedName, currentCollection);
+      }
+      currentCollection[pIdx].canEvolve = undefined;
+      try {
+        fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
+      } catch (_) {}
+      if (typeof syncUserCollectionToGuest === 'function') syncUserCollectionToGuest();
+      if (typeof refreshCandidateListsCache === 'function') {
+        refreshCandidateListsCache({ resetCursors: false });
+      }
+      candidateListsCache.gmaxLastDisplayedId = null;
+      if (typeof updateRosterModeUI === 'function') {
+        updateRosterModeUI();
+      }
+    }
+    if (typeof renderEvolutionDecisionMakerUI === 'function') {
+      renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+    }
+    const evolvedNameLower = evolvedName.toLowerCase().trim();
+    const refreshedReadyMatch = (evolvedPokeId && Array.isArray(cachedEvolveReadyList))
+      ? cachedEvolveReadyList.find(p => p && String(p.id) === String(evolvedPokeId) && String(p.name || '').toLowerCase().trim() === evolvedNameLower)
+      : null;
+    if (refreshedReadyMatch) {
+      selectedEvoPoke = refreshedReadyMatch;
+    } else if (selMatchesFrom && pIdx !== -1 && currentCollection[pIdx]) {
+      selectedEvoPoke = currentCollection[pIdx];
+    }
+
+    const allowableNextBranch = findAllowableNextEvolutionBranch(evolvedPokeId, evolvedName, evolvedLevel, refreshedReadyMatch, card.isGmax);
+    const canEvolveFurther = Boolean(allowableNextBranch);
 
     if (aiInstantActionSlot) {
       aiInstantActionSlot.innerHTML = '';
@@ -255,37 +781,100 @@ function handleEvolveCardDetected(card) {
       if (card.isGmax) {
         actionBtn.innerHTML = '&#128506; Return to Map';
         actionBtn.addEventListener('click', () => {
+          activeEvolveCardData = null;
           if (delugeView && typeof delugeView.loadURL === 'function') {
             delugeView.loadURL('https://www.delugerpg.com/map').catch(() => {});
           }
           renderEvolutionDecisionMakerUI();
         });
       } else if (canEvolveFurther) {
-        actionBtn.innerHTML = `&#129516; Proceed to Evolve into ${escapeHtml(nextAnalysis.bestBranch.name)}`;
+        actionBtn.innerHTML = `&#129516; Proceed to Evolve into ${escapeHtml(allowableNextBranch.fullName || allowableNextBranch.name)}`;
         actionBtn.addEventListener('click', () => {
           if (delugeView) {
+            const nextTarget = allowableNextBranch.fullName || allowableNextBranch.name;
+            const autoStarted = (typeof startAutoEvolveCycle === 'function') && startAutoEvolveCycle({
+              pokemonId: evolvedPokeId || null,
+              name: evolvedName,
+              targetBranch: nextTarget,
+              level: evolvedLevel
+            });
             actionBtn.disabled = true;
-            delugeView.send('close-modal-and-refresh');
-            setTimeout(() => {
-              delugeView.send('trigger-evolve-pokemon', {
-                pokemonId: (selectedEvoPoke && selectedEvoPoke.id) || null,
-                name: card.toPokemon,
-                targetBranch: nextAnalysis.bestBranch.name
-              });
-            }, 400);
+            delugeView.send('trigger-evolve-pokemon', {
+              pokemonId: evolvedPokeId || null,
+              name: evolvedName,
+              level: evolvedLevel,
+              targetBranch: nextTarget,
+              closeModalFirst: true,
+              managedByHostAuto: Boolean(autoStarted)
+            });
           }
-          renderEvolutionDecisionMakerUI();
+          renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
         });
       } else {
-        actionBtn.innerHTML = '&#10003; Evolution Complete (Close Modal)';
-        actionBtn.addEventListener('click', () => {
-          if (delugeView) {
-            delugeView.send('close-modal-and-refresh');
-          }
-          renderEvolutionDecisionMakerUI();
+        const nextAllowable = getNextAllowableEvolvePokemon({
+          id: evolvedPokeId,
+          name: evolvedName
         });
+        if (nextAllowable) {
+          wireNextAllowableEvolveButton(actionBtn, nextAllowable, { prefix: 'Next Allowable', closeModalFirst: true });
+        } else {
+          actionBtn.innerHTML = '&#10003; Evolution Complete (Close Modal)';
+          actionBtn.addEventListener('click', () => {
+            activeEvolveCardData = null;
+            if (delugeView) {
+              delugeView.send('close-modal-and-refresh');
+            }
+            renderEvolutionDecisionMakerUI();
+          });
+        }
       }
       aiInstantActionSlot.appendChild(actionBtn);
+
+      if (typeof syncEvoAutoToggleUI === 'function') syncEvoAutoToggleUI();
+      if (typeof activeAutoEvolveCycle !== 'undefined' && activeAutoEvolveCycle && activeAutoEvolveCycle.active) {
+        if (typeof autoEvolvePostConfirmTimer !== 'undefined' && autoEvolvePostConfirmTimer) {
+          if (typeof clearTimeout === 'function') clearTimeout(autoEvolvePostConfirmTimer);
+          autoEvolvePostConfirmTimer = null;
+        }
+        activeAutoEvolveCycle.awaitingPostConfirm = false;
+        const matchesCycle = (typeof matchesAutoEvolveCyclePokemon === 'function') &&
+          (matchesAutoEvolveCyclePokemon(evolvedName, evolvedPokeId) || matchesAutoEvolveCyclePokemon(fromNameClean, evolvedPokeId));
+        if (card.isGmax || (typeof isEvoAutoEnabled === 'function' && !isEvoAutoEnabled()) || !canEvolveFurther) {
+          if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Single-Pokemon cycle complete');
+          if (typeof updateStatus === 'function' && evolvedName) {
+            updateStatus(`Auto-Evolve complete: ${evolvedName}`, '#10b981');
+          }
+        } else if (!matchesCycle) {
+          if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Unrelated completion modal');
+        } else if (typeof scheduleAutoEvolveStep === 'function') {
+          const nextTarget = allowableNextBranch.fullName || allowableNextBranch.name;
+          if (evolvedPokeId && !activeAutoEvolveCycle.pokemonId) {
+            activeAutoEvolveCycle.pokemonId = String(evolvedPokeId);
+          }
+          activeAutoEvolveCycle.currentName = evolvedName;
+          activeAutoEvolveCycle.targetBranch = nextTarget;
+          activeAutoEvolveCycle.expectedEvolvedName = '';
+          activeAutoEvolveCycle.level = evolvedLevel;
+          const stepSig = `complete-next:${evolvedName}->${nextTarget}`;
+          const delayMs = 650 + Math.floor(Math.random() * 350);
+          scheduleAutoEvolveStep(stepSig, delayMs, () => {
+            if (!delugeView || typeof delugeView.send !== 'function') return;
+            actionBtn.disabled = true;
+            actionBtn.innerHTML = `&#9203; Auto-Advancing to ${escapeHtml(nextTarget)}...`;
+            delugeView.send('trigger-evolve-pokemon', {
+              pokemonId: evolvedPokeId || null,
+              name: evolvedName,
+              level: evolvedLevel,
+              targetBranch: nextTarget,
+              closeModalFirst: true,
+              managedByHostAuto: true
+            });
+            if (typeof updateStatus === 'function') {
+              updateStatus(`Auto-Evolve: Continuing ${evolvedName} -> ${nextTarget}...`, '#388bfd');
+            }
+          });
+        }
+      }
     }
     return;
   }
@@ -313,10 +902,41 @@ function handleEvolveCardDetected(card) {
   const rawCardVariant = String(card.variant || (rawName && (rawName.match(/^(Normal|Shiny|Metallic|Ghostly|Ghost|Dark|Shadow|Mirage|Retro|Chrome|Negative)\s+/i) || ['', 'Normal'])[1]) || 'Normal').trim();
   const normCardVariant = (rawCardVariant.toLowerCase() === 'ghost') ? 'Ghostly' : (rawCardVariant.charAt(0).toUpperCase() + rawCardVariant.slice(1).toLowerCase());
 
+  // If DelugeRPG jumped straight from move confirmation of selectedEvoPoke (e.g. Negative Applin -> Negative Flapple)
+  // into the evolved form's modal, update/disregard the prior stage so Next Allowable never loops back to it.
+  if (rawName && selectedEvoPoke && selectedEvoPoke.name) {
+    const prevNameLower = String(selectedEvoPoke.name).toLowerCase().trim();
+    const curNameLower = rawName.toLowerCase().trim();
+    const prevBranchName = (selectedEvoPoke.bestBranch && (selectedEvoPoke.bestBranch.fullName || selectedEvoPoke.bestBranch.name) || '').toLowerCase().trim();
+    if (prevNameLower && curNameLower !== prevNameLower && prevBranchName && (curNameLower === prevBranchName || curNameLower.endsWith(' ' + prevBranchName) || prevBranchName.endsWith(' ' + curNameLower))) {
+      if (selectedEvoPoke.id) disregardedEvoPokeIds.add(String(selectedEvoPoke.id));
+      disregardedEvoPokeNames.add(prevNameLower);
+      if (Array.isArray(currentCollection)) {
+        const prevIdx = currentCollection.findIndex(p => (selectedEvoPoke.id && String(p.id) === String(selectedEvoPoke.id)) || (p.name || '').toLowerCase().trim() === prevNameLower);
+        if (prevIdx !== -1) {
+          currentCollection[prevIdx].name = rawName;
+          if (evolutionEngine && typeof evolutionEngine.resolvePokemonTypes === 'function') {
+            currentCollection[prevIdx].types = evolutionEngine.resolvePokemonTypes(rawName, currentCollection);
+          }
+          currentCollection[prevIdx].canEvolve = undefined;
+          try {
+            fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
+          } catch (_) {}
+          if (typeof syncUserCollectionToGuest === 'function') syncUserCollectionToGuest();
+        }
+      }
+      if (typeof renderEvolutionDecisionMakerUI === 'function') {
+        renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+      }
+    }
+  }
+
+  let matchedReadyId = null;
   if (Array.isArray(cachedEvolveReadyList) && cachedEvolveReadyList.length > 0 && rawName) {
     const cLower = rawName.toLowerCase().trim();
     const matchedReady = cachedEvolveReadyList.find(p => (p.name || '').toLowerCase().trim() === cLower);
     if (matchedReady) {
+      matchedReadyId = matchedReady.id ? String(matchedReady.id) : null;
       selectedEvoPoke = matchedReady;
       if (evoReadyList) {
         const itemCards = evoReadyList.querySelectorAll('.evo-item-card');
@@ -344,28 +964,58 @@ function handleEvolveCardDetected(card) {
   }
   const bestBranchName = bestBranch ? (bestBranch.fullName || bestBranch.name) : '';
 
-  const hasGmaxModalOption = Array.isArray(card.options) && card.options.some(opt => /\bg-?max\b/i.test(opt.fullName || opt.name));
-  const gmaxModalOpt = hasGmaxModalOption ? card.options.find(opt => /\bg-?max\b/i.test(opt.fullName || opt.name)) : null;
-  const isGmaxModalOptUnowned = gmaxModalOpt ? !gmaxModalOpt.isOwned : false;
-
   const gmaxPrereq = (evolutionEngine && typeof evolutionEngine.checkGmaxPrerequisite === 'function')
     ? evolutionEngine.checkGmaxPrerequisite(card.fullName || species, currentCollection, normCardVariant)
     : { isBlockedForGmax: false };
-  // If the live modal ITSELF offers an unowned G-Max evolution (e.g. Venusaur -> G-Max Venusaur),
-  // NEVER block evolution! Evolving into G-Max is the exact priority!
-  const isBlockedForGmax = isGmaxModalOptUnowned
-    ? false
-    : Boolean(card.isBlockedForGmax || gmaxPrereq.isBlockedForGmax || (evoAnalysis && evoAnalysis.isBlockedForGmax));
-  const gmaxTarget = card.gmaxTarget || gmaxPrereq.gmaxTarget || (evoAnalysis && evoAnalysis.gmaxTarget) || 'G-Max Form';
+
+  const evaluatedOpts = (Array.isArray(card.options) ? card.options : []).map(opt => Object.assign({ opt }, evaluateModalOptionOwnership(opt, normCardVariant)));
+  const isModalOptionOwned = (opt) => Boolean(opt && evaluateModalOptionOwnership(opt, normCardVariant).isTargetOwned);
+  const directOpts = evaluatedOpts.filter(e => !e.requiresGmaxChallenge);
+  const gmaxOpts = evaluatedOpts.filter(e => e.requiresGmaxChallenge);
+  const hasGmaxModalOption = gmaxOpts.length > 0;
+  const hasUnownedGmaxOpt = gmaxOpts.some(e => !e.isTargetOwned);
+  const isGmaxChallengeOnly = Boolean(card.isGmaxChallengeOnly || (evaluatedOpts.length > 0 && directOpts.length === 0));
+  const isBlockedForGmax = Boolean(card.isBlockedForGmax || gmaxPrereq.isBlockedForGmax || (evoAnalysis && evoAnalysis.isBlockedForGmax));
+  const gmaxTarget = card.gmaxTarget || (gmaxOpts[0] && gmaxOpts[0].fullTargetName) || gmaxPrereq.gmaxTarget || (evoAnalysis && evoAnalysis.gmaxTarget) || 'G-Max Form';
+  const allModalDuplicates = !card.isLevelLocked && evaluatedOpts.length > 0 && evaluatedOpts.every(e => e.isTargetOwned);
+  const allDirectDuplicates = !card.isLevelLocked && directOpts.length > 0 && directOpts.every(e => e.isTargetOwned);
+  const hasAllowableDirectEvolution = !card.isLevelLocked && !isBlockedForGmax && !isGmaxChallengeOnly && !allModalDuplicates && !allDirectDuplicates && directOpts.some(e => !e.isTargetOwned);
+
+  // Automatically disregard Pokemon from Evolve-Ready box list when the modal confirms no allowable direct evolution
+  if (!hasAllowableDirectEvolution && rawName) {
+    const cLower = rawName.toLowerCase().trim();
+    const matchedInList = Array.isArray(cachedEvolveReadyList)
+      ? cachedEvolveReadyList.find(p => (p.name || '').toLowerCase().trim() === cLower)
+      : null;
+    let listChanged = false;
+    if (matchedInList && matchedInList.id && !disregardedEvoPokeIds.has(String(matchedInList.id))) {
+      disregardedEvoPokeIds.add(String(matchedInList.id));
+      listChanged = Boolean(matchedInList.hasUnique);
+    } else if (!matchedInList && !disregardedEvoPokeNames.has(cLower)) {
+      disregardedEvoPokeNames.add(cLower);
+    }
+    if (listChanged && typeof renderEvolutionDecisionMakerUI === 'function') {
+      renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+    }
+  }
 
   // 1. Update AI Assistant Panel Header Badges
   if (aiBattleOpponentBadge) {
     if (card.isLevelLocked) {
       aiBattleOpponentBadge.textContent = `Level Locked: ${card.fullName}`;
       aiBattleOpponentBadge.style.color = '#f87171';
+    } else if (allModalDuplicates) {
+      aiBattleOpponentBadge.textContent = `Already Owned: ${card.fullName}`;
+      aiBattleOpponentBadge.style.color = '#f87171';
+    } else if (isGmaxChallengeOnly) {
+      aiBattleOpponentBadge.textContent = `G-Max Challenge: ${card.fullName}`;
+      aiBattleOpponentBadge.style.color = '#fbbf24';
     } else if (isBlockedForGmax) {
       aiBattleOpponentBadge.textContent = `Hold for G-Max: ${card.fullName}`;
       aiBattleOpponentBadge.style.color = '#fbbf24';
+    } else if (allDirectDuplicates) {
+      aiBattleOpponentBadge.textContent = hasUnownedGmaxOpt ? `G-Max Challenge: ${card.fullName}` : `Already Owned: ${card.fullName}`;
+      aiBattleOpponentBadge.style.color = hasUnownedGmaxOpt ? '#fbbf24' : '#f87171';
     } else {
       aiBattleOpponentBadge.textContent = `Evolve: ${card.fullName}`;
       aiBattleOpponentBadge.style.color = '#388bfd';
@@ -375,9 +1025,18 @@ function handleEvolveCardDetected(card) {
     if (card.isLevelLocked) {
       aiStatusChip.textContent = 'Level Locked';
       aiStatusChip.style.color = '#f87171';
+    } else if (allModalDuplicates) {
+      aiStatusChip.textContent = 'Duplicate Blocked';
+      aiStatusChip.style.color = '#f87171';
+    } else if (isGmaxChallengeOnly) {
+      aiStatusChip.textContent = 'G-Max Challenge Only';
+      aiStatusChip.style.color = '#fbbf24';
     } else if (isBlockedForGmax) {
       aiStatusChip.textContent = 'Hold for G-Max';
       aiStatusChip.style.color = '#fbbf24';
+    } else if (allDirectDuplicates) {
+      aiStatusChip.textContent = hasUnownedGmaxOpt ? 'G-Max Challenge Only' : 'Duplicate Blocked';
+      aiStatusChip.style.color = hasUnownedGmaxOpt ? '#fbbf24' : '#f87171';
     } else {
       aiStatusChip.textContent = 'Evolve Intel Active';
       aiStatusChip.style.color = '#10b981';
@@ -386,8 +1045,9 @@ function handleEvolveCardDetected(card) {
 
   // 2. Render Tactical Briefing Card
   if (aiTacticalBriefing) {
+    const borderCol = (card.isLevelLocked || allModalDuplicates) ? '#f87171' : ((isGmaxChallengeOnly || isBlockedForGmax) ? '#fbbf24' : '#1a283e');
     let html = `
-      <div style="background: #0e1b30; border: 1px solid ${card.isLevelLocked ? '#f87171' : (isBlockedForGmax ? '#fbbf24' : '#1a283e')}; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+      <div style="background: #0e1b30; border: 1px solid ${borderCol}; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
           <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(card.fullName)}</span>
           <span style="font-size: 9.5px; color: #8eaad0;">Lv ${card.level || 50} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(resolvedTypes.join('/'))}</span></span>
@@ -400,7 +1060,13 @@ function handleEvolveCardDetected(card) {
           &#9888; LEVEL LOCKED: ${escapeHtml(card.levelLockReason || `This Pokemon must reach level ${card.requiredLevel || 'higher'} to evolve.`)}
         </div>
       `;
-    } else if (isBlockedForGmax) {
+    } else if (isGmaxChallengeOnly && !allModalDuplicates) {
+      html += `
+        <div style="font-size: 9.5px; font-weight: 700; color: #fbbf24; padding: 4px 6px; background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px; margin-bottom: 6px;">
+          &#9888; G-MAX CHALLENGE REQUIRED: Cannot evolve directly here. Complete G-Max Challenge for ${escapeHtml(gmaxTarget)}.
+        </div>
+      `;
+    } else if (isBlockedForGmax && !allModalDuplicates) {
       html += `
         <div style="font-size: 9.5px; font-weight: 700; color: #fbbf24; padding: 4px 6px; background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px; margin-bottom: 6px;">
           &#9888; HOLD FOR G-MAX: Evolving now consumes your base Pokemon before obtaining ${escapeHtml(gmaxTarget)}.
@@ -418,44 +1084,31 @@ function handleEvolveCardDetected(card) {
             <span style="font-size: 9px; color: #8eaad0; margin-left: 3px;">(using G-Max Challenge)</span>
           </div>
           <div style="display: flex; align-items: center;">
-            <span style="font-size: 8.5px; font-weight: 700; color: #fbbf24; padding: 1px 4px; background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px;">TOP PRIORITY (UNOWNED)</span>
+            <span style="font-size: 8.5px; font-weight: 700; color: #fbbf24; padding: 1px 4px; background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px;">G-MAX CHALLENGE REQUIRED</span>
           </div>
         </div>
       `;
     }
 
-    if (Array.isArray(card.options) && card.options.length > 0) {
-      card.options.forEach(opt => {
-        const optRaw = opt.fullName || opt.name || '';
-        const cleanOptName = optRaw.replace(/\s*\([^)]*\)/g, ' ')
-                                   .replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ')
-                                   .replace(/\s{2,}/g, ' ')
-                                   .trim();
-        const fullTargetName = (normCardVariant !== 'Normal' && !cleanOptName.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
-          ? `${normCardVariant} ${cleanOptName}`
-          : cleanOptName;
-        const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
-        const isMegaOpt = /\bMega\s+/i.test(cleanOptName);
-        const isGmaxOpt = /\bG-Max\b/i.test(cleanOptName);
-        const isBranchMega = isMegaOpt && /\b[XY]\b/i.test(cleanOptName);
-        const isTargetOwned = isBranchMega ? Boolean(own.hasExactOwned) : (isMegaOpt ? Boolean(own.hasMegaOwned || own.hasExactOwned) : (isGmaxOpt ? Boolean(own.hasGmaxOwned || own.hasExactOwned) : Boolean(own.hasExactOwned)));
+    if (evaluatedOpts.length > 0) {
+      evaluatedOpts.forEach(({ opt, cleanOptName, fullTargetName, own, isMegaOpt, requiresGmaxChallenge, isTargetOwned }) => {
         const optBase = getBaseSpecies ? getBaseSpecies(fullTargetName) : fullTargetName;
-        const isBest = !isBlockedForGmax && Boolean(bestBranchName && (optBase.toLowerCase() === bestBranchName.toLowerCase() || fullTargetName.toLowerCase().includes(bestBranchName.toLowerCase()) || cleanOptName.toLowerCase().includes(bestBranchName.toLowerCase())));
+        const isBest = !isBlockedForGmax && !requiresGmaxChallenge && !isTargetOwned && Boolean(bestBranchName && (optBase.toLowerCase() === bestBranchName.toLowerCase() || fullTargetName.toLowerCase().includes(bestBranchName.toLowerCase()) || cleanOptName.toLowerCase().includes(bestBranchName.toLowerCase())));
 
         let badgeHtml = '';
         if (card.isLevelLocked) {
           badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #f87171; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: 3px;">LEVEL LOCKED (Lv ${card.requiredLevel || '?'})</span>`;
-        } else if (isBlockedForGmax) {
-          badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #8eaad0; padding: 1px 4px; background: rgba(142, 170, 208, 0.1); border: 1px solid rgba(142, 170, 208, 0.25); border-radius: 3px;">BLOCKED (HOLD FOR G-MAX)</span>`;
         } else if (isTargetOwned) {
           if (isMegaOpt && own.hasMegaOwned) {
             badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #ff7b72; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: 3px;">&#9888; STOP: MEGA OWNED (Lv ${own.bestLevel})</span>`;
-          } else {
+          } else if (own && own.bestPoke && own.hasExactOwned) {
             badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #ff7b72; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: 3px;">OWNED (Lv ${own.bestLevel})</span>`;
+          } else {
+            badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #ff7b72; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: 3px;">ALREADY OWNED</span>`;
           }
-        } else if (isGmaxOpt) {
-          badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #fbbf24; padding: 1px 4px; background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px;">TOP PRIORITY (UNOWNED)</span>`;
-        } else if (hasGmaxModalOption && isGmaxModalOptUnowned && gmaxPrereq.isBlockedForGmax) {
+        } else if (requiresGmaxChallenge) {
+          badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #fbbf24; padding: 1px 4px; background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 3px;">G-MAX CHALLENGE REQUIRED</span>`;
+        } else if (isBlockedForGmax) {
           badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #8eaad0; padding: 1px 4px; background: rgba(142, 170, 208, 0.1); border: 1px solid rgba(142, 170, 208, 0.25); border-radius: 3px;">BLOCKED (HOLD FOR G-MAX)</span>`;
         } else {
           badgeHtml = `<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">100% UNIQUE</span>`;
@@ -490,14 +1143,14 @@ function handleEvolveCardDetected(card) {
           <span style="font-weight: 700;">Requires Level ${card.requiredLevel || 'Higher'} before Evolving</span>
         </div>
       `;
-    } else if (isBlockedForGmax) {
+    } else if ((isGmaxChallengeOnly || isBlockedForGmax) && !allModalDuplicates) {
       html += `
         <div style="margin-top: 5px; padding: 3px 6px; background: #18190c; border: 1px solid #fbbf24; border-radius: 3px; font-size: 9.5px; color: #fbbf24; display: flex; justify-content: space-between; align-items: center;">
           <span style="font-weight: 700;">RECOMMENDED:</span>
           <span style="font-weight: 700;">Complete G-Max Challenge for ${escapeHtml(gmaxTarget)}</span>
         </div>
       `;
-    } else if (bestBranchName) {
+    } else if (bestBranchName && !allModalDuplicates && !allDirectDuplicates) {
       html += `
         <div style="margin-top: 5px; padding: 3px 6px; background: #0b1526; border: 1px solid #1a283e; border-radius: 3px; font-size: 9.5px; color: #8eaad0; display: flex; justify-content: space-between; align-items: center;">
           <span style="color: #566e96; font-weight: 700;">RECOMMENDED:</span>
@@ -511,6 +1164,7 @@ function handleEvolveCardDetected(card) {
   }
 
   // 3. Render Instant Action Buttons
+  if (typeof syncEvoAutoToggleUI === 'function') syncEvoAutoToggleUI();
   if (aiInstantActionSlot) {
     aiInstantActionSlot.innerHTML = '';
 
@@ -519,13 +1173,36 @@ function handleEvolveCardDetected(card) {
     actionBtn.id = 'aiEvolveActionBtn';
     actionBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
 
-    if (card.isLevelLocked) {
+    const currentExcludeId = matchedReadyId || (selectedEvoPoke && rawName && String(selectedEvoPoke.name || '').toLowerCase().trim() === rawName.toLowerCase().trim() ? selectedEvoPoke.id : null);
+    const nextAllowable = !hasAllowableDirectEvolution
+      ? getNextAllowableEvolvePokemon({ id: currentExcludeId, name: rawName })
+      : null;
+
+    let activeDirectTargetChoice = null;
+
+    if (!hasAllowableDirectEvolution && nextAllowable) {
+      wireNextAllowableEvolveButton(actionBtn, nextAllowable, { prefix: 'Skip &amp; Evolve', closeModalFirst: true });
+    } else if (card.isLevelLocked) {
       actionBtn.className = 'btn';
       actionBtn.disabled = true;
       actionBtn.style.borderColor = '#f87171';
       actionBtn.style.color = '#f87171';
       actionBtn.style.background = '#2a1215';
       actionBtn.innerHTML = `&#9888; Level Locked (Requires Lv ${card.requiredLevel || 'Higher'})`;
+    } else if (allModalDuplicates) {
+      actionBtn.className = 'btn';
+      actionBtn.disabled = true;
+      actionBtn.style.borderColor = '#f87171';
+      actionBtn.style.color = '#f87171';
+      actionBtn.style.background = '#2a1215';
+      actionBtn.innerHTML = '&#9888; All Evolution Paths Owned (Cannot Proceed)';
+    } else if (isGmaxChallengeOnly) {
+      actionBtn.className = 'btn';
+      actionBtn.disabled = true;
+      actionBtn.style.borderColor = '#fbbf24';
+      actionBtn.style.color = '#fbbf24';
+      actionBtn.style.background = '#2a2012';
+      actionBtn.innerHTML = `&#9888; Requires G-Max Challenge (Not Direct Evolve)`;
     } else if (isBlockedForGmax) {
       actionBtn.className = 'btn';
       actionBtn.disabled = true;
@@ -533,93 +1210,163 @@ function handleEvolveCardDetected(card) {
       actionBtn.style.color = '#fbbf24';
       actionBtn.style.background = '#2a2012';
       actionBtn.innerHTML = `&#9888; Hold for G-Max (${escapeHtml(gmaxTarget)} Not Owned)`;
+    } else if (allDirectDuplicates) {
+      actionBtn.className = 'btn';
+      actionBtn.disabled = true;
+      actionBtn.style.borderColor = hasUnownedGmaxOpt ? '#fbbf24' : '#f87171';
+      actionBtn.style.color = hasUnownedGmaxOpt ? '#fbbf24' : '#f87171';
+      actionBtn.style.background = hasUnownedGmaxOpt ? '#2a2012' : '#2a1215';
+      actionBtn.innerHTML = hasUnownedGmaxOpt
+        ? '&#9888; Requires G-Max Challenge (Direct Paths Owned)'
+        : '&#9888; All Evolution Paths Owned (Cannot Proceed)';
     } else {
-      const isModalOptionOwned = (opt) => {
-        const optRaw = opt.fullName || opt.name || '';
-        const cleanOpt = optRaw.replace(/\s*\([^)]*\)/g, ' ')
-                               .replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ')
-                               .replace(/\s{2,}/g, ' ')
-                               .trim();
-        const fullTargetName = (normCardVariant !== 'Normal' && !cleanOpt.toLowerCase().startsWith(normCardVariant.toLowerCase() + ' '))
-          ? `${normCardVariant} ${cleanOpt}`
-          : cleanOpt;
-        const own = evolutionEngine ? evolutionEngine.checkEvolutionOwnership(fullTargetName, currentCollection, normCardVariant) : { isOwned: false };
-        const isMegaOpt = /\bMega\s+/i.test(cleanOpt);
-        const isGmaxOpt = /\bG-Max\b/i.test(cleanOpt);
-        const isBranchMega = isMegaOpt && /\b[XY]\b/i.test(cleanOpt);
-        return isBranchMega ? Boolean(own.hasExactOwned) : (isMegaOpt ? Boolean(own.hasMegaOwned || own.hasExactOwned) : (isGmaxOpt ? Boolean(own.hasGmaxOwned || own.hasExactOwned) : Boolean(own.hasExactOwned)));
-      };
+      // Multi-branch ranking: Pick strictly from directly evolvable unowned non-G-Max options
+      let targetChoice = null;
+      const unownedDirect = directOpts.filter(e => !e.isTargetOwned);
+      if (unownedDirect.length > 0) {
+        if (bestBranchName) {
+          const matchedBest = unownedDirect.find(e => {
+            const optRaw = (e.fullTargetName || e.cleanOptName || '').toLowerCase();
+            const bName = bestBranchName.toLowerCase();
+            return optRaw.includes(bName) || bName.includes(optRaw);
+          });
+          targetChoice = matchedBest ? matchedBest.cleanOptName : unownedDirect[0].cleanOptName;
+        } else {
+          targetChoice = unownedDirect[0].cleanOptName;
+        }
+      }
+      if (!targetChoice && bestBranchName && !/\bg-?max\b/i.test(bestBranchName)) {
+        targetChoice = cleanEvolveOptionLabel(bestBranchName);
+      }
 
-      const allModalDuplicates = Array.isArray(card.options) && card.options.length > 0 && card.options.every(isModalOptionOwned);
-
-      if (allModalDuplicates) {
-        actionBtn.className = 'btn';
-        actionBtn.disabled = true;
-        actionBtn.style.borderColor = '#f87171';
-        actionBtn.style.color = '#f87171';
-        actionBtn.style.background = '#2a1215';
-        actionBtn.innerHTML = '&#9888; All Evolution Paths Owned (Cannot Proceed)';
+      if (!targetChoice || /\bg-?max\b/i.test(targetChoice)) {
+        const fallbackNext = getNextAllowableEvolvePokemon({ id: currentExcludeId, name: rawName });
+        if (fallbackNext) {
+          wireNextAllowableEvolveButton(actionBtn, fallbackNext, { prefix: 'Skip &amp; Evolve', closeModalFirst: true });
+        } else {
+          actionBtn.className = 'btn';
+          actionBtn.disabled = true;
+          actionBtn.style.borderColor = '#fbbf24';
+          actionBtn.style.color = '#fbbf24';
+          actionBtn.style.background = '#2a2012';
+          actionBtn.innerHTML = '&#9888; Requires G-Max Challenge (Not Direct Evolve)';
+        }
       } else {
-        // Multi-branch ranking: Unowned options ranked by meta BST/score
-        let targetChoice = null;
-        if (Array.isArray(card.options)) {
-          const unownedOpts = card.options.filter(opt => !isModalOptionOwned(opt));
-          if (unownedOpts.length > 0) {
-            const unownedGmax = unownedOpts.find(opt => /\bg-?max\b/i.test(opt.fullName || opt.name));
-            if (unownedGmax) {
-              targetChoice = unownedGmax.fullName || unownedGmax.name;
-            } else if (bestBranchName) {
-              const matchedBest = unownedOpts.find(opt => {
-                const optRaw = (opt.fullName || opt.name || '').toLowerCase();
-                const bName = bestBranchName.toLowerCase();
-                return optRaw.includes(bName) || bName.includes(optRaw);
-              });
-              targetChoice = matchedBest ? (matchedBest.fullName || matchedBest.name) : (unownedOpts[0].fullName || unownedOpts[0].name);
-            } else {
-              targetChoice = unownedOpts[0].fullName || unownedOpts[0].name;
-            }
-          }
-        }
-        if (!targetChoice) {
-          targetChoice = bestBranchName || 'Evolved Form';
-        }
-        if (targetChoice) {
-          targetChoice = targetChoice.replace(/\s*\([^)]*\)/g, ' ')
-                                     .replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ')
-                                     .replace(/\s{2,}/g, ' ')
-                                     .trim();
-        }
-
+        activeDirectTargetChoice = targetChoice;
         const defaultEvolveBtnHtml = `&#129516; Confirm Evolve into ${escapeHtml(targetChoice)}`;
         actionBtn.className = 'btn btn-accent';
         actionBtn.innerHTML = defaultEvolveBtnHtml;
         actionBtn.addEventListener('click', () => {
           if (delugeView) {
+            if (typeof startAutoEvolveCycle === 'function') {
+              startAutoEvolveCycle({
+                pokemonId: currentExcludeId || (selectedEvoPoke && selectedEvoPoke.id) || null,
+                name: rawName,
+                targetBranch: targetChoice,
+                level: card.level || 100
+              });
+            }
             actionBtn.innerHTML = '&#9203; Submitting Evolution...';
             actionBtn.disabled = true;
             delugeView.send('submit-modal-evolve', { targetBranch: targetChoice });
             updateStatus(`Submitting evolution into ${targetChoice}...`, '#388bfd');
-            setTimeout(() => {
-              if (actionBtn && actionBtn.isConnected && actionBtn.disabled) {
-                actionBtn.disabled = false;
-                actionBtn.innerHTML = defaultEvolveBtnHtml;
-              }
-            }, 3200);
+            if (typeof setTimeout === 'function') {
+              setTimeout(() => {
+                if (actionBtn && actionBtn.isConnected && actionBtn.disabled) {
+                  actionBtn.disabled = false;
+                  actionBtn.innerHTML = defaultEvolveBtnHtml;
+                }
+              }, 3200);
+            }
           }
         });
       }
     }
     aiInstantActionSlot.appendChild(actionBtn);
+
+    if (typeof activeAutoEvolveCycle !== 'undefined' && activeAutoEvolveCycle && activeAutoEvolveCycle.active) {
+      activeAutoEvolveCycle.awaitingPostConfirm = false;
+      const branchValid = Boolean(hasAllowableDirectEvolution && activeDirectTargetChoice && !/\bg-?max\b/i.test(activeDirectTargetChoice));
+      const matchesCycle = (typeof matchesAutoEvolveCyclePokemon === 'function') && matchesAutoEvolveCyclePokemon(rawName, matchedReadyId);
+      if ((typeof isEvoAutoEnabled === 'function' && !isEvoAutoEnabled()) || !branchValid) {
+        if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('No allowable direct evolution');
+      } else if (!matchesCycle) {
+        if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Different Pokemon opened');
+      } else if (typeof scheduleAutoEvolveStep === 'function') {
+        if (matchedReadyId && !activeAutoEvolveCycle.pokemonId) {
+          activeAutoEvolveCycle.pokemonId = String(matchedReadyId);
+        }
+        activeAutoEvolveCycle.currentName = rawName;
+        activeAutoEvolveCycle.targetBranch = activeDirectTargetChoice;
+        activeAutoEvolveCycle.expectedEvolvedName = '';
+        activeAutoEvolveCycle.level = card.level || activeAutoEvolveCycle.level || 100;
+        const chosenBranch = activeDirectTargetChoice;
+        const stepSig = `branch:${rawName}->${chosenBranch}`;
+        const delayMs = 550 + Math.floor(Math.random() * 300);
+        scheduleAutoEvolveStep(stepSig, delayMs, () => {
+          if (!delugeView || typeof delugeView.send !== 'function') return;
+          actionBtn.innerHTML = `&#9203; Auto-Evolving into ${escapeHtml(chosenBranch)}...`;
+          actionBtn.disabled = true;
+          delugeView.send('submit-modal-evolve', { targetBranch: chosenBranch });
+          if (typeof updateStatus === 'function') {
+            updateStatus(`Auto-Evolve: Confirming evolution into ${chosenBranch}...`, '#388bfd');
+          }
+          if (typeof setTimeout === 'function') {
+            setTimeout(() => {
+              if (actionBtn && actionBtn.isConnected && actionBtn.disabled) {
+                actionBtn.disabled = false;
+                actionBtn.innerHTML = `&#129516; Confirm Evolve into ${escapeHtml(chosenBranch)}`;
+              }
+            }, 4200);
+          }
+        });
+      }
+    }
+  }
+}
+
+function clearActiveEvoDecisionPanel(badgeText, chipText, emptyText) {
+  if (typeof syncEvoAutoToggleUI === 'function') syncEvoAutoToggleUI();
+  if (aiBattleOpponentBadge) {
+    aiBattleOpponentBadge.textContent = badgeText || 'No Pending Evolutions';
+    aiBattleOpponentBadge.style.color = '#8eaad0';
+  }
+  if (aiStatusChip) {
+    aiStatusChip.textContent = chipText || 'All Clear';
+    aiStatusChip.style.color = '#10b981';
+  }
+  if (aiTacticalBriefing) {
+    aiTacticalBriefing.innerHTML = `<div style="color: #8eaad0; text-align: center; padding: 8px 6px; font-size: 10px; font-weight: 600; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; box-shadow: none !important;">${escapeHtml(emptyText || 'No evolve-ready Pokemon')}</div>`;
+  }
+  if (aiInstantActionSlot) {
+    aiInstantActionSlot.innerHTML = '';
+    if ((typeof currentEvoFilter !== 'string') || currentEvoFilter === 'UNIQUE') {
+      const emptyEvoBtn = document.createElement('button');
+      emptyEvoBtn.type = 'button';
+      emptyEvoBtn.id = 'aiEvolveActionBtn';
+      emptyEvoBtn.className = 'btn';
+      emptyEvoBtn.disabled = true;
+      emptyEvoBtn.title = 'Disabled: No evolve-ready Pokemon available';
+      emptyEvoBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
+      emptyEvoBtn.innerHTML = '&#129516; Evolve';
+      aiInstantActionSlot.appendChild(emptyEvoBtn);
+    }
   }
 }
 
 function handleEvolveCardClosed() {
   activeEvolveCardData = null;
   lastAnnouncedEvolveSignature = null;
-  const isAiPanelOpen = Boolean(aiAssistantModal && aiAssistantModal.style.display === 'flex');
+  if (typeof syncEvoAutoToggleUI === 'function') syncEvoAutoToggleUI();
+  if (selectedEvoPoke && (!Array.isArray(cachedEvolveReadyList) || !cachedEvolveReadyList.some(p => p && p.hasUnique && p.id === selectedEvoPoke.id && p.name === selectedEvoPoke.name))) {
+    selectedEvoPoke = null;
+  }
+  const isAiPanelOpen = Boolean(typeof aiAssistantModal !== 'undefined' && aiAssistantModal && aiAssistantModal.style.display === 'flex');
   if (isAiPanelOpen) {
-    renderAiAssistantUI();
     renderEvolutionDecisionMakerUI();
+    if (typeof renderAiAssistantUI === 'function') {
+      renderAiAssistantUI();
+    }
   }
 }
 
@@ -645,10 +1392,13 @@ function setEvoFilter(filterType) {
     evoFilterBlockedBtn.className = filterType === 'BLOCKED' ? 'btn btn-accent' : 'btn';
     evoFilterBlockedBtn.style.fontWeight = filterType === 'BLOCKED' ? '700' : '600';
   }
+  if (typeof syncEvoAutoToggleUI === 'function') syncEvoAutoToggleUI();
   renderEvolutionDecisionMakerUI();
 }
 
 function refreshEvolveBoxList() {
+  disregardedEvoPokeIds.clear();
+  disregardedEvoPokeNames.clear();
   loadTeamBuilderData();
   if (delugeView) {
     try {
@@ -808,14 +1558,31 @@ function selectEvolvePokemon(poke, branch) {
       triggerBtn.type = 'button';
       triggerBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
 
-      if (poke.isBlockedForGmax) {
+      const isSelectedBlocked = Boolean(poke.isBlockedForGmax || /\bg-?max\b/i.test(targetName) || isDuplicate || !poke.hasUnique);
+      const nextAllowableFromSelect = isSelectedBlocked
+        ? getNextAllowableEvolvePokemon({ id: poke.id, name: poke.name })
+        : null;
+
+      if (isSelectedBlocked && nextAllowableFromSelect) {
+        wireNextAllowableEvolveButton(triggerBtn, nextAllowableFromSelect, {
+          prefix: 'Next Allowable',
+          closeModalFirst: Boolean(activeEvolveCardData && activeEvolveCardData.isOpen)
+        });
+      } else if (poke.isBlockedForGmax) {
         triggerBtn.className = 'btn';
         triggerBtn.disabled = true;
         triggerBtn.style.borderColor = '#fbbf24';
         triggerBtn.style.color = '#fbbf24';
         triggerBtn.style.background = '#2a2012';
         triggerBtn.innerHTML = `&#9888; Hold for G-Max (${escapeHtml(poke.gmaxTarget || 'G-Max')} Not Owned)`;
-      } else if (isDuplicate) {
+      } else if (/\bg-?max\b/i.test(targetName)) {
+        triggerBtn.className = 'btn';
+        triggerBtn.disabled = true;
+        triggerBtn.style.borderColor = '#fbbf24';
+        triggerBtn.style.color = '#fbbf24';
+        triggerBtn.style.background = '#2a2012';
+        triggerBtn.innerHTML = '&#9888; Requires G-Max Challenge (Not Direct Evolve)';
+      } else if (isDuplicate || !poke.hasUnique) {
         triggerBtn.className = 'btn';
         triggerBtn.disabled = true;
         triggerBtn.style.borderColor = '#f87171';
@@ -827,6 +1594,12 @@ function selectEvolvePokemon(poke, branch) {
         triggerBtn.innerHTML = `&#129516; Evolve into ${escapeHtml(targetName)}`;
         triggerBtn.addEventListener('click', () => {
           if (delugeView) {
+            const autoStarted = (typeof startAutoEvolveCycle === 'function') && startAutoEvolveCycle({
+              pokemonId: poke.id,
+              name: poke.name,
+              targetBranch: targetName,
+              level: poke.level
+            });
             triggerBtn.disabled = true;
             triggerBtn.innerHTML = '&#9203; Opening Evolve Modal...';
             delugeView.send('trigger-evolve-pokemon', {
@@ -835,7 +1608,12 @@ function selectEvolvePokemon(poke, branch) {
               level: poke.level,
               types: poke.types,
               variant: poke.variant,
-              targetBranch: targetName
+              targetBranch: targetName,
+              closeModalFirst: Boolean(
+                activeEvolveCardData && activeEvolveCardData.isOpen &&
+                (activeEvolveCardData.isComplete || (activeEvolveCardData.fullName || '').toLowerCase().trim() !== (poke.name || '').toLowerCase().trim())
+              ),
+              managedByHostAuto: Boolean(autoStarted)
             });
             updateStatus(`Opening evolve modal for ${poke.name}...`, '#388bfd');
             setTimeout(() => {
@@ -1107,10 +1885,19 @@ function renderMoveItemCard(item) {
   return card;
 }
 
-function renderEvolutionDecisionMakerUI() {
+function renderEvolutionDecisionMakerUI(opts) {
   if (!evolutionEngine || typeof evolutionEngine.getEvolveReadyPokemon !== 'function') return;
+  if (typeof syncEvoAutoToggleUI === 'function') syncEvoAutoToggleUI();
 
-  const readyList = evolutionEngine.getEvolveReadyPokemon(currentCollection);
+  const rawReadyList = evolutionEngine.getEvolveReadyPokemon(currentCollection);
+  const readyList = rawReadyList.map(item => {
+    const idKey = item && item.id ? String(item.id) : '';
+    const nameKey = item && item.name ? String(item.name).toLowerCase().trim() : '';
+    if ((idKey && disregardedEvoPokeIds.has(idKey)) || (nameKey && disregardedEvoPokeNames.has(nameKey))) {
+      return Object.assign({}, item, { hasUnique: false, status: 'DISREGARDED' });
+    }
+    return item;
+  });
   cachedEvolveReadyList = readyList;
 
   const boxMovesList = (typeof evolutionEngine.getBoxPokemonMovesCollection === 'function')
@@ -1246,6 +2033,14 @@ function renderEvolutionDecisionMakerUI() {
         ? 'No flawed movesets found'
         : 'No Pokemon found';
       evoReadyList.appendChild(emptyNotice);
+      if (!activeEvolveCardData || !activeEvolveCardData.isOpen) {
+        selectedMovesPoke = null;
+        clearActiveEvoDecisionPanel(
+          currentEvoFilter === 'BLOCKED' ? 'No Flawed Movesets' : 'No Matches',
+          'All Clear',
+          currentEvoFilter === 'BLOCKED' ? 'No flawed movesets found' : 'No Pokemon found'
+        );
+      }
       return;
     }
 
@@ -1299,14 +2094,6 @@ function renderEvolutionDecisionMakerUI() {
     const branch = item.bestBranch || (item.branches && item.branches[0]);
     const branchName = branch ? (branch.fullName || branch.name) : 'Unknown';
     const isBranchDup = branch ? branch.isDuplicate : !item.hasUnique;
-
-    const statusBadgeHtml = item.hasUnique
-      ? `<span style="font-size: 8.5px; font-weight: 700; color: #10b981; padding: 1px 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px;">100% UNIQUE</span>`
-      : `<span style="font-size: 8.5px; font-weight: 700; color: #f87171; padding: 1px 4px; background: rgba(248, 81, 73, 0.15); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: 3px;">&#9888; DUPLICATE</span>`;
-
-    const targetBadgeHtml = isBranchDup
-      ? `<span style="color: #f87171; font-weight: 600; font-size: 9px;">&#8594; ${escapeHtml(branchName)} (Owned)</span>`
-      : `<span style="color: #388bfd; font-weight: 600; font-size: 9px;">&#8594; ${escapeHtml(branchName)}</span>`;
 
     const spriteHtml = item.sprite
       ? `<img src="${escapeHtml(item.sprite)}" style="width: 24px; height: 24px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0;" onerror="this.style.display='none';">`
@@ -1431,11 +2218,21 @@ function renderEvolutionDecisionMakerUI() {
     emptyNotice.style.cssText = 'color: #566e96; text-align: center; padding: 16px 8px; font-size: 10px; font-weight: 600;';
     emptyNotice.textContent = 'No evolve-ready Pokemon found';
     evoReadyList.appendChild(emptyNotice);
+    if (activeEvolveCardData && activeEvolveCardData.isOpen) {
+      if (!handleEvolveCardDetected._active && !(opts && opts.skipActiveCardReentry)) {
+        handleEvolveCardDetected(activeEvolveCardData);
+      }
+      return;
+    }
+    selectedEvoPoke = null;
+    clearActiveEvoDecisionPanel('No Pending Evolutions', 'All Clear', 'No evolve-ready Pokemon');
     return;
   }
 
   if (activeEvolveCardData && activeEvolveCardData.isOpen) {
-    handleEvolveCardDetected(activeEvolveCardData);
+    if (!handleEvolveCardDetected._active && !(opts && opts.skipActiveCardReentry)) {
+      handleEvolveCardDetected(activeEvolveCardData);
+    }
     return;
   }
 
@@ -1483,4 +2280,16 @@ function handleRunMonteCarloSimulation() {
     }
     appendAiChatMessage('AI', `Simulation error: ${err.message || err}`);
   });
+}
+
+if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+  const _evoAutoChkEl = document.getElementById('evoAutoCheck');
+  if (_evoAutoChkEl && typeof _evoAutoChkEl.addEventListener === 'function') {
+    _evoAutoChkEl.addEventListener('change', () => {
+      syncEvoAutoToggleUI();
+      if (!_evoAutoChkEl.checked) {
+        stopAutoEvolveCycle('Auto disabled by user');
+      }
+    });
+  }
 }

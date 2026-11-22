@@ -2722,14 +2722,20 @@ function checkHasCaptchaElement() {
         const path = (window.location.pathname || '').toLowerCase();
         if (path.indexOf('/login') !== -1) return false;
         if (path.indexOf('/unlock') !== -1) return true;
-        const cEl = document.querySelector(
+        const cEls = document.querySelectorAll(
             'iframe[src*="captcha" i], iframe[src*="turnstile" i], iframe[src*="recaptcha" i], iframe[src*="challenges.cloudflare.com" i], ' +
             'iframe[src*="hcaptcha" i], iframe[src*="arkose" i], .h-captcha, ' +
             '#captcha, .captcha, #recaptcha, .g-recaptcha, .cf-turnstile, [id*="captcha" i], [class*="captcha" i], img[src*="captcha" i]'
         );
-        if (cEl) {
+        for (let i = 0; i < cEls.length; i++) {
+            const cEl = cEls[i];
             const st = window.getComputedStyle(cEl);
-            if (st.display !== 'none' && st.visibility !== 'hidden') return true;
+            if (st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0') continue;
+            if (typeof cEl.getBoundingClientRect === 'function') {
+                const r = cEl.getBoundingClientRect();
+                if (r && r.width <= 0 && r.height <= 0) continue;
+            }
+            return true;
         }
         // Only read full body innerText when playable map elements are not present (avoids 300ms full-page layout reflow on /map)
         const hasMapDom = !!(document.getElementById('map') || document.getElementById('dr-n'));
@@ -2751,7 +2757,7 @@ function checkHasCaptchaElement() {
 
 let lastEmittedMapPresenceStr = '';
 
-function checkAndSyncMapPresence() {
+function checkAndSyncMapPresence(forceEmit = false) {
     try {
         const path = (window.location.pathname || '').toLowerCase();
         const hasNavArrows = !!(document.getElementById('dr-n') || document.getElementById('dr-s') || document.getElementById('dr-e') || document.getElementById('dr-w'));
@@ -2773,6 +2779,8 @@ function checkAndSyncMapPresence() {
                 unlockNoticeSent = true;
                 ipcRenderer.sendToHost('unlock-detected', { path: path, url: window.location.href });
             }
+        } else if (path.indexOf('/unlock') === -1) {
+            unlockNoticeSent = false;
         }
 
         if (isMapPage) {
@@ -2806,7 +2814,7 @@ function checkAndSyncMapPresence() {
             url: window.location.href
         };
         const mapPayloadStr = JSON.stringify(mapPayload);
-        if (mapPayloadStr !== lastEmittedMapPresenceStr) {
+        if (forceEmit || mapPayloadStr !== lastEmittedMapPresenceStr) {
             lastEmittedMapPresenceStr = mapPayloadStr;
             ipcRenderer.sendToHost('map-presence', mapPayload);
         }
@@ -4965,7 +4973,13 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('load', () => {
+    checkAndSyncMapPresence(true);
+    syncEvolveCardState(true);
     scheduleDomCapture('page-load', 1500);
+});
+
+ipcRenderer.on('request-map-presence', () => {
+    checkAndSyncMapPresence(true);
 });
 
 // High-frequency polling (300ms) for instant responsiveness
@@ -6642,6 +6656,77 @@ function matchesTeamMemberEntry(domName, domVariant, member) {
     return false;
 }
 
+function collectBenchSwitchRadios(scopeEl) {
+    if (!scopeEl || !scopeEl.querySelectorAll) return [];
+    const all = Array.from(scopeEl.querySelectorAll('input[type="radio"]')).filter(r => {
+        if (!r) return false;
+        const n = (r.name || '').toLowerCase();
+        if (n && /^(?:selected|selectitem|item|ball)$/.test(n)) return false;
+        if (n && /(?:attk|attack|move|item|bag|ball)/.test(n)) return false;
+        if (r.closest && (r.closest('#attk, .attk, #items, .items') || r.closest('form[action*="item" i]'))) return false;
+        return true;
+    });
+    const explicit = all.filter(r => /(?:swi_pk|pokeselect|switch|spoke|team)/i.test(r.name || ''));
+    return explicit.length > 0 ? explicit : all;
+}
+
+function extractBenchCardName(el) {
+    if (!el) return '';
+    const nameNode = el.querySelector && el.querySelector('.batname span, .batname, h4, .name, .smallcaps');
+    if (nameNode && nameNode.textContent && nameNode.textContent.trim()) {
+        return nameNode.textContent.replace(/[\r\n]+/g, ' ').trim();
+    }
+    const img = el.querySelector && el.querySelector('img[alt], img[title]');
+    if (img) {
+        const altTxt = (img.getAttribute('alt') || img.getAttribute('title') || '').trim();
+        if (altTxt) return altTxt;
+    }
+    const raw = (el.textContent || '')
+        .replace(/Level:\s*\d+/gi, '')
+        .replace(/Lv\.?\s*\d+/gi, '')
+        .replace(/HP:\s*\d+(?:\s*\/\s*\d+)?/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return raw;
+}
+
+function getBenchRadioCardMeta(rad, scopeEl) {
+    let card = rad ? rad.parentElement : null;
+    while (card && card !== scopeEl && card !== document.body && card.parentElement && card.parentElement.querySelectorAll('input[type="radio"]').length === 1) {
+        card = card.parentElement;
+    }
+    let name = extractBenchCardName(card);
+    let infoEl = card;
+    if (!name && rad && rad.labels && rad.labels.length > 0) {
+        const lblName = extractBenchCardName(rad.labels[0]);
+        if (lblName) {
+            name = lblName;
+            infoEl = rad.labels[0];
+        }
+    }
+    if (!name && rad && rad.closest) {
+        const td = rad.closest('td');
+        const tr = td ? td.closest('tr') : null;
+        if (td && tr && tr.children) {
+            const colIdx = Array.prototype.indexOf.call(tr.children, td);
+            if (colIdx >= 0) {
+                let prevTr = tr.previousElementSibling;
+                while (prevTr) {
+                    const pairedCell = prevTr.children && prevTr.children[colIdx];
+                    const pairedName = extractBenchCardName(pairedCell);
+                    if (pairedName) {
+                        name = pairedName;
+                        infoEl = pairedCell;
+                        break;
+                    }
+                    prevTr = prevTr.previousElementSibling;
+                }
+            }
+        }
+    }
+    return { card, infoEl: infoEl || card, name: name || '' };
+}
+
         // Mode 1: Post-Battle Screen (Victory or Defeat) - Top priority when match concludes
         const viewPokes = document.getElementById('viewpokes');
         const rematchLink = document.querySelector('a[href*="/battle/trainer/"], a[href*="/battle/gym/"], a[href*="/battle/"]');
@@ -6905,14 +6990,12 @@ function matchesTeamMemberEntry(domName, domVariant, member) {
 
             if (playerPokeEl) {
                 const pFullText = (playerPokeEl.textContent || '').trim();
-                let pName = '';
-                const mP = pFullText.match(/^Your\s+([A-Za-z0-9\s\-_()]+?)(?:\s+HP:|\s+Lv|\s*$)/i);
-                if (mP) {
-                    pName = mP[1].trim();
-                } else {
-                    const pNameSpan = playerPokeEl.querySelector('.smallcaps, h4, .name');
-                    if (pNameSpan) {
-                        pName = pNameSpan.textContent.trim();
+                const pNameSpan = playerPokeEl.querySelector('.smallcaps, h4, .name');
+                let pName = pNameSpan ? pNameSpan.textContent.trim() : '';
+                if (!pName) {
+                    const mP = pFullText.match(/^Your[ \t]+([A-Za-z0-9 \t\-_():'.]+?)(?:[ \t]+HP:|[ \t]+Lv|[\r\n]+|$)/i);
+                    if (mP) {
+                        pName = mP[1].trim();
                     } else {
                         pName = pFullText.replace(/^Your\s+/i, '').split(/[\r\n]+/)[0].trim();
                     }
@@ -7066,7 +7149,16 @@ function matchesTeamMemberEntry(domName, domVariant, member) {
 
             // Extract bench team on screen
             const userTeam = [];
-            const benchContainer = document.getElementById('teamright') || document.getElementById('switchpoke') || document.querySelector('.bench, .teamlist, #userteam');
+            const swiBtnEl = document.querySelector('input[type="submit"][value*="Switch" i], button[value*="Switch" i], input[value*="Switch Pokemon" i]');
+            const swiFormEl = swiBtnEl ? swiBtnEl.closest('form') : null;
+            const swiRadioFallback = !swiFormEl ? document.querySelector('input[type="radio"][name="swi_pk"], input[type="radio"][name="pokeselect"], form[action*="switch" i] input[type="radio"]') : null;
+            const benchContainer =
+                document.getElementById('teamright') ||
+                document.getElementById('switchpoke') ||
+                swiFormEl ||
+                (swiRadioFallback ? (swiRadioFallback.closest('form, table, .switchform, .switchpoke, .bench, div') || swiRadioFallback.parentElement) : null) ||
+                document.querySelector('.switchform, .switchpoke, .bench, .teamlist, #userteam, form[action*="switch" i]');
+            let benchExtractedCount = 0;
             if (benchContainer) {
                 const rItems = benchContainer.querySelectorAll('.battlelistitem, .pokemon, .row');
                 for (let i = 0; i < rItems.length; i++) {
@@ -7129,18 +7221,15 @@ function matchesTeamMemberEntry(domName, domVariant, member) {
                     });
                 }
                 if (userTeam.length === 0) {
-                    const bRadios = benchContainer.querySelectorAll('input[type="radio"]');
+                    const bRadios = collectBenchSwitchRadios(benchContainer);
                     for (let br = 0; br < bRadios.length; br++) {
                         const rad = bRadios[br];
-                        let card = rad.parentElement;
-                        while (card && card !== benchContainer && card !== document.body && card.parentElement && card.parentElement.querySelectorAll('input[type="radio"]').length === 1) {
-                            card = card.parentElement;
-                        }
-                        if (!card) continue;
-                        const nameNode = card.querySelector('.batname span, .batname, h4, .name, .smallcaps');
-                        let cName = nameNode ? nameNode.textContent.trim() : (card.textContent || '').replace(/Level:\s*\d+/gi, '').replace(/Lv\.?\s*\d+/gi, '').replace(/HP:\s*\d+(?:\s*\/\s*\d+)?/gi, '').replace(/\s+/g, ' ').trim();
-                        if (!cName) continue;
-                        const cDomVar = extractBattleDomVariant(cName, card);
+                        const meta = getBenchRadioCardMeta(rad, benchContainer);
+                        const card = meta.card;
+                        const infoEl = meta.infoEl;
+                        const cName = meta.name;
+                        if (!card || !cName) continue;
+                        const cDomVar = extractBattleDomVariant(cName, infoEl);
                         let cLevel = 100;
                         let cKnownLvl = false;
                         let cMatched = null;
@@ -7152,9 +7241,11 @@ function matchesTeamMemberEntry(domName, domVariant, member) {
                             }
                         }
                         const cMatchedWasFainted = Boolean(cMatched && (cMatched.isFainted || (typeof cMatched.hp === 'number' && cMatched.hp <= 0)));
-                        const cZeroBar = card.querySelector('[style*="width: 0%"], [style*="width:0%"], [style*="width: 0px"], [style*="width:0px"]');
-                        const cStyle = card.getAttribute('style') || '';
-                        const cFainted = cMatchedWasFainted || Boolean(rad.disabled) || Boolean(cZeroBar) || /\bfainted\b/i.test(card.textContent || '') || card.classList.contains('fainted') || card.classList.contains('dead') || cStyle.includes('opacity: 0.5') || cStyle.includes('opacity:0.5');
+                        const cZeroBar = (infoEl && infoEl.querySelector && infoEl.querySelector('[style*="width: 0%"], [style*="width:0%"], [style*="width: 0px"], [style*="width:0px"]')) ||
+                                         card.querySelector('[style*="width: 0%"], [style*="width:0%"], [style*="width: 0px"], [style*="width:0px"]');
+                        const cStyle = (infoEl && infoEl.getAttribute && infoEl.getAttribute('style')) || card.getAttribute('style') || '';
+                        const infoText = ((infoEl && infoEl.textContent) || '') + ' ' + (card.textContent || '');
+                        const cFainted = cMatchedWasFainted || Boolean(rad.disabled) || Boolean(cZeroBar) || /\bfainted\b/i.test(infoText) || card.classList.contains('fainted') || card.classList.contains('dead') || (infoEl && infoEl.classList && (infoEl.classList.contains('fainted') || infoEl.classList.contains('dead'))) || cStyle.includes('opacity: 0.5') || cStyle.includes('opacity:0.5');
                         const cHp = cFainted ? 0 : ((cMatched && typeof cMatched.hp === 'number' && cMatched.hp > 0) ? cMatched.hp : 100);
                         const cMaxHp = (cMatched && typeof cMatched.maxHp === 'number' && cMatched.maxHp > 0) ? cMatched.maxHp : 100;
                         const cVariant = cDomVar !== 'Normal'
@@ -7173,11 +7264,12 @@ function matchesTeamMemberEntry(domName, domVariant, member) {
                         });
                     }
                 }
+                benchExtractedCount = userTeam.length;
             }
             if (userTeam.length === 0 && Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > 0) {
                 for (let k = 0; k < lastKnownUserTeam.length; k++) {
                     const itemCopy = Object.assign({}, lastKnownUserTeam[k]);
-                    if (userActivePokemon && itemCopy.name && itemCopy.name.toLowerCase() === userActivePokemon.name.toLowerCase()) {
+                    if (userActivePokemon && matchesTeamMemberEntry(userActivePokemon.name, userActivePokemon.variant, itemCopy)) {
                         itemCopy.hp = userActivePokemon.hp;
                         itemCopy.maxHp = userActivePokemon.maxHp;
                         itemCopy.isFainted = userActivePokemon.isFainted;
@@ -7186,7 +7278,7 @@ function matchesTeamMemberEntry(domName, domVariant, member) {
                 }
             }
             if (userActivePokemon) {
-                const existingIdx = userTeam.findIndex(u => u.name.toLowerCase() === userActivePokemon.name.toLowerCase());
+                const existingIdx = userTeam.findIndex(u => matchesTeamMemberEntry(userActivePokemon.name, userActivePokemon.variant, u));
                 if (existingIdx === -1) {
                     userTeam.unshift(userActivePokemon);
                 } else {
@@ -7199,11 +7291,13 @@ function matchesTeamMemberEntry(domName, domVariant, member) {
                     }
                 }
             }
+            const activeBenchRadiosNow = collectBenchSwitchRadios(benchContainer || document);
+            const isBenchMissingDespiteRadios = Boolean(benchExtractedCount === 0 && activeBenchRadiosNow.length > 0);
             if (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > userTeam.length && userTeam.length > 0) {
-                const isSubset = userTeam.every(u => lastKnownUserTeam.some(m => (m.name || '').toLowerCase() === (u.name || '').toLowerCase()));
+                const isSubset = userTeam.every(u => lastKnownUserTeam.some(m => matchesTeamMemberEntry(u.name, u.variant, m)));
                 if (isSubset) {
                     userTeam.splice(0, userTeam.length, ...lastKnownUserTeam.map((mem, idx) => {
-                        const found = userTeam.find(u => (u.name || '').toLowerCase() === (mem.name || '').toLowerCase());
+                        const found = userTeam.find(u => matchesTeamMemberEntry(u.name, u.variant, mem));
                         if (found) {
                             const merged = Object.assign({}, mem, found, { index: idx });
                             if (found.levelKnown === false && mem.levelKnown !== false && typeof mem.level === 'number') {
@@ -7211,6 +7305,9 @@ function matchesTeamMemberEntry(domName, domVariant, member) {
                                 merged.levelKnown = true;
                             }
                             return merged;
+                        }
+                        if (isBenchMissingDespiteRadios) {
+                            return Object.assign({}, mem, { index: idx });
                         }
                         return Object.assign({}, mem, { hp: 0, isFainted: true, index: idx });
                     }));
@@ -7321,8 +7418,8 @@ function matchesTeamMemberEntry(domName, domVariant, member) {
                     }
                 }
             }
-            const benchRadios = document.querySelectorAll('#teamright input[type="radio"], #switchpoke input[type="radio"], .switchform input[type="radio"], .bench input[type="radio"], #userteam input[type="radio"], form[action*="switch" i] input[type="radio"], [id*="switch" i] input[type="radio"], [class*="switch" i] input[type="radio"]');
-            const hasBenchRadios = benchRadios.length > 0 || Boolean(switchForm && switchForm.querySelectorAll('input[type="radio"]').length > 0);
+            const benchRadios = collectBenchSwitchRadios(benchContainer || document);
+            const hasBenchRadios = benchRadios.length > 0 || Boolean(switchForm && collectBenchSwitchRadios(switchForm).length > 0);
 
             let forfeitBtnEl = null;
             const forfeitCands = document.querySelectorAll('input[type="submit"], input[type="button"], button, a.btn, a[href*="forfeit" i], [id*="forfeit" i], [name*="forfeit" i], [class*="forfeit" i]');
@@ -7778,7 +7875,7 @@ ipcRenderer.on('click-rematch-button', () => {
         if (curPath.indexOf('/map') !== -1 || isWildCatchContext()) {
             return;
         }
-        if (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) {
+        if (curPath.indexOf('/unlock') !== -1 || curPath.indexOf('captcha') !== -1 || (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement())) {
             if (!unlockNoticeSent) {
                 unlockNoticeSent = true;
                 ipcRenderer.sendToHost('unlock-detected', { path: window.location.pathname || '', url: window.location.href || '' });
@@ -7944,20 +8041,14 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
             if (!targetRadio) {
                 const sBtn = document.querySelector('input[type="submit"][value*="Switch" i], button[value*="Switch" i], input[value*="Switch Pokemon" i]');
                 const sForm = sBtn ? sBtn.closest('form') : document.querySelector('form[action*="switch" i], .switchform, #switchpoke');
-                const switchScope = sForm || document.getElementById('switchpoke') || document.querySelector('.switchform, .switchpoke');
+                const switchScope = sForm || document.getElementById('switchpoke') || document.querySelector('.switchform, .switchpoke, .bench, #userteam');
                 if (switchScope) {
-                    const formRadios = Array.from(switchScope.querySelectorAll('input[type="radio"]:not([disabled])'));
-                    // Pass 1: Exact normalized name match on each single-radio card container
+                    const formRadios = collectBenchSwitchRadios(switchScope).filter(r => !r.disabled);
+                    // Pass 1: Exact normalized name match on each bench card (including table-paired cells)
                     for (let rIdx = 0; rIdx < formRadios.length; rIdx++) {
                         const rad = formRadios[rIdx];
-                        let card = rad.parentElement;
-                        while (card && card !== switchScope && card !== document.body && card.parentElement && card.parentElement.querySelectorAll('input[type="radio"]').length === 1) {
-                            card = card.parentElement;
-                        }
-                        if (!card) continue;
-                        const nameEl = card.querySelector('.batname span, .batname, h4, .name, .smallcaps');
-                        const rawCardName = nameEl ? nameEl.textContent : (card.textContent || '').replace(/Level:\s*\d+/gi, '').replace(/Lv\.?\s*\d+/gi, '').replace(/HP:\s*\d+(?:\s*\/\s*\d+)?/gi, '');
-                        const cardClean = (rawCardName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const meta = getBenchRadioCardMeta(rad, switchScope);
+                        const cardClean = (meta.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                         if (targetClean && cardClean && cardClean === targetClean) {
                             targetRadio = rad;
                             break;
@@ -7967,13 +8058,8 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
                     if (!targetRadio && targetClean.length >= 3) {
                         for (let rIdx = 0; rIdx < formRadios.length; rIdx++) {
                             const rad = formRadios[rIdx];
-                            let card = rad.parentElement;
-                            while (card && card !== switchScope && card !== document.body && card.parentElement && card.parentElement.querySelectorAll('input[type="radio"]').length === 1) {
-                                card = card.parentElement;
-                            }
-                            if (!card) continue;
-                            const rawCardName = (card.textContent || '').replace(/Level:\s*\d+/gi, '').replace(/Lv\.?\s*\d+/gi, '').replace(/HP:\s*\d+(?:\s*\/\s*\d+)?/gi, '');
-                            const cardClean = rawCardName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            const meta = getBenchRadioCardMeta(rad, switchScope);
+                            const cardClean = (meta.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                             if (cardClean.length >= 3 && (cardClean.indexOf(targetClean) !== -1 || targetClean.indexOf(cardClean) !== -1)) {
                                 targetRadio = rad;
                                 break;
@@ -7983,11 +8069,11 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
                 }
             }
             if (!targetRadio && !isSwitchAction) {
-                const benchRadios = document.querySelectorAll('#teamright input[type="radio"]:not([disabled]), #switchpoke input[type="radio"]:not([disabled]), .switchform input[type="radio"]:not([disabled]), .bench input[type="radio"]:not([disabled]), #userteam input[type="radio"]:not([disabled])');
+                const benchRadios = collectBenchSwitchRadios(document).filter(r => !r.disabled);
                 for (let i = 0; i < benchRadios.length; i++) {
                     const r = benchRadios[i];
-                    const p = r.parentElement ? (r.parentElement.textContent || '').toLowerCase() : '';
-                    const pClean = p.replace(/[^a-z0-9]/g, '');
+                    const meta = getBenchRadioCardMeta(r, document.body || document);
+                    const pClean = (meta.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                     if (targetClean.length >= 3 && pClean.length >= 3 && (pClean === targetClean || pClean.indexOf(targetClean) !== -1)) {
                         targetRadio = r;
                         break;
@@ -8010,7 +8096,7 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
                 if (autoStart) {
                     const submitDelay = (data.delay || 240) + Math.floor(Math.random() * 80);
                     setTimeout(() => {
-                    const inSwitchContainer = Boolean(targetRadio && targetRadio.closest && (targetRadio.closest('#switchpoke') || targetRadio.closest('.switchform') || targetRadio.closest('.switchpoke') || targetRadio.closest('form[action*="switch" i]')));
+                    const inSwitchContainer = Boolean(targetRadio && (/(?:swi_pk|switch)/i.test(targetRadio.name || '') || (targetRadio.closest && (targetRadio.closest('#switchpoke') || targetRadio.closest('.switchform') || targetRadio.closest('.switchpoke') || targetRadio.closest('form[action*="switch" i]')))));
                     const isSwitchMode = Boolean(data.isSwitch || data.action === 'switch-pokemon' || (inSwitchContainer && !teamRight));
                     let startBtn = isSwitchMode ? document.querySelector('input[type="submit"][value*="Switch" i], button[value*="Switch" i], input[value*="Switch Pokemon" i]') : document.querySelector('input[type="submit"][value*="Start Battle" i], input[value*="Start Battle" i], button[type="submit"]');
                     if (startBtn && (!isElementVisible(startBtn) || isCatchHoneypotTrap(startBtn))) startBtn = null;
@@ -9304,6 +9390,194 @@ function isModalElementOpen(el) {
     return true;
 }
 
+function parseEvolveOptionLabelAndReq(rawText) {
+    let text = String(rawText || '').replace(/\s{2,}/g, ' ').trim();
+    let req = '';
+    const parenReqRe = /\s*\((?:at\s+level\s+\d+|using\b|trade\b|holding\b|with\b|during\b|when\b|if\s+|level\s*up\b|happiness\b|friendship\b|daytime\b|nighttime\b|rain\b|high\b|low\b|(?:male|female)\s+only\b)[^)]*(?:\)|$)\s*/ig;
+    const parenMatches = text.match(parenReqRe);
+    if (parenMatches && parenMatches.length > 0) {
+        req = parenMatches.map(s => s.trim().replace(/^\(|\)$/g, '').trim()).filter(Boolean).join(', ');
+        text = text.replace(parenReqRe, ' ').replace(/\s{2,}/g, ' ').trim();
+    }
+    const bareReqMatch = text.match(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+|during\s+[\w\s\-]+|when\s+[\w\s\-]+).*$/i);
+    if (bareReqMatch) {
+        if (!req) req = bareReqMatch[0].trim();
+        text = text.replace(bareReqMatch[0], ' ').replace(/\s{2,}/g, ' ').trim();
+    }
+    return { name: text, requirement: req };
+}
+
+function inspectPokeballImgElement(img) {
+    if (!img) return null;
+    const src = (img.src || (img.getAttribute && img.getAttribute('src')) || '').toLowerCase();
+    const cls = (img.className || '').toLowerCase();
+    const parentEl = img.parentElement;
+    const linkEl = img.closest ? img.closest('a, span, div') : null;
+    const titleStr = [
+        img.title || (img.getAttribute && img.getAttribute('title')) || '',
+        img.alt || (img.getAttribute && img.getAttribute('alt')) || '',
+        img.getAttribute ? (img.getAttribute('data-original-title') || img.getAttribute('data-bs-original-title') || img.getAttribute('data-title') || '') : '',
+        parentEl ? (parentEl.title || (parentEl.getAttribute && parentEl.getAttribute('title')) || '') : '',
+        linkEl ? (linkEl.title || (linkEl.getAttribute && linkEl.getAttribute('title')) || '') : ''
+    ].join(' ').toLowerCase();
+    if (src.includes('/pokemon/') || src.includes('/sprites/') || src.includes('/items/') || src.includes('/types/') || src.includes('/type/')) {
+        return null;
+    }
+    const isBallAsset = src.includes('pokeball') || src.includes('dball') || src.includes('dexball') || src.includes('caught') || src.includes('pokedex') ||
+                        cls.includes('dball') || cls.includes('pokeball') || cls.includes('caught') ||
+                        titleStr.includes('in your box') || titleStr.includes('already caught') || titleStr.includes('you have this pokemon');
+    if (!isBallAsset) return null;
+    if (/don't have|dont have|do not have|not in your box|not in pokedex|not caught|uncaught|not owned|unowned/i.test(titleStr)) {
+        return { hasCaughtIcon: false, statusText: titleStr };
+    }
+    if (/pokeball-n|dball-n|-n\.(png|gif)|_n\.(png|gif)|-no\.|_no\.|-off\.|_off\.|grey|gray|bw|empty|uncaught|nocatch|not_caught|0\.png/i.test(src)) {
+        return { hasCaughtIcon: false, statusText: src };
+    }
+    if (/grey|gray|uncaught|not-caught|unowned|desaturated/i.test(cls)) {
+        return { hasCaughtIcon: false, statusText: cls };
+    }
+    let filterVal = '';
+    let opacityVal = 1.0;
+    try {
+        if (typeof window !== 'undefined' && window.getComputedStyle) {
+            const cs = window.getComputedStyle(img);
+            if (cs) {
+                filterVal = (cs.filter || '').toLowerCase();
+                const op = parseFloat(cs.opacity);
+                if (!isNaN(op)) opacityVal = op;
+            }
+        }
+    } catch (_) {}
+    if (filterVal.includes('grayscale') || filterVal.includes('saturate(0') || opacityVal < 0.5) {
+        return { hasCaughtIcon: false, statusText: 'greyed' };
+    }
+    return { hasCaughtIcon: true, statusText: titleStr || src || 'Red Pokeball indicator' };
+}
+
+function getEvolveOptionCaughtIndicator(radio, modalContainer, optionCount = 1) {
+    try {
+        const candImgs = [];
+        if (radio && modalContainer) {
+            if (radio.id && modalContainer.querySelector) {
+                const lbl = modalContainer.querySelector(`label[for="${radio.id}"]`);
+                if (lbl && lbl.querySelectorAll) {
+                    const lImgs = lbl.querySelectorAll('img');
+                    for (let i = 0; i < lImgs.length; i++) candImgs.push(lImgs[i]);
+                }
+            }
+            let optRoot = null;
+            let p = radio.parentElement;
+            while (p && p !== modalContainer && p !== document.body) {
+                const pTag = (p.tagName || '').toLowerCase();
+                if (pTag === 'form' || pTag === 'table' || pTag === 'body') break;
+                const radiosInP = p.querySelectorAll ? p.querySelectorAll('input[type="radio"]') : [];
+                if (radiosInP.length === 1 && (pTag === 'label' || pTag === 'div' || pTag === 'p' || pTag === 'tr' || pTag === 'li' || pTag === 'td' || pTag === 'span')) {
+                    optRoot = p;
+                    if (pTag === 'tr' || pTag === 'li' || pTag === 'div' || pTag === 'p') break;
+                }
+                p = p.parentElement;
+            }
+            if (optRoot && optRoot.querySelectorAll) {
+                const imgs = optRoot.querySelectorAll('img');
+                for (let i = 0; i < imgs.length; i++) candImgs.push(imgs[i]);
+            } else {
+                for (const dir of ['previousSibling', 'nextSibling']) {
+                    let s = radio[dir];
+                    while (s) {
+                        if (s.nodeType === 1) {
+                            const sTag = (s.tagName || '').toLowerCase();
+                            if (sTag === 'br' || sTag === 'hr' || sTag === 'input' || sTag === 'form' || sTag === 'table' || sTag === 'div' || sTag === 'p' || sTag === 'tr' || sTag === 'li' || (s.querySelector && s.querySelector('input[type="radio"]'))) break;
+                            if (sTag === 'img') candImgs.push(s);
+                            else if (s.querySelectorAll) {
+                                const inner = s.querySelectorAll('img');
+                                for (let i = 0; i < inner.length; i++) candImgs.push(inner[i]);
+                            }
+                        }
+                        s = s[dir];
+                    }
+                }
+            }
+        }
+        if (candImgs.length === 0 && modalContainer && optionCount <= 1 && modalContainer.querySelectorAll) {
+            const modalImgs = modalContainer.querySelectorAll('img');
+            for (let i = 0; i < modalImgs.length; i++) candImgs.push(modalImgs[i]);
+        }
+        for (let i = 0; i < candImgs.length; i++) {
+            const res = inspectPokeballImgElement(candImgs[i]);
+            if (res) return res;
+        }
+    } catch (_) {}
+    return { hasCaughtIcon: false, statusText: '' };
+}
+
+function buildPreloadEvolveOption(optFullName, optReq, caughtIndicator, variant, radioValue) {
+    const VAR_RX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
+    const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optFullName, variant);
+    const isMegaTarget = /\bMega\s+/i.test(optFullName);
+    const isGmaxTarget = /\bG-Max\b/i.test(optFullName);
+    const isBranchMega = isMegaTarget && /\b[XY]\b/i.test(optFullName);
+    let isExactByBox = optOwnStatus
+        ? (isBranchMega ? Boolean(optOwnStatus.hasExactOwned) : (isMegaTarget ? Boolean(optOwnStatus.hasMegaOwned || optOwnStatus.hasExactOwned) : (isGmaxTarget ? Boolean(optOwnStatus.hasGmaxOwned || optOwnStatus.hasExactOwned) : Boolean(optOwnStatus.hasExactOwned))))
+        : false;
+    let resolvedOwned = optOwnStatus ? optOwnStatus.ownedPokemon : null;
+    if (!isExactByBox && !isMegaTarget && !isGmaxTarget && !/\([^)]+\)/.test(optFullName) && !/\b(?:alolan|galarian|hisuian|paldean)\b/i.test(optFullName) && Array.isArray(ownedUserCollection) && ownedUserCollection.length > 0) {
+        const tvRaw = String(variant || (optFullName.match(VAR_RX) || ['', 'Normal'])[1] || 'Normal').trim().toLowerCase();
+        const normTv = (tvRaw === 'ghost') ? 'ghostly' : tvRaw;
+        const candNoParens = optFullName.replace(VAR_RX, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const fMatch = ownedUserCollection.find(p => {
+            if (!p || !p.name || isPreloadActualMega(p.name) || isPreloadAlreadyGmax(p) || /\b(?:alolan|galarian|hisuian|paldean)\b/i.test(p.name)) return false;
+            let pv = (p.variant && String(p.variant).trim().toLowerCase() !== 'normal') ? String(p.variant).trim().toLowerCase() : '';
+            if (!pv) { const m = p.name.match(VAR_RX); pv = m ? m[1].toLowerCase() : 'normal'; }
+            if (pv === 'ghost') pv = 'ghostly';
+            if (pv !== normTv) return false;
+            const pNoVar = p.name.replace(VAR_RX, '').trim();
+            if (!/\([^)]+\)/.test(pNoVar)) return false;
+            return pNoVar.replace(/\s*\([^)]*\)/g, '').toLowerCase().replace(/[^a-z0-9]/g, '') === candNoParens;
+        });
+        if (fMatch) {
+            isExactByBox = true;
+            resolvedOwned = fMatch;
+        }
+    }
+    const isOwned = Boolean((caughtIndicator && caughtIndicator.hasCaughtIcon) || isExactByBox);
+    const requiresGmaxChallenge = Boolean(isGmaxTarget || /g[- ]?max\s*challenge/i.test(String(optReq || '')));
+    const entry = {
+        fullName: optFullName,
+        requirement: optReq,
+        requiresGmaxChallenge: requiresGmaxChallenge,
+        hasCaughtIcon: Boolean(caughtIndicator && caughtIndicator.hasCaughtIcon),
+        caughtReason: (caughtIndicator && caughtIndicator.statusText) || '',
+        isOwned: isOwned,
+        hasExactOwned: Boolean(isExactByBox || (caughtIndicator && caughtIndicator.hasCaughtIcon)),
+        hasMegaOwned: optOwnStatus ? optOwnStatus.hasMegaOwned : false,
+        hasGmaxOwned: optOwnStatus ? optOwnStatus.hasGmaxOwned : false,
+        ownedPokemon: resolvedOwned,
+        alertMessage: optOwnStatus ? optOwnStatus.alertMessage : ''
+    };
+    if (radioValue !== undefined) entry.radioValue = radioValue;
+    return entry;
+}
+
+function isModalEvolveSubmissionBlocked(card, targetBranchLower) {
+    if (!card || !card.isOpen || card.isMoveSelection || card.isComplete) return false;
+    if (card.allDuplicates || card.allDirectDuplicates || card.isBlockedForGmax || card.isLevelLocked || card.isGmaxChallengeOnly) {
+        return true;
+    }
+    if (targetBranchLower && /\bg-?max\b/i.test(targetBranchLower)) {
+        return true;
+    }
+    if (targetBranchLower && Array.isArray(card.options)) {
+        const matchedOpt = card.options.find(o => {
+            const oName = String(o.fullName || o.name || '').toLowerCase();
+            return oName === targetBranchLower || oName.includes(targetBranchLower) || targetBranchLower.includes(oName);
+        });
+        if (matchedOpt && (matchedOpt.isOwned || matchedOpt.hasCaughtIcon || matchedOpt.requiresGmaxChallenge)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function detectEvolveCard() {
     try {
         const path = (window.location.pathname || '').toLowerCase();
@@ -9448,9 +9722,10 @@ function detectEvolveCard() {
 
         // CASE 0.5: Evolution Complete (Success Screen)
         if (hasEvolvedSuccess && !hasMoveSelectionPrompt) {
-            const successMatch = bodyText.match(/([a-zA-Z0-9\s\(\)\-]+?)\s+evolved into\s+([a-zA-Z0-9\s\(\)\-]+)/i);
-            const fromPoke = successMatch ? successMatch[1].trim() : '';
-            const toPoke = successMatch ? successMatch[2].trim() : '';
+            const successLine = bodyText.split(/[\r\n]+/).map(s => s.trim()).find(s => /\bevolved into\b/i.test(s)) || '';
+            const successMatch = successLine.match(/^(?:(?:congratulations!?\s*)?your[ \t]+(?:level[ \t]+\d+[ \t]+)?)?([a-zA-Z0-9 \t\(\)\-\.':]+?)[ \t]+evolved into[ \t]+([a-zA-Z0-9 \t\(\)\-\.':]+?)(?:[ \t]*[!\.]?[ \t]*(?:close|ok|continue)\b.*|[!\.]?[ \t]*$)/i);
+            const fromPoke = successMatch ? successMatch[1].replace(/^(?:evolve|close)\s+/i, '').trim() : '';
+            const toPoke = successMatch ? successMatch[2].replace(/\s+(?:close|ok|continue)$/i, '').trim() : '';
             return {
                 isOpen: true,
                 isComplete: true,
@@ -9564,22 +9839,25 @@ function detectEvolveCard() {
         const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
 
         let variant = 'Normal';
-        const knownVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
+        let rawVariantPrefix = '';
+        const knownVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Ghost', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
         for (let i = 0; i < knownVariants.length; i++) {
             const v = knownVariants[i];
             if (rawFullName.toLowerCase().indexOf(v.toLowerCase() + ' ') === 0) {
-                variant = v;
+                rawVariantPrefix = v;
+                variant = (v.toLowerCase() === 'ghost') ? 'Ghostly' : v;
                 break;
             }
         }
 
         let baseSpecies = rawFullName;
-        if (variant !== 'Normal' && baseSpecies.toLowerCase().indexOf(variant.toLowerCase() + ' ') === 0) {
-            baseSpecies = baseSpecies.substring(variant.length + 1).trim();
+        if (rawVariantPrefix && baseSpecies.toLowerCase().indexOf(rawVariantPrefix.toLowerCase() + ' ') === 0) {
+            baseSpecies = baseSpecies.substring(rawVariantPrefix.length + 1).trim();
         }
         baseSpecies = baseSpecies.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
 
         const options = [];
+        const optionRadios = [];
         const radios = modalContainer.querySelectorAll('input[type="radio"]');
         if (radios && radios.length > 0) {
             for (let i = 0; i < radios.length; i++) {
@@ -9593,35 +9871,19 @@ function detectEvolveCard() {
                     continue;
                 }
 
-                let optName = labelText;
-                let optReq = '';
-                const parenReqMatch = labelText.match(/\((?:at\s+level\s+\d+|using\b|trade\b|holding\b|with\b|during\b)([^)]*)\)/i);
-                if (parenReqMatch) {
-                    optReq = parenReqMatch[0].replace(/^\(|\)$/g, '').trim();
-                    optName = labelText.replace(parenReqMatch[0], ' ').trim();
-                } else {
-                    const bareReqMatch = labelText.match(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i);
-                    if (bareReqMatch) {
-                        optReq = bareReqMatch[0].trim();
-                        optName = labelText.replace(bareReqMatch[0], ' ').trim();
-                    }
-                }
+                const parsedOpt = parseEvolveOptionLabelAndReq(labelText);
+                let optName = parsedOpt.name;
+                let optReq = parsedOpt.requirement;
 
                 if (radio.value && radio.value.length > 2 && !/^(on|1|true)$/i.test(radio.value)) {
-                    let cleanVal = radio.value.replace(/\s*\([^)]*\)/g, ' ')
-                                              .replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ')
-                                              .trim();
+                    const parsedVal = parseEvolveOptionLabelAndReq(radio.value);
+                    const cleanVal = parsedVal.name;
                     if (cleanVal.length > 2 && !/^(evolve|close|cancel|submit|evolutionary)/i.test(cleanVal)) {
                         if (!optName || optName.length < 3) {
                             optName = cleanVal;
                         }
                     }
                 }
-
-                optName = optName.replace(/\s*\([^)]*\)/g, ' ')
-                                 .replace(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i, ' ')
-                                 .replace(/\s{2,}/g, ' ')
-                                 .trim();
 
                 if (/^(evolve|close|cancel|submit|evolutionary)/i.test(optName)) {
                     continue;
@@ -9631,31 +9893,16 @@ function detectEvolveCard() {
                     ? `${variant} ${optName}`
                     : optName;
 
-                const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optFullName, variant);
-                const isMegaTarget = /\bMega\s+/i.test(optFullName);
-                const isGmaxTarget = /\bG-Max\b/i.test(optFullName);
-                const isBranchMega = isMegaTarget && /\b[XY]\b/i.test(optFullName);
-                const isExactOrMegaOwned = optOwnStatus
-                    ? (isBranchMega ? Boolean(optOwnStatus.hasExactOwned) : (isMegaTarget ? Boolean(optOwnStatus.hasMegaOwned || optOwnStatus.hasExactOwned) : (isGmaxTarget ? Boolean(optOwnStatus.hasGmaxOwned || optOwnStatus.hasExactOwned) : Boolean(optOwnStatus.hasExactOwned))))
-                    : false;
-
-                options.push({
-                    fullName: optFullName,
-                    requirement: optReq,
-                    radioValue: radio.value,
-                    isOwned: isExactOrMegaOwned,
-                    hasExactOwned: optOwnStatus ? Boolean(optOwnStatus.hasExactOwned) : false,
-                    hasMegaOwned: optOwnStatus ? optOwnStatus.hasMegaOwned : false,
-                    hasGmaxOwned: optOwnStatus ? optOwnStatus.hasGmaxOwned : false,
-                    ownedPokemon: optOwnStatus ? optOwnStatus.ownedPokemon : null,
-                    alertMessage: optOwnStatus ? optOwnStatus.alertMessage : ''
-                });
+                const caughtIndicator = getEvolveOptionCaughtIndicator(radio, modalContainer, radios.length);
+                options.push(buildPreloadEvolveOption(optFullName, optReq, caughtIndicator, variant, radio.value));
+                optionRadios.push(radio);
             }
         }
 
         if (options.length === 0) {
             const lines = bodyText.split(/[\r\n]+/);
             let afterPrompt = false;
+            const singleFallbackCaught = getEvolveOptionCaughtIndicator(null, modalContainer, 1);
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (!line) continue;
@@ -9665,38 +9912,15 @@ function detectEvolveCard() {
                 }
                 if (afterPrompt) {
                     if (/^(?:evolve|close|cancel|submit|evolutionary|pokedex|pokemon|homepage|news|update log|about|mobile)/i.test(line)) break;
-                    const m = line.match(/^([A-Za-z0-9\s\(\)\-]+?)(?:\s*\((.+?)\))?$/);
-                    if (m) {
-                        let optName = m[1].trim();
-                        let optReq = m[2] ? m[2].trim() : '';
-                        const bareReqMatch = optName.match(/\b(?:at\s+level\s+\d+|using\s+[\w\s\-]+|trade\s+[\w\s\-]+|holding\s+[\w\s\-]+).*$/i);
-                        if (bareReqMatch) {
-                            if (!optReq) optReq = bareReqMatch[0].trim();
-                            optName = optName.replace(bareReqMatch[0], ' ').trim();
-                        }
-                        optName = optName.replace(/\s*\([^)]*\)/g, ' ').replace(/\s{2,}/g, ' ').trim();
-                        if (optName.length < 3 || /^(?:evolve|close|cancel|submit|evolutionary|ad|homepage|news|about|mobile)/i.test(optName)) continue;
-                        const optFullName = (variant !== 'Normal' && !optName.match(VARIANT_PREFIX_REGEX))
-                            ? `${variant} ${optName}`
-                            : optName;
-                        const optOwnStatus = evaluateOwnershipAndMegaEquivalence(optFullName, variant);
-                        const isMegaTarget = /\bMega\s+/i.test(optFullName);
-                        const isGmaxTarget = /\bG-Max\b/i.test(optFullName);
-                        const isBranchMega = isMegaTarget && /\b[XY]\b/i.test(optFullName);
-                        const isExactOrMegaOwned = optOwnStatus
-                            ? (isBranchMega ? Boolean(optOwnStatus.hasExactOwned) : (isMegaTarget ? Boolean(optOwnStatus.hasMegaOwned || optOwnStatus.hasExactOwned) : (isGmaxTarget ? Boolean(optOwnStatus.hasGmaxOwned || optOwnStatus.hasExactOwned) : Boolean(optOwnStatus.hasExactOwned))))
-                            : false;
-                        options.push({
-                            fullName: optFullName,
-                            requirement: optReq,
-                            isOwned: isExactOrMegaOwned,
-                            hasExactOwned: optOwnStatus ? Boolean(optOwnStatus.hasExactOwned) : false,
-                            hasMegaOwned: optOwnStatus ? optOwnStatus.hasMegaOwned : false,
-                            hasGmaxOwned: optOwnStatus ? optOwnStatus.hasGmaxOwned : false,
-                            ownedPokemon: optOwnStatus ? optOwnStatus.ownedPokemon : null,
-                            alertMessage: optOwnStatus ? optOwnStatus.alertMessage : ''
-                        });
-                    }
+                    if (!line.includes('(') && /\)$/.test(line)) continue;
+                    const parsedLine = parseEvolveOptionLabelAndReq(line);
+                    const optName = parsedLine.name;
+                    const optReq = parsedLine.requirement;
+                    if (optName.length < 3 || /^(?:evolve|close|cancel|submit|evolutionary|ad|homepage|news|about|mobile|sweet|berry|item|stone)\b/i.test(optName)) continue;
+                    const optFullName = (variant !== 'Normal' && !optName.match(VARIANT_PREFIX_REGEX))
+                        ? `${variant} ${optName}`
+                        : optName;
+                    options.push(buildPreloadEvolveOption(optFullName, optReq, singleFallbackCaught, variant));
                 }
             }
         }
@@ -9743,7 +9967,6 @@ function detectEvolveCard() {
             melmetal: 'G-Max Melmetal',
             rillaboom: 'G-Max Rillaboom',
             cinderace: 'G-Max Cinderace',
-            inteleon: 'G-Max Inteleon',
             corviknight: 'G-Max Corviknight',
             orbeetle: 'G-Max Orbeetle',
             drednaw: 'G-Max Drednaw',
@@ -9777,20 +10000,25 @@ function detectEvolveCard() {
             const hasGmaxOwned = Boolean(gmaxCheck && (gmaxCheck.hasGmaxOwned || gmaxCheck.hasExactOwned || gmaxCheck.isOwned));
             let baseCount = 0;
             if (Array.isArray(ownedUserCollection)) {
+                const targetVarRaw = (variant || 'Normal').toLowerCase();
+                const targetVar = (targetVarRaw === 'ghost') ? 'ghostly' : targetVarRaw;
                 baseCount = ownedUserCollection.filter(p => {
                     if (!p || !p.name) return false;
                     const pClean = (p.name || '').replace(VARIANT_PREFIX_REGEX, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                    const pVar = (p.variant || 'Normal').toLowerCase();
-                    const targetVar = (variant || 'Normal').toLowerCase();
-                    return pClean === cleanBase && (pVar === targetVar || (pVar === 'normal' && targetVar === 'normal'));
+                    let pVar = (p.variant && String(p.variant).trim().toLowerCase() !== 'normal') ? String(p.variant).trim().toLowerCase() : '';
+                    if (!pVar) {
+                        const pvm = String(p.name).match(VARIANT_PREFIX_REGEX);
+                        pVar = pvm ? pvm[1].toLowerCase() : 'normal';
+                    }
+                    if (pVar === 'ghost') pVar = 'ghostly';
+                    return pClean === cleanBase && pVar === targetVar;
                 }).length;
             }
             if (!hasGmaxOwned && baseCount <= 1) {
-                // If the modal does NOT offer G-Max, hold base Pokemon from evolving into Mega!
-                if (!hasGmaxModalOption) {
-                    isBlockedForGmax = true;
-                    blockReason = `Hold ${rawFullName} for G-Max Challenge! Evolving now will consume your base Pokemon before obtaining ${gmaxTarget}.`;
-                }
+                // G-Max Challenge evolutions cannot be performed directly in the evolve modal:
+                // hold base Pokemon until G-Max form is obtained via G-Max Challenge.
+                isBlockedForGmax = true;
+                blockReason = `Hold ${rawFullName} for G-Max Challenge! Evolving now will consume your base Pokemon before obtaining ${gmaxTarget}.`;
             }
         }
 
@@ -9805,21 +10033,20 @@ function detectEvolveCard() {
             if (reqM) requiredLevel = parseInt(reqM[1], 10);
         }
 
+        const directModalOptions = options.filter(opt => !opt.requiresGmaxChallenge);
+        const isGmaxChallengeOnly = options.length > 0 && directModalOptions.length === 0;
+        const allDirectDuplicates = directModalOptions.length > 0 && directModalOptions.every(opt => opt.isOwned);
         const allDuplicates = options.length > 0 && options.every(opt => opt.isOwned);
-        const hasUnique = options.some(opt => !opt.isOwned) && !isBlockedForGmax && !isLevelLocked;
+        const hasUnique = directModalOptions.some(opt => !opt.isOwned) && !isBlockedForGmax && !isLevelLocked;
 
-        // Auto-select in live webview modal ONCE cleanly via hardware click (only if not level-locked or captcha-gated):
-        // Priority 1: If modal offers an unowned G-Max option, auto-select it cleanly
-        const gmaxOptIdx = options.findIndex(o => /\bg-?max\b/i.test(o.fullName || o.name));
+        // Auto-select in live webview modal ONCE cleanly via hardware click (only for directly evolvable unowned non-G-Max options):
         const modalPickSig = `${rawFullName}|${options.map(o => o.fullName).join(',')}`;
-        if (!isLevelLocked && !(typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) && window.__delugeLastEvoAutoPickSig !== modalPickSig) {
+        if (!isLevelLocked && !isBlockedForGmax && !isGmaxChallengeOnly && !(typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) && window.__delugeLastEvoAutoPickSig !== modalPickSig) {
             let pickRadio = null;
-            if (gmaxOptIdx !== -1 && radios && radios[gmaxOptIdx] && !options[gmaxOptIdx].isOwned && !radios[gmaxOptIdx].checked) {
-                pickRadio = radios[gmaxOptIdx];
-            } else if (!isBlockedForGmax && radios && radios.length > 1) {
-                const firstUnownedIdx = options.findIndex(o => !o.isOwned);
-                if (firstUnownedIdx !== -1 && radios[firstUnownedIdx] && !radios[firstUnownedIdx].checked) {
-                    pickRadio = radios[firstUnownedIdx];
+            if (radios && radios.length > 1) {
+                const firstUnownedIdx = options.findIndex(o => !o.isOwned && !o.requiresGmaxChallenge);
+                if (firstUnownedIdx !== -1 && optionRadios[firstUnownedIdx] && !optionRadios[firstUnownedIdx].checked) {
+                    pickRadio = optionRadios[firstUnownedIdx];
                 }
             }
             if (pickRadio) {
@@ -9837,7 +10064,8 @@ function detectEvolveCard() {
                 for (let rIdx = 0; rIdx < radios.length; rIdx++) {
                     if (radios[rIdx].checked) {
                         const rVal = radios[rIdx].value;
-                        const matchedOpt = options.find(o => o.radioValue === rVal) || options[rIdx];
+                        const optIdx = optionRadios.indexOf(radios[rIdx]);
+                        const matchedOpt = (optIdx !== -1 ? options[optIdx] : null) || options.find(o => o.radioValue === rVal);
                         if (matchedOpt && matchedOpt.fullName) {
                             activeTargetName = matchedOpt.fullName;
                             break;
@@ -9846,7 +10074,7 @@ function detectEvolveCard() {
                 }
             }
             if (activeTargetName === rawFullName) {
-                const firstUnowned = options.find(o => !o.isOwned) || options[0];
+                const firstUnowned = options.find(o => !o.isOwned && !o.requiresGmaxChallenge) || options.find(o => !o.isOwned) || options[0];
                 if (firstUnowned && firstUnowned.fullName) activeTargetName = firstUnowned.fullName;
             }
         }
@@ -9875,6 +10103,8 @@ function detectEvolveCard() {
             moves: moves,
             options: options,
             allDuplicates: allDuplicates,
+            allDirectDuplicates: allDirectDuplicates,
+            isGmaxChallengeOnly: isGmaxChallengeOnly,
             hasUnique: hasUnique,
             isBlockedForGmax: isBlockedForGmax,
             gmaxTarget: gmaxTarget,
@@ -9891,15 +10121,17 @@ function detectEvolveCard() {
 function syncEvolveCardState(force) {
     const card = detectEvolveCard();
     if (card) {
-        const optsSig = (card.options || []).map(o => o.fullName).join(',');
+        const optsSig = (card.options || []).map(o => `${o.fullName}:${o.isOwned ? '1' : '0'}:${o.hasCaughtIcon ? '1' : '0'}`).join(',');
         const movesSig = (card.availableMoves || []).map(m => m.name).join(',');
-        const sig = `${card.fullName}:${card.targetPokemon || ''}:${card.level}:${optsSig}:${movesSig}:${card.isMoveSelection ? 'moves' : 'branch'}`;
+        const modeSig = card.isComplete ? 'complete' : (card.isMoveSelection ? 'moves' : 'branch');
+        const flagsSig = `${card.isLevelLocked ? '1' : '0'}${card.isBlockedForGmax ? '1' : '0'}${card.isGmaxChallengeOnly ? '1' : '0'}`;
+        const sig = `${card.fullName}:${card.fromPokemon || ''}:${card.toPokemon || ''}:${card.targetPokemon || ''}:${card.level}:${optsSig}:${movesSig}:${modeSig}:${flagsSig}`;
         if (force || sig !== lastEvolveCardSignature) {
             lastEvolveCardSignature = sig;
             ipcRenderer.sendToHost('evolve-card-detected', card);
         }
     } else {
-        if (lastEvolveCardSignature !== null) {
+        if (force || lastEvolveCardSignature !== null) {
             lastEvolveCardSignature = null;
             ipcRenderer.sendToHost('evolve-card-closed');
         }
@@ -9956,6 +10188,7 @@ ipcRenderer.on('apply-recommended-moves', async (event, data) => {
 
 ipcRenderer.on('submit-modal-evolve', async (event, data) => {
     try {
+        try { sessionStorage.removeItem('deluge_auto_evolve_target'); } catch (_) {}
         const dModal = document.getElementById('DModal');
         const dmBody = document.getElementById('DMbody');
         const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, form[action*="evolve" i], body');
@@ -9963,6 +10196,11 @@ ipcRenderer.on('submit-modal-evolve', async (event, data) => {
 
         const targetBranchRaw = data && data.targetBranch ? String(data.targetBranch).trim() : '';
         const targetBranch = targetBranchRaw.toLowerCase();
+        const modalCardCheck = detectEvolveCard();
+        if (isModalEvolveSubmissionBlocked(modalCardCheck, targetBranch)) {
+            ipcRenderer.sendToHost('evolve-card-detected', modalCardCheck);
+            return;
+        }
         if (targetBranchRaw) {
             if (!lastClickedPokemonInfo) {
                 lastClickedPokemonInfo = { name: targetBranchRaw, sourceName: targetBranchRaw, level: 100, types: [] };
@@ -10003,6 +10241,7 @@ ipcRenderer.on('submit-modal-evolve', async (event, data) => {
 
 ipcRenderer.on('apply-recommended-moves-and-submit', async (event, data) => {
     try {
+        try { sessionStorage.removeItem('deluge_auto_evolve_target'); } catch (_) {}
         if (!data || !Array.isArray(data.recommendedMoves)) return;
 
         // Check if on Change Attacks page with selects
@@ -10061,6 +10300,7 @@ ipcRenderer.on('apply-recommended-moves-and-submit', async (event, data) => {
 
 ipcRenderer.on('close-modal-and-refresh', () => {
     try {
+        try { sessionStorage.removeItem('deluge_auto_evolve_target'); } catch (_) {}
         const dModal = document.getElementById('DModal');
         const dmBody = document.getElementById('DMbody');
         const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, form[action*="evolve" i], body');
@@ -10077,6 +10317,17 @@ ipcRenderer.on('sync-current-pokemon-page', () => {
     autoSyncCurrentPokemonPage();
 });
 
+function isSameEvolveSpeciesName(nameA, nameB) {
+    const a = String(nameA || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const b = String(nameB || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const aNoParen = a.replace(/\s*\([^)]*\)/g, '').trim();
+    const bNoParen = b.replace(/\s*\([^)]*\)/g, '').trim();
+    if ((a.includes('(') !== b.includes('(')) && aNoParen && aNoParen === bNoParen) return true;
+    return false;
+}
+
 function checkPendingAutoEvolve() {
     try {
         const raw = sessionStorage.getItem('deluge_auto_evolve_target');
@@ -10087,9 +10338,35 @@ function checkPendingAutoEvolve() {
             return;
         }
 
+        const curPath = String((window && window.location && window.location.pathname) || '').toLowerCase();
+        const isChangeAttacksPath = curPath.indexOf('/changeattacks') !== -1 || curPath.indexOf('/change_attack') !== -1;
+        const isTargetEvolvePath = curPath.indexOf('/pokemon/evolve/' + String(pending.id).toLowerCase()) !== -1;
         const openCard = detectEvolveCard();
+
+        // Once on changeattacks or completion screen, the pending auto-evolve handoff is finished: purge immediately
+        if (isChangeAttacksPath || (openCard && (openCard.isMoveSelection || openCard.isComplete))) {
+            sessionStorage.removeItem('deluge_auto_evolve_target');
+            return;
+        }
+
         if (openCard && openCard.isOpen && !openCard.isMoveSelection && !openCard.isComplete) {
+            // Always consume the handoff token once we are on the evolve page/modal so it can NEVER re-fire after evolving
+            sessionStorage.removeItem('deluge_auto_evolve_target');
+            if (pending.managedByHostAuto) {
+                ipcRenderer.sendToHost('evolve-card-detected', openCard);
+                return;
+            }
+            const pendingNameLower = String(pending.name || '').toLowerCase().trim();
+            const openNameLower = String(openCard.fullName || '').toLowerCase().trim();
+            if (pendingNameLower && openNameLower && !isSameEvolveSpeciesName(openNameLower, pendingNameLower)) {
+                ipcRenderer.sendToHost('evolve-card-detected', openCard);
+                return;
+            }
             const targetBranch = (pending.targetBranch || '').toLowerCase();
+            if (isModalEvolveSubmissionBlocked(openCard, targetBranch)) {
+                ipcRenderer.sendToHost('evolve-card-detected', openCard);
+                return;
+            }
             const dModal = document.getElementById('DModal');
             const dmBody = document.getElementById('DMbody');
             const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, div[id*="modal" i], form[action*="evolve" i], #content, body');
@@ -10110,7 +10387,6 @@ function checkPendingAutoEvolve() {
                     matchedRadio = radios[0];
                 }
                 if (matchedRadio) {
-                    sessionStorage.removeItem('deluge_auto_evolve_target');
                     if (!matchedRadio.checked) {
                         humanClickElementVerified(matchedRadio, { skipScroll: true });
                     }
@@ -10119,12 +10395,26 @@ function checkPendingAutoEvolve() {
                     return;
                 }
             }
+            return;
+        }
+
+        // If we already navigated directly to /pokemon/evolve/<id> and are now back on /pokemon (or already on that path),
+        // NEVER re-click the link (after evolving, that same ID now belongs to the evolved stage, e.g. G-Max Challenge!)
+        if (isTargetEvolvePath || pending.navigatedDirectly) {
+            sessionStorage.removeItem('deluge_auto_evolve_target');
+            return;
         }
 
         const link = document.querySelector(`a[href*="/pokemon/evolve/${pending.id}"]`) ||
                      document.querySelector(`a.evolve[href*="${pending.id}"]`);
         if (link) {
             sessionStorage.removeItem('deluge_auto_evolve_target');
+            const pendingNameLower = String(pending.name || '').toLowerCase().trim();
+            const cardEl = typeof link.closest === 'function' ? link.closest('.row, tr, div[data-pkid], .prow, .pkmn') : null;
+            const cardText = cardEl ? String(cardEl.textContent || '').toLowerCase() : '';
+            if (pendingNameLower && cardText && !cardText.includes(pendingNameLower)) {
+                return;
+            }
             dispatchHumanClick(link);
             return;
         }
@@ -10148,39 +10438,58 @@ ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
             };
         }
 
-        // If the Evolve modal is already open for this Pokemon, submit the evolution directly
+        // If the Evolve modal is already open for this Pokemon, submit the evolution directly (unless blocked or closeModalFirst)
         const openCard = detectEvolveCard();
-        if (openCard && openCard.isOpen && !openCard.isMoveSelection && !openCard.isComplete) {
-            const openName = (openCard.fullName || '').toLowerCase();
-            if (!pokeName || openName === pokeName || openName.includes(pokeName) || pokeName.includes(openName)) {
-                const dModal = document.getElementById('DModal');
-                const dmBody = document.getElementById('DMbody');
-                const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, div[id*="modal" i], form[action*="evolve" i], #content, body');
-                if (modalContainer) {
-                    const radios = Array.from(modalContainer.querySelectorAll('input[type="radio"]'));
-                    let matchedRadio = null;
-                    if (targetBranch && radios.length > 0) {
-                        const cleanTarget = targetBranch.replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i, '').trim();
-                        for (let rIdx = 0; rIdx < radios.length; rIdx++) {
-                            const rText = getRadioOptionText(radios[rIdx], modalContainer).toLowerCase();
-                            if (rText.includes(targetBranch) || (cleanTarget && rText.includes(cleanTarget))) {
-                                matchedRadio = radios[rIdx];
-                                break;
-                            }
+        const openName = (openCard && openCard.fullName ? openCard.fullName : '').toLowerCase();
+        const isSameOpenModal = Boolean(
+            openCard && openCard.isOpen && !openCard.isMoveSelection && !openCard.isComplete &&
+            (!pokeName || isSameEvolveSpeciesName(openName, pokeName))
+        );
+        if (isSameOpenModal && !(data && data.closeModalFirst)) {
+            if (isModalEvolveSubmissionBlocked(openCard, targetBranch)) {
+                ipcRenderer.sendToHost('evolve-card-detected', openCard);
+                return;
+            }
+            const dModal = document.getElementById('DModal');
+            const dmBody = document.getElementById('DMbody');
+            const modalContainer = dModal || dmBody || document.querySelector('#delugemodal, .modal, div[id*="modal" i], form[action*="evolve" i], #content, body');
+            if (modalContainer) {
+                const radios = Array.from(modalContainer.querySelectorAll('input[type="radio"]'));
+                let matchedRadio = null;
+                if (targetBranch && radios.length > 0) {
+                    const cleanTarget = targetBranch.replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i, '').trim();
+                    for (let rIdx = 0; rIdx < radios.length; rIdx++) {
+                        const rText = getRadioOptionText(radios[rIdx], modalContainer).toLowerCase();
+                        if (rText.includes(targetBranch) || (cleanTarget && rText.includes(cleanTarget))) {
+                            matchedRadio = radios[rIdx];
+                            break;
                         }
-                    }
-                    if (!matchedRadio && radios.length === 1) {
-                        matchedRadio = radios[0];
-                    }
-                    if (matchedRadio) {
-                        if (!matchedRadio.checked) {
-                            await humanClickElementVerified(matchedRadio, { skipScroll: true });
-                        }
-                        const stepDelay = (typeof getGaussianDelay === 'function') ? getGaussianDelay(260, 65, 160) : 240;
-                        setTimeout(() => clickModalEvolveButton(modalContainer), stepDelay);
-                        return;
                     }
                 }
+                if (!matchedRadio && radios.length === 1) {
+                    matchedRadio = radios[0];
+                }
+                if (matchedRadio) {
+                    if (!matchedRadio.checked) {
+                        await humanClickElementVerified(matchedRadio, { skipScroll: true });
+                    }
+                    const stepDelay = (typeof getGaussianDelay === 'function') ? getGaussianDelay(260, 65, 160) : 240;
+                    setTimeout(() => clickModalEvolveButton(modalContainer), stepDelay);
+                    return;
+                }
+            }
+        }
+
+        // If switching away from an unproceedable/completed/different #DModal on /pokemon, close it cleanly first
+        const isStandaloneEvolvePage = window.location.pathname.indexOf('/evolve') !== -1 || window.location.pathname.indexOf('/change_attack') !== -1;
+        if (!isStandaloneEvolvePage && ((data && data.closeModalFirst) || (openCard && openCard.isOpen && !isSameOpenModal))) {
+            const dModal = document.getElementById('DModal');
+            const dmBody = document.getElementById('DMbody');
+            const modalContainer = (dModal && isModalElementOpen(dModal)) ? dModal : ((dmBody && isModalElementOpen(dmBody)) ? dmBody : null);
+            if (modalContainer) {
+                clickModalCloseButton(modalContainer);
+                const closeDelay = (typeof getGaussianDelay === 'function') ? getGaussianDelay(260, 50, 180) : 250;
+                await new Promise(r => setTimeout(r, closeDelay));
             }
         }
 
@@ -10193,7 +10502,7 @@ ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
             }
         }
 
-        if (pokeName) {
+        if (pokeName && !pokeId) {
             const rows = document.querySelectorAll('.row, tr, div[data-pkid], .prow, .pkmn');
             for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
@@ -10215,6 +10524,8 @@ ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
                     id: pokeId,
                     name: data.name || '',
                     targetBranch: targetBranchRaw,
+                    navigatedDirectly: true,
+                    managedByHostAuto: Boolean(data && data.managedByHostAuto),
                     timestamp: Date.now()
                 }));
             } catch (_) {}
@@ -10298,10 +10609,11 @@ function autoSyncCurrentPokemonPage() {
                 if (classEl) variant = classEl.getAttribute('data-class') || '';
             }
             if (!variant) {
-                const vMatch = name.match(/^(Normal|Shiny|Metallic|Ghostly|Dark|Shadow|Mirage|Chrome|Negative|Retro)\s+/i);
+                const vMatch = name.match(/^(Normal|Shiny|Metallic|Ghostly|Ghost|Dark|Shadow|Mirage|Chrome|Negative|Retro)\s+/i);
                 if (vMatch) variant = vMatch[1];
             }
             if (!variant || variant.toLowerCase() === 'normal') variant = 'Normal';
+            else if (variant.toLowerCase() === 'ghost') variant = 'Ghostly';
             else variant = variant.charAt(0).toUpperCase() + variant.slice(1).toLowerCase();
 
             const types = [];

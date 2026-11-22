@@ -1183,8 +1183,11 @@ function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant)
   const eq = teamEngine.evaluateOwnershipAndMegaEquivalence(evolutionName, userCollection, explicitVariant);
   const isTargetMega = teamEngine.isActualMegaEvolution(evolutionName);
   const isTargetGmax = teamEngine.isAlreadyGmax(evolutionName);
+  const hasFormQualifier = /\([^)]+\)/.test(String(evolutionName));
+  const hasRegionalQualifier = /\b(?:alolan|galarian|hisuian|paldean)\b/i.test(String(evolutionName));
 
   let isActuallyOwned = false;
+  let resolvedExactPoke = null;
   if (isTargetMega) {
     const hasBranchSuffix = /\b[XY]\b/i.test(evolutionName);
     isActuallyOwned = hasBranchSuffix ? Boolean(eq.hasExactOwned) : Boolean(eq.hasExactOwned || eq.hasMegaOwned);
@@ -1194,6 +1197,34 @@ function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant)
     isActuallyOwned = eq.hasExactOwned || eq.hasMegaOwned || eq.hasGmaxOwned;
   } else {
     isActuallyOwned = eq.isOwned || eq.hasExactOwned || eq.hasMegaOwned || eq.hasGmaxOwned;
+  }
+
+  let hasExactMatch = Boolean(eq.hasExactOwned);
+  if (!hasExactMatch && !isTargetMega && !isTargetGmax && !hasFormQualifier && !hasRegionalQualifier) {
+    const targetVarMatch = String(explicitVariant || (String(evolutionName).match(VARIANT_PREFIX_REGEX) || ['', 'Normal'])[1] || 'Normal').trim().toLowerCase();
+    const normTargetVar = (targetVarMatch === 'ghost') ? 'ghostly' : targetVarMatch;
+    const targetCleanNoParens = cleanSpeciesKey(String(evolutionName).replace(VARIANT_PREFIX_REGEX, '').trim());
+    const formMatch = userCollection.find(p => {
+      if (!p || !p.name) return false;
+      if (teamEngine.isActualMegaEvolution(p.name) || teamEngine.isAlreadyGmax(p)) return false;
+      if (/\b(?:alolan|galarian|hisuian|paldean)\b/i.test(p.name)) return false;
+      let pv = (p.variant && String(p.variant).trim().toLowerCase() !== 'normal') ? String(p.variant).trim().toLowerCase() : '';
+      if (!pv) {
+        const vm = p.name.match(VARIANT_PREFIX_REGEX);
+        pv = vm ? vm[1].toLowerCase() : 'normal';
+      }
+      if (pv === 'ghost') pv = 'ghostly';
+      if (pv !== normTargetVar) return false;
+      const pNoVar = p.name.replace(VARIANT_PREFIX_REGEX, '').trim();
+      if (!/\([^)]+\)/.test(pNoVar)) return false;
+      const pNoParens = cleanSpeciesKey(pNoVar.replace(/\s*\([^)]*\)/g, '').trim());
+      return pNoParens && pNoParens === targetCleanNoParens;
+    });
+    if (formMatch) {
+      hasExactMatch = true;
+      isActuallyOwned = true;
+      resolvedExactPoke = formMatch;
+    }
   }
 
   if (!isActuallyOwned) {
@@ -1212,7 +1243,7 @@ function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant)
     };
   }
 
-  const best = eq.ownedPokemon;
+  const best = resolvedExactPoke || eq.ownedPokemon;
   const variant = best.variant || 'Normal';
   const level = best.level || 100;
   const formattedFullName = (best.name.toLowerCase().startsWith(variant.toLowerCase() + ' ') || variant === 'Normal')
@@ -1220,25 +1251,25 @@ function checkEvolutionOwnership(evolutionName, userCollection, explicitVariant)
     : `${variant} ${best.name}`;
 
   let summaryLabel = `[OWNED - Lv ${level} ${formattedFullName}]`;
-  if (eq.hasMegaOwned) {
+  if (!resolvedExactPoke && eq.hasMegaOwned) {
     summaryLabel = `[OWNED - Lv ${level} ${formattedFullName} (MEGA)]`;
-  } else if (eq.hasGmaxOwned) {
+  } else if (!resolvedExactPoke && eq.hasGmaxOwned) {
     summaryLabel = `[OWNED - Lv ${level} ${formattedFullName} (G-MAX)]`;
   }
 
   return {
     isOwned: true,
-    hasExactOwned: Boolean(eq.hasExactOwned),
+    hasExactOwned: hasExactMatch,
     count: 1,
     bestLevel: level,
     highestVariant: variant,
     summaryLabel: summaryLabel,
     bestPoke: best,
-    hasMegaOwned: eq.hasMegaOwned,
-    hasGmaxOwned: eq.hasGmaxOwned,
-    ownedMega: eq.hasMegaOwned ? eq.ownedPokemon : null,
-    ownedGmax: eq.hasGmaxOwned ? eq.ownedPokemon : null,
-    warningType: eq.type,
+    hasMegaOwned: Boolean(!resolvedExactPoke && eq.hasMegaOwned),
+    hasGmaxOwned: Boolean(!resolvedExactPoke && eq.hasGmaxOwned),
+    ownedMega: (!resolvedExactPoke && eq.hasMegaOwned) ? eq.ownedPokemon : null,
+    ownedGmax: (!resolvedExactPoke && eq.hasGmaxOwned) ? eq.ownedPokemon : null,
+    warningType: resolvedExactPoke ? 'EXACT_ALREADY_OWNED' : eq.type,
     alertTitle: eq.alertTitle,
     alertMessage: eq.alertMessage
   };
@@ -1363,20 +1394,26 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
   }
 
   if (!family || rawBranches.length === 0) {
-    // Pokemon has no known evolutions or is a standalone
+    // Pokemon has no direct evolutions (standalone or G-Max-Challenge-only final stage)
     const fullBaseName = (variant && variant !== 'Normal' && !baseName.toLowerCase().startsWith(variant.toLowerCase() + ' '))
       ? `${variant} ${baseName}`
       : baseName;
     const ownership = checkEvolutionOwnership(fullBaseName, userCollection, variant);
+    const requiresGmaxChallenge = Boolean(gmaxPrereq && gmaxPrereq.hasGmaxForm && !gmaxPrereq.isPreEvolution);
     return {
-      status: 'SINGLE_STAGE',
+      status: requiresGmaxChallenge ? 'GMAX_CHALLENGE_ONLY' : 'SINGLE_STAGE',
       pokemon: fullBaseName,
       family: null,
       branches: [],
       bestBranch: null,
+      isBlockedForGmax: Boolean(gmaxPrereq && gmaxPrereq.isBlockedForGmax),
+      gmaxTarget: (gmaxPrereq && gmaxPrereq.gmaxTarget) || null,
+      requiresGmaxChallenge: requiresGmaxChallenge,
       ownedBranchesCount: ownership.isOwned ? 1 : 0,
       totalBranchesCount: 1,
-      recommendationReason: `${fullBaseName} does not have further branching evolutionary paths in standard DelugeRPG.`
+      recommendationReason: requiresGmaxChallenge
+        ? `${fullBaseName} requires G-Max Challenge for ${(gmaxPrereq && gmaxPrereq.gmaxTarget) || 'G-Max Form'} (not directly evolvable).`
+        : `${fullBaseName} does not have further branching evolutionary paths in standard DelugeRPG.`
     };
   }
 
@@ -1431,6 +1468,7 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
       fullName: fullBranchName,
       types: bTypes,
       bst: branch.bst || 500,
+      minLevel: branch.minLevel || (branch.mega ? 100 : 1),
       gmax: Boolean(branch.gmax),
       mega: Boolean(branch.mega),
       role: branch.role,
@@ -2732,7 +2770,9 @@ function getEvolveReadyPokemon(userCollection) {
 
     if (branches.length > 0) {
       const vMatch = rawName.match(VARIANT_PREFIX_REGEX);
-      const pVariant = poke.variant || (vMatch ? vMatch[1] : 'Normal');
+      const pVariant = (poke.variant && String(poke.variant).trim().toLowerCase() !== 'normal')
+        ? poke.variant
+        : (vMatch ? vMatch[1] : 'Normal');
       const cleanVariant = String(pVariant).trim();
       const normalizedVariant = (cleanVariant.toLowerCase() === 'ghost') ? 'Ghostly' : (cleanVariant.charAt(0).toUpperCase() + cleanVariant.slice(1).toLowerCase());
 
@@ -2741,11 +2781,14 @@ function getEvolveReadyPokemon(userCollection) {
           ? `${normalizedVariant} ${br.name}`
           : br.name;
         const ownership = checkEvolutionOwnership(fullBranchName, userCollection, normalizedVariant);
-        const isDuplicate = br.mega
-          ? Boolean(ownership.hasMegaOwned || ownership.hasExactOwned)
-          : (br.gmax
-              ? Boolean(ownership.hasGmaxOwned || ownership.hasExactOwned)
-              : Boolean(ownership.hasExactOwned));
+        const isBranchMega = Boolean(br.mega) && /\b[XY]\b/i.test(br.name);
+        const isDuplicate = isBranchMega
+          ? Boolean(ownership.hasExactOwned)
+          : (br.mega
+              ? Boolean(ownership.hasMegaOwned || ownership.hasExactOwned)
+              : (br.gmax
+                  ? Boolean(ownership.hasGmaxOwned || ownership.hasExactOwned)
+                  : Boolean(ownership.hasExactOwned)));
 
         // Combine current equipped moves and branch key moves for best 4 attacks evaluation
         const currentMoves = Array.isArray(poke.moves) ? poke.moves.map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : ''))).filter(Boolean) : [];
@@ -2783,11 +2826,9 @@ function getEvolveReadyPokemon(userCollection) {
       const hasUnique = evaluatedBranches.some(b => !b.isDuplicate);
       const bestBranch = evaluatedBranches[0];
 
-      // G-Max Precedence Rule: If user does not own G-Max form yet, hold base Pokemon for G-Max!
-      // But if the Pokemon has an unowned G-Max branch available (e.g. Venusaur -> G-Max Venusaur),
-      // it is NOT blocked - it is ready for G-Max!
-      const hasUnownedGmaxBranch = evaluatedBranches.some(b => b.gmax && !b.isDuplicate);
-      const isBlockedForGmax = gmaxPrereq.isBlockedForGmax && !hasUnownedGmaxBranch;
+      // G-Max Precedence Rule: G-Max evolutions require G-Max Challenge (never direct modal evolution).
+      // Hold base Pokemon for G-Max Challenge when G-Max form is unowned and only <= 1 base copy exists.
+      const isBlockedForGmax = Boolean(gmaxPrereq.isBlockedForGmax);
       const isAllowed = hasUnique && !isBlockedForGmax;
 
       readyList.push({

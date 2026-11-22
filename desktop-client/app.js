@@ -2067,10 +2067,26 @@ function isCurrentPageMap() {
   return !!guestReportsMap;
 }
 
+function isBattlePageUrl(urlStr) {
+  const lower = String(urlStr || '').toLowerCase();
+  if (!lower || isUnlockOrCaptchaUrl(lower) || isMapUrl(lower) || lower.includes('/login') || lower.includes('/catch') || lower.includes('/battle/wild')) {
+    return false;
+  }
+  try {
+    const parsed = new URL(urlStr, 'https://www.delugerpg.com');
+    const p = (parsed.pathname || '').toLowerCase();
+    if (p === '/gyms' || p === '/trainers' || p === '/gmax' || p === '/gmax/' || p === '/home' || p === '/profile' || p.startsWith('/profile/') || p === '/battle' || p === '/battle/' || p === '/battle/trainers' || p === '/battle/gyms') {
+      return false;
+    }
+    return p.includes('/battle') || p.includes('/challenge') || p.includes('/arena') || p.includes('/npc/') || p.includes('/battle/gym');
+  } catch (_) {
+    return lower.includes('/battle') || lower.includes('/challenge') || lower.includes('/arena') || lower.includes('/npc/') || lower.includes('/battle/gym');
+  }
+}
+
 function isCurrentPageBattle() {
   const curUrl = (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '';
-  const lower = curUrl.toLowerCase();
-  return lower.includes('/battle') || lower.includes('/challenge') || lower.includes('/arena') || lower.includes('/npc') || lower.includes('/gym');
+  return isBattlePageUrl(curUrl);
 }
 
 let isPendingSessionAutoStop = false;
@@ -2793,21 +2809,27 @@ function stopAllBattleAutomation(reason = '') {
 
 function isExplicitNonWildBattleUrl(urlStr) {
   const lower = String(urlStr || '').toLowerCase();
-  if (!lower || isMapUrl(lower) || lower.includes('/catch') || lower.includes('/battle/wild')) {
+  const isUnlock = (typeof isUnlockOrCaptchaUrl === 'function')
+    ? isUnlockOrCaptchaUrl(lower)
+    : Boolean(lower.includes('/unlock') || lower.includes('captcha') || lower.includes('/security') || lower.includes('/verify'));
+  if (!lower || isUnlock || isMapUrl(lower) || lower.includes('/login') || lower.includes('/catch') || lower.includes('/battle/wild')) {
+    return false;
+  }
+  const path = lower.replace(/^https?:\/\/[^\/]+/i, '').split(/[?#]/)[0];
+  if (path === '/gyms' || path === '/trainers' || path === '/gmax' || path === '/gmax/' || path === '/battle' || path === '/battle/' || path === '/battle/trainers' || path === '/battle/gyms') {
     return false;
   }
   return (
-    lower.includes('/battle/trainer') ||
-    lower.includes('/battle/gym') ||
-    lower.includes('/battle/user') ||
-    lower.includes('/battle/live') ||
-    lower.includes('/battle/computer') ||
-    lower.includes('/battle/battle') ||
-    lower.includes('/challenge') ||
-    lower.includes('/gmax') ||
-    lower.includes('/arena') ||
-    lower.includes('/npc') ||
-    lower.includes('/gym/')
+    path.includes('/battle/trainer') ||
+    path.includes('/battle/gym') ||
+    path.includes('/battle/user') ||
+    path.includes('/battle/live') ||
+    path.includes('/battle/computer') ||
+    path.includes('/battle/battle') ||
+    path.includes('/challenge') ||
+    path.includes('/arena') ||
+    path.includes('/npc') ||
+    path.includes('/gym/')
   );
 }
 
@@ -2837,7 +2859,7 @@ function handleMapNavigation(url) {
       isMapUrl(lowerUrl) ||
       lowerUrl.includes('/catch') ||
       lowerUrl.includes('/battle/wild') ||
-      (lowerUrl.indexOf('/battle') === -1 && lowerUrl.indexOf('/challenge') === -1 && lowerUrl.indexOf('/arena') === -1)
+      !isBattlePageUrl(url)
     )
   );
   if (isWildOrNonBattleNav) {
@@ -2903,13 +2925,62 @@ function handleMapNavigation(url) {
   }
 }
 
+let pendingUnlockRedirectUntil = 0;
+
+function isUnlockOrCaptchaUrl(urlStr) {
+  const lower = String(urlStr || '').toLowerCase();
+  return Boolean(lower && (lower.includes('/unlock') || lower.includes('captcha') || lower.includes('/security') || lower.includes('/verify')));
+}
+
+function handleNavigationCaptchaLifecycle(url) {
+  if (!url) return;
+  pendingUnlockRedirectUntil = 0;
+  if (isUnlockOrCaptchaUrl(url)) {
+    pendingGmaxEntryFlow = null;
+    handleCaptchaEmergencyHalt('Captcha (/unlock) navigation detected');
+  }
+}
+
+let captchaRecheckTimer = null;
+
+function requestPostLoadCaptchaRecheck(url) {
+  if (!isUnlockChallengeActive && !isCaptchaAlarmActive) return;
+  const targetUrl = url || (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '';
+  if (!targetUrl || isUnlockOrCaptchaUrl(targetUrl) || targetUrl.toLowerCase().includes('/login')) return;
+  if (delugeView && typeof delugeView.send === 'function') {
+    try { delugeView.send('request-map-presence'); } catch (_) {}
+  }
+  if (captchaRecheckTimer) {
+    if (typeof clearTimeout === 'function') clearTimeout(captchaRecheckTimer);
+    captchaRecheckTimer = null;
+  }
+  if (typeof setTimeout === 'function') {
+    captchaRecheckTimer = setTimeout(() => {
+      captchaRecheckTimer = null;
+      if (!isUnlockChallengeActive && !isCaptchaAlarmActive) return;
+      const latestUrl = (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '';
+      if (!latestUrl || isUnlockOrCaptchaUrl(latestUrl) || latestUrl.toLowerCase().includes('/login')) return;
+      if (delugeView && typeof delugeView.send === 'function') {
+        try { delugeView.send('request-map-presence'); } catch (_) {}
+      }
+    }, 450);
+  }
+}
+
 delugeView.addEventListener('did-navigate', (event) => {
   const url = event.url || (delugeView && delugeView.getURL()) || '';
+  if (typeof handleEvoAutoCycleNavigation === 'function') handleEvoAutoCycleNavigation(url);
+  if (typeof activeEvolveCardData !== 'undefined' && activeEvolveCardData) {
+    if (typeof handleEvolveCardClosed === 'function') handleEvolveCardClosed();
+    else activeEvolveCardData = null;
+  }
+  handleNavigationCaptchaLifecycle(url);
   handleMapNavigation(url);
 });
 
 delugeView.addEventListener('did-navigate-in-page', (event) => {
   const url = event.url || (delugeView && delugeView.getURL()) || '';
+  handleNavigationCaptchaLifecycle(url);
   handleMapNavigation(url);
 });
 
@@ -2920,6 +2991,7 @@ let pendingGmaxEntryFlow = null;
 delugeView.addEventListener('did-finish-load', () => {
   isGuestWebviewHung = false;
   const url = (delugeView && delugeView.getURL()) || '';
+  handleNavigationCaptchaLifecycle(url);
   handleMapNavigation(url);
   if (pendingGmaxEntryFlow && (Date.now() - (pendingGmaxEntryFlow.startedAt || 0) < 120000)) {
     try {
@@ -2947,6 +3019,8 @@ delugeView.addEventListener('did-finish-load', () => {
       }
     }, 200);
   }
+  requestPostLoadCaptchaRecheck(url);
+  if (typeof handleEvoAutoCyclePageLoaded === 'function') handleEvoAutoCyclePageLoaded(url);
   if (isManualReloadInProgress) {
     isManualReloadInProgress = false;
     if (manualReloadUnlockTimer) {
@@ -2962,6 +3036,7 @@ delugeView.addEventListener('did-finish-load', () => {
 });
 
 delugeView.addEventListener('did-stop-loading', () => {
+  requestPostLoadCaptchaRecheck();
   if (isManualReloadInProgress) {
     isManualReloadInProgress = false;
     if (manualReloadUnlockTimer) {
@@ -3075,6 +3150,12 @@ delugeView.addEventListener('responsive', () => {
 
 delugeView.addEventListener('will-navigate', (event) => {
   const url = event.url || '';
+  if (isUnlockOrCaptchaUrl(url)) {
+    pendingUnlockRedirectUntil = Date.now() + 2000;
+    pendingGmaxEntryFlow = null;
+    handleCaptchaEmergencyHalt('Captcha (/unlock) security redirect detected');
+    return;
+  }
   const currentUrl = (delugeView && delugeView.getURL && delugeView.getURL()) || '';
   const isBattleComplete = Boolean(activeAiBattleData && (activeAiBattleData.isVictoryScreen || activeAiBattleData.isDefeatScreen || activeAiBattleData.isPostBattleScreen || activeAiBattleData.isGmaxChallengeComplete));
   const isCurrentlyInBattle = (currentUrl.indexOf('/catch/') !== -1 || (currentUrl.indexOf('/battle/') !== -1 && !isBattleComplete));
@@ -3084,7 +3165,7 @@ delugeView.addEventListener('will-navigate', (event) => {
       const parsed = new URL(url, 'https://www.delugerpg.com');
       const p = (parsed.pathname || '').toLowerCase();
       const isAllowedMap = isMapUrl(url) || p.startsWith('/map');
-      const isAllowedRoute = isAllowedMap || p.startsWith('/catch') || p.startsWith('/battle') || p.startsWith('/gmax') || p.startsWith('/challenge') || p.startsWith('/pokemon');
+      const isAllowedRoute = isAllowedMap || p.startsWith('/catch') || p.startsWith('/battle') || p.startsWith('/gmax') || p.startsWith('/challenge') || p.startsWith('/pokemon') || p.startsWith('/unlock') || p.includes('captcha') || p.includes('verify');
       if (!isAllowedRoute) {
         event.preventDefault();
         backendLog('NAVIGATION_GUARD', `Shielded active battle: Blocked premature navigation to ${p || url}`);
@@ -3326,19 +3407,23 @@ delugeView.addEventListener('ipc-message', (event) => {
       let changed = false;
       let selectedEvolvedAway = false;
       data.pokemons.forEach(livePoke => {
-        const existing = currentCollection.find(p => p.id === livePoke.id || (p.name === livePoke.name && p.level === livePoke.level));
+        const existing = livePoke.id
+          ? currentCollection.find(p => p && p.id === livePoke.id)
+          : currentCollection.find(p => p && p.name === livePoke.name && p.level === livePoke.level);
         if (existing) {
           if (selectedEvoPoke && existing.id === selectedEvoPoke.id && livePoke.name && livePoke.name !== selectedEvoPoke.name) {
             selectedEvolvedAway = true;
           }
           if (
             (livePoke.name && existing.name !== livePoke.name) ||
+            (livePoke.variant && existing.variant !== livePoke.variant) ||
             (livePoke.level && existing.level !== livePoke.level) ||
             existing.canEvolve !== livePoke.canEvolve ||
             existing.evolveUrl !== livePoke.evolveUrl ||
             existing.inTeam !== livePoke.inTeam
           ) {
             if (livePoke.name) existing.name = livePoke.name;
+            if (livePoke.variant) existing.variant = livePoke.variant;
             if (livePoke.level) existing.level = livePoke.level;
             if (Array.isArray(livePoke.types) && livePoke.types.length > 0) existing.types = livePoke.types;
             if (Array.isArray(livePoke.moves) && livePoke.moves.length > 0) existing.moves = livePoke.moves;
@@ -3354,7 +3439,9 @@ delugeView.addEventListener('ipc-message', (event) => {
         }
       });
       if (selectedEvolvedAway) {
-        activeEvolveCardData = null;
+        if (!activeEvolveCardData || !activeEvolveCardData.isOpen || activeEvolveCardData.isMoveSelection) {
+          activeEvolveCardData = null;
+        }
         selectedEvoPoke = null;
       }
       if (changed) {
@@ -3362,9 +3449,18 @@ delugeView.addEventListener('ipc-message', (event) => {
           fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
         } catch (_) {}
         syncUserCollectionToGuest();
+        if (typeof refreshCandidateListsCache === 'function') {
+          refreshCandidateListsCache({ resetCursors: false });
+        }
+        if (typeof updateRosterModeUI === 'function') {
+          updateRosterModeUI();
+        }
         if (aiAssistantModal && aiAssistantModal.style.display === 'flex' && typeof renderEvolutionDecisionMakerUI === 'function') {
           renderEvolutionDecisionMakerUI();
         }
+      }
+      if (typeof handleEvoAutoCyclePageSynced === 'function') {
+        handleEvoAutoCyclePageSynced(data.pokemons);
       }
     }
   }
@@ -3482,8 +3578,8 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'team-apply-complete') {
     const data = event.args[0] || {};
+    isApplyingTeamOnDeluge = false;
     if (applyTeamBtn) {
-      applyTeamBtn.disabled = false;
       if (data.success) {
         applyTeamBtn.innerHTML = '<span>&#10003;</span> <span>Team Saved!</span>';
         setTimeout(() => {
@@ -3493,9 +3589,7 @@ delugeView.addEventListener('ipc-message', (event) => {
         applyTeamBtn.innerHTML = 'Change Team';
       }
     }
-    if (battleOpponentBtn) {
-      battleOpponentBtn.disabled = false;
-    }
+    syncTeamActionButtonsState();
     if (teamActionStatus) {
       if (data.success) {
         teamActionStatus.textContent = 'Team updated successfully on DelugeRPG!';
@@ -3512,11 +3606,16 @@ delugeView.addEventListener('ipc-message', (event) => {
       }
       setTimeout(() => {
         if (!isBattleLoopRunning || !teamBattleLoopCheck || !teamBattleLoopCheck.checked || isUnlockChallengeActive || isCaptchaAlarmActive || isWildHuntingOrCatchContext() || !isCurrentPageBattle()) return;
+        const seqBeforeApplyRematch = guestLoadEventSeq;
         if (delugeView && typeof delugeView.send === 'function') {
           delugeView.send('click-rematch-button');
         }
         setTimeout(() => {
-          if (!isWildHuntingOrCatchContext() && isCurrentPageBattle() && battleOpponentBtn) battleOpponentBtn.click();
+          const curApplyUrl = (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '';
+          const guestNavigated = Boolean((delugeView && typeof delugeView.isLoading === 'function' && delugeView.isLoading()) || guestLoadEventSeq !== seqBeforeApplyRematch);
+          if (!isUnlockChallengeActive && !isCaptchaAlarmActive && !isUnlockOrCaptchaUrl(curApplyUrl) && !guestNavigated && !isWildHuntingOrCatchContext() && isCurrentPageBattle() && battleOpponentBtn) {
+            battleOpponentBtn.click();
+          }
         }, 600);
       }, 1500);
     }
@@ -3619,7 +3718,7 @@ delugeView.addEventListener('ipc-message', (event) => {
       clearTimeout(aiActionTimeoutTimer);
       aiActionTimeoutTimer = null;
     }
-    if (teamBattleActionBtn) {
+    if (teamBattleActionBtn && !isUnlockChallengeActive && !isCaptchaAlarmActive && isCurrentPageBattle() && !isWildHuntingOrCatchContext()) {
       teamBattleActionBtn.disabled = false;
     }
     if (teamActionStatus) {
@@ -3631,7 +3730,9 @@ delugeView.addEventListener('ipc-message', (event) => {
         if (isUnlockChallengeActive || isCaptchaAlarmActive) {
           stopAllBattleAutomation('Captcha active');
         } else if (data.action === 'click-rematch-button' && teamBattleLoopCheck && teamBattleLoopCheck.checked && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
-          if (!isGMaxChallengeModeActive() && !isWildHuntingOrCatchContext() && isCurrentPageBattle() && battleOpponentBtn) battleOpponentBtn.click();
+          const curStatusUrl = (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '';
+          const statusNavigating = Boolean(delugeView && typeof delugeView.isLoading === 'function' && delugeView.isLoading());
+          if (!isUnlockOrCaptchaUrl(curStatusUrl) && !statusNavigating && !isGMaxChallengeModeActive() && !isWildHuntingOrCatchContext() && isCurrentPageBattle() && battleOpponentBtn) battleOpponentBtn.click();
         } else if (false) {
           if (battleAutoStepTimer) {
             clearTimeout(battleAutoStepTimer);
@@ -3983,6 +4084,12 @@ delugeView.addEventListener('ipc-message', (event) => {
     if (data.hasCaptcha) {
       handleCaptchaEmergencyHalt('Captcha challenge reported via map-presence');
       return;
+    }
+    const presenceUrl = String(data.pathname || data.url || '').toLowerCase();
+    const activeViewUrl = String((delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '').toLowerCase();
+    const viewIsLoading = Boolean(delugeView && typeof delugeView.isLoading === 'function' && delugeView.isLoading());
+    if ((isUnlockChallengeActive || isCaptchaAlarmActive) && !viewIsLoading && Date.now() >= pendingUnlockRedirectUntil && presenceUrl && !isUnlockOrCaptchaUrl(presenceUrl) && (!activeViewUrl || (!isUnlockOrCaptchaUrl(activeViewUrl) && !activeViewUrl.includes('/login'))) && !presenceUrl.includes('/login')) {
+      silenceCaptchaAlarm();
     }
     if (data.isForbidden) {
       guestReportsMap = false;
@@ -6188,13 +6295,41 @@ function updateRosterModeUI() {
   }
 }
 
+let isApplyingTeamOnDeluge = false;
+function syncTeamActionButtonsState() {
+  const hasBuiltTeam = Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0;
+  const captchaLocked = Boolean(isUnlockChallengeActive || isCaptchaAlarmActive);
+  if (teamActionRow) {
+    teamActionRow.style.display = 'flex';
+  }
+  if (teamBattleActionSlot) {
+    teamBattleActionSlot.style.display = 'block';
+  }
+  if (applyTeamBtn) {
+    applyTeamBtn.disabled = Boolean(captchaLocked || isApplyingTeamOnDeluge || !hasBuiltTeam);
+    if (captchaLocked) {
+      applyTeamBtn.title = 'Disabled: Captcha challenge active';
+    } else if (!hasBuiltTeam) {
+      applyTeamBtn.title = 'Disabled: Build a team with at least 1 Pokemon first';
+    } else {
+      applyTeamBtn.title = 'Equip this lineup in DelugeRPG';
+    }
+  }
+  if (copyTeamBtn) {
+    copyTeamBtn.disabled = Boolean(!hasBuiltTeam);
+  }
+  if (battleOpponentBtn && !captchaLocked && !battleOpponentBtn.innerHTML.includes('Entering...')) {
+    battleOpponentBtn.disabled = false;
+  }
+}
+
 function resetTeamPrompt() {
   lastRecommendedTeam = null;
   candidateListsCache.gmaxLastDisplayedId = null;
   candidateListsCache.lastTrainingBuiltCtx = null;
   if (teamResultContainer) teamResultContainer.style.display = 'none';
   if (teamResultList) teamResultList.innerHTML = '';
-  if (teamActionRow) teamActionRow.style.display = 'none';
+  syncTeamActionButtonsState();
   if (teamEmptyPrompt) {
     teamEmptyPrompt.style.display = 'flex';
     const iconHtml = teamBattleMode === 'PVP' ? '&#127919;' : '&#9876;';
@@ -6554,6 +6689,27 @@ function loadTeamBuilderData() {
     const rawColl = readDataFile('user_collection.json');
     if (rawColl) {
       currentCollection = JSON.parse(rawColl);
+      let healedCorruptNames = false;
+      if (Array.isArray(currentCollection)) {
+        for (let i = 0; i < currentCollection.length; i++) {
+          const item = currentCollection[i];
+          if (item && typeof item.name === 'string' && /[\r\n]/.test(item.name)) {
+            const clean = item.name.split(/[\r\n]+/)[0].replace(/\s+(?:close|ok|continue)$/i, '').trim();
+            if (clean && clean !== item.name) {
+              item.name = clean;
+              if (evolutionEngine && typeof evolutionEngine.resolvePokemonTypes === 'function') {
+                item.types = evolutionEngine.resolvePokemonTypes(clean, currentCollection);
+              }
+              healedCorruptNames = true;
+            }
+          }
+        }
+        if (healedCorruptNames) {
+          try {
+            fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
+          } catch (_) {}
+        }
+      }
       if (scanStatusDot) {
         scanStatusDot.style.background = currentCollection.length > 0 ? '#10b981' : '#f59e0b';
       }
@@ -7038,12 +7194,11 @@ function openTeamBuilderPanel() {
   if (!lastRecommendedTeam || lastRecommendedTeam.length === 0) {
     if (teamEmptyPrompt) teamEmptyPrompt.style.display = 'flex';
     if (teamResultContainer) teamResultContainer.style.display = 'none';
-    if (teamActionRow) teamActionRow.style.display = 'none';
   } else {
     if (teamEmptyPrompt) teamEmptyPrompt.style.display = 'none';
     if (teamResultContainer) teamResultContainer.style.display = 'block';
-    if (teamActionRow) teamActionRow.style.display = 'flex';
   }
+  syncTeamActionButtonsState();
   if (typeof updateTeamBuilderBattleAction === 'function') {
     updateTeamBuilderBattleAction(activeAiBattleData);
   }
@@ -7633,11 +7788,15 @@ function renderTeamLineup(leader, team) {
   teamResultList.innerHTML = '';
 
   if (!team || team.length === 0) {
+    lastRecommendedTeam = null;
     const emptyMsg = teamRosterMode === 'TRAINING'
       ? 'No eligible training counters (&lt; Lv 100) found.'
       : 'No eligible counters found.';
     teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">${emptyMsg}</div>`;
-    if (teamActionRow) teamActionRow.style.display = 'none';
+    syncTeamActionButtonsState();
+    if (typeof updateTeamBuilderBattleAction === 'function') {
+      updateTeamBuilderBattleAction(activeAiBattleData);
+    }
     return;
   }
 
@@ -7734,7 +7893,7 @@ function renderTeamLineup(leader, team) {
     teamResultList.appendChild(emptyRow);
   }
 
-  if (teamActionRow) teamActionRow.style.display = 'flex';
+  syncTeamActionButtonsState();
   if (teamActionStatus && !isBattleLoopRunning) teamActionStatus.textContent = '';
   if (typeof updateTeamBuilderBattleAction === 'function') {
     updateTeamBuilderBattleAction(activeAiBattleData);
@@ -7751,7 +7910,8 @@ function executeTeamBuild(targetLeader, buildOptions = {}) {
   if (currentCollection.length === 0) {
     if (teamResultContainer) teamResultContainer.style.display = 'block';
     if (teamResultList) teamResultList.innerHTML = '<div style="padding:10px; color:#f87171; font-size:11px; text-align:center;">No Pokemon in database. Click "Scan My Box" first.</div>';
-    if (teamActionRow) teamActionRow.style.display = 'none';
+    lastRecommendedTeam = null;
+    syncTeamActionButtonsState();
     return;
   }
 
@@ -7780,7 +7940,8 @@ function executeTeamBuild(targetLeader, buildOptions = {}) {
       if (teamResultList) {
         teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">No training ${label} (&lt; Lv 100) available in your collection.<br><span style="color:rgba(244, 238, 232, 0.5); font-size:10px;">Switch Candidate Pool Filter or choose <b>Maxed (Lv 100)</b> mode.</span></div>`;
       }
-      if (teamActionRow) teamActionRow.style.display = 'none';
+      lastRecommendedTeam = null;
+    syncTeamActionButtonsState();
       return;
     }
 
@@ -8017,7 +8178,8 @@ function executeTeamBuild(targetLeader, buildOptions = {}) {
         teamActionStatus.style.color = '#388bfd';
         teamActionStatus.style.display = 'block';
       } else {
-        teamActionStatus.style.display = 'none';
+        teamActionStatus.textContent = '';
+        teamActionStatus.style.display = '';
       }
     }
     return;
@@ -8040,7 +8202,8 @@ function executeTeamBuild(targetLeader, buildOptions = {}) {
     if (teamResultList) {
       teamResultList.innerHTML = `<div style="padding:16px 10px; color:rgba(244, 238, 232, 0.7); font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:rgba(244, 238, 232, 0.5); font-size:10px;">Switch pool filter to <b>Any</b> or click 'Scan My Box'.</span></div>`;
     }
-    if (teamActionRow) teamActionRow.style.display = 'none';
+    lastRecommendedTeam = null;
+    syncTeamActionButtonsState();
     return;
   }
 
@@ -8091,7 +8254,8 @@ function executePvPTeamBuild() {
     if (teamResultList) {
       teamResultList.innerHTML = '<div style="padding:10px; color:#f87171; font-size:11px; text-align:center;">No Pokemon in database. Click "Scan My Box" first.</div>';
     }
-    if (teamActionRow) teamActionRow.style.display = 'none';
+    lastRecommendedTeam = null;
+    syncTeamActionButtonsState();
     return;
   }
 
@@ -8114,7 +8278,8 @@ function executePvPTeamBuild() {
       if (teamResultList) {
         teamResultList.innerHTML = `<div style="padding:16px 10px; color:#8eaad0; font-size:11px; text-align:center;">Not enough ${label} to build a God Squad.<br><span style="color:#64748b; font-size:10px;">Switch Candidate Tier to <b>All Lv 100s</b> or click 'Scan My Box'.</span></div>`;
       }
-      if (teamActionRow) teamActionRow.style.display = 'none';
+      lastRecommendedTeam = null;
+    syncTeamActionButtonsState();
       return;
     }
     lastRecommendedTeam = team;
@@ -8137,7 +8302,8 @@ function executePvPTeamBuild() {
           </div>
         `;
       }
-      if (teamActionRow) teamActionRow.style.display = 'none';
+      lastRecommendedTeam = null;
+    syncTeamActionButtonsState();
       return;
     }
 
@@ -8157,7 +8323,8 @@ function executePvPTeamBuild() {
       if (teamResultList) {
         teamResultList.innerHTML = `<div style="padding:16px 10px; color:#8eaad0; font-size:11px; text-align:center;">No ${label} available in your collection.<br><span style="color:#64748b; font-size:10px;">Switch Candidate Tier to <b>All Lv 100s</b> or click 'Scan My Box'.</span></div>`;
       }
-      if (teamActionRow) teamActionRow.style.display = 'none';
+      lastRecommendedTeam = null;
+    syncTeamActionButtonsState();
       return;
     }
 
@@ -8280,6 +8447,7 @@ if (applyTeamBtn) {
       }
       return;
     }
+    isApplyingTeamOnDeluge = true;
     applyTeamBtn.disabled = true;
     if (battleOpponentBtn) battleOpponentBtn.disabled = true;
     applyTeamBtn.innerHTML = '<span>&#8635;</span> <span>Saving...</span>';
@@ -8289,11 +8457,12 @@ if (applyTeamBtn) {
     }
     delugeView.send('apply-team-slots', { pokemonIds: ids, pokemons: lastRecommendedTeam });
     setTimeout(() => {
-      if (applyTeamBtn && applyTeamBtn.disabled) {
-        applyTeamBtn.disabled = false;
-        applyTeamBtn.innerHTML = 'Change Team';
+      if (isApplyingTeamOnDeluge) {
+        isApplyingTeamOnDeluge = false;
+        if (applyTeamBtn) applyTeamBtn.innerHTML = 'Change Team';
+        syncTeamActionButtonsState();
       }
-      if (battleOpponentBtn) battleOpponentBtn.disabled = false;
+      if (battleOpponentBtn && !isUnlockChallengeActive && !isCaptchaAlarmActive) battleOpponentBtn.disabled = false;
     }, 12000);
   });
 }
@@ -8332,7 +8501,8 @@ function resolveTargetBattleUrl() {
 
   if (selVal === 'LIVE__BATTLE') {
     if (liveBattleOpponent) {
-      if (liveBattleOpponent.battleUrl) return liveBattleOpponent.battleUrl;
+      const hasSpecificUrl = /\/battle\/(?:trainer|gym)\/\d+/i.test(String(liveBattleOpponent.battleUrl || '')) || /\/npc\/\d+/i.test(String(liveBattleOpponent.battleUrl || ''));
+      if (hasSpecificUrl) return liveBattleOpponent.battleUrl;
       if (liveBattleOpponent.npcId) return `/battle/trainer/${liveBattleOpponent.npcId}`;
       if (gymLeadersData && liveBattleOpponent.trainerName) {
         const cleanName = liveBattleOpponent.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -8353,6 +8523,7 @@ function resolveTargetBattleUrl() {
           }
         }
       }
+      if (liveBattleOpponent.battleUrl) return liveBattleOpponent.battleUrl;
     }
     return '/battle/trainer';
   }
@@ -8405,6 +8576,11 @@ if (battleOpponentBtn) {
       }
     }
 
+    if (teamBattleAutoCheck && teamBattleAutoCheck.checked) {
+      userManuallyPaused = false;
+      isBattleAutoRunning = true;
+    }
+
     battleOpponentBtn.disabled = true;
     if (applyTeamBtn) applyTeamBtn.disabled = true;
     battleOpponentBtn.innerHTML = '<span>&#8635;</span> <span>Entering...</span>';
@@ -8443,12 +8619,10 @@ if (battleOpponentBtn) {
 
       setTimeout(() => {
         if (battleOpponentBtn) {
-          battleOpponentBtn.disabled = false;
+          battleOpponentBtn.disabled = Boolean(isUnlockChallengeActive || isCaptchaAlarmActive);
           battleOpponentBtn.innerHTML = '<span>&#9876;</span> <span>Battle Now</span>';
         }
-        if (applyTeamBtn) {
-          applyTeamBtn.disabled = false;
-        }
+        syncTeamActionButtonsState();
         if (teamActionStatus && teamActionStatus.textContent === 'Entering battle arena on DelugeRPG...') {
           teamActionStatus.textContent = 'In Battle Arena';
           teamActionStatus.style.color = '#238636';
@@ -8765,18 +8939,24 @@ function scheduleNextLoopBattle() {
     }
 
     // Attempt direct in-game rematch click on webview first (clicks "NORMAL BATTLE" or "NEXT BATTLE")
+    const seqBeforeRematch = guestLoadEventSeq;
     if (delugeView && typeof delugeView.send === 'function') {
       delugeView.send('click-rematch-button');
     }
 
-    // Graceful fallback watchdog: If webview is STILL on the post-battle screen after 900ms, navigate directly
+    // Graceful fallback watchdog: If webview is STILL idle on post-battle screen after 900ms, navigate directly
     if (battleLoopFallbackTimer) {
       clearTimeout(battleLoopFallbackTimer);
       battleLoopFallbackTimer = null;
     }
     battleLoopFallbackTimer = setTimeout(() => {
       battleLoopFallbackTimer = null;
-      if (isUnlockChallengeActive || isCaptchaAlarmActive || !teamBattleAutoCheck || !teamBattleAutoCheck.checked || !teamBattleLoopCheck || !teamBattleLoopCheck.checked) {
+      const curFallbackUrl = (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '';
+      const isGuestNavigating = Boolean(
+        (delugeView && typeof delugeView.isLoading === 'function' && delugeView.isLoading()) ||
+        guestLoadEventSeq !== seqBeforeRematch
+      );
+      if (isUnlockChallengeActive || isCaptchaAlarmActive || isUnlockOrCaptchaUrl(curFallbackUrl) || isGuestNavigating || !teamBattleAutoCheck || !teamBattleAutoCheck.checked || !teamBattleLoopCheck || !teamBattleLoopCheck.checked) {
         return;
       }
       if (isWildHuntingOrCatchContext() || !isCurrentPageBattle()) {
@@ -8786,6 +8966,9 @@ function scheduleNextLoopBattle() {
       if (delugeView) {
         try {
           const cUrl = (delugeView.getURL && delugeView.getURL()) ? delugeView.getURL() : '';
+          if (isUnlockOrCaptchaUrl(cUrl)) {
+            return;
+          }
           if (isWildHuntingOrCatchContext(cUrl) || !isCurrentPageBattle()) {
             stopAllBattleAutomation('Loop fallback aborted on non-battle URL');
             return;
@@ -8796,13 +8979,13 @@ function scheduleNextLoopBattle() {
             cUrl.indexOf('defeat') !== -1 ||
             cUrl.indexOf('result') !== -1
           );
-          if (activeAiBattleData) {
-            activeAiBattleData.isVictoryScreen = false;
-            activeAiBattleData.isPostBattleScreen = false;
-            activeAiBattleData.isDefeatScreen = false;
-            activeAiBattleData.hasNextBattleBtn = false;
-          }
           if (isStillPostBattle) {
+            if (activeAiBattleData) {
+              activeAiBattleData.isVictoryScreen = false;
+              activeAiBattleData.isPostBattleScreen = false;
+              activeAiBattleData.isDefeatScreen = false;
+              activeAiBattleData.hasNextBattleBtn = false;
+            }
             backendLog('LOOP_ENGINE', 'Post-battle screen still active; executing direct arena entry...');
             if (isGMaxChallengeModeActive()) {
               if (delugeView && typeof delugeView.send === 'function') {
@@ -10323,6 +10506,7 @@ function computeAiBattleActionConfig(battleData, collection) {
 
 function updateTeamBuilderBattleAction(battleData) {
   if (!teamBattleActionSlot || !teamBattleActionBtn) return;
+  if (typeof syncTeamActionButtonsState === 'function') syncTeamActionButtonsState();
   if (isUnlockChallengeActive || isCaptchaAlarmActive) {
     stopAllBattleAutomation('Captcha active');
     teamBattleActionSlot.style.display = 'block';
@@ -10334,9 +10518,20 @@ function updateTeamBuilderBattleAction(battleData) {
     if (teamActionRow) teamActionRow.style.display = 'flex';
     return;
   }
-  if (isWildHuntingOrCatchContext(battleData && battleData.battleUrl)) {
-    stopAllBattleAutomation('Wild catch or map hunting active');
-    teamBattleActionSlot.style.display = 'none';
+  const inBattlePage = isCurrentPageBattle();
+  const inWildOrCatch = isWildHuntingOrCatchContext(battleData && battleData.battleUrl);
+  if (inWildOrCatch || !inBattlePage) {
+    stopAllBattleAutomation(inWildOrCatch ? 'Wild catch or map hunting active' : 'Outside battle page');
+    if (teamActionStatus && /^Auto\s+(?:turn|deploying|executing)/i.test(teamActionStatus.textContent || '')) {
+      teamActionStatus.textContent = '';
+    }
+    teamBattleActionSlot.style.display = 'block';
+    teamBattleActionBtn.className = 'btn';
+    teamBattleActionBtn.disabled = true;
+    teamBattleActionBtn.innerHTML = '&#9889; Attack';
+    teamBattleActionBtn.title = inWildOrCatch
+      ? 'Disabled: Wild catch or map hunting active'
+      : 'Disabled: Enter a battle page on DelugeRPG to attack';
     teamBattleActionBtn.onclick = null;
     return;
   }
@@ -10346,7 +10541,11 @@ function updateTeamBuilderBattleAction(battleData) {
       clearTimeout(battleAutoStepTimer);
       battleAutoStepTimer = null;
     }
-    teamBattleActionSlot.style.display = 'none';
+    teamBattleActionSlot.style.display = 'block';
+    teamBattleActionBtn.className = 'btn';
+    teamBattleActionBtn.disabled = true;
+    teamBattleActionBtn.innerHTML = '&#9889; Attack';
+    teamBattleActionBtn.title = 'Disabled: Waiting for active battle turn';
     teamBattleActionBtn.onclick = null;
     // Resilient poll: If auto is armed during a transient DOM transition, re-check in 600ms
     if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isUnlockChallengeActive && !isCaptchaAlarmActive && !isWildHuntingOrCatchContext() && isCurrentPageBattle()) {
@@ -10514,28 +10713,19 @@ function renderAiAssistantUI() {
       selectPokemonForMoves(cachedBoxMovesList[0]);
     }
   } else {
-    if (selectedEvoPoke) {
-      selectEvolvePokemon(selectedEvoPoke, selectedEvoPoke.bestBranch);
-    } else if (cachedEvolveReadyList && cachedEvolveReadyList.length > 0) {
-      selectEvolvePokemon(cachedEvolveReadyList[0], cachedEvolveReadyList[0].bestBranch);
-    } else if (selectedMovesPoke) {
-      selectPokemonForMoves(selectedMovesPoke);
-    } else if (cachedBoxMovesList && cachedBoxMovesList.length > 0) {
-      selectPokemonForMoves(cachedBoxMovesList[0]);
+    const uniqueReady = Array.isArray(cachedEvolveReadyList) ? cachedEvolveReadyList.filter(p => p && p.hasUnique) : [];
+    const validSel = (selectedEvoPoke && uniqueReady.some(p => p.id === selectedEvoPoke.id && p.name === selectedEvoPoke.name))
+      ? selectedEvoPoke
+      : (uniqueReady[0] || null);
+    if (validSel) {
+      selectedEvoPoke = validSel;
+      selectEvolvePokemon(validSel, validSel.bestBranch);
     } else {
-      if (aiBattleOpponentBadge) {
-        aiBattleOpponentBadge.textContent = '100% Uniques Active';
-        aiBattleOpponentBadge.style.color = '#8eaad0';
-      }
-      if (aiTacticalBriefing) {
-        aiTacticalBriefing.innerHTML = '<div style="color: #8eaad0; text-align: center; padding: 6px 4px; font-size: 10px; font-weight: 600; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px;">Select a Pokemon below</div>';
-      }
-      if (aiInstantActionSlot) {
+      selectedEvoPoke = null;
+      if (typeof clearActiveEvoDecisionPanel === 'function') {
+        clearActiveEvoDecisionPanel('No Pending Evolutions', 'All Clear', 'No evolve-ready Pokemon');
+      } else if (aiInstantActionSlot) {
         aiInstantActionSlot.innerHTML = '';
-      }
-      if (aiStatusChip) {
-        aiStatusChip.textContent = '100% Uniques';
-        aiStatusChip.style.color = '#10b981';
       }
     }
   }
@@ -10609,7 +10799,7 @@ function executeAiBattleAction(action, payload) {
     if (teamActionStatus && teamActionStatus.textContent === 'Applying...') {
       teamActionStatus.textContent = '';
     }
-    if (teamBattleActionBtn) {
+    if (teamBattleActionBtn && !isUnlockChallengeActive && !isCaptchaAlarmActive && isCurrentPageBattle() && !isWildHuntingOrCatchContext()) {
       teamBattleActionBtn.disabled = false;
     }
   }, 4000);
@@ -11135,6 +11325,36 @@ function triggerForcedRestBreak() {
 // Continuous Alarm Siren Engine
 let captchaAlarmInterval = null;
 let isCaptchaAlarmActive = false;
+let preCaptchaBattlePrefs = null;
+
+function capturePreCaptchaBattlePrefs() {
+  if (!preCaptchaBattlePrefs && (teamBattleAutoCheck || teamBattleLoopCheck)) {
+    preCaptchaBattlePrefs = {
+      autoChecked: Boolean(teamBattleAutoCheck && teamBattleAutoCheck.checked),
+      loopChecked: Boolean(teamBattleLoopCheck && teamBattleLoopCheck.checked)
+    };
+  }
+}
+
+function restorePreCaptchaBattlePrefs() {
+  if (!preCaptchaBattlePrefs) return;
+  const saved = preCaptchaBattlePrefs;
+  preCaptchaBattlePrefs = null;
+  if (teamBattleAutoCheck && saved.autoChecked) {
+    teamBattleAutoCheck.checked = true;
+    isBattleAutoRunning = true;
+    if (teamBattleAutoLabel) {
+      teamBattleAutoLabel.style.borderColor = '#388bfd';
+      teamBattleAutoLabel.style.color = '#58a6ff';
+    }
+  }
+  const trainingDone = Boolean(!isGMaxChallengeModeActive() && typeof areAllTeamPokemonLevel100 === 'function' && areAllTeamPokemonLevel100());
+  if (teamBattleLoopCheck && teamBattleAutoCheck && teamBattleAutoCheck.checked && saved.loopChecked && !trainingDone) {
+    teamBattleLoopCheck.disabled = false;
+    teamBattleLoopCheck.checked = true;
+  }
+  updateLoopCheckboxVisual();
+}
 
 function playEmergencyBeep(freq = 600, duration = 0.25) {
   if (!soundEnabled) return;
@@ -11168,7 +11388,9 @@ function playAlarmPulse() {
 }
 
 function startContinuousCaptchaAlarm() {
+  capturePreCaptchaBattlePrefs();
   stopAllBattleAutomation('Captcha alarm active');
+  if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Captcha active');
   if (teamBattleLoopCheck) {
     teamBattleLoopCheck.checked = false;
   }
@@ -11176,6 +11398,7 @@ function startContinuousCaptchaAlarm() {
 
   if (isCaptchaAlarmActive) return;
   isCaptchaAlarmActive = true;
+  lastCaptchaHaltDispatchTs = Date.now();
 
   if (captchaEmergencyBanner) {
     captchaEmergencyBanner.style.display = 'flex';
@@ -11198,6 +11421,11 @@ function startContinuousCaptchaAlarm() {
 
 function silenceCaptchaAlarm() {
   isCaptchaAlarmActive = false;
+  pendingUnlockRedirectUntil = 0;
+  if (typeof captchaRecheckTimer !== 'undefined' && captchaRecheckTimer) {
+    if (typeof clearTimeout === 'function') clearTimeout(captchaRecheckTimer);
+    captchaRecheckTimer = null;
+  }
   if (captchaAlarmInterval) {
     clearInterval(captchaAlarmInterval);
     captchaAlarmInterval = null;
@@ -11206,13 +11434,18 @@ function silenceCaptchaAlarm() {
     captchaEmergencyBanner.style.display = 'none';
   }
   isUnlockChallengeActive = false;
-  updateLoopCheckboxVisual();
+  userManuallyPaused = false;
+  restorePreCaptchaBattlePrefs();
   updateStatus('Ready (Captcha Alarm Silenced)', '#10b981');
-  backendLog('SecurityChallenge', 'Captcha alarm acknowledged and silenced by user.');
+  backendLog('SecurityChallenge', 'Captcha alarm acknowledged and cleared.');
 
   // Re-enable all desktop client action functions and buttons upon user acknowledgment
   if (battleOpponentBtn) battleOpponentBtn.disabled = false;
-  if (applyTeamBtn) applyTeamBtn.disabled = false;
+  if (typeof syncTeamActionButtonsState === 'function') {
+    syncTeamActionButtonsState();
+  } else if (applyTeamBtn) {
+    applyTeamBtn.disabled = !(Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0);
+  }
   if (buildTeamBtn) buildTeamBtn.disabled = false;
   if (pvpScoutBtn) pvpScoutBtn.disabled = false;
   if (checkLiveBattleBtn) checkLiveBattleBtn.disabled = false;
@@ -11228,7 +11461,9 @@ let lastCaptchaHaltDispatchTs = 0;
 function handleCaptchaEmergencyHalt(reason = 'Captcha challenge detected') {
   const alreadyHalted = isUnlockChallengeActive;
   const nowTs = Date.now();
+  capturePreCaptchaBattlePrefs();
   stopAllBattleAutomation(reason);
+  if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Captcha active');
   pendingGmaxEntryFlow = null;
   if (teamBattleAutoCheck) {
     teamBattleAutoCheck.checked = false;

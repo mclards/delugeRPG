@@ -2395,7 +2395,7 @@
               <div class="dropdown-divider"></div>
               <div id="navVersionFooter" class="nav-version-footer">
                 <span class="nav-version-label">DelugeRPG Client</span>
-                <span id="navVersionBadge" class="nav-version-badge">v1.4.30</span>
+                <span id="navVersionBadge" class="nav-version-badge">v1.4.31</span>
               </div>
             </div>
           </div>
@@ -3168,7 +3168,7 @@
       </button>
 
       <!-- Empty Lineup Prompt (Shown when no active team built) -->
-      <div id="teamEmptyPrompt" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px 10px; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; color: #8eaad0; font-size: 11px; margin-bottom: 6px;">
+      <div id="teamEmptyPrompt" style="flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px 10px; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; color: #8eaad0; font-size: 11px; margin-bottom: 6px;">
         <div style="font-size: 18px; color: #388bfd; margin-bottom: 4px; opacity: 0.8;">&#9876;</div>
         <div style="font-weight: 600; color: #8eaad0; font-size: 11px;">No Active Lineup</div>
       </div>
@@ -3178,10 +3178,10 @@
         <div id="teamResultList" style="display: flex; flex-direction: column; gap: 5px;"></div>
       </div>
 
-      <!-- Action Bar -->
-      <div id="teamActionRow" style="display: none; flex-direction: column; gap: 5px; border-top: 1px solid #1a283e; padding-top: 8px; margin-top: auto; flex-shrink: 0;">
+      <!-- Action Bar (Fixed at Bottom of Docked Team Builder Panel) -->
+      <div id="teamActionRow" style="display: flex; flex-direction: column; gap: 5px; border-top: 1px solid #1a283e; padding-top: 8px; margin-top: auto; flex-shrink: 0;">
         <span id="teamActionStatus" style="font-size: 10.5px; color: #8eaad0; font-weight: 600; text-align: center;"></span>
-        <div id="teamBattleActionSlot" style="display: none; width: 100%;">
+        <div id="teamBattleActionSlot" style="display: block; width: 100%;">
           <div style="display: flex; gap: 4px; align-items: center; width: 100%; margin-bottom: 2px;">
             <label id="teamBattleAutoLabel" style="display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px; background: #070e1a; border: 1px solid #1a283e; border-radius: 4px; font-size: 10.5px; font-weight: 700; color: #8eaad0; cursor: pointer; user-select: none; flex-shrink: 0; box-shadow: none !important;" title="Auto mode: Continuously advance turns automatically with safe delays until battle ends">
               <span>Auto</span>
@@ -3191,12 +3191,12 @@
               <span>Loop</span>
               <input type="checkbox" id="teamBattleLoopCheck" disabled style="margin: 0; cursor: not-allowed; accent-color: #388bfd;">
             </label>
-            <button id="teamBattleActionBtn" type="button" class="btn btn-accent" style="flex: 1; min-width: 0; height: 28px; padding: 0 6px; font-size: 11px; font-weight: 700; justify-content: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: none !important;" title="Execute optimal battle move or action directly from Team Builder">&#9889; Attack</button>
+            <button id="teamBattleActionBtn" type="button" disabled class="btn" style="flex: 1; min-width: 0; height: 28px; padding: 0 6px; font-size: 11px; font-weight: 700; justify-content: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: none !important;" title="Disabled: Enter a battle page on DelugeRPG to attack">&#9889; Attack</button>
           </div>
         </div>
         <div style="display: flex; gap: 6px;">
-          <button id="copyTeamBtn" type="button" class="btn" style="flex: 1; height: 27px; font-size: 10.5px; box-shadow: none !important;" title="Copy lineup summary to clipboard">Copy</button>
-          <button id="applyTeamBtn" type="button" class="btn btn-green" style="flex: 1.2; height: 27px; font-size: 10.5px; font-weight: 700; box-shadow: none !important;" title="Equip this lineup in DelugeRPG">Change Team</button>
+          <button id="copyTeamBtn" type="button" disabled class="btn" style="flex: 1; height: 27px; font-size: 10.5px; box-shadow: none !important;" title="Copy lineup summary to clipboard">Copy</button>
+          <button id="applyTeamBtn" type="button" disabled class="btn btn-green" style="flex: 1.2; height: 27px; font-size: 10.5px; font-weight: 700; box-shadow: none !important;" title="Disabled: Build a team with at least 1 Pokemon first">Change Team</button>
           <button id="battleOpponentBtn" type="button" class="btn btn-accent" style="flex: 1.1; height: 27px; font-size: 10.5px; font-weight: 700; box-shadow: none !important;" title="Go directly to this opponent's battle arena on DelugeRPG">&#9876; Battle Now</button>
         </div>
       </div>
@@ -3362,7 +3362,15 @@
           <span style="font-size: 9.5px; font-weight: 700; color: #8eaad0; text-transform: uppercase; letter-spacing: 0.5px;">Active Decision</span>
           <span id="aiBattleOpponentBadge" style="font-size: 9.5px; font-weight: 700; color: #388bfd;">Select Pokemon Below</span>
         </div>
-        <div id="aiInstantActionSlot" style="margin-bottom: 6px; min-height: 26px; display: flex; flex-direction: column; gap: 4px;"></div>
+        <div id="aiActionControlsRow" style="margin-bottom: 6px; min-height: 26px; display: flex; align-items: center; gap: 4px; width: 100%;">
+          <label id="evoAutoLabel" style="display: flex; align-items: center; gap: 4px; height: 26px; padding: 0 6px; background: #070e1a; border: 1px solid #388bfd; border-radius: 4px; font-size: 10px; font-weight: 700; color: #58a6ff; cursor: pointer; user-select: none; flex-shrink: 0; box-shadow: none !important;" title="Auto Evolve: One-click completes this single Pokemon's full allowable evolution cycle">
+            <span>Auto</span>
+            <input type="checkbox" id="evoAutoCheck" checked style="margin: 0; cursor: pointer; accent-color: #388bfd;">
+          </label>
+          <div id="aiInstantActionSlot" style="flex: 1; min-width: 0; min-height: 26px; display: flex; flex-direction: column; gap: 4px;">
+            <button id="aiEvolveActionBtn" type="button" disabled class="btn" style="width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;" title="Disabled: No evolve-ready Pokemon available">&#129516; Evolve</button>
+          </div>
+        </div>
         <div id="aiTacticalBriefing">
           <div style="color: #8eaad0; text-align: center; padding: 6px 4px; font-size: 10px; font-weight: 600; background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px;">Select a Pokemon below</div>
         </div>

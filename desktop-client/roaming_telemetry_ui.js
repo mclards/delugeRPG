@@ -734,6 +734,7 @@ function handleLiveBattleOpponents(data) {
       ? lastKnownUserTeam
       : ((isPostBattle && Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > data.userTeam.length) ? lastRecommendedTeam : null);
     if ((data.isInActiveBattle || isPostBattle) && baseParty && baseParty.length > data.userTeam.length) {
+      const benchOnlyMissingWithRadios = Boolean(data.isInActiveBattle && data.userTeam.length <= 1 && data.hasBenchRadios);
       const isSameParty = data.userTeam.every(u => baseParty.some(m => matchesTeamEntryName(u, m)));
       if (isSameParty) {
         data.userTeam = baseParty.map((mem, idx) => {
@@ -761,7 +762,7 @@ function handleLiveBattleOpponents(data) {
             }
             return activeMerged;
           }
-          if (data.isInActiveBattle) {
+          if (data.isInActiveBattle && !benchOnlyMissingWithRadios) {
             return Object.assign({}, mem, { hp: 0, isFainted: true, index: idx });
           }
           return Object.assign({}, mem, { index: idx });
@@ -949,7 +950,7 @@ function handleLiveBattleOpponents(data) {
 
   // Auto-learn into gymLeadersData and persist to gym_leaders.json
   const curBattleUrl = (data.battleUrl || (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '').toLowerCase();
-  const isNpcBattle = curBattleUrl.includes('/battle/trainer/') || curBattleUrl.includes('/battle/gym/') || curBattleUrl.includes('/npc/');
+  const isNpcBattle = /\/battle\/(?:trainer|gym)(?:\/|\?|$)|\/npc\//i.test(curBattleUrl);
 
   if (gymLeadersData && data.trainerName && !data.isProfileStalk && isNpcBattle) {
     const matchedTrainers = [];
@@ -981,6 +982,21 @@ function handleLiveBattleOpponents(data) {
           return cName === cleanSearchName;
         });
         if (found.length > 0) matchedTrainers.push(...found);
+      }
+    }
+
+    if (matchedTrainers.length > 0 && liveBattleOpponent) {
+      const bestMatch = matchedTrainers[0];
+      const hasSpecificLiveUrl = /\/(?:battle\/(?:trainer|gym)|npc)\/\d+/i.test(String(liveBattleOpponent.battleUrl || ''));
+      if (!liveBattleOpponent.npcId && bestMatch.npcId) {
+        liveBattleOpponent.npcId = bestMatch.npcId;
+      }
+      if (!hasSpecificLiveUrl) {
+        if (bestMatch.battleUrl && /\/(?:battle\/(?:trainer|gym)|npc)\/\d+/i.test(bestMatch.battleUrl)) {
+          liveBattleOpponent.battleUrl = bestMatch.battleUrl;
+        } else if (bestMatch.npcId) {
+          liveBattleOpponent.battleUrl = `/battle/trainer/${bestMatch.npcId}`;
+        }
       }
     }
 

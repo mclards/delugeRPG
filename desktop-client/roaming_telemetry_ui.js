@@ -723,18 +723,74 @@ function handleLiveBattleOpponents(data) {
         if (knownMem && typeof knownMem.level === 'number') {
           u.level = knownMem.level;
           u.levelKnown = true;
+          u._placeholderHp = true;
+          if (!u.isFainted && (typeof u.maxHp !== 'number' || u.maxHp <= 100) && typeof knownMem.maxHp === 'number' && knownMem.maxHp > 0) {
+            u.maxHp = knownMem.maxHp;
+            u.hp = (typeof knownMem.hp === 'number' && knownMem.hp > 0) ? knownMem.hp : knownMem.maxHp;
+          }
         }
       }
     });
   }
 
   // Track and retain userTeam across preparation, challenge preview, and active battle screens
+  const matchFaintedSet = (typeof currentMatchFaintedPokemon !== 'undefined' && currentMatchFaintedPokemon) ? currentMatchFaintedPokemon : null;
+  const prevWasPostBattle = Boolean(
+    typeof activeAiBattleData !== 'undefined' &&
+    activeAiBattleData &&
+    (activeAiBattleData.isPostBattleScreen || activeAiBattleData.isVictoryScreen || activeAiBattleData.isDefeatScreen)
+  );
+  if (prevWasPostBattle && !isPostBattle && (data.isPreparationScreen || data.isInActiveBattle)) {
+    if (typeof currentMatchParticipants !== 'undefined') currentMatchParticipants.clear();
+    if (matchFaintedSet) matchFaintedSet.clear();
+    if (typeof justSwitchedActivePokemon !== 'undefined') justSwitchedActivePokemon.clear();
+    if (Array.isArray(lastKnownUserTeam)) {
+      lastKnownUserTeam = lastKnownUserTeam.map(mem => {
+        if (!mem) return mem;
+        const lvl = (typeof mem.level === 'number' && mem.level > 0) ? mem.level : 100;
+        const maxHp = (typeof mem.maxHp === 'number' && mem.maxHp > 0) ? mem.maxHp : (lvl * 4);
+        return Object.assign({}, mem, { hp: maxHp, maxHp: maxHp, isFainted: false });
+      });
+    }
+  }
   if (Array.isArray(data.userTeam) && data.userTeam.length > 0) {
-    const baseParty = (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > data.userTeam.length)
-      ? lastKnownUserTeam
-      : ((isPostBattle && Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > data.userTeam.length) ? lastRecommendedTeam : null);
-    if ((data.isInActiveBattle || isPostBattle) && baseParty && baseParty.length > data.userTeam.length) {
-      const benchOnlyMissingWithRadios = Boolean(data.isInActiveBattle && data.userTeam.length <= 1 && data.hasBenchRadios);
+    const rawLiveUserCount = data.userTeam.length;
+    const liveBenchCount = (typeof data.benchExtractedCount === 'number')
+      ? data.benchExtractedCount
+      : Math.max(0, rawLiveUserCount - (data.userActivePokemon ? 1 : 0));
+    const liveBenchRadiosCount = (typeof data.benchRadiosCount === 'number')
+      ? data.benchRadiosCount
+      : (data.hasBenchRadios ? Math.max(1, liveBenchCount) : 0);
+    const canInferMissingBenchAsFainted = Boolean(
+      data.isInActiveBattle &&
+      !data.isPreparationScreen &&
+      liveBenchCount > 0 &&
+      (liveBenchRadiosCount === 0 || liveBenchCount >= liveBenchRadiosCount) &&
+      (data.hasBenchRadios || data.hasSwitchBtn || (!data.hasContinueBtn && !data.hasSkipSelectionBtn && data.hasAttackBtn))
+    );
+    let baseParty = null;
+    if (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length >= rawLiveUserCount) {
+      baseParty = lastKnownUserTeam;
+    } else if ((data.isInActiveBattle || isPostBattle) && Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length >= rawLiveUserCount) {
+      baseParty = lastRecommendedTeam.map((rec, idx) => {
+        const lvl = (typeof rec.level === 'number' && rec.level > 0) ? rec.level : 100;
+        const fullRecName = (rec.variant && rec.variant !== 'Normal' && !String(rec.name || '').toLowerCase().startsWith(String(rec.variant).toLowerCase() + ' '))
+          ? (rec.variant + ' ' + rec.name)
+          : rec.name;
+        return {
+          name: fullRecName,
+          variant: rec.variant || 'Normal',
+          types: Array.isArray(rec.types) && rec.types.length > 0 ? rec.types : ['Normal'],
+          level: lvl,
+          levelKnown: true,
+          hp: lvl * 4,
+          maxHp: lvl * 4,
+          isFainted: false,
+          index: idx
+        };
+      });
+    }
+    if ((data.isInActiveBattle || isPostBattle) && baseParty && baseParty.length >= rawLiveUserCount) {
       const isSameParty = data.userTeam.every(u => baseParty.some(m => matchesTeamEntryName(u, m)));
       if (isSameParty) {
         data.userTeam = baseParty.map((mem, idx) => {
@@ -745,12 +801,32 @@ function handleLiveBattleOpponents(data) {
               merged.level = mem.level;
               merged.levelKnown = true;
             }
-            if (!data.isPreparationScreen && (mem.isFainted || (typeof mem.hp === 'number' && mem.hp <= 0))) {
+            const liveIsExplicitlyFainted = Boolean(liveMatch.isFainted || (typeof liveMatch.hp === 'number' && liveMatch.hp <= 0));
+            const liveIsAlive = Boolean(!liveIsExplicitlyFainted && (liveMatch.aliveProven || data.isPreparationScreen || (typeof liveMatch.hp === 'number' && liveMatch.hp > 0)));
+            if (liveIsAlive) {
+              merged.isFainted = false;
+              if (liveMatch.levelKnown === false || liveMatch._placeholderHp) {
+                if (typeof mem.maxHp === 'number' && mem.maxHp > 0) merged.maxHp = mem.maxHp;
+                else if (typeof merged.level === 'number' && merged.level > 0) merged.maxHp = merged.level * 4;
+                if (typeof mem.hp === 'number' && mem.hp > 0) {
+                  merged.hp = mem.hp;
+                } else if (typeof merged.maxHp === 'number' && merged.maxHp > 0) {
+                  merged.hp = merged.maxHp;
+                }
+              }
+              delete merged._placeholderHp;
+              if (matchFaintedSet && merged.name) {
+                matchFaintedSet.delete(merged.name.toLowerCase());
+              }
+            } else if (liveIsExplicitlyFainted) {
               merged.isFainted = true;
               merged.hp = 0;
-            } else if (!liveMatch.isFainted && liveMatch.levelKnown === false) {
-              if (typeof mem.hp === 'number' && mem.hp > 0) merged.hp = mem.hp;
-              if (typeof mem.maxHp === 'number' && mem.maxHp > 0) merged.maxHp = mem.maxHp;
+              if (matchFaintedSet && merged.name) {
+                matchFaintedSet.add(merged.name.toLowerCase());
+              }
+            } else if (!data.isPreparationScreen && (mem.isFainted || (typeof mem.hp === 'number' && mem.hp <= 0))) {
+              merged.isFainted = true;
+              merged.hp = 0;
             }
             return merged;
           }
@@ -760,9 +836,25 @@ function handleLiveBattleOpponents(data) {
               activeMerged.level = mem.level;
               activeMerged.levelKnown = true;
             }
+            if (activeMerged.isFainted || (typeof activeMerged.hp === 'number' && activeMerged.hp <= 0)) {
+              activeMerged.isFainted = true;
+              activeMerged.hp = 0;
+              if (matchFaintedSet && activeMerged.name) matchFaintedSet.add(activeMerged.name.toLowerCase());
+            } else if (matchFaintedSet && activeMerged.name && typeof activeMerged.hp === 'number' && activeMerged.hp > 0) {
+              matchFaintedSet.delete(activeMerged.name.toLowerCase());
+            }
             return activeMerged;
           }
-          if (data.isInActiveBattle && !benchOnlyMissingWithRadios) {
+          const memKey = (mem && mem.name) ? mem.name.toLowerCase() : '';
+          const memHasParticipated = Boolean(
+            typeof currentMatchParticipants === 'undefined' ||
+            currentMatchParticipants.size === 0 ||
+            (memKey && currentMatchParticipants.has(memKey)) ||
+            mem.isFainted ||
+            (matchFaintedSet && memKey && matchFaintedSet.has(memKey))
+          );
+          if (canInferMissingBenchAsFainted && memHasParticipated) {
+            if (matchFaintedSet && memKey) matchFaintedSet.add(memKey);
             return Object.assign({}, mem, { hp: 0, isFainted: true, index: idx });
           }
           return Object.assign({}, mem, { index: idx });
@@ -781,19 +873,41 @@ function handleLiveBattleOpponents(data) {
     );
     if (isFreshMatchPrep) {
       currentMatchParticipants.clear();
+      if (matchFaintedSet) matchFaintedSet.clear();
       justSwitchedActivePokemon.clear();
       currentMatchSwitchCount = 0;
       currentMatchItemCount = 0;
       lastTurnActionType = null;
+      data.userTeam = data.userTeam.map(u => {
+        if (!u || !u.isFainted) return u;
+        const lvl = (typeof u.level === 'number' && u.level > 0) ? u.level : 100;
+        const maxHp = (typeof u.maxHp === 'number' && u.maxHp > 0) ? u.maxHp : (lvl * 4);
+        return Object.assign({}, u, { hp: maxHp, maxHp: maxHp, isFainted: false });
+      });
+      lastKnownUserTeam = data.userTeam;
     }
     if (data.userActivePokemon && data.userActivePokemon.name) {
-      currentMatchParticipants.add(data.userActivePokemon.name.toLowerCase());
+      const actKey = data.userActivePokemon.name.toLowerCase();
+      currentMatchParticipants.add(actKey);
+      if (matchFaintedSet) {
+        if (data.userActivePokemon.isFainted || (typeof data.userActivePokemon.hp === 'number' && data.userActivePokemon.hp <= 0)) {
+          matchFaintedSet.add(actKey);
+        } else if (typeof data.userActivePokemon.hp === 'number' && data.userActivePokemon.hp > 0) {
+          matchFaintedSet.delete(actKey);
+        }
+      }
     }
     if (!isFreshMatchPrep) {
       data.userTeam.forEach(u => {
         if (!u || !u.name) return;
+        const uKey = u.name.toLowerCase();
         if (u.isFainted || (typeof u.hp === 'number' && typeof u.maxHp === 'number' && u.maxHp > 0 && u.hp < u.maxHp)) {
-          currentMatchParticipants.add(u.name.toLowerCase());
+          currentMatchParticipants.add(uKey);
+          if (matchFaintedSet && (u.isFainted || (typeof u.hp === 'number' && u.hp <= 0))) {
+            matchFaintedSet.add(uKey);
+          }
+        } else if (matchFaintedSet && !u.isFainted && (u.aliveProven || (typeof u.hp === 'number' && u.hp > 0))) {
+          matchFaintedSet.delete(uKey);
         }
       });
     }
@@ -914,6 +1028,12 @@ function handleLiveBattleOpponents(data) {
     }
   }
 
+  if (typeof currentMatchParticipants !== 'undefined' && currentMatchParticipants) {
+    data.matchParticipants = Array.from(currentMatchParticipants);
+  }
+  if (matchFaintedSet) {
+    data.verifiedFaintedNames = Array.from(matchFaintedSet);
+  }
   activeAiBattleData = data;
   if (typeof updateLiveAiAssistantUI === 'function') {
     updateLiveAiAssistantUI(data);

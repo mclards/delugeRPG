@@ -2826,6 +2826,243 @@ console.log('\n--- TEST 3N: Single-Pokemon One-Click Auto Evolve Cycle (Auto [x]
   console.log('[PASS] Single-Pokemon One-Click Auto Evolve Cycle (Auto [x] Checkbox) verified.');
 }
 
+// 3O. Inter-Turn Continue Bench Preservation, Sticky-Faint Heal & Carry-Before-Forfeit Guard
+console.log('\n--- TEST 3O: Inter-Turn Continue Bench Preservation, Sticky-Faint Heal & Carry-Before-Forfeit Guard ---');
+{
+  const vm = require('vm');
+  const roamingCode = fs.readFileSync(path.join(__dirname, 'roaming_telemetry_ui.js'), 'utf8');
+  const appCode = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const preloadCode = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
+  const aiAssistant = require('./ai_agent_bridge');
+
+  const sidneyTeamTemplate = () => ([
+    { slot: 1, id: 'carry1', name: 'Dark Slither Wing', variant: 'Dark', types: ['Bug', 'Fighting'], level: 100, levelKnown: true, hp: 400, maxHp: 400, isFainted: false, isCarry: true, moves: [{ name: 'Focus Punch', type: 'Fighting', power: 150 }, { name: 'Megahorn', type: 'Bug', power: 120 }] },
+    { slot: 2, id: 'tr1', name: 'Dark Genesect (Chill)', variant: 'Dark', types: ['Bug', 'Steel'], level: 60, levelKnown: true, hp: 240, maxHp: 240, isFainted: false, isCarry: false, targetName: 'Primary Trainee Partner', moves: [{ name: 'X-Scissor', type: 'Bug', power: 80 }] },
+    { slot: 3, id: 'tr2', name: 'Zacian (Behemoth Blade)', variant: 'Normal', types: ['Fairy', 'Steel'], level: 66, levelKnown: true, hp: 264, maxHp: 264, isFainted: false, isCarry: false, targetName: 'Trainee #3' },
+    { slot: 4, id: 'tr3', name: 'Negative Mesprit', variant: 'Negative', types: ['Psychic'], level: 73, levelKnown: true, hp: 292, maxHp: 292, isFainted: false, isCarry: false, targetName: 'Trainee #4' },
+    { slot: 5, id: 'tr4', name: 'Metallic Iron Hands', variant: 'Metallic', types: ['Fighting', 'Electric'], level: 44, levelKnown: true, hp: 176, maxHp: 176, isFainted: false, isCarry: false, targetName: 'Trainee #5' },
+    { slot: 6, id: 'tr5', name: 'Arceus (Fire)', variant: 'Normal', types: ['Fire'], level: 78, levelKnown: true, hp: 312, maxHp: 312, isFainted: false, isCarry: false, targetName: 'Trainee #6' }
+  ]);
+  const sidneyRosterAfterSharpedoKo = () => ([
+    { name: 'Mightyena', types: ['Dark'], level: 100, hp: 400, maxHp: 400, isFainted: false },
+    { name: 'Shiftry', types: ['Grass', 'Dark'], level: 100, hp: 400, maxHp: 400, isFainted: false },
+    { name: 'Cacturne', types: ['Grass', 'Dark'], level: 100, hp: 400, maxHp: 400, isFainted: false },
+    { name: 'Sharpedo', types: ['Water', 'Dark'], level: 100, hp: 0, maxHp: 400, isFainted: true, isCurrentActive: true },
+    { name: 'Absol', types: ['Dark'], level: 100, hp: 400, maxHp: 400, isFainted: false }
+  ]);
+
+  let capturedAnalysisInput = null;
+  const rSandbox = {
+    currentCollection: sidneyTeamTemplate(),
+    lastRecommendedTeam: sidneyTeamTemplate(),
+    lastKnownUserTeam: sidneyTeamTemplate(),
+    teamRosterMode: 'TRAINING',
+    isBattleLoopRunning: false,
+    liveBattleOpponent: null,
+    activeAiBattleData: null,
+    battleLoopTimer: null,
+    delugeView: null,
+    teamTrainerSelect: null,
+    currentMatchParticipants: new Set(['dark genesect (chill)']),
+    currentMatchFaintedPokemon: new Set(),
+    justSwitchedActivePokemon: new Set(),
+    currentMatchSwitchCount: 0,
+    currentMatchItemCount: 0,
+    lastSelectedBattleUrl: '',
+    lastLoggedBattleOpponentSig: '',
+    gymLeadersData: null,
+    activePvpTargetType: 'NPC',
+    teamBattleMode: 'NPC',
+    pvpStrategy: 'COUNTERS',
+    lastTurnActionType: null,
+    candidateListsCache: { trainingByPool: {} },
+    backendLog: () => {},
+    updateLiveAiAssistantUI: (d) => { capturedAnalysisInput = d; },
+    updateTeamBuilderBattleAction: () => {},
+    isWildHuntingOrCatchContext: () => false,
+    stopAllBattleAutomation: () => {},
+    updateLiveBattleHUD: () => {},
+    syncTeamSelectorsWithLiveOpponent: () => {},
+    renderTeamLineup: () => {},
+    refreshCandidateListsCache: () => {},
+    updateRosterModeUI: () => {},
+    updateTrainerIntelStats: () => {},
+    syncUserCollectionToGuest: () => {},
+    document: { getElementById: () => null }
+  };
+  vm.runInNewContext(roamingCode.slice(roamingCode.indexOf('function matchesTeamEntryName')), rSandbox);
+
+  // 3O-1: Exact Sidney KO Continue screen (Sharpedo fainted, Genesect Lv 60 alive at 91/240, Skip Selection + Forfeit, 0 bench radios)
+  rSandbox.handleLiveBattleOpponents({
+    trainerName: 'Sidney',
+    battleUrl: '/battle/trainer/123',
+    isInActiveBattle: true,
+    isPreparationScreen: false,
+    hasContinueBtn: true,
+    hasSkipSelectionBtn: true,
+    hasAttackBtn: false,
+    hasSwitchBtn: false,
+    hasBenchRadios: false,
+    benchExtractedCount: 0,
+    benchRadiosCount: 0,
+    hasForfeitBtn: true,
+    userActivePokemon: { name: 'Dark Genesect (Chill)', variant: 'Dark', types: ['Bug', 'Steel'], level: 60, levelKnown: true, hp: 91, maxHp: 240, isFainted: false, aliveProven: true },
+    userTeam: [{ name: 'Dark Genesect (Chill)', variant: 'Dark', types: ['Bug', 'Steel'], level: 60, levelKnown: true, hp: 91, maxHp: 240, isFainted: false, aliveProven: true }],
+    roster: sidneyRosterAfterSharpedoKo()
+  });
+
+  assert.strictEqual(rSandbox.lastKnownUserTeam.length, 6, '3O-1: Must preserve all 6 bench members across Continue screen');
+  const carry3O1 = rSandbox.lastKnownUserTeam.find(u => u.name === 'Dark Slither Wing');
+  assert(carry3O1 && !carry3O1.isFainted && carry3O1.hp === 400, '3O-1: Lv 100 Carry Anchor Dark Slither Wing MUST remain alive (HP 400)');
+  const koContinueAnalysis = aiAssistant.analyzeBattle(capturedAnalysisInput, rSandbox.currentCollection);
+  assert.strictEqual(koContinueAnalysis.shouldForfeitBattle, false, '3O-1: Must NOT forfeit when bench Carry never battled and trainee won turn');
+
+  const actStart = appCode.indexOf('function formatCompactBattleName(');
+  const actEnd = appCode.indexOf('\nfunction updateTeamBuilderBattleAction(', actStart);
+  assert(actStart !== -1 && actEnd !== -1, 'computeAiBattleActionConfig must exist in app.js');
+  const actSandbox = {
+    isUnlockChallengeActive: false,
+    isCaptchaAlarmActive: false,
+    aiAssistant: aiAssistant,
+    teamBattleMode: 'NPC',
+    teamRosterMode: 'TRAINING',
+    currentMatchParticipants: rSandbox.currentMatchParticipants,
+    justSwitchedActivePokemon: new Set(),
+    currentMatchSwitchCount: 0,
+    currentMatchItemCount: 0,
+    lastTurnActionType: null,
+    executeAiBattleAction: () => {},
+    escapeHtml: (s) => String(s || ''),
+    backendLog: () => {}
+  };
+  vm.runInNewContext(appCode.slice(actStart, actEnd), actSandbox);
+  const koBtnCfg = actSandbox.computeAiBattleActionConfig(capturedAnalysisInput, rSandbox.currentCollection);
+  assert(koBtnCfg && koBtnCfg.hudText === 'Skip & Continue' && !koBtnCfg.hudText.includes('Forfeit'), '3O-1: Button MUST render Skip Selection & Continue, never Forfeit');
+
+  // 3O-2: Primary Trainee faints Turn 1 -> Continue screen before Switch grid loads
+  rSandbox.handleLiveBattleOpponents({
+    trainerName: 'Sidney',
+    battleUrl: '/battle/trainer/123',
+    isInActiveBattle: true,
+    isPreparationScreen: false,
+    hasContinueBtn: true,
+    hasSkipSelectionBtn: false,
+    hasAttackBtn: false,
+    hasSwitchBtn: false,
+    hasBenchRadios: false,
+    benchExtractedCount: 0,
+    benchRadiosCount: 0,
+    hasForfeitBtn: true,
+    userActivePokemon: { name: 'Dark Genesect (Chill)', variant: 'Dark', types: ['Bug', 'Steel'], level: 60, levelKnown: true, hp: 0, maxHp: 240, isFainted: true, aliveProven: false },
+    userTeam: [{ name: 'Dark Genesect (Chill)', variant: 'Dark', types: ['Bug', 'Steel'], level: 60, levelKnown: true, hp: 0, maxHp: 240, isFainted: true, aliveProven: false }],
+    roster: sidneyRosterAfterSharpedoKo().map(p => p.name === 'Shiftry' ? Object.assign({}, p, { isCurrentActive: true }) : Object.assign({}, p, { isCurrentActive: false }))
+  });
+  const carry3O2 = rSandbox.lastKnownUserTeam.find(u => u.name === 'Dark Slither Wing');
+  assert(carry3O2 && !carry3O2.isFainted && carry3O2.hp === 400, '3O-2: Carry MUST remain alive on Continue screen after trainee faints');
+  const postFaintContinueAnalysis = aiAssistant.analyzeBattle(capturedAnalysisInput, rSandbox.currentCollection);
+  assert.strictEqual(postFaintContinueAnalysis.shouldForfeitBattle, false, '3O-2: Must NOT forfeit after trainee faints while Carry is on bench');
+  assert.strictEqual(postFaintContinueAnalysis.nextAliveCounter, 'Dark Slither Wing', '3O-2: Next counter after trainee faints MUST be Dark Slither Wing');
+
+  // 3O-3: Sticky-faint healing via aliveProven=true AND lastRecommendedTeam fallback when lastKnownUserTeam is empty
+  rSandbox.lastKnownUserTeam = sidneyTeamTemplate().map(m => m.name === 'Dark Slither Wing' ? Object.assign({}, m, { hp: 0, isFainted: true }) : m);
+  rSandbox.currentMatchFaintedPokemon.add('dark slither wing');
+  rSandbox.handleLiveBattleOpponents({
+    trainerName: 'Sidney',
+    battleUrl: '/battle/trainer/123',
+    isInActiveBattle: true,
+    isPreparationScreen: false,
+    hasAttackBtn: true,
+    hasSwitchBtn: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 5,
+    benchRadiosCount: 5,
+    hasForfeitBtn: true,
+    userActivePokemon: { name: 'Dark Genesect (Chill)', variant: 'Dark', types: ['Bug', 'Steel'], level: 60, levelKnown: true, hp: 240, maxHp: 240, isFainted: false, aliveProven: true },
+    userTeam: [
+      { name: 'Dark Genesect (Chill)', variant: 'Dark', level: 60, levelKnown: true, hp: 240, maxHp: 240, isFainted: false, aliveProven: true },
+      { name: 'Dark Slither Wing', variant: 'Dark', level: 100, levelKnown: false, hp: 100, maxHp: 100, isFainted: false, aliveProven: true },
+      { name: 'Zacian (Behemoth Blade)', variant: 'Normal', level: 100, levelKnown: false, hp: 100, maxHp: 100, isFainted: false, aliveProven: true },
+      { name: 'Negative Mesprit', variant: 'Negative', level: 100, levelKnown: false, hp: 100, maxHp: 100, isFainted: false, aliveProven: true },
+      { name: 'Metallic Iron Hands', variant: 'Metallic', level: 100, levelKnown: false, hp: 100, maxHp: 100, isFainted: false, aliveProven: true },
+      { name: 'Arceus (Fire)', variant: 'Normal', level: 100, levelKnown: false, hp: 100, maxHp: 100, isFainted: false, aliveProven: true }
+    ],
+    roster: sidneyRosterAfterSharpedoKo()
+  });
+  const healedCarry = rSandbox.lastKnownUserTeam.find(u => u.name === 'Dark Slither Wing');
+  assert(healedCarry && !healedCarry.isFainted && healedCarry.hp === 400, '3O-3: Live DOM aliveProven=true MUST heal sticky-fainted Carry');
+  assert(!rSandbox.currentMatchFaintedPokemon.has('dark slither wing'), '3O-3: Healed Carry MUST be cleared from currentMatchFaintedPokemon');
+
+  rSandbox.lastKnownUserTeam = [];
+  rSandbox.handleLiveBattleOpponents({
+    trainerName: 'Sidney',
+    battleUrl: '/battle/trainer/123',
+    isInActiveBattle: true,
+    isPreparationScreen: false,
+    hasContinueBtn: true,
+    hasSkipSelectionBtn: true,
+    hasBenchRadios: false,
+    benchExtractedCount: 0,
+    benchRadiosCount: 0,
+    hasForfeitBtn: true,
+    userActivePokemon: { name: 'Dark Genesect (Chill)', variant: 'Dark', types: ['Bug', 'Steel'], level: 60, levelKnown: true, hp: 91, maxHp: 240, isFainted: false, aliveProven: true },
+    userTeam: [{ name: 'Dark Genesect (Chill)', variant: 'Dark', types: ['Bug', 'Steel'], level: 60, levelKnown: true, hp: 91, maxHp: 240, isFainted: false, aliveProven: true }],
+    roster: sidneyRosterAfterSharpedoKo()
+  });
+  assert.strictEqual(rSandbox.lastKnownUserTeam.length, 6, '3O-3: Empty lastKnownUserTeam on Continue MUST fall back to lastRecommendedTeam');
+  const fallbackCarry = rSandbox.lastKnownUserTeam.find(u => u.name === 'Dark Slither Wing');
+  assert(fallbackCarry && !fallbackCarry.isFainted && fallbackCarry.hp === 400, '3O-3: Fallback Carry MUST remain alive');
+
+  // 3O-4: Carry verified-faint + participation barrier in ai_agent_bridge
+  const fakeDeadTeam = sidneyTeamTemplate().map(m => {
+    if (m.name === 'Dark Slither Wing' || m.name === 'Dark Genesect (Chill)' || m.name === 'Zacian (Behemoth Blade)' || m.name === 'Negative Mesprit' || m.name === 'Arceus (Fire)') {
+      return Object.assign({}, m, { hp: 0, isFainted: true });
+    }
+    return m;
+  });
+  const unverifiedCarryDead = aiAssistant.analyzeBattle({
+    trainerName: 'Sidney',
+    isInActiveBattle: true,
+    hasAttackBtn: false,
+    hasContinueBtn: false,
+    hasBenchRadios: true,
+    benchExtractedCount: 1,
+    benchRadiosCount: 1,
+    hasForfeitBtn: true,
+    matchParticipants: ['dark genesect (chill)'],
+    verifiedFaintedNames: ['dark genesect (chill)'],
+    userActivePokemon: { name: 'Dark Genesect (Chill)', variant: 'Dark', types: ['Bug', 'Steel'], level: 60, hp: 0, maxHp: 240, isFainted: true },
+    userTeam: fakeDeadTeam,
+    roster: sidneyRosterAfterSharpedoKo()
+  }, sidneyTeamTemplate());
+  assert.strictEqual(unverifiedCarryDead.shouldForfeitBattle, false, '3O-4: Must NEVER forfeit when Carry is missing from verifiedFaintedNames/matchParticipants');
+
+  const verifiedCarryDead = aiAssistant.analyzeBattle({
+    trainerName: 'Sidney',
+    isInActiveBattle: true,
+    hasAttackBtn: false,
+    hasContinueBtn: false,
+    hasBenchRadios: true,
+    benchExtractedCount: 1,
+    benchRadiosCount: 1,
+    hasForfeitBtn: true,
+    matchParticipants: ['dark genesect (chill)', 'dark slither wing'],
+    verifiedFaintedNames: ['dark genesect (chill)', 'dark slither wing', 'zacian (behemoth blade)', 'negative mesprit', 'arceus (fire)'],
+    userActivePokemon: { name: 'Dark Slither Wing', variant: 'Dark', types: ['Bug', 'Fighting'], level: 100, hp: 0, maxHp: 400, isFainted: true },
+    userTeam: fakeDeadTeam,
+    roster: sidneyRosterAfterSharpedoKo()
+  }, sidneyTeamTemplate());
+  assert.strictEqual(verifiedCarryDead.shouldForfeitBattle, true, '3O-4: Must forfeit only once Carry actually participated and fainted with unwinnable babies left');
+
+  // 3O-5: Static audit of game-preload.js & app.js hardening symbols
+  assert(preloadCode.includes('canInferMissingBenchAsFainted'), '3O-5: game-preload.js must gate missing bench inference with canInferMissingBenchAsFainted');
+  assert(preloadCode.includes('benchExtractedCount:') && preloadCode.includes('benchRadiosCount:'), '3O-5: game-preload.js must emit benchExtractedCount and benchRadiosCount');
+  assert(preloadCode.includes('aliveProven:'), '3O-5: game-preload.js must emit aliveProven on userActivePokemon and bench cards');
+  assert(preloadCode.includes('resetPreloadUserTeamHealth()'), '3O-5: game-preload.js must reset cached team health on rematch/forfeit');
+  assert(appCode.includes('healLastKnownUserTeamForNewMatch') && appCode.includes('blockForfeitOnAliveContinue'), '3O-5: app.js must include healLastKnownUserTeamForNewMatch and blockForfeitOnAliveContinue');
+
+  console.log('[PASS] Inter-Turn Continue Bench Preservation, Sticky-Faint Heal & Carry-Before-Forfeit Guard verified.');
+}
+
 // 4. Verify 100% 7-bit Clean ASCII across all files
 console.log('\n--- TEST 4: 100% 7-bit Clean ASCII Verification ---');
 const clientFiles = [

@@ -487,10 +487,38 @@ class DelugeAiAssistant {
         return false;
       });
 
-      const hasUnparsedBenchRadios = Boolean(battleData.hasBenchRadios && teamCandidates.length <= 1);
+      const benchRadiosCount = typeof battleData.benchRadiosCount === 'number' ? battleData.benchRadiosCount : 0;
+      const benchExtractedCount = typeof battleData.benchExtractedCount === 'number' ? battleData.benchExtractedCount : null;
+      const hasIncompleteBenchTelemetry = Boolean(
+        (battleData.hasBenchRadios && teamCandidates.length <= 1) ||
+        ((battleData.hasContinueBtn || battleData.hasSkipSelectionBtn) && !battleData.hasBenchRadios && !battleData.hasAttackBtn && teamCandidates.length <= 1) ||
+        (benchRadiosCount > 0 && benchExtractedCount !== null && benchExtractedCount < benchRadiosCount)
+      );
+      const isAliveInterTurnContinue = Boolean(
+        !isActiveBattlerFainted &&
+        (battleData.hasContinueBtn || battleData.hasSkipSelectionBtn) &&
+        (isActiveOppFainted || battleData.hasSkipSelectionBtn)
+      );
+      let carryHasNotFaintedInMatch = Boolean(isTrainingTeam && trainingCarry && !trainingCarry.isFainted && (trainingCarry.hp === undefined || trainingCarry.hp > 0));
+      if (!carryHasNotFaintedInMatch && isTrainingTeam && trainingCarry && trainingCarry.name) {
+        const carryNameLow = String(trainingCarry.name).toLowerCase();
+        const carryFullLow = formatPokemonFullName(trainingCarry.variant, trainingCarry.name).toLowerCase();
+        const matchesCarryKey = (entry) => {
+          const s = String(entry || '').toLowerCase();
+          return Boolean(s && (s === carryNameLow || s === carryFullLow));
+        };
+        if (Array.isArray(battleData.verifiedFaintedNames) && !battleData.verifiedFaintedNames.some(matchesCarryKey)) {
+          carryHasNotFaintedInMatch = true;
+        }
+        if (Array.isArray(battleData.matchParticipants) && !battleData.matchParticipants.some(matchesCarryKey)) {
+          carryHasNotFaintedInMatch = true;
+        }
+      }
       const shouldForfeitBattle = Boolean(
         !isChallLocked &&
-        !hasUnparsedBenchRadios &&
+        !hasIncompleteBenchTelemetry &&
+        !isAliveInterTurnContinue &&
+        !carryHasNotFaintedInMatch &&
         remainingOppCount >= 1 &&
         totalRemOppHp >= 80 &&
         allCapableFightersFainted &&

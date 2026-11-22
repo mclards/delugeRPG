@@ -683,6 +683,7 @@ const aiInstantActionSlot = document.getElementById('aiInstantActionSlot');
 const aiHudActionBtn = document.getElementById('aiHudActionBtn');
 let activeAiBattleData = null;
 let currentMatchParticipants = new Set();
+let currentMatchFaintedPokemon = new Set();
 let justSwitchedActivePokemon = new Set();
 let currentMatchSwitchCount = 0;
 let currentMatchItemCount = 0;
@@ -691,6 +692,23 @@ let activeEvolveCardData = null;
 let lastAnnouncedEvolveSignature = null;
 let lastAnalyzedBattle = null;
 let lastKnownUserTeam = [];
+
+function healLastKnownUserTeamForNewMatch() {
+  if (typeof currentMatchParticipants !== 'undefined') currentMatchParticipants.clear();
+  if (typeof currentMatchFaintedPokemon !== 'undefined') currentMatchFaintedPokemon.clear();
+  if (typeof justSwitchedActivePokemon !== 'undefined') justSwitchedActivePokemon.clear();
+  currentMatchSwitchCount = 0;
+  currentMatchItemCount = 0;
+  lastTurnActionType = null;
+  if (Array.isArray(lastKnownUserTeam)) {
+    lastKnownUserTeam = lastKnownUserTeam.map(mem => {
+      if (!mem) return mem;
+      const lvl = (typeof mem.level === 'number' && mem.level > 0) ? mem.level : 100;
+      const maxHp = (typeof mem.maxHp === 'number' && mem.maxHp > 0) ? mem.maxHp : (lvl * 4);
+      return Object.assign({}, mem, { hp: maxHp, maxHp: maxHp, isFainted: false });
+    });
+  }
+}
 
 // Evolution & Attack Moves Decision Maker Elements
 const evoSearchInput = document.getElementById('evoSearchInput');
@@ -8581,6 +8599,8 @@ if (battleOpponentBtn) {
       isBattleAutoRunning = true;
     }
 
+    healLastKnownUserTeamForNewMatch();
+
     battleOpponentBtn.disabled = true;
     if (applyTeamBtn) applyTeamBtn.disabled = true;
     battleOpponentBtn.innerHTML = '<span>&#8635;</span> <span>Entering...</span>';
@@ -8924,14 +8944,8 @@ function scheduleNextLoopBattle() {
     // Arm auto battle for the incoming match
     isBattleAutoRunning = true;
 
-    // Reset match-scoped participant/switch counters for the incoming match
-    if (activeAiBattleData) {
-      if (typeof currentMatchParticipants !== 'undefined') currentMatchParticipants.clear();
-      if (typeof justSwitchedActivePokemon !== 'undefined') justSwitchedActivePokemon.clear();
-      currentMatchSwitchCount = 0;
-      currentMatchItemCount = 0;
-      lastTurnActionType = null;
-    }
+    // Reset match-scoped participant/fainted counters and heal cached party for the incoming match
+    healLastKnownUserTeamForNewMatch();
 
     if (teamActionStatus) {
       teamActionStatus.textContent = 'Loop: Entering next battle...';
@@ -10274,7 +10288,11 @@ function computeAiBattleActionConfig(battleData, collection) {
 
   // Precision Tactical Forfeit: When Carry and all >= Lv 85 fighters are fainted and remaining babies cannot win,
   // immediately click "Forfeit" and continue the Loop into the next battle without wasting time.
-  if (analysis.shouldForfeitBattle && analysis.hasForfeitBtn) {
+  const blockForfeitOnAliveContinue = Boolean(
+    isBattlerAlive &&
+    (analysis.hasContinueBtn || analysis.hasSkipSelectionBtn)
+  );
+  if (analysis.shouldForfeitBattle && analysis.hasForfeitBtn && !blockForfeitOnAliveContinue) {
     return {
       labelHtml: '&#9873; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Forfeit (Unwinnable - Next Loop)</span>',
       hudText: 'Forfeit & Loop',
@@ -10786,6 +10804,8 @@ function executeAiBattleAction(action, payload) {
     currentMatchItemCount++;
     lastTurnActionType = 'use-battle-item';
     backendLog('BOT_ACTION', `execute-battle-action: use-battle-item (${payload && payload.itemName ? payload.itemName : 'Full Restore'}) (match item count: ${currentMatchItemCount})`);
+  } else if (action === 'forfeit-battle' || action === 'click-rematch-button') {
+    healLastKnownUserTeamForNewMatch();
   }
   if (teamBattleActionBtn) {
     teamBattleActionBtn.disabled = true;

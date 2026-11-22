@@ -6510,6 +6510,16 @@ let lastKnownTrainerName = '';
 const knownVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
 const observedOpponentMoveKeys = new Set();
 
+function resetPreloadUserTeamHealth() {
+    if (!Array.isArray(lastKnownUserTeam)) return;
+    lastKnownUserTeam = lastKnownUserTeam.map(mem => {
+        if (!mem) return mem;
+        const lvl = (typeof mem.level === 'number' && mem.level > 0) ? mem.level : 100;
+        const maxHp = (typeof mem.maxHp === 'number' && mem.maxHp > 0) ? mem.maxHp : (lvl * 4);
+        return Object.assign({}, mem, { hp: maxHp, maxHp: maxHp, isFainted: false });
+    });
+}
+
 function extractBattleDomVariant(rawName, elOrSprite) {
     const cleanName = String(rawName || '').trim();
     const specialVariants = ['Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
@@ -7050,6 +7060,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                         hp: pHp,
                         maxHp: pMaxHp,
                         isFainted: (pHp <= 0),
+                        aliveProven: (pHp > 0),
                         sprite: pSprite
                     };
                 }
@@ -7186,6 +7197,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                     const matchedWasFainted = Boolean(matched && (matched.isFainted || (typeof matched.hp === 'number' && matched.hp <= 0)));
                     let rHp = matchedWasFainted ? 0 : ((matched && typeof matched.hp === 'number' && matched.hp > 0) ? matched.hp : 100);
                     let rMaxHp = (matched && typeof matched.maxHp === 'number' && matched.maxHp > 0) ? matched.maxHp : 100;
+                    let parsedDomHp = false;
                     const rLvlEl = rItem.querySelector('.battlelistlvlhp, .hp');
                     if (rLvlEl) {
                         const rTxt = rLvlEl.textContent || '';
@@ -7196,6 +7208,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                         }
                         const hpM2 = rTxt.match(/HP:\s*(\d+)(?:\s*\/\s*(\d+))?/i);
                         if (hpM2) {
+                            parsedDomHp = true;
                             rHp = parseInt(hpM2[1], 10);
                             if (hpM2[2]) rMaxHp = parseInt(hpM2[2], 10);
                         }
@@ -7206,8 +7219,11 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                     const rRadioEl = rItem.querySelector('input[type="radio"]');
                     const rZeroBar = rItem.querySelector('[style*="width: 0%"], [style*="width:0%"], [style*="width: 0px"], [style*="width:0px"]');
                     const rStyle = rItem.getAttribute('style') || '';
-                    const rFainted = matchedWasFainted || (rHp <= 0) || Boolean(rRadioEl && rRadioEl.disabled) || Boolean(rZeroBar) || /\bfainted\b/i.test(rItem.textContent || '') || rItem.classList.contains('fainted') || rItem.classList.contains('dead') || rStyle.includes('opacity: 0.5') || rStyle.includes('opacity:0.5');
+                    const rDomFainted = (parsedDomHp && rHp <= 0) || Boolean(rRadioEl && rRadioEl.disabled) || Boolean(rZeroBar) || /\bfainted\b/i.test(rItem.textContent || '') || rItem.classList.contains('fainted') || rItem.classList.contains('dead') || rStyle.includes('opacity: 0.5') || rStyle.includes('opacity:0.5');
+                    const rDomAliveProof = Boolean((parsedDomHp && rHp > 0) || (rRadioEl && !rRadioEl.disabled && !rDomFainted));
+                    const rFainted = rDomAliveProof ? false : (rDomFainted || matchedWasFainted);
                     if (rFainted) rHp = 0;
+                    else if (rHp <= 0) rHp = (rMaxHp > 0 ? rMaxHp : (hasKnownLvl ? rLevel * 4 : 100));
                     userTeam.push({
                         name: rName,
                         variant: rVariant,
@@ -7217,6 +7233,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                         hp: rHp,
                         maxHp: rMaxHp,
                         isFainted: rFainted,
+                        aliveProven: rDomAliveProof,
                         index: i
                     });
                 }
@@ -7245,9 +7262,11 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                                          card.querySelector('[style*="width: 0%"], [style*="width:0%"], [style*="width: 0px"], [style*="width:0px"]');
                         const cStyle = (infoEl && infoEl.getAttribute && infoEl.getAttribute('style')) || card.getAttribute('style') || '';
                         const infoText = ((infoEl && infoEl.textContent) || '') + ' ' + (card.textContent || '');
-                        const cFainted = cMatchedWasFainted || Boolean(rad.disabled) || Boolean(cZeroBar) || /\bfainted\b/i.test(infoText) || card.classList.contains('fainted') || card.classList.contains('dead') || (infoEl && infoEl.classList && (infoEl.classList.contains('fainted') || infoEl.classList.contains('dead'))) || cStyle.includes('opacity: 0.5') || cStyle.includes('opacity:0.5');
-                        const cHp = cFainted ? 0 : ((cMatched && typeof cMatched.hp === 'number' && cMatched.hp > 0) ? cMatched.hp : 100);
-                        const cMaxHp = (cMatched && typeof cMatched.maxHp === 'number' && cMatched.maxHp > 0) ? cMatched.maxHp : 100;
+                        const cDomFainted = Boolean(rad.disabled) || Boolean(cZeroBar) || /\bfainted\b/i.test(infoText) || card.classList.contains('fainted') || card.classList.contains('dead') || (infoEl && infoEl.classList && (infoEl.classList.contains('fainted') || infoEl.classList.contains('dead'))) || cStyle.includes('opacity: 0.5') || cStyle.includes('opacity:0.5');
+                        const cDomAliveProof = Boolean(!rad.disabled && !cDomFainted);
+                        const cFainted = cDomAliveProof ? false : (cDomFainted || cMatchedWasFainted);
+                        const cMaxHp = (cMatched && typeof cMatched.maxHp === 'number' && cMatched.maxHp > 0) ? cMatched.maxHp : (cKnownLvl ? cLevel * 4 : 100);
+                        const cHp = cFainted ? 0 : ((cMatched && typeof cMatched.hp === 'number' && cMatched.hp > 0) ? cMatched.hp : cMaxHp);
                         const cVariant = cDomVar !== 'Normal'
                             ? cDomVar
                             : ((cMatched && cMatched.variant) ? cMatched.variant : 'Normal');
@@ -7260,6 +7279,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                             hp: cHp,
                             maxHp: cMaxHp,
                             isFainted: cFainted,
+                            aliveProven: cDomAliveProof,
                             index: br
                         });
                     }
@@ -7285,36 +7305,12 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                     userTeam[existingIdx].hp = userActivePokemon.hp;
                     userTeam[existingIdx].maxHp = userActivePokemon.maxHp;
                     userTeam[existingIdx].isFainted = userActivePokemon.isFainted;
+                    userTeam[existingIdx].aliveProven = Boolean(userActivePokemon.aliveProven || userTeam[existingIdx].aliveProven);
                     if (userActivePokemon.level && (userActivePokemon.levelKnown || userTeam[existingIdx].levelKnown === false)) {
                         userTeam[existingIdx].level = userActivePokemon.level;
                         if (userActivePokemon.levelKnown) userTeam[existingIdx].levelKnown = true;
                     }
                 }
-            }
-            const activeBenchRadiosNow = collectBenchSwitchRadios(benchContainer || document);
-            const isBenchMissingDespiteRadios = Boolean(benchExtractedCount === 0 && activeBenchRadiosNow.length > 0);
-            if (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > userTeam.length && userTeam.length > 0) {
-                const isSubset = userTeam.every(u => lastKnownUserTeam.some(m => matchesTeamMemberEntry(u.name, u.variant, m)));
-                if (isSubset) {
-                    userTeam.splice(0, userTeam.length, ...lastKnownUserTeam.map((mem, idx) => {
-                        const found = userTeam.find(u => matchesTeamMemberEntry(u.name, u.variant, mem));
-                        if (found) {
-                            const merged = Object.assign({}, mem, found, { index: idx });
-                            if (found.levelKnown === false && mem.levelKnown !== false && typeof mem.level === 'number') {
-                                merged.level = mem.level;
-                                merged.levelKnown = true;
-                            }
-                            return merged;
-                        }
-                        if (isBenchMissingDespiteRadios) {
-                            return Object.assign({}, mem, { index: idx });
-                        }
-                        return Object.assign({}, mem, { hp: 0, isFainted: true, index: idx });
-                    }));
-                }
-            }
-            if (userTeam.length > 1) {
-                lastKnownUserTeam = userTeam.map(u => Object.assign({}, u));
             }
 
             // Extract full opponent roster from #teamleft if present on side panel
@@ -7420,6 +7416,35 @@ function getBenchRadioCardMeta(rad, scopeEl) {
             }
             const benchRadios = collectBenchSwitchRadios(benchContainer || document);
             const hasBenchRadios = benchRadios.length > 0 || Boolean(switchForm && collectBenchSwitchRadios(switchForm).length > 0);
+            const benchRadiosCount = Math.max(benchRadios.length, switchForm ? collectBenchSwitchRadios(switchForm).length : 0);
+            const canInferMissingBenchAsFainted = Boolean(
+                benchExtractedCount > 0 &&
+                (benchRadiosCount === 0 || benchExtractedCount >= benchRadiosCount) &&
+                (hasBenchRadios || hasSwitchBtn || (!hasContinueBtn && !hasSkipSelectionBtn && hasAttackBtn))
+            );
+            if (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > userTeam.length && userTeam.length > 0) {
+                const isSubset = userTeam.every(u => lastKnownUserTeam.some(m => matchesTeamMemberEntry(u.name, u.variant, m)));
+                if (isSubset) {
+                    userTeam.splice(0, userTeam.length, ...lastKnownUserTeam.map((mem, idx) => {
+                        const found = userTeam.find(u => matchesTeamMemberEntry(u.name, u.variant, mem));
+                        if (found) {
+                            const merged = Object.assign({}, mem, found, { index: idx });
+                            if (found.levelKnown === false && mem.levelKnown !== false && typeof mem.level === 'number') {
+                                merged.level = mem.level;
+                                merged.levelKnown = true;
+                            }
+                            return merged;
+                        }
+                        if (canInferMissingBenchAsFainted) {
+                            return Object.assign({}, mem, { hp: 0, isFainted: true, index: idx });
+                        }
+                        return Object.assign({}, mem, { index: idx });
+                    }));
+                }
+            }
+            if (userTeam.length > 1) {
+                lastKnownUserTeam = userTeam.map(u => Object.assign({}, u));
+            }
 
             let forfeitBtnEl = null;
             const forfeitCands = document.querySelectorAll('input[type="submit"], input[type="button"], button, a.btn, a[href*="forfeit" i], [id*="forfeit" i], [name*="forfeit" i], [class*="forfeit" i]');
@@ -7501,7 +7526,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                 }
             }
 
-            const activeBattleSig = 'ACTIVE:' + trainerName + ':' + pokeName + '_' + hp + '_' + isFainted + ':' + (userActivePokemon ? userActivePokemon.name + '_' + userActivePokemon.hp + '_' + userActivePokemon.isFainted : '') + ':cnt=' + hasContinueBtn + ':skp=' + hasSkipSelectionBtn + ':atk=' + hasAttackBtn + ':sw=' + hasSwitchBtn + ':br=' + hasBenchRadios + ':ff=' + hasForfeitBtn + ':fr=' + fullRestoreCount + ':uib=' + hasUseItemBtn + ':' + availableMoves.map(m => m.name).join(',');
+            const activeBattleSig = 'ACTIVE:' + trainerName + ':' + pokeName + '_' + hp + '_' + isFainted + ':' + (userActivePokemon ? userActivePokemon.name + '_' + userActivePokemon.hp + '_' + userActivePokemon.isFainted : '') + ':cnt=' + hasContinueBtn + ':skp=' + hasSkipSelectionBtn + ':atk=' + hasAttackBtn + ':sw=' + hasSwitchBtn + ':br=' + hasBenchRadios + ':be=' + benchExtractedCount + ':brc=' + benchRadiosCount + ':ff=' + hasForfeitBtn + ':fr=' + fullRestoreCount + ':uib=' + hasUseItemBtn + ':' + availableMoves.map(m => m.name).join(',');
             if (!isManualCheck && activeBattleSig === lastBroadcastBattleSig) {
                 return;
             }
@@ -7557,6 +7582,8 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                 hasAttackBtn: hasAttackBtn,
                 hasSwitchBtn: hasSwitchBtn,
                 hasBenchRadios: hasBenchRadios,
+                benchExtractedCount: benchExtractedCount,
+                benchRadiosCount: benchRadiosCount,
                 hasForfeitBtn: hasForfeitBtn,
                 hasFullRestore: hasFullRestore,
                 fullRestoreCount: fullRestoreCount,
@@ -7871,6 +7898,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
 ipcRenderer.on('click-rematch-button', () => {
     try {
         lastBroadcastBattleSig = null;
+        resetPreloadUserTeamHealth();
         const curPath = (window.location.pathname || '').toLowerCase();
         if (curPath.indexOf('/map') !== -1 || isWildCatchContext()) {
             return;
@@ -8168,6 +8196,7 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
                 }
             }
             if (forfeitBtn) {
+                resetPreloadUserTeamHealth();
                 dispatchHumanClick(forfeitBtn, () => {
                     try {
                         if (typeof forfeitBtn.click === 'function') {

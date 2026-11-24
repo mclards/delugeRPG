@@ -762,9 +762,10 @@ function classifyAdElement(el) {
     const tag = el.tagName.toUpperCase();
     if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'HEAD' || tag === 'META' || tag === 'LINK' || tag === 'BR' || tag === 'NOSCRIPT') return null;
     if (el.id === 'del_header' || el.id === 'navwrap' || tag === 'NAV') return null;
-    const id = el.id || '';
-    const cls = typeof el.className === 'string' ? el.className : '';
-    const src = el.src || '';
+    const id = (typeof el.id === 'string') ? el.id : (el.getAttribute ? (el.getAttribute('id') || '') : '');
+    const cls = (typeof el.className === 'string') ? el.className : (el.getAttribute ? (el.getAttribute('class') || '') : '');
+    const src = (typeof el.src === 'string') ? el.src : (el.getAttribute ? (el.getAttribute('src') || '') : '');
+    const elName = (typeof el.name === 'string') ? el.name : (el.getAttribute ? (el.getAttribute('name') || '') : '');
 
     let type = '';
     let slotId = '';
@@ -775,7 +776,7 @@ function classifyAdElement(el) {
     } else if (id.startsWith('div-gpt-ad') || id.includes('-gpt-ad-') || (tag === 'IFRAME' && id.includes('google_ads_iframe'))) {
         type = 'Google Publisher Tag (GPT)';
         slotId = id;
-    } else if (id.startsWith('oa-360-') || id.includes('oa-360') || id.includes('optad360') || cls.includes('oa-360') || cls.includes('optad360') || (tag === 'A' && el.href && el.href.includes('optad360')) || (tag === 'IMG' && src.includes('optad360'))) {
+    } else if (id.startsWith('oa-360-') || id.includes('oa-360') || id.includes('optad360') || cls.includes('oa-360') || cls.includes('optad360') || (tag === 'A' && typeof el.href === 'string' && el.href.includes('optad360')) || (tag === 'IMG' && src.includes('optad360'))) {
         type = 'optAd360 Network / Badge';
         slotId = id || 'optad360';
     } else if (el.hasAttribute('data-google-vignette') || id.includes('vignette') || el.hasAttribute('data-vignette-loaded') || id === 'dismiss-button') {
@@ -784,7 +785,7 @@ function classifyAdElement(el) {
         type = 'Sticky / Anchor Banner';
     } else if (id.includes('rewarded-video') || cls.includes('video-ad')) {
         type = 'Video / Rewarded Ad';
-    } else if (tag === 'IFRAME' && (id.startsWith('aswift_') || (el.name && el.name.startsWith('aswift_')))) {
+    } else if (tag === 'IFRAME' && (id.startsWith('aswift_') || (elName && elName.startsWith('aswift_')))) {
         type = 'Google AdSense';
     } else if (tag === 'IFRAME' && (src.includes('doubleclick') || src.includes('googlesyndication') || src.includes('googleads') || src.includes('amazon-adsystem') || src.includes('criteo') || src.includes('nitropay') || src.includes('playwire') || src.includes('venatus'))) {
         type = 'Third-Party Ad Network';
@@ -961,6 +962,9 @@ function smoothCollapseAd(el, adInfo) {
     } catch (_) {}
 }
 
+let lastOptAd360EmitTs = 0;
+const MAX_DETECTED_ADS_REGISTRY = 120;
+
 function inspectAndRegisterAd(el) {
     if (!el || el.nodeType !== 1) return null;
     const info = classifyAdElement(el);
@@ -971,14 +975,23 @@ function inspectAndRegisterAd(el) {
 
     smoothCollapseAd(el, info);
 
+    if (isNew && detectedAdsRegistry.size >= MAX_DETECTED_ADS_REGISTRY) {
+        const oldestKey = detectedAdsRegistry.keys().next().value;
+        if (oldestKey !== undefined) detectedAdsRegistry.delete(oldestKey);
+    }
     detectedAdsRegistry.set(key, info);
 
     if (isNew) {
-        try {
-            ipcRenderer.sendToHost('ad-detected-event', info);
-        } catch (_) {}
+        const isEphemeralOptAd360 = Boolean(info.type === 'optAd360 Network / Badge' && info.slotId && String(info.slotId).startsWith('oa-360-'));
+        const nowTs = Date.now();
+        if (!isEphemeralOptAd360 || (nowTs - lastOptAd360EmitTs) >= 5000) {
+            if (isEphemeralOptAd360) lastOptAd360EmitTs = nowTs;
+            try {
+                ipcRenderer.sendToHost('ad-detected-event', info);
+            } catch (_) {}
+        }
+        scheduleAdsBroadcast();
     }
-    scheduleAdsBroadcast();
     return info;
 }
 
@@ -1072,7 +1085,7 @@ function scheduleAdsScanDebounced(delayMs) {
         vaccinateLinksAgainstVignettes();
         dismissGoogleVignetteOverlay();
         scanAllAdsInDOM();
-    }, delayMs || 120);
+    }, delayMs || 400);
 }
 
 function scheduleAdsBroadcast() {
@@ -1094,7 +1107,7 @@ function scheduleAdsBroadcast() {
                 ads: list
             });
         } catch (_) {}
-    }, 100);
+    }, 1200);
 }
 
 function initAdsObserver() {
@@ -1125,7 +1138,7 @@ function initAdsObserver() {
                 }
             }
             if (shouldScan) {
-                scheduleAdsScanDebounced(120);
+                scheduleAdsScanDebounced(400);
             }
         });
 
@@ -6325,6 +6338,12 @@ function executeSlotAssignment(ids, pokes) {
         return;
     }
 
+    if (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) {
+        ipcRenderer.sendToHost('unlock-detected', { path: window.location.pathname || '', url: window.location.href || '' });
+        ipcRenderer.sendToHost('team-apply-complete', { success: false, captchaDetected: true, error: 'Captcha active on screen' });
+        return;
+    }
+
     ipcRenderer.sendToHost('team-apply-status', { step: 'saving', message: 'Saving team to DelugeRPG...' });
 
     const postBody = ids.map(id => 'mem[]=' + encodeURIComponent(id)).join('&');
@@ -6342,10 +6361,28 @@ function executeSlotAssignment(ids, pokes) {
         if (!res.ok) {
             throw new Error('Server returned HTTP ' + res.status);
         }
-        return res.text();
+        const finalUrl = String((res && res.url) || '').toLowerCase();
+        return res.text().then(text => ({ text: text, url: finalUrl }));
     })
-    .then(text => {
+    .then(({ text, url }) => {
         console.log('[PokePreload] Direct team save response:', text);
+        const lowerText = String(text || '').toLowerCase();
+        const hitCaptchaRedirect = Boolean(
+            url.indexOf('/unlock') !== -1 ||
+            url.indexOf('captcha') !== -1 ||
+            url.indexOf('/security') !== -1 ||
+            url.indexOf('/verify') !== -1 ||
+            lowerText.indexOf('cf-turnstile') !== -1 ||
+            lowerText.indexOf('g-recaptcha') !== -1 ||
+            lowerText.indexOf('h-captcha') !== -1 ||
+            lowerText.indexOf('verify you are human') !== -1 ||
+            lowerText.indexOf('security check') !== -1
+        );
+        if (hitCaptchaRedirect) {
+            ipcRenderer.sendToHost('unlock-detected', { path: '/unlock', url: url || window.location.href || '' });
+            ipcRenderer.sendToHost('team-apply-complete', { success: false, captchaDetected: true, error: 'Captcha required before saving team' });
+            return;
+        }
         let success = true;
         try {
             const json = JSON.parse(text);
@@ -6355,6 +6392,27 @@ function executeSlotAssignment(ids, pokes) {
         } catch (_) {}
 
         if (success) {
+            if (Array.isArray(pokes) && pokes.length > 0) {
+                lastKnownUserTeam = pokes.map((p, idx) => {
+                    const hasNumLvl = Boolean(p && typeof p.level === 'number' && !isNaN(p.level) && p.level > 0);
+                    const lvl = hasNumLvl ? p.level : 100;
+                    const maxHp = lvl * 4;
+                    return {
+                        id: p ? p.id : undefined,
+                        name: p ? p.name : '',
+                        variant: (p && p.variant) ? p.variant : 'Normal',
+                        types: (p && Array.isArray(p.types) && p.types.length > 0) ? p.types.slice() : ['Normal'],
+                        level: lvl,
+                        levelKnown: hasNumLvl,
+                        hp: maxHp,
+                        maxHp: maxHp,
+                        isFainted: false,
+                        index: idx
+                    };
+                });
+            }
+            preloadTeamSwappedAwaitingNewBattle = true;
+            lastBroadcastBattleSig = null;
             ipcRenderer.sendToHost('team-apply-complete', { success: true });
             const path = (window.location.pathname || '').toLowerCase();
             if (path.indexOf('/team') !== -1) {
@@ -6505,6 +6563,10 @@ function extractProfileMetadataFromContainer(root) {
 
 let lastBroadcastBattleSig = null;
 let lastKnownUserTeam = [];
+let preloadTeamSwappedAwaitingNewBattle = false;
+let rematchNavigatingUntil = 0;
+let isGuestPageUnloading = false;
+window.addEventListener('beforeunload', () => { isGuestPageUnloading = true; });
 let lastKnownOpponentRoster = [];
 let lastKnownTrainerName = '';
 const knownVariants = ['Normal', 'Shiny', 'Metallic', 'Ghostly', 'Dark', 'Shadow', 'Mirage', 'Retro', 'Chrome', 'Negative'];
@@ -6586,60 +6648,6 @@ function isWildCatchContext() {
     } catch (_) {}
     return false;
 }
-
-function detectBattleOpponents(isManualCheck) {
-    try {
-        const path = (window.location.pathname || '').toLowerCase();
-        if (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) {
-            if (!unlockNoticeSent) {
-                unlockNoticeSent = true;
-                ipcRenderer.sendToHost('unlock-detected', { path: path, url: window.location.href || '' });
-            }
-            return;
-        }
-
-        // Strict Wild Catch Isolation: Never emit trainer/arena battle telemetry during /catch or auto-catch flows
-        const hasOpenProfileModal = Boolean(isManualCheck && isProfileModalOpen(document.getElementById('DModal') || document.getElementById('DMbody')));
-        if (!hasOpenProfileModal && isWildCatchContext()) {
-            lastBroadcastBattleSig = null;
-            return;
-        }
-
-        // Mode 0: Open In-Game Player Profile Modal (#DModal / #DMbody) - ONLY when user clicks "Check Active Screen"
-        if (isManualCheck) {
-            const dModal = document.getElementById('DModal');
-            const dmBody = document.getElementById('DMbody');
-            const modalContainer = dModal || dmBody;
-            if (modalContainer && isProfileModalOpen(dModal || dmBody)) {
-                const meta = extractProfileMetadataFromContainer(modalContainer);
-                const hasViewUTeam = !!(modalContainer.querySelector && modalContainer.querySelector('#viewuteam, .viewuteammember'));
-                if (meta.username || hasViewUTeam) {
-                    const roster = extractRosterFromProfileDocument(modalContainer);
-                    const targetName = meta.username || 'Stalked Player';
-                    const bUrl = meta.battleUrl || ('/battle/user/username/' + encodeURIComponent(targetName));
-                    if (roster.length > 0) {
-                        ipcRenderer.sendToHost('battle-opponents-detected', {
-                            trainerName: targetName,
-                            trainerTitle: targetName + "'s Profile",
-                            roster: roster,
-                            battleUrl: bUrl,
-                            isProfileStalk: true,
-                            isManualCheck: true
-                        });
-                        return;
-                    } else if (meta.teamHidden) {
-                        ipcRenderer.sendToHost('player-scout-status', {
-                            step: 'error',
-                            message: targetName + "'s team is hidden on profile."
-                        });
-                        return;
-                    } else if (meta.username) {
-                        scoutPlayerByUsername(meta.username, meta.profileId, true);
-                        return;
-                    }
-                }
-            }
-        }
 
 function matchesTeamMemberEntry(domName, domVariant, member) {
     if (!domName || !member || !member.name) return false;
@@ -6737,6 +6745,63 @@ function getBenchRadioCardMeta(rad, scopeEl) {
     return { card, infoEl: infoEl || card, name: name || '' };
 }
 
+function detectBattleOpponents(isManualCheck) {
+    try {
+        if (!isManualCheck && Date.now() < rematchNavigatingUntil) {
+            return;
+        }
+        const path = (window.location.pathname || '').toLowerCase();
+        if (typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement()) {
+            if (!unlockNoticeSent) {
+                unlockNoticeSent = true;
+                ipcRenderer.sendToHost('unlock-detected', { path: path, url: window.location.href || '' });
+            }
+            return;
+        }
+
+        // Strict Wild Catch Isolation: Never emit trainer/arena battle telemetry during /catch or auto-catch flows
+        const hasOpenProfileModal = Boolean(isManualCheck && isProfileModalOpen(document.getElementById('DModal') || document.getElementById('DMbody')));
+        if (!hasOpenProfileModal && isWildCatchContext()) {
+            lastBroadcastBattleSig = null;
+            return;
+        }
+
+        // Mode 0: Open In-Game Player Profile Modal (#DModal / #DMbody) - ONLY when user clicks "Check Active Screen"
+        if (isManualCheck) {
+            const dModal = document.getElementById('DModal');
+            const dmBody = document.getElementById('DMbody');
+            const modalContainer = dModal || dmBody;
+            if (modalContainer && isProfileModalOpen(dModal || dmBody)) {
+                const meta = extractProfileMetadataFromContainer(modalContainer);
+                const hasViewUTeam = !!(modalContainer.querySelector && modalContainer.querySelector('#viewuteam, .viewuteammember'));
+                if (meta.username || hasViewUTeam) {
+                    const roster = extractRosterFromProfileDocument(modalContainer);
+                    const targetName = meta.username || 'Stalked Player';
+                    const bUrl = meta.battleUrl || ('/battle/user/username/' + encodeURIComponent(targetName));
+                    if (roster.length > 0) {
+                        ipcRenderer.sendToHost('battle-opponents-detected', {
+                            trainerName: targetName,
+                            trainerTitle: targetName + "'s Profile",
+                            roster: roster,
+                            battleUrl: bUrl,
+                            isProfileStalk: true,
+                            isManualCheck: true
+                        });
+                        return;
+                    } else if (meta.teamHidden) {
+                        ipcRenderer.sendToHost('player-scout-status', {
+                            step: 'error',
+                            message: targetName + "'s team is hidden on profile."
+                        });
+                        return;
+                    } else if (meta.username) {
+                        scoutPlayerByUsername(meta.username, meta.profileId, true);
+                        return;
+                    }
+                }
+            }
+        }
+
         // Mode 1: Post-Battle Screen (Victory or Defeat) - Top priority when match concludes
         const viewPokes = document.getElementById('viewpokes');
         const rematchLink = document.querySelector('a[href*="/battle/trainer/"], a[href*="/battle/gym/"], a[href*="/battle/"]');
@@ -6832,7 +6897,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                     });
                 }
             }
-            if (userTeam.length > 0) {
+            if (!preloadTeamSwappedAwaitingNewBattle && userTeam.length > 0) {
                 if (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > userTeam.length) {
                     lastKnownUserTeam.forEach(mem => {
                         const up = userTeam.find(u => u.name && u.name.toLowerCase() === (mem.name || '').toLowerCase());
@@ -6866,7 +6931,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                 trainerName: trainerName,
                 trainerTitle: trainerName + (trainerName.includes('Opponent') ? '' : "'s Team"),
                 roster: (lastKnownOpponentRoster && lastKnownOpponentRoster.length > 0) ? lastKnownOpponentRoster : [],
-                userTeam: (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > 0) ? lastKnownUserTeam : (userTeam.length > 0 ? userTeam : []),
+                userTeam: (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > 0) ? lastKnownUserTeam : (!preloadTeamSwappedAwaitingNewBattle && userTeam.length > 0 ? userTeam : []),
                 isVictoryScreen: Boolean(isVictory && !isDefeat),
                 isDefeatScreen: Boolean(isDefeat),
                 isPostBattleScreen: true,
@@ -6876,7 +6941,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                 coinsWon: coinsWon,
                 participantsCount: participantsCount,
                 totalExpPool: totalExpPool,
-                participatingPokemon: userTeam,
+                participatingPokemon: preloadTeamSwappedAwaitingNewBattle ? [] : userTeam,
                 hasNextBattleBtn: Boolean(hasNextBattle),
                 isGmaxChallenge: Boolean(!isExplicitTrainerPostBattle && (isGmaxComplete || isChallengeVictory || hasNextBattle || postBattleUrlLower.indexOf('/challenge') !== -1 || postBattleUrlLower.indexOf('gmax') !== -1)),
                 isGmaxChallengeComplete: Boolean(!isExplicitTrainerPostBattle && isGmaxComplete)
@@ -6902,6 +6967,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
         const oppEl = document.getElementById('opponent') || document.querySelector('.opponent, #opp, [id*="opponent" i], .opp');
         const activePokeEl = oppEl ? (oppEl.querySelector('.pokemon') || (oppEl.classList && oppEl.classList.contains('pokemon') ? oppEl : null) || oppEl) : null;
         if (oppEl && activePokeEl && !hasRematchText && !isVictory && !isDefeat) {
+            preloadTeamSwappedAwaitingNewBattle = false;
             const rawFullText = (activePokeEl.textContent || '').trim();
             const fullText = rawFullText.replace(/\s+/g, ' ').trim();
             let trainerName = '';
@@ -7709,6 +7775,7 @@ function getBenchRadioCardMeta(rad, scopeEl) {
                         }
                     }
                     if (userTeam.length > 0) {
+                        preloadTeamSwappedAwaitingNewBattle = false;
                         lastKnownUserTeam = userTeam.map(u => Object.assign({}, u));
                     }
                     const battleSig = `${trainerName}:${roster.map(p => `${p.name}_${p.hp}_${p.isFainted}`).join(',')}:${userTeam.map(u => `${u.name}_${u.hp}_${u.checked}`).join(',')}`;
@@ -7897,8 +7964,6 @@ function getBenchRadioCardMeta(rad, scopeEl) {
 
 ipcRenderer.on('click-rematch-button', () => {
     try {
-        lastBroadcastBattleSig = null;
-        resetPreloadUserTeamHealth();
         const curPath = (window.location.pathname || '').toLowerCase();
         if (curPath.indexOf('/map') !== -1 || isWildCatchContext()) {
             return;
@@ -7972,25 +8037,27 @@ ipcRenderer.on('click-rematch-button', () => {
 
         console.log('[REMATCH_DISPATCHER] Rematch target resolved: ' + (rematchEl ? rematchEl.tagName + ' txt="' + ((rematchEl.textContent || rematchEl.value || '').trim()) + '" href="' + (rematchEl.getAttribute('href') || '') + '"' : 'NONE'));
         if (rematchEl) {
+            rematchNavigatingUntil = Date.now() + 2500;
+            resetPreloadUserTeamHealth();
             const targetHref = rematchEl.getAttribute('href') || rematchEl.href || '';
             dispatchHumanClick(rematchEl, () => {
-                try {
-                    if (typeof rematchEl.click === 'function') {
-                        rematchEl.click();
-                    }
-                } catch (_) {}
-                if (targetHref && !targetHref.startsWith('#') && !targetHref.startsWith('javascript:')) {
-                    try {
-                        window.location.href = targetHref;
-                    } catch (_) {}
-                }
                 ipcRenderer.sendToHost('ai-battle-action-status', {
                     success: true,
                     action: 'click-rematch-button',
                     message: 'Rematch initiated'
                 });
+                if (targetHref && !targetHref.startsWith('#') && !targetHref.startsWith('javascript:')) {
+                    setTimeout(() => {
+                        if (!isGuestPageUnloading && !(typeof checkHasCaptchaElement === 'function' && checkHasCaptchaElement())) {
+                            try {
+                                window.location.href = targetHref;
+                            } catch (_) {}
+                        }
+                    }, 450);
+                }
             });
         } else {
+            lastBroadcastBattleSig = null;
             ipcRenderer.sendToHost('ai-battle-action-status', {
                 success: false,
                 action: 'click-rematch-button',
@@ -8233,11 +8300,16 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
         } else if (data.action === 'click-battle-button') {
             const allButtons = document.querySelectorAll('input[type="submit"], input[type="button"], button, a.btn');
             let battleBtn = null;
+            let sawDisabledBattleBtn = false;
             if (data.preferSkipSelection) {
                 for (let b = 0; b < allButtons.length; b++) {
                     const btn = allButtons[b];
                     if (!isElementVisible(btn) || isCatchHoneypotTrap(btn)) continue;
                     const bTxt = ((btn.value || '') + ' ' + (btn.textContent || '')).toLowerCase();
+                    if ((btn.disabled && bTxt.indexOf('skip') !== -1 && bTxt.indexOf('pokemon') !== -1) || (btn.disabled && /please\s+wait/i.test(bTxt))) {
+                        sawDisabledBattleBtn = true;
+                        continue;
+                    }
                     if (bTxt.indexOf('skip') !== -1 && bTxt.indexOf('pokemon') !== -1) {
                         battleBtn = btn;
                         break;
@@ -8254,7 +8326,12 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
                     }
                     const bTxt = ((btn.value || '') + ' ' + (btn.textContent || '')).toLowerCase();
                     if (bTxt.indexOf('switch') !== -1) continue;
-                    if (bTxt.indexOf('continue') !== -1 || bTxt.indexOf('next') !== -1 || bTxt.indexOf('battle!') !== -1 || bTxt.indexOf('start battle') !== -1) {
+                    const isBattleLabel = (bTxt.indexOf('continue') !== -1 || bTxt.indexOf('next') !== -1 || bTxt.indexOf('battle!') !== -1 || bTxt.indexOf('start battle') !== -1);
+                    if (btn.disabled && (isBattleLabel || /please\s+wait/i.test(bTxt))) {
+                        sawDisabledBattleBtn = true;
+                        continue;
+                    }
+                    if (isBattleLabel) {
                         battleBtn = btn;
                         break;
                     }
@@ -8267,6 +8344,13 @@ ipcRenderer.on('apply-ai-battle-action', (event, data) => {
                         action: 'click-battle-button',
                         message: 'Clicked ' + (battleBtn.value || battleBtn.textContent || 'Continue')
                     });
+                });
+            } else if (sawDisabledBattleBtn) {
+                ipcRenderer.sendToHost('ai-battle-action-status', {
+                    success: false,
+                    action: 'click-battle-button',
+                    buttonDisabled: true,
+                    message: 'Battle button stuck disabled (Please Wait..)'
                 });
             } else {
                 if (!data.__clickRetry) {

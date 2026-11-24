@@ -614,6 +614,18 @@ let battleAutoStepTimer = null;
 let isBattleLoopRunning = false;
 let battleLoopTimer = null;
 let battleLoopFallbackTimer = null;
+let teamSwappedAwaitingNewBattle = false;
+let lastAppliedTeamSnapshot = null;
+let pendingTrainingRotation = null;
+let postCaptchaResumeContext = null;
+let postCaptchaResumeTimer = null;
+let battleActionInFlightUntil = 0;
+let scheduledAutoStepKey = '';
+let lastBattleActionEvalLogSig = '';
+let lastBattleActionEvalLogTs = 0;
+let consecutiveStuckBattleActions = 0;
+let lastStuckActionKey = '';
+let lastBattleStallRecoveryTs = 0;
 const adsInspectorModal = document.getElementById('adsInspectorModal');
 const adsInspectorMenuBtn = document.getElementById('adsInspectorMenuBtn');
 const closeAdsInspectorBtn = document.getElementById('closeAdsInspectorBtn');
@@ -684,6 +696,9 @@ const aiHudActionBtn = document.getElementById('aiHudActionBtn');
 let activeAiBattleData = null;
 let currentMatchParticipants = new Set();
 let currentMatchFaintedPokemon = new Set();
+let currentMatchCarryDefeated = false;
+let currentMatchPostCarryDeployed = new Set();
+let currentMatchPostCarryFainted = new Set();
 let justSwitchedActivePokemon = new Set();
 let currentMatchSwitchCount = 0;
 let currentMatchItemCount = 0;
@@ -696,6 +711,9 @@ let lastKnownUserTeam = [];
 function healLastKnownUserTeamForNewMatch() {
   if (typeof currentMatchParticipants !== 'undefined') currentMatchParticipants.clear();
   if (typeof currentMatchFaintedPokemon !== 'undefined') currentMatchFaintedPokemon.clear();
+  currentMatchCarryDefeated = false;
+  if (typeof currentMatchPostCarryDeployed !== 'undefined') currentMatchPostCarryDeployed.clear();
+  if (typeof currentMatchPostCarryFainted !== 'undefined') currentMatchPostCarryFainted.clear();
   if (typeof justSwitchedActivePokemon !== 'undefined') justSwitchedActivePokemon.clear();
   currentMatchSwitchCount = 0;
   currentMatchItemCount = 0;
@@ -708,6 +726,38 @@ function healLastKnownUserTeamForNewMatch() {
       return Object.assign({}, mem, { hp: maxHp, maxHp: maxHp, isFainted: false });
     });
   }
+}
+
+function applyEquippedTeamState(teamList) {
+  const src = Array.isArray(teamList) ? teamList : [];
+  const equippedTeam = src.map((p, idx) => {
+    const hasNumLvl = Boolean(p && typeof p.level === 'number' && !isNaN(p.level) && p.level > 0);
+    const lvl = hasNumLvl ? p.level : 100;
+    const maxHp = lvl * 4;
+    return {
+      id: p ? p.id : undefined,
+      name: p ? p.name : '',
+      variant: (p && p.variant) ? p.variant : 'Normal',
+      types: (p && Array.isArray(p.types) && p.types.length > 0) ? p.types.slice() : ['Normal'],
+      level: lvl,
+      levelKnown: hasNumLvl,
+      hp: maxHp,
+      maxHp: maxHp,
+      isFainted: false,
+      isCarry: Boolean(p && p.isCarry),
+      index: idx
+    };
+  });
+  if (equippedTeam.length > 0) {
+    lastKnownUserTeam = equippedTeam;
+    teamSwappedAwaitingNewBattle = true;
+    healLastKnownUserTeamForNewMatch();
+    if (activeAiBattleData && (!activeAiBattleData.isInActiveBattle || activeAiBattleData.isVictoryScreen || activeAiBattleData.isPostBattleScreen || activeAiBattleData.isDefeatScreen)) {
+      activeAiBattleData.userTeam = equippedTeam.map(m => Object.assign({}, m));
+      activeAiBattleData.participatingPokemon = [];
+    }
+  }
+  return equippedTeam;
 }
 
 // Evolution & Attack Moves Decision Maker Elements
@@ -2823,6 +2873,13 @@ function stopAllBattleAutomation(reason = '') {
   }
   isBattleAutoRunning = false;
   isBattleLoopRunning = false;
+  scheduledAutoStepKey = '';
+  battleActionInFlightUntil = 0;
+  consecutiveStuckBattleActions = 0;
+  lastStuckActionKey = '';
+  if (typeof clearPendingTrainingRotation === 'function') {
+    clearPendingTrainingRotation(reason, { preserveResume: true });
+  }
 }
 
 function isExplicitNonWildBattleUrl(urlStr) {
@@ -3596,6 +3653,7 @@ delugeView.addEventListener('ipc-message', (event) => {
 
   if (event.channel === 'team-apply-complete') {
     const data = event.args[0] || {};
+    const wasApplyingBeforeComplete = Boolean(isApplyingTeamOnDeluge);
     isApplyingTeamOnDeluge = false;
     if (applyTeamBtn) {
       if (data.success) {
@@ -3617,6 +3675,112 @@ delugeView.addEventListener('ipc-message', (event) => {
         teamActionStatus.style.color = '#f87171';
       }
     }
+    if (data.success) {
+      const teamSnapshot = (Array.isArray(lastAppliedTeamSnapshot) && lastAppliedTeamSnapshot.length > 0)
+        ? lastAppliedTeamSnapshot
+        : lastRecommendedTeam;
+      lastAppliedTeamSnapshot = null;
+      applyEquippedTeamState(teamSnapshot);
+      const isTeamRotationApply = Boolean(pendingTrainingRotation && pendingTrainingRotation.stage === 'APPLYING_TEAM');
+      const hasNonMaxedMembers = !areAllTeamPokemonLevel100();
+      if (teamBattleAutoCheck && teamBattleAutoCheck.checked && teamBattleLoopCheck && !isUnlockChallengeActive && !isCaptchaAlarmActive && !isGMaxChallengeModeActive() && hasNonMaxedMembers && (teamRosterMode === 'TRAINING' || isTeamRotationApply)) {
+        teamBattleLoopCheck.disabled = false;
+        teamBattleLoopCheck.checked = true;
+        updateLoopCheckboxVisual();
+      }
+      if (isTeamRotationApply) {
+        if (pendingTrainingRotation.watchdogId) {
+          clearTimeout(pendingTrainingRotation.watchdogId);
+          pendingTrainingRotation.watchdogId = null;
+        }
+        if (pendingTrainingRotation.timerId) {
+          clearTimeout(pendingTrainingRotation.timerId);
+          pendingTrainingRotation.timerId = null;
+        }
+        if (isUnlockChallengeActive || isCaptchaAlarmActive) {
+          return;
+        }
+        pendingTrainingRotation.stage = 'ENTERING_BATTLE';
+        isBattleLoopRunning = true;
+        isBattleAutoRunning = true;
+        if (teamActionStatus) {
+          teamActionStatus.textContent = 'New trainee roster equipped! Entering battle...';
+          teamActionStatus.style.color = '#10b981';
+        }
+        const enterDelayMs = 1100 + Math.floor(Math.random() * 500);
+        pendingTrainingRotation.timerId = setTimeout(() => {
+          if (pendingTrainingRotation) pendingTrainingRotation.timerId = null;
+          if (isUnlockChallengeActive || isCaptchaAlarmActive) {
+            return;
+          }
+          if (!pendingTrainingRotation || userManuallyPaused || isPendingSessionAutoStop || !teamBattleAutoCheck || !teamBattleAutoCheck.checked || !teamBattleLoopCheck || !teamBattleLoopCheck.checked || isWildHuntingOrCatchContext()) {
+            if (typeof clearPendingTrainingRotation === 'function') {
+              clearPendingTrainingRotation('Training rotation aborted before Battle Now');
+            }
+            return;
+          }
+          const lockedTrainerVal = pendingTrainingRotation.lockedTrainerVal || '';
+          pendingTrainingRotation = null;
+          if (typeof restoreLockedTrainerSelection === 'function') {
+            restoreLockedTrainerSelection(lockedTrainerVal);
+          }
+          if (battleOpponentBtn) {
+            battleOpponentBtn.disabled = false;
+            battleOpponentBtn.click();
+          }
+        }, enterDelayMs);
+        return;
+      }
+    } else {
+      lastAppliedTeamSnapshot = null;
+      if (data.captchaDetected) {
+        if (pendingTrainingRotation && (pendingTrainingRotation.stage === 'APPLYING_TEAM' || pendingTrainingRotation.stage === 'BUILDING_TEAM')) {
+          if (typeof capturePostCaptchaTrainingContext === 'function') capturePostCaptchaTrainingContext();
+        } else if (wasApplyingBeforeComplete && teamBattleMode === 'NPC' && teamRosterMode === 'TRAINING' && !isGMaxChallengeModeActive() && teamBattleAutoCheck && teamBattleAutoCheck.checked) {
+          postCaptchaResumeContext = {
+            needsBuildTeam: false,
+            needsApplyTeam: true,
+            needsBattleNow: Boolean(teamBattleLoopCheck && teamBattleLoopCheck.checked),
+            wasTrainingRotation: false,
+            capturedAt: Date.now()
+          };
+        }
+        handleCaptchaEmergencyHalt('Captcha detected while saving team');
+        return;
+      }
+      if (pendingTrainingRotation && pendingTrainingRotation.stage === 'APPLYING_TEAM') {
+        if (pendingTrainingRotation.watchdogId) {
+          clearTimeout(pendingTrainingRotation.watchdogId);
+          pendingTrainingRotation.watchdogId = null;
+        }
+        if ((pendingTrainingRotation.retryCount || 0) < 1) {
+          pendingTrainingRotation.retryCount = (pendingTrainingRotation.retryCount || 0) + 1;
+          if (teamActionStatus) {
+            teamActionStatus.textContent = 'Team save failed - retrying Change Team...';
+            teamActionStatus.style.color = '#f59e0b';
+          }
+          pendingTrainingRotation.timerId = setTimeout(() => {
+            if (!pendingTrainingRotation) return;
+            pendingTrainingRotation.timerId = null;
+            if (isUnlockChallengeActive || isCaptchaAlarmActive || userManuallyPaused || isPendingSessionAutoStop || !teamBattleAutoCheck || !teamBattleAutoCheck.checked || isWildHuntingOrCatchContext()) {
+              if (typeof clearPendingTrainingRotation === 'function') clearPendingTrainingRotation('Training rotation retry aborted');
+              return;
+            }
+            if (applyTeamBtn && !applyTeamBtn.disabled) {
+              applyTeamBtn.click();
+            } else if (typeof clearPendingTrainingRotation === 'function') {
+              clearPendingTrainingRotation('Change Team unavailable for retry');
+            }
+          }, 2500);
+        } else {
+          if (typeof clearPendingTrainingRotation === 'function') {
+            clearPendingTrainingRotation('Team save failed after retry');
+          }
+          isBattleLoopRunning = false;
+        }
+        return;
+      }
+    }
     if (data.success && isBattleLoopRunning && teamBattleLoopCheck && teamBattleLoopCheck.checked && !isUnlockChallengeActive && !isCaptchaAlarmActive && !isWildHuntingOrCatchContext() && isCurrentPageBattle()) {
       if (teamActionStatus) {
         teamActionStatus.textContent = 'Loop: Fresh team saved! Resuming battle in 1.5s...';
@@ -3624,6 +3788,11 @@ delugeView.addEventListener('ipc-message', (event) => {
       }
       setTimeout(() => {
         if (!isBattleLoopRunning || !teamBattleLoopCheck || !teamBattleLoopCheck.checked || isUnlockChallengeActive || isCaptchaAlarmActive || isWildHuntingOrCatchContext() || !isCurrentPageBattle()) return;
+        if (teamSwappedAwaitingNewBattle && !isGMaxChallengeModeActive() && battleOpponentBtn) {
+          battleOpponentBtn.disabled = false;
+          battleOpponentBtn.click();
+          return;
+        }
         const seqBeforeApplyRematch = guestLoadEventSeq;
         if (delugeView && typeof delugeView.send === 'function') {
           delugeView.send('click-rematch-button');
@@ -3743,6 +3912,15 @@ delugeView.addEventListener('ipc-message', (event) => {
       if (data.blockedByCatch || isWildHuntingOrCatchContext()) {
         stopAllBattleAutomation('Auto-Catch / Map session active');
       } else if (data.success === false) {
+        battleActionInFlightUntil = 0;
+        if (data.buttonDisabled) {
+          consecutiveStuckBattleActions += 2;
+        } else {
+          consecutiveStuckBattleActions += 1;
+        }
+        if (typeof maybeRecoverStuckBattlePage === 'function' && maybeRecoverStuckBattlePage('Action failed: ' + (data.message || data.action || 'unknown'))) {
+          return;
+        }
         teamActionStatus.textContent = data.message || 'Action in progress...';
         teamActionStatus.style.color = '#f87171';
         if (isUnlockChallengeActive || isCaptchaAlarmActive) {
@@ -3759,12 +3937,13 @@ delugeView.addEventListener('ipc-message', (event) => {
           isBattleAutoRunning = false;
         } else if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isWildHuntingOrCatchContext() && isCurrentPageBattle()) {
           if (battleAutoStepTimer) clearTimeout(battleAutoStepTimer);
+          scheduledAutoStepKey = '';
           battleAutoStepTimer = setTimeout(() => {
             battleAutoStepTimer = null;
             if (!isWildHuntingOrCatchContext() && isCurrentPageBattle() && delugeView && typeof delugeView.send === 'function') {
               delugeView.send('check-battle-opponents');
             }
-          }, 750);
+          }, 1200);
         }
       } else {
         if (data.action === 'forfeit-battle') {
@@ -6359,6 +6538,9 @@ function resetTeamPrompt() {
 }
 
 function setTeamBattleMode(mode) {
+  if (typeof clearPendingTrainingRotation === 'function') {
+    clearPendingTrainingRotation('Battle mode changed');
+  }
   teamBattleMode = mode;
   if (!config.settings) config.settings = {};
   config.settings.teamBattleMode = mode;
@@ -6504,6 +6686,9 @@ function triggerPlayerScout() {
 }
 
 function setTeamRosterMode(mode) {
+  if (typeof clearPendingTrainingRotation === 'function') {
+    clearPendingTrainingRotation('Roster mode changed');
+  }
   teamRosterMode = mode;
   if (!config.settings) config.settings = {};
   config.settings.teamRosterMode = mode;
@@ -6605,6 +6790,9 @@ if (poolModeTrainingBtn) {
 }
 if (candidatePoolFilterSelect) {
   candidatePoolFilterSelect.addEventListener('change', () => {
+    if (typeof clearPendingTrainingRotation === 'function') {
+      clearPendingTrainingRotation('Pool filter changed');
+    }
     teamPoolFilter = candidatePoolFilterSelect.value || 'ANY';
     if (!config.settings) config.settings = {};
     config.settings.teamPoolFilter = teamPoolFilter;
@@ -7010,14 +7198,15 @@ function populateGymTrainerSelect(categoryFilter = null) {
   teamTrainerSelect.innerHTML = '';
   let matchCount = 0;
 
-  if (liveBattleOpponent && Array.isArray(liveBattleOpponent.roster) && liveBattleOpponent.roster.length > 0) {
+  const liveRosterLen = (liveBattleOpponent && Array.isArray(liveBattleOpponent.roster)) ? liveBattleOpponent.roster.length : 0;
+  if (liveBattleOpponent && (liveRosterLen > 0 || prevSelectedValue === 'LIVE__BATTLE')) {
     const liveGroup = document.createElement('optgroup');
     liveGroup.id = 'optgroup-live-battle';
     liveGroup.label = 'CURRENT BATTLE (LIVE DETECTED)';
     liveGroup.style.cssText = 'color: #58a6ff; background: #0c1c38; font-weight: 800; font-style: normal; letter-spacing: 0.5px;';
     const opt = document.createElement('option');
     opt.value = 'LIVE__BATTLE';
-    opt.textContent = `[LIVE] ${liveBattleOpponent.trainerTitle || liveBattleOpponent.trainerName} (${liveBattleOpponent.roster.length} Pokemon)`;
+    opt.textContent = `[LIVE] ${liveBattleOpponent.trainerTitle || liveBattleOpponent.trainerName} (${liveRosterLen} Pokemon)`;
     opt.style.cssText = 'color: #79c0ff; background: #070e1a; font-weight: 700;';
     liveGroup.appendChild(opt);
     teamTrainerSelect.appendChild(liveGroup);
@@ -7139,9 +7328,27 @@ function populateGymTrainerSelect(categoryFilter = null) {
     filteredTrainerCountBadge.style.color = '#64748b';
   }
 
-  if (prevSelectedValue && teamTrainerSelect.querySelector(`option[value="${prevSelectedValue}"]`)) {
+  const hasTrainerOpt = (val) => {
+    if (!val) return false;
+    if (typeof teamTrainerSelect.querySelector === 'function') {
+      return Boolean(teamTrainerSelect.querySelector(`option[value="${val}"]`));
+    }
+    if (teamTrainerSelect.options && typeof teamTrainerSelect.options.length === 'number') {
+      for (let i = 0; i < teamTrainerSelect.options.length; i++) {
+        if (teamTrainerSelect.options[i] && teamTrainerSelect.options[i].value === val) return true;
+      }
+    }
+    return false;
+  };
+  const savedTrainerVal = (typeof config !== 'undefined' && config && config.settings && config.settings.lastSelectedTrainer)
+    ? config.settings.lastSelectedTrainer
+    : '';
+
+  if (prevSelectedValue && hasTrainerOpt(prevSelectedValue)) {
     teamTrainerSelect.value = prevSelectedValue;
-  } else if (liveBattleOpponent) {
+  } else if (savedTrainerVal && hasTrainerOpt(savedTrainerVal)) {
+    teamTrainerSelect.value = savedTrainerVal;
+  } else if (liveBattleOpponent && hasTrainerOpt('LIVE__BATTLE')) {
     teamTrainerSelect.value = 'LIVE__BATTLE';
   } else if (teamTrainerSelect.options.length > 0) {
     teamTrainerSelect.selectedIndex = 0;
@@ -7271,8 +7478,15 @@ let liveAdsRegistry = [];
 let adsFilterType = 'ALL';
 let adsTelemetryStats = { total: 0, types: {} };
 
+let lastOptAd360LogTs = 0;
 function handleAdDetected(ad) {
   if (!ad) return;
+  const isEphemeralOptAd360 = Boolean(ad.type === 'optAd360 Network / Badge' && ad.slotId && String(ad.slotId).startsWith('oa-360-'));
+  if (isEphemeralOptAd360) {
+    const nowTs = Date.now();
+    if ((nowTs - lastOptAd360LogTs) < 15000) return;
+    lastOptAd360LogTs = nowTs;
+  }
   backendLog('AdsListener', `[${ad.type}] ${ad.tag}${ad.elementId ? '#' + ad.elementId : ''} (Slot: ${ad.slotId || 'none'}, ${ad.dimensions ? ad.dimensions.width + 'x' + ad.dimensions.height : '0x0'}) -> ${ad.status}`);
 }
 
@@ -8473,6 +8687,7 @@ if (applyTeamBtn) {
       teamActionStatus.textContent = 'Applying team on DelugeRPG...';
       teamActionStatus.style.color = '#388bfd';
     }
+    lastAppliedTeamSnapshot = lastRecommendedTeam.map(p => Object.assign({}, p));
     delugeView.send('apply-team-slots', { pokemonIds: ids, pokemons: lastRecommendedTeam });
     setTimeout(() => {
       if (isApplyingTeamOnDeluge) {
@@ -8759,6 +8974,13 @@ function areAllTeamPokemonLevel100() {
   const liveRoster = (Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > battlingTeam.length)
     ? lastKnownUserTeam
     : (battlingTeam.length > 0 ? battlingTeam : null);
+  const hasFreshSwappedRoster = Boolean(
+    typeof teamSwappedAwaitingNewBattle !== 'undefined' &&
+    teamSwappedAwaitingNewBattle &&
+    Array.isArray(lastKnownUserTeam) &&
+    lastKnownUserTeam.length > 0
+  );
+  const activeSourceRoster = hasFreshSwappedRoster ? lastKnownUserTeam : liveRoster;
 
   const matchName = (uEntryOrName, mem) => {
     if (typeof matchesTeamEntryName === 'function') {
@@ -8774,8 +8996,8 @@ function areAllTeamPokemonLevel100() {
   };
 
   // Source of Truth: The active live battling party (all 6 Pokemon), merged with recommended team if liveRoster only captured active participants
-  let fullRoster = (liveRoster && liveRoster.length > 0)
-    ? liveRoster.slice()
+  let fullRoster = (activeSourceRoster && activeSourceRoster.length > 0)
+    ? activeSourceRoster.slice()
     : (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0 ? lastRecommendedTeam.slice() : null);
 
   if (!fullRoster || fullRoster.length === 0) {
@@ -8793,7 +9015,7 @@ function areAllTeamPokemonLevel100() {
     }
   }
 
-  const liveParticipants = battlingTeam;
+  const liveParticipants = hasFreshSwappedRoster ? [] : battlingTeam;
 
   // The loop only finishes when EVERY single member of the team roster has a verified Level >= 100
   return fullRoster.every(mem => {
@@ -8878,6 +9100,9 @@ function scheduleNextLoopBattle() {
 
   // Check goal: All team Pokemon on current roster are Level 100 (Training Battles only)
   if (!isGMaxChallengeModeActive() && areAllTeamPokemonLevel100()) {
+    if (typeof startContinuousTrainingRotation === 'function' && startContinuousTrainingRotation('BUILDING_TEAM')) {
+      return;
+    }
     isBattleLoopRunning = false;
     if (teamBattleLoopCheck) teamBattleLoopCheck.checked = false;
     updateLoopCheckboxVisual();
@@ -8924,6 +9149,9 @@ function scheduleNextLoopBattle() {
       return;
     }
     if (!isGMaxChallengeModeActive() && areAllTeamPokemonLevel100()) {
+      if (typeof startContinuousTrainingRotation === 'function' && startContinuousTrainingRotation('BUILDING_TEAM')) {
+        return;
+      }
       isBattleLoopRunning = false;
       if (teamBattleLoopCheck) teamBattleLoopCheck.checked = false;
       updateLoopCheckboxVisual();
@@ -8950,6 +9178,12 @@ function scheduleNextLoopBattle() {
     if (teamActionStatus) {
       teamActionStatus.textContent = 'Loop: Entering next battle...';
       teamActionStatus.style.color = '#388bfd';
+    }
+
+    if (teamSwappedAwaitingNewBattle && !isGMaxChallengeModeActive() && battleOpponentBtn) {
+      battleOpponentBtn.disabled = false;
+      battleOpponentBtn.click();
+      return;
     }
 
     // Attempt direct in-game rematch click on webview first (clicks "NORMAL BATTLE" or "NEXT BATTLE")
@@ -9025,6 +9259,340 @@ function scheduleNextLoopBattle() {
   }, microRestMs);
 }
 
+function clearPendingTrainingRotation(reason = '', options = {}) {
+  if (pendingTrainingRotation) {
+    if (pendingTrainingRotation.timerId) {
+      clearTimeout(pendingTrainingRotation.timerId);
+      pendingTrainingRotation.timerId = null;
+    }
+    if (pendingTrainingRotation.watchdogId) {
+      clearTimeout(pendingTrainingRotation.watchdogId);
+      pendingTrainingRotation.watchdogId = null;
+    }
+    pendingTrainingRotation = null;
+  }
+  if (!options || !options.preserveResume) {
+    postCaptchaResumeContext = null;
+    if (postCaptchaResumeTimer) {
+      clearTimeout(postCaptchaResumeTimer);
+      postCaptchaResumeTimer = null;
+    }
+  }
+}
+
+function markCurrentTeamMaxedInCollection() {
+  if (!Array.isArray(currentCollection) || currentCollection.length === 0) return false;
+  const sourceLists = [
+    Array.isArray(lastKnownUserTeam) ? lastKnownUserTeam : [],
+    (activeAiBattleData && Array.isArray(activeAiBattleData.userTeam)) ? activeAiBattleData.userTeam : [],
+    Array.isArray(lastRecommendedTeam) ? lastRecommendedTeam : []
+  ];
+  const maxedEntries = [];
+  sourceLists.forEach(list => {
+    list.forEach(mem => {
+      if (!mem || !mem.name) return;
+      maxedEntries.push(Object.assign({}, mem, { level: 100, levelKnown: true }));
+    });
+  });
+  if (maxedEntries.length > 0 && typeof syncCollectionLevelsFromTelemetry === 'function') {
+    syncCollectionLevelsFromTelemetry(maxedEntries, lastRecommendedTeam);
+  }
+  const poolKey = String(teamPoolFilter || 'ANY').toUpperCase();
+  if (candidateListsCache && candidateListsCache.trainingCursorsByPool) {
+    candidateListsCache.trainingCursorsByPool[poolKey] = 0;
+    candidateListsCache.lastTrainingBuiltCtx = null;
+  }
+  if (typeof refreshCandidateListsCache === 'function') {
+    refreshCandidateListsCache({ resetCursors: false });
+  }
+  if (typeof updateRosterModeUI === 'function') {
+    updateRosterModeUI();
+  }
+  return true;
+}
+
+function getRemainingTraineesInActivePool() {
+  if (!Array.isArray(currentCollection) || currentCollection.length === 0) return [];
+  const filtered = (typeof getEffectiveFilteredPool === 'function')
+    ? getEffectiveFilteredPool(currentCollection, teamPoolFilter)
+    : currentCollection;
+  return filtered.filter(p => p && (typeof p.level === 'number' ? p.level : 100) < 100);
+}
+
+function canBuildTrainingRoster() {
+  if (teamBattleMode !== 'NPC' || teamRosterMode !== 'TRAINING' || isGMaxChallengeModeActive()) {
+    return false;
+  }
+  if (!buildTeamBtn || !applyTeamBtn || !battleOpponentBtn) {
+    return false;
+  }
+  const selVal = teamTrainerSelect ? teamTrainerSelect.value : '';
+  if (!selVal) return false;
+  if (selVal === 'LIVE__BATTLE') {
+    return Boolean(liveBattleOpponent && Array.isArray(liveBattleOpponent.roster) && liveBattleOpponent.roster.length > 0);
+  }
+  return true;
+}
+
+function restoreLockedTrainerSelection(lockedVal) {
+  if (!lockedVal || typeof teamTrainerSelect === 'undefined' || !teamTrainerSelect) return false;
+  let hasOption = true;
+  if (typeof teamTrainerSelect.querySelector === 'function') {
+    hasOption = Boolean(teamTrainerSelect.querySelector('option[value="' + lockedVal + '"]'));
+  } else if (teamTrainerSelect.options && typeof teamTrainerSelect.options.length === 'number') {
+    hasOption = false;
+    for (let i = 0; i < teamTrainerSelect.options.length; i++) {
+      if (teamTrainerSelect.options[i] && teamTrainerSelect.options[i].value === lockedVal) {
+        hasOption = true;
+        break;
+      }
+    }
+  }
+  if (!hasOption) return false;
+  if (teamTrainerSelect.value !== lockedVal) {
+    if (typeof backendLog === 'function') {
+      backendLog('LOOP_ENGINE', 'Restoring drifted trainer selection from ' + (teamTrainerSelect.value || 'empty') + ' back to ' + lockedVal);
+    }
+    teamTrainerSelect.value = lockedVal;
+    if (typeof updateFavTrainerButton === 'function') {
+      updateFavTrainerButton();
+    }
+  }
+  return true;
+}
+
+function triggerRotationApplyTeamStep() {
+  if (!pendingTrainingRotation) return false;
+  pendingTrainingRotation.stage = 'APPLYING_TEAM';
+  if (teamActionStatus) {
+    teamActionStatus.textContent = 'Equipping next trainee roster...';
+    teamActionStatus.style.color = '#388bfd';
+  }
+  const applyDelayMs = 750 + Math.floor(Math.random() * 450);
+  pendingTrainingRotation.timerId = setTimeout(() => {
+    if (!pendingTrainingRotation) return;
+    pendingTrainingRotation.timerId = null;
+    if (isUnlockChallengeActive || isCaptchaAlarmActive) {
+      return;
+    }
+    if (userManuallyPaused || isPendingSessionAutoStop || !teamBattleAutoCheck || !teamBattleAutoCheck.checked || isWildHuntingOrCatchContext() || teamBattleMode !== 'NPC' || teamRosterMode !== 'TRAINING' || isGMaxChallengeModeActive()) {
+      clearPendingTrainingRotation('Training rotation aborted before Change Team');
+      return;
+    }
+    if (!applyTeamBtn || !Array.isArray(lastRecommendedTeam) || lastRecommendedTeam.length === 0) {
+      clearPendingTrainingRotation('No built team to apply');
+      isBattleLoopRunning = false;
+      if (teamBattleLoopCheck) teamBattleLoopCheck.checked = false;
+      updateLoopCheckboxVisual();
+      return;
+    }
+    applyTeamBtn.disabled = false;
+    applyTeamBtn.click();
+    pendingTrainingRotation.watchdogId = setTimeout(() => {
+      if (pendingTrainingRotation && pendingTrainingRotation.stage === 'APPLYING_TEAM') {
+        clearPendingTrainingRotation('Team apply timed out', { preserveResume: false });
+        isBattleLoopRunning = false;
+        if (teamActionStatus) {
+          teamActionStatus.textContent = 'Team save timed out - paused rotation.';
+          teamActionStatus.style.color = '#f59e0b';
+        }
+      }
+    }, 14000);
+  }, applyDelayMs);
+  return true;
+}
+
+function startContinuousTrainingRotation(initialStage = 'BUILDING_TEAM') {
+  if (pendingTrainingRotation) return true;
+  if (isUnlockChallengeActive || isCaptchaAlarmActive || isPendingSessionAutoStop || userManuallyPaused || !teamBattleAutoCheck || !teamBattleAutoCheck.checked || !canBuildTrainingRoster()) {
+    return false;
+  }
+  if (battleLoopTimer) {
+    clearTimeout(battleLoopTimer);
+    battleLoopTimer = null;
+  }
+  if (battleLoopFallbackTimer) {
+    clearTimeout(battleLoopFallbackTimer);
+    battleLoopFallbackTimer = null;
+  }
+  isBattleLoopRunning = true;
+
+  const lockedTrainerVal = (typeof teamTrainerSelect !== 'undefined' && teamTrainerSelect && teamTrainerSelect.value)
+    ? teamTrainerSelect.value
+    : ((typeof config !== 'undefined' && config && config.settings && config.settings.lastSelectedTrainer)
+      ? config.settings.lastSelectedTrainer
+      : '');
+  if (typeof backendLog === 'function') {
+    backendLog('LOOP_ENGINE', 'Continuous training rotation locked to trainer: ' + (lockedTrainerVal || 'none'));
+  }
+
+  const poolKey = String(teamPoolFilter || 'ANY').toUpperCase();
+  if (initialStage === 'APPLYING_TEAM') {
+    if (!Array.isArray(lastRecommendedTeam) || lastRecommendedTeam.length === 0 || !lastRecommendedTeam.some(p => p && (typeof p.level === 'number' ? p.level : 100) < 100)) {
+      isBattleLoopRunning = false;
+      return false;
+    }
+    pendingTrainingRotation = {
+      stage: 'APPLYING_TEAM',
+      timerId: null,
+      watchdogId: null,
+      startedAt: Date.now(),
+      poolKey: poolKey,
+      lockedTrainerVal: lockedTrainerVal,
+      retryCount: 0
+    };
+    return triggerRotationApplyTeamStep();
+  }
+
+  markCurrentTeamMaxedInCollection();
+  const remaining = getRemainingTraineesInActivePool();
+  if (remaining.length === 0) {
+    isBattleLoopRunning = false;
+    return false;
+  }
+
+  pendingTrainingRotation = {
+    stage: 'BUILDING_TEAM',
+    timerId: null,
+    watchdogId: null,
+    startedAt: Date.now(),
+    poolKey: poolKey,
+    lockedTrainerVal: lockedTrainerVal,
+    retryCount: 0
+  };
+  if (teamActionStatus) {
+    teamActionStatus.textContent = 'Batch maxed! Building next trainee roster (' + remaining.length + ' left)...';
+    teamActionStatus.style.color = '#388bfd';
+  }
+  const buildDelayMs = 900 + Math.floor(Math.random() * 500);
+  pendingTrainingRotation.timerId = setTimeout(() => {
+    if (!pendingTrainingRotation) return;
+    pendingTrainingRotation.timerId = null;
+    if (isUnlockChallengeActive || isCaptchaAlarmActive) {
+      return;
+    }
+    if (userManuallyPaused || isPendingSessionAutoStop || !teamBattleAutoCheck || !teamBattleAutoCheck.checked || isWildHuntingOrCatchContext() || teamBattleMode !== 'NPC' || teamRosterMode !== 'TRAINING' || isGMaxChallengeModeActive()) {
+      clearPendingTrainingRotation('Training rotation aborted before Build Best Team');
+      return;
+    }
+    restoreLockedTrainerSelection(pendingTrainingRotation.lockedTrainerVal);
+    buildTeamBtn.disabled = false;
+    buildTeamBtn.click();
+    const hasBuildableTrainees = Array.isArray(lastRecommendedTeam) &&
+      lastRecommendedTeam.length > 0 &&
+      lastRecommendedTeam.some(p => p && (typeof p.level === 'number' ? p.level : 100) < 100);
+    if (!hasBuildableTrainees) {
+      clearPendingTrainingRotation('No buildable trainees remaining');
+      isBattleLoopRunning = false;
+      if (teamBattleLoopCheck) teamBattleLoopCheck.checked = false;
+      updateLoopCheckboxVisual();
+      if (teamActionStatus) {
+        teamActionStatus.textContent = 'All buildable trainees reached Lv 100! Training complete.';
+        teamActionStatus.style.color = '#10b981';
+      }
+      return;
+    }
+    triggerRotationApplyTeamStep();
+  }, buildDelayMs);
+  return true;
+}
+
+function capturePostCaptchaTrainingContext() {
+  if (postCaptchaResumeContext) return;
+  const activeRotation = pendingTrainingRotation;
+  const isTrainingNpc = Boolean(
+    typeof teamBattleMode !== 'undefined' && teamBattleMode === 'NPC' &&
+    typeof teamRosterMode !== 'undefined' && teamRosterMode === 'TRAINING' &&
+    typeof isGMaxChallengeModeActive === 'function' && !isGMaxChallengeModeActive()
+  );
+  if (!activeRotation && !isTrainingNpc) return;
+  const autoOn = Boolean(teamBattleAutoCheck && teamBattleAutoCheck.checked);
+  const loopOn = Boolean(teamBattleLoopCheck && teamBattleLoopCheck.checked);
+  if (!activeRotation && (!autoOn || !loopOn)) return;
+  postCaptchaResumeContext = {
+    needsBuildTeam: Boolean(activeRotation && activeRotation.stage === 'BUILDING_TEAM'),
+    needsApplyTeam: Boolean((activeRotation && activeRotation.stage === 'APPLYING_TEAM') || isApplyingTeamOnDeluge),
+    needsBattleNow: Boolean(activeRotation || (autoOn && loopOn)),
+    wasTrainingRotation: Boolean(activeRotation),
+    lockedTrainerVal: (activeRotation && activeRotation.lockedTrainerVal) ||
+      ((typeof teamTrainerSelect !== 'undefined' && teamTrainerSelect && teamTrainerSelect.value) ? teamTrainerSelect.value : '') ||
+      ((typeof config !== 'undefined' && config && config.settings && config.settings.lastSelectedTrainer) ? config.settings.lastSelectedTrainer : ''),
+    capturedAt: Date.now()
+  };
+}
+
+function schedulePostCaptchaTrainingResume() {
+  if (!postCaptchaResumeContext) return;
+  const ctx = postCaptchaResumeContext;
+  postCaptchaResumeContext = null;
+  if (postCaptchaResumeTimer) {
+    clearTimeout(postCaptchaResumeTimer);
+    postCaptchaResumeTimer = null;
+  }
+  postCaptchaResumeTimer = setTimeout(() => {
+    postCaptchaResumeTimer = null;
+    if (isUnlockChallengeActive || isCaptchaAlarmActive || isPendingSessionAutoStop || userManuallyPaused) {
+      return;
+    }
+    if (isRunning || isAutoCatchCountdownActive || isEncounterOnScreen || targetEncounterActive) {
+      return;
+    }
+    const curUrl = (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '';
+    const lowerUrl = String(curUrl).toLowerCase();
+    if (!curUrl || isUnlockOrCaptchaUrl(curUrl) || lowerUrl.includes('/login') || lowerUrl.includes('/catch') || lowerUrl.includes('/battle/wild')) {
+      return;
+    }
+    if (teamBattleMode !== 'NPC' || teamRosterMode !== 'TRAINING' || isGMaxChallengeModeActive() || !teamBattleAutoCheck || !teamBattleAutoCheck.checked) {
+      return;
+    }
+    if (typeof restoreLockedTrainerSelection === 'function') {
+      restoreLockedTrainerSelection(ctx.lockedTrainerVal);
+    }
+    if (ctx.needsBuildTeam) {
+      startContinuousTrainingRotation('BUILDING_TEAM');
+      return;
+    }
+    if (ctx.needsApplyTeam && Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0 && lastRecommendedTeam.some(p => p && (typeof p.level === 'number' ? p.level : 100) < 100)) {
+      startContinuousTrainingRotation('APPLYING_TEAM');
+      return;
+    }
+    if (ctx.needsBattleNow) {
+      if (areAllTeamPokemonLevel100()) {
+        if (ctx.wasTrainingRotation) {
+          startContinuousTrainingRotation('BUILDING_TEAM');
+        }
+        return;
+      }
+      if (teamBattleLoopCheck) {
+        teamBattleLoopCheck.disabled = false;
+        teamBattleLoopCheck.checked = true;
+        updateLoopCheckboxVisual();
+      }
+      const isMidActiveBattle = Boolean(
+        isCurrentPageBattle() &&
+        activeAiBattleData &&
+        !activeAiBattleData.isVictoryScreen &&
+        !activeAiBattleData.isDefeatScreen &&
+        !activeAiBattleData.isPostBattleScreen &&
+        !activeAiBattleData.hasNextBattleBtn
+      );
+      if (isMidActiveBattle) {
+        isBattleAutoRunning = true;
+        if (delugeView && typeof delugeView.send === 'function') {
+          delugeView.send('check-battle-opponents');
+        }
+      } else if (battleOpponentBtn) {
+        if (teamActionStatus) {
+          teamActionStatus.textContent = 'Captcha cleared! Resuming Battle Now...';
+          teamActionStatus.style.color = '#10b981';
+        }
+        battleOpponentBtn.disabled = false;
+        battleOpponentBtn.click();
+      }
+    }
+  }, 1250);
+}
+
 if (teamBattleAutoCheck) {
   teamBattleAutoCheck.addEventListener('change', () => {
     if (teamBattleAutoCheck.checked) {
@@ -9052,6 +9620,9 @@ if (teamBattleAutoCheck) {
         updateTeamBuilderBattleAction(activeAiBattleData);
       }
     } else {
+      if (typeof clearPendingTrainingRotation === 'function') {
+        clearPendingTrainingRotation('Auto mode unchecked');
+      }
       stopAllBattleAutomation('Auto mode unchecked');
       if (teamBattleAutoLabel) {
         teamBattleAutoLabel.style.borderColor = '#1a283e';
@@ -9115,6 +9686,9 @@ if (teamBattleLoopCheck) {
         scheduleNextLoopBattle();
       }
     } else {
+      if (typeof clearPendingTrainingRotation === 'function') {
+        clearPendingTrainingRotation('Loop mode unchecked');
+      }
       if (battleLoopTimer) {
         clearTimeout(battleLoopTimer);
         battleLoopTimer = null;
@@ -9154,6 +9728,9 @@ setAutoAndLoopDefaultChecked();
 
 if (teamTrainerSelect) {
   teamTrainerSelect.addEventListener('change', () => {
+    if (typeof clearPendingTrainingRotation === 'function') {
+      clearPendingTrainingRotation('Trainer changed');
+    }
     lastSelectedBattleUrl = null;
     const selVal = teamTrainerSelect.value;
     if (!config.settings) config.settings = {};
@@ -10287,14 +10864,19 @@ function computeAiBattleActionConfig(battleData, collection) {
   const needsPostFaintBenchSelect = Boolean(!isBattlerAlive && analysis.hasBenchRadios && !analysis.isPreparationScreen);
 
   // Precision Tactical Forfeit: When Carry and all >= Lv 85 fighters are fainted and remaining babies cannot win,
+  // or after the Carry is defeated and at most 2 additional post-Carry fighters have fallen,
   // immediately click "Forfeit" and continue the Loop into the next battle without wasting time.
   const blockForfeitOnAliveContinue = Boolean(
     isBattlerAlive &&
-    (analysis.hasContinueBtn || analysis.hasSkipSelectionBtn)
+    (analysis.hasContinueBtn || analysis.hasSkipSelectionBtn) &&
+    !(analysis.postCarryLimitReached && analysis.hasBenchRadios && !analysis.hasAttackBtn && !analysis.hasSkipSelectionBtn)
   );
   if (analysis.shouldForfeitBattle && analysis.hasForfeitBtn && !blockForfeitOnAliveContinue) {
+    const forfeitLabel = analysis.postCarryLimitReached
+      ? 'Forfeit (Max 2 Post-Carry - Next Loop)'
+      : 'Forfeit (Unwinnable - Next Loop)';
     return {
-      labelHtml: '&#9873; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Forfeit (Unwinnable - Next Loop)</span>',
+      labelHtml: `&#9873; <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${forfeitLabel}</span>`,
       hudText: 'Forfeit & Loop',
       disabled: false,
       btnClass: 'btn btn-danger',
@@ -10309,6 +10891,7 @@ function computeAiBattleActionConfig(battleData, collection) {
   if ((analysis.hasContinueBtn || analysis.hasSkipSelectionBtn) && !needsPostFaintBenchSelect) {
     const shouldRelayBetweenKOs = Boolean(
       isTrainingOnlyMode &&
+      !analysis.isCarryDefeated &&
       isBattlerAlive &&
       activeBattlerLvl >= 85 &&
       relayTargetTrainees.length > 0 &&
@@ -10380,6 +10963,7 @@ function computeAiBattleActionConfig(battleData, collection) {
       );
       const shouldMidBattleSwitch = Boolean(
         isTrainingOnlyMode &&
+        !analysis.isCarryDefeated &&
         (activeBattlerLvl >= 85 || analysis.isHighLevelTrainee) &&
         (hasDefeatedAtLeastOneOpp || activeBattlerLvl >= 100) &&
         relayTargetTrainees.length > 0 &&
@@ -10577,15 +11161,26 @@ function updateTeamBuilderBattleAction(battleData) {
     return;
   }
 
-  const isMatchOver = Boolean(
-    (battleData && (battleData.isPostBattleScreen || battleData.isVictoryScreen || battleData.isDefeatScreen || battleData.isGmaxChallengeComplete || battleData.hasNextBattleBtn)) ||
+  const isExplicitPostBattle = Boolean(battleData && (battleData.isPostBattleScreen || battleData.isVictoryScreen || battleData.isDefeatScreen || battleData.isGmaxChallengeComplete || battleData.hasNextBattleBtn));
+  const isTransientInFlight = Boolean(!isExplicitPostBattle && typeof battleActionInFlightUntil !== 'undefined' && Date.now() < battleActionInFlightUntil);
+  const isMatchOver = !isTransientInFlight && Boolean(
+    isExplicitPostBattle ||
     (config && (config.disabled || !config.action || (config.labelHtml && (config.labelHtml.indexOf('Battle Complete') !== -1 || config.labelHtml.indexOf('Battle Finished') !== -1 || config.labelHtml.indexOf('Challenge Complete') !== -1 || config.labelHtml.indexOf('Next Battle') !== -1))))
   );
-  backendLog('BATTLE_ACTION_EVAL', `isMatchOver=${isMatchOver}, action="${config ? config.hudText || 'none' : 'none'}", hasNextBattleBtn=${Boolean(battleData && battleData.hasNextBattleBtn)}, isVictoryScreen=${Boolean(battleData && battleData.isVictoryScreen)}, loopChecked=${Boolean(teamBattleLoopCheck && teamBattleLoopCheck.checked)}`);
+  const evalSig = `${isMatchOver}|${config ? config.hudText || 'none' : 'none'}|${Boolean(battleData && battleData.hasNextBattleBtn)}|${Boolean(battleData && battleData.isVictoryScreen)}|${Boolean(teamBattleLoopCheck && teamBattleLoopCheck.checked)}`;
+  const nowEvalTs = Date.now();
+  const prevEvalSig = (typeof lastBattleActionEvalLogSig !== 'undefined') ? lastBattleActionEvalLogSig : '';
+  const prevEvalTs = (typeof lastBattleActionEvalLogTs !== 'undefined') ? lastBattleActionEvalLogTs : 0;
+  if (evalSig !== prevEvalSig || (nowEvalTs - prevEvalTs) > 3000) {
+    if (typeof lastBattleActionEvalLogSig !== 'undefined') lastBattleActionEvalLogSig = evalSig;
+    if (typeof lastBattleActionEvalLogTs !== 'undefined') lastBattleActionEvalLogTs = nowEvalTs;
+    backendLog('BATTLE_ACTION_EVAL', `isMatchOver=${isMatchOver}, action="${config ? config.hudText || 'none' : 'none'}", hasNextBattleBtn=${Boolean(battleData && battleData.hasNextBattleBtn)}, isVictoryScreen=${Boolean(battleData && battleData.isVictoryScreen)}, loopChecked=${Boolean(teamBattleLoopCheck && teamBattleLoopCheck.checked)}`);
+  }
   if (isMatchOver) {
     if (battleAutoStepTimer) {
       clearTimeout(battleAutoStepTimer);
       battleAutoStepTimer = null;
+      if (typeof scheduledAutoStepKey !== 'undefined') scheduledAutoStepKey = '';
     }
     isBattleAutoRunning = false;
 
@@ -10618,6 +11213,7 @@ function updateTeamBuilderBattleAction(battleData) {
   teamBattleActionBtn.title = 'Execute optimal battle move or action directly from Team Builder';
   teamBattleActionBtn.onclick = () => {
     userManuallyPaused = false;
+    if (typeof scheduledAutoStepKey !== 'undefined') scheduledAutoStepKey = '';
     if (typeof config.action === 'function') {
       const isNextBattleClick = Boolean(config.labelHtml && config.labelHtml.indexOf('Next Battle') !== -1);
       if (teamBattleAutoCheck && teamBattleAutoCheck.checked) {
@@ -10647,6 +11243,12 @@ function updateTeamBuilderBattleAction(battleData) {
   }
 
   if (isBattleAutoRunning && teamBattleAutoCheck && teamBattleAutoCheck.checked && !isMatchOver && !isWildHuntingOrCatchContext(battleData && battleData.battleUrl) && isCurrentPageBattle() && typeof config.action === 'function' && !config.disabled) {
+    const opp0 = (battleData && Array.isArray(battleData.roster) && battleData.roster[0]) ? battleData.roster[0] : null;
+    const usr0 = (battleData && battleData.userActivePokemon) ? battleData.userActivePokemon : null;
+    const autoStepKey = `${config.hudText || ''}|${battleData && battleData.isPreparationScreen ? 'prep' : 'act'}|${opp0 ? (opp0.name + ':' + opp0.hp) : ''}|${usr0 ? (usr0.name + ':' + usr0.hp) : ''}`;
+    if (battleAutoStepTimer && typeof scheduledAutoStepKey !== 'undefined' && scheduledAutoStepKey === autoStepKey) {
+      return;
+    }
     if (battleAutoStepTimer) {
       clearTimeout(battleAutoStepTimer);
       battleAutoStepTimer = null;
@@ -10664,8 +11266,10 @@ function updateTeamBuilderBattleAction(battleData) {
         : `Auto turn in ${(autoDelay / 1000).toFixed(1)}s...`;
       teamActionStatus.style.color = '#388bfd';
     }
+    if (typeof scheduledAutoStepKey !== 'undefined') scheduledAutoStepKey = autoStepKey;
     battleAutoStepTimer = setTimeout(() => {
       battleAutoStepTimer = null;
+      if (typeof scheduledAutoStepKey !== 'undefined') scheduledAutoStepKey = '';
       if (isUnlockChallengeActive || isCaptchaAlarmActive || isPendingSessionAutoStop) {
         isBattleAutoRunning = false;
         return;
@@ -10753,6 +11357,44 @@ function renderAiAssistantUI() {
   }
 }
 
+function maybeRecoverStuckBattlePage(reason = 'Battle action stalled') {
+  if (consecutiveStuckBattleActions < 4) return false;
+  if ((Date.now() - lastBattleStallRecoveryTs) < 20000) return false;
+  if (isUnlockChallengeActive || isCaptchaAlarmActive || isPendingSessionAutoStop || userManuallyPaused) return false;
+  if (isWildHuntingOrCatchContext() || !isCurrentPageBattle()) return false;
+  if (!isBattleAutoRunning && !(teamBattleAutoCheck && teamBattleAutoCheck.checked)) return false;
+
+  const curUrl = (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '';
+  if (!curUrl || isUnlockOrCaptchaUrl(curUrl)) return false;
+
+  consecutiveStuckBattleActions = 0;
+  lastStuckActionKey = '';
+  scheduledAutoStepKey = '';
+  battleActionInFlightUntil = 0;
+  lastBattleStallRecoveryTs = Date.now();
+  if (battleAutoStepTimer) {
+    clearTimeout(battleAutoStepTimer);
+    battleAutoStepTimer = null;
+  }
+  backendLog('BATTLE_STALL_RECOVERY', `Recovering stuck battle page (${reason}): reloading ${curUrl}`);
+  if (teamActionStatus) {
+    teamActionStatus.textContent = 'Battle stalled - reloading arena...';
+    teamActionStatus.style.color = '#f59e0b';
+  }
+  if (delugeView && typeof delugeView.loadURL === 'function') {
+    const seqBefore = guestLoadEventSeq;
+    try {
+      delugeView.loadURL(curUrl).catch(() => {});
+    } catch (_) {}
+    setTimeout(() => {
+      if (guestLoadEventSeq === seqBefore && !isUnlockChallengeActive && !isCaptchaAlarmActive && typeof recoverHungWebviewAndLoad === 'function') {
+        recoverHungWebviewAndLoad(curUrl, 'Stuck battle recovery').catch(() => {});
+      }
+    }, 3500);
+  }
+  return true;
+}
+
 let aiActionTimeoutTimer = null;
 function executeAiBattleAction(action, payload) {
   if (isWildHuntingOrCatchContext() || !isCurrentPageBattle()) {
@@ -10778,6 +11420,21 @@ function executeAiBattleAction(action, payload) {
     return;
   }
   if (!delugeView) return;
+  battleActionInFlightUntil = Date.now() + 1400;
+  scheduledAutoStepKey = '';
+  const curOpp0 = (activeAiBattleData && Array.isArray(activeAiBattleData.roster) && activeAiBattleData.roster[0]) ? activeAiBattleData.roster[0] : null;
+  const curUsr0 = (activeAiBattleData && activeAiBattleData.userActivePokemon) ? activeAiBattleData.userActivePokemon : null;
+  const targetDetail = (payload && (payload.moveName || payload.pokemonName || payload.itemName)) || '';
+  const actionKey = `${action}|${targetDetail}|${(activeAiBattleData && activeAiBattleData.isPreparationScreen) ? 'prep' : 'act'}|${curOpp0 ? (curOpp0.name + ':' + curOpp0.hp) : ''}|${curUsr0 ? (curUsr0.name + ':' + curUsr0.hp) : ''}`;
+  if (actionKey === lastStuckActionKey) {
+    consecutiveStuckBattleActions++;
+  } else {
+    lastStuckActionKey = actionKey;
+    consecutiveStuckBattleActions = 1;
+  }
+  if (consecutiveStuckBattleActions >= 5 && maybeRecoverStuckBattlePage('Repeated identical action: ' + actionKey)) {
+    return;
+  }
   if (aiStatusChip) {
     aiStatusChip.textContent = 'Applying...';
     aiStatusChip.style.color = '#388bfd';
@@ -10790,8 +11447,14 @@ function executeAiBattleAction(action, payload) {
     justSwitchedActivePokemon.add(payload.pokemonName.toLowerCase());
     currentMatchParticipants.add(payload.pokemonName.toLowerCase());
     currentMatchSwitchCount++;
+    if (typeof currentMatchCarryDefeated !== 'undefined' && currentMatchCarryDefeated && typeof currentMatchPostCarryDeployed !== 'undefined') {
+      currentMatchPostCarryDeployed.add(String(payload.pokemonName).toLowerCase());
+    }
   } else if (action === 'select-lead-and-start' && payload && payload.pokemonName) {
     currentMatchParticipants.add(payload.pokemonName.toLowerCase());
+    if (typeof currentMatchCarryDefeated !== 'undefined' && currentMatchCarryDefeated && typeof currentMatchPostCarryDeployed !== 'undefined') {
+      currentMatchPostCarryDeployed.add(String(payload.pokemonName).toLowerCase());
+    }
     if (payload.isRelay) {
       justSwitchedActivePokemon.add(payload.pokemonName.toLowerCase());
       currentMatchSwitchCount++;
@@ -10840,6 +11503,7 @@ function equipAiCarryToSlot1(carryObj) {
   const filtered = targetTeam.filter(p => p.id !== carryObj.id);
   const newTeam = [carryObj, ...filtered].slice(0, 6);
   lastRecommendedTeam = newTeam;
+  lastAppliedTeamSnapshot = newTeam.map(p => Object.assign({}, p));
   const ids = newTeam.map(p => p.id);
   delugeView.send('apply-team-slots', { pokemonIds: ids, pokemons: newTeam });
   if (aiStatusChip) {
@@ -11348,6 +12012,9 @@ let isCaptchaAlarmActive = false;
 let preCaptchaBattlePrefs = null;
 
 function capturePreCaptchaBattlePrefs() {
+  if (typeof capturePostCaptchaTrainingContext === 'function') {
+    capturePostCaptchaTrainingContext();
+  }
   if (!preCaptchaBattlePrefs && (teamBattleAutoCheck || teamBattleLoopCheck)) {
     preCaptchaBattlePrefs = {
       autoChecked: Boolean(teamBattleAutoCheck && teamBattleAutoCheck.checked),
@@ -11475,6 +12142,9 @@ function silenceCaptchaAlarm() {
 
   updateTeamBuilderBattleAction(activeAiBattleData);
   renderAiAssistantUI();
+  if (typeof schedulePostCaptchaTrainingResume === 'function') {
+    schedulePostCaptchaTrainingResume();
+  }
 }
 
 let lastCaptchaHaltDispatchTs = 0;
@@ -11483,6 +12153,9 @@ function handleCaptchaEmergencyHalt(reason = 'Captcha challenge detected') {
   const nowTs = Date.now();
   capturePreCaptchaBattlePrefs();
   stopAllBattleAutomation(reason);
+  if (typeof clearPendingTrainingRotation === 'function') {
+    clearPendingTrainingRotation(reason, { preserveResume: true });
+  }
   if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Captcha active');
   pendingGmaxEntryFlow = null;
   if (teamBattleAutoCheck) {
@@ -11980,6 +12653,18 @@ openTeamBuilderPanel();
 
 // Action Feedback IPC from main process network layer
 ipcRenderer.on('action-feedback-event', (event, data) => {
+  if (data && data.url && data.url.includes('/ajax/battle/')) {
+    battleActionInFlightUntil = 0;
+    if (data.success) {
+      consecutiveStuckBattleActions = 0;
+      lastStuckActionKey = '';
+    } else {
+      consecutiveStuckBattleActions += 2;
+      if (typeof maybeRecoverStuckBattlePage === 'function') {
+        maybeRecoverStuckBattlePage('Battle AJAX failed: ' + (data.error || data.status));
+      }
+    }
+  }
   if (data && !isRestBreakActive) {
     if (data.url && (data.url.includes('/cdn-cgi/') || data.url.includes('/ajax/map/positions/'))) return;
     const statusStr = data.success ? (data.status + ' OK') : (data.error || 'Failed');

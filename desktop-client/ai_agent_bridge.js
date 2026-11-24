@@ -135,6 +135,7 @@ class DelugeAiAssistant {
         hp: u.hp !== undefined ? u.hp : (matched ? matched.hp : 400),
         maxHp: u.maxHp !== undefined ? u.maxHp : (matched ? matched.maxHp : 400),
         isFainted: Boolean(u.isFainted || (u.hp !== undefined && u.hp <= 0)),
+        isCarry: Boolean(u.isCarry),
         checked: Boolean(u.checked),
         moves: (matched && Array.isArray(matched.moves) && matched.moves.length > 0) ? matched.moves : (u.moves || [])
       };
@@ -164,13 +165,83 @@ class DelugeAiAssistant {
     // Goal 1: Only the Primary Trainee and the Carry participate in battle to maximize shared EXP.
     // Goal 2: Primary Trainee (first non-Lv100 trainee on team) ALWAYS attacks first against all opponents while alive.
     // Goal 3: Once the Primary Trainee faints (dies), the Level 100 Carry immediately finishes the entire rest of the battle.
-    const traineesInTeam = teamCandidates.filter(c => (c.level || 100) < 100);
-    const carriesInTeam = teamCandidates.filter(c => (c.level || 0) >= 100);
+    const explicitCarries = teamCandidates.filter(c => c.isCarry);
+    const traineesInTeam = teamCandidates.filter(c => !c.isCarry && (c.level || 100) < 100);
+    const carriesInTeam = explicitCarries.length > 0
+      ? explicitCarries
+      : teamCandidates.filter(c => (c.level || 0) >= 100);
     const isTrainingTeam = Boolean(
       teamCandidates.length >= 2 &&
       traineesInTeam.length > 0 &&
       (carriesInTeam.length > 0 || traineesInTeam.length >= 2)
     );
+
+    const MAX_POST_CARRY_ADDITIONAL = 2;
+    const scorePostCarryWinChance = (cand, targetOpp, targetOppTypes, remOpps) => {
+      if (!cand) return -Infinity;
+      const curOppObj = targetOpp || activeOpp || { name: 'Unknown', types: ['Normal'], level: 100 };
+      const curTypes = (Array.isArray(targetOppTypes) && targetOppTypes.length > 0)
+        ? targetOppTypes
+        : ((Array.isArray(curOppObj.types) && curOppObj.types.length > 0) ? curOppObj.types : oppTypes);
+      const curOppVar = curOppObj.variant || detectVariantFromName(curOppObj.name);
+      const curOppEnriched = Object.assign({}, curOppObj, { variant: curOppVar, types: curTypes });
+      const oppLvl = curOppObj.level || 100;
+      const scoreRes = teamEngine.scoreVsSingleOpponent(cand, curTypes, oppLvl, curOppObj.moves, curOppEnriched);
+      const candLvl = cand.level || 1;
+      const candVar = cand.variant || detectVariantFromName(cand.name);
+      const candMaxHp = (cand.maxHp && cand.maxHp > 0) ? cand.maxHp : Math.max(4, candLvl * 4);
+      const candHp = (cand.hp !== undefined && cand.hp >= 0) ? cand.hp : candMaxHp;
+      const hpRatio = Math.max(0, Math.min(1, candHp / candMaxHp));
+      const lvlRatio = oppLvl > 0 ? (candLvl / oppLvl) : 1.0;
+      const oppVarMult = teamEngine.getVariantMultipliers(curOppVar, candVar);
+      const bestMove = scoreRes ? scoreRes.bestMove : null;
+      const bestMult = (bestMove && typeof bestMove.multiplier === 'number') ? bestMove.multiplier : 1.0;
+      const scaledEffPwr = (bestMove && typeof bestMove.effectivePower === 'number')
+        ? ((bestMove.effectivePower * lvlRatio) / (oppVarMult.hp || 1.0))
+        : 0;
+      const estOppMaxHp = (curOppObj.maxHp && curOppObj.maxHp > 0)
+        ? curOppObj.maxHp
+        : Math.round(oppLvl * 4 * (oppVarMult.hp || 1.0));
+      const estOppCurHp = (curOppObj.hp !== undefined && curOppObj.hp > 0) ? curOppObj.hp : estOppMaxHp;
+      const estDmgHp = Math.round((scaledEffPwr / 180) * estOppMaxHp);
+      const canFinishOpp = Boolean(bestMult > 0 && scaledEffPwr > 0 && estDmgHp >= estOppCurHp);
+
+      let winScore = (scoreRes && typeof scoreRes.totalScore === 'number') ? scoreRes.totalScore : 0;
+      winScore += (scaledEffPwr * 0.6) + ((candLvl - oppLvl) * 3.0);
+      if (canFinishOpp) winScore += 180;
+      if (bestMult >= 4.0) winScore += 220;
+      else if (bestMult >= 2.0) winScore += 120;
+      else if (bestMult <= 0) winScore -= 350;
+      else if (bestMult < 1.0) winScore -= 100;
+
+      const worstRisk = (scoreRes && typeof scoreRes.worstDefRisk === 'number') ? scoreRes.worstDefRisk : 1.0;
+      if (worstRisk === 0.0) winScore += 110;
+      else if (worstRisk <= 0.5) winScore += 80;
+      else if (worstRisk <= 1.0) winScore += 25;
+      else if (worstRisk >= 4.0) winScore -= 200;
+      else if (worstRisk >= 2.0) winScore -= 90;
+
+      winScore += (hpRatio * 60) + (Math.min(candHp, 400) * 0.15);
+
+      if (Array.isArray(remOpps) && remOpps.length > 0) {
+        let sweepSum = 0;
+        let sweepCount = 0;
+        for (let r = 0; r < remOpps.length; r++) {
+          const ro = remOpps[r];
+          if (!ro || ro === curOppObj) continue;
+          const rTypes = (Array.isArray(ro.types) && ro.types.length > 0) ? ro.types : ['Normal'];
+          const rVar = ro.variant || detectVariantFromName(ro.name);
+          const rEnriched = Object.assign({}, ro, { variant: rVar, types: rTypes });
+          const rRes = teamEngine.scoreVsSingleOpponent(cand, rTypes, ro.level || oppLvl, ro.moves, rEnriched);
+          sweepSum += (rRes && typeof rRes.totalScore === 'number') ? rRes.totalScore : 0;
+          sweepCount++;
+        }
+        if (sweepCount > 0) {
+          winScore += (sweepSum / sweepCount) * 0.35;
+        }
+      }
+      return winScore;
+    };
 
     let primaryTrainee = null;
     let secondaryTrainee = null;
@@ -207,7 +278,9 @@ class DelugeAiAssistant {
       const isPrimaryAlive = Boolean(primaryTrainee && !primaryTrainee.isFainted && (primaryTrainee.hp === undefined || primaryTrainee.hp > 0));
       const isSecondaryAlive = Boolean(secondaryTrainee && !secondaryTrainee.isFainted && (secondaryTrainee.hp === undefined || secondaryTrainee.hp > 0));
       const secondaryHasFainted = Boolean(secondaryTrainee && (secondaryTrainee.isFainted || (secondaryTrainee.hp !== undefined && secondaryTrainee.hp <= 0)));
-      const isCarryAlive = Boolean(trainingCarry && !trainingCarry.isFainted && (trainingCarry.hp === undefined || trainingCarry.hp > 0));
+      const isCarryAlive = carriesInTeam.length > 0
+        ? carriesInTeam.some(c => !c.isFainted && (c.hp === undefined || c.hp > 0))
+        : Boolean(trainingCarry && !trainingCarry.isFainted && (trainingCarry.hp === undefined || trainingCarry.hp > 0));
       const otherAliveTrainees = traineesInTeam.slice(1).filter(t => !t.isFainted && (t.hp === undefined || t.hp > 0));
       const capableBenchTrainees = otherAliveTrainees.filter(t => (t.level || 0) >= 85);
 
@@ -217,6 +290,7 @@ class DelugeAiAssistant {
       //    deploy Secondary Trainee (traineesInTeam[1], regardless of level) for 1 turn so it enters the EXP pool!
       // 3. Once Primary Trainee (and Secondary Trainee when Primary >= Lv 85) have participated/fainted,
       //    Carry Anchor immediately sweeps the rest of the battle; Slots 4-6 babies are NEVER deployed while Carry is alive.
+      // 4. Once Carry falls, rank alive non-Carry fighters strictly by highest chance to win.
       if (isPrimaryAlive && !secondaryHasFainted) {
         designatedTrainingBattler = primaryTrainee;
       } else if (isHighLevelTrainee && isSecondaryAlive) {
@@ -225,12 +299,19 @@ class DelugeAiAssistant {
         designatedTrainingBattler = capableBenchTrainees[0];
       } else if (isCarryAlive) {
         designatedTrainingBattler = trainingCarry;
+      } else if (carriesInTeam.length > 0 || trainingCarry) {
+        const aliveOppsPre = Array.isArray(oppRoster) ? oppRoster.filter(o => !o.isFainted && (o.hp === undefined || o.hp > 0)) : [];
+        const aliveNonCarryPre = teamCandidates
+          .filter(c => !c.isFainted && (c.hp === undefined || c.hp > 0) && !carriesInTeam.some(cr => cr.id === c.id && cr.slotIndex === c.slotIndex) && c !== trainingCarry)
+          .sort((a, b) => scorePostCarryWinChance(b, activeOpp, oppTypes, aliveOppsPre) - scorePostCarryWinChance(a, activeOpp, oppTypes, aliveOppsPre));
+        designatedTrainingBattler = aliveNonCarryPre[0] || teamCandidates.find(c => !c.isFainted && (c.hp === undefined || c.hp > 0)) || null;
       } else if (isPrimaryAlive) {
         designatedTrainingBattler = primaryTrainee;
       } else {
+        const aliveOppsPre = Array.isArray(oppRoster) ? oppRoster.filter(o => !o.isFainted && (o.hp === undefined || o.hp > 0)) : [];
         const aliveFallback = teamCandidates
           .filter(c => !c.isFainted && (c.hp === undefined || c.hp > 0))
-          .sort((a, b) => (b.level || 0) - (a.level || 0));
+          .sort((a, b) => scorePostCarryWinChance(b, activeOpp, oppTypes, aliveOppsPre) - scorePostCarryWinChance(a, activeOpp, oppTypes, aliveOppsPre));
         designatedTrainingBattler = aliveFallback[0] || null;
       }
     }
@@ -433,7 +514,43 @@ class DelugeAiAssistant {
           if (aliveRoadmap) nextAliveCounter = aliveRoadmap.counterName;
         }
       }
-      const isCarryStillAlive = Boolean(trainingCarry && !trainingCarry.isFainted && (trainingCarry.hp === undefined || trainingCarry.hp > 0));
+      const matchesCarryCandidate = (c) => Boolean(
+        c &&
+        (carriesInTeam.some(cr => cr.id === c.id && cr.slotIndex === c.slotIndex) ||
+         (trainingCarry && ((c.id && trainingCarry.id && c.id === trainingCarry.id && c.slotIndex === trainingCarry.slotIndex) ||
+          formatPokemonFullName(c.variant, c.name).toLowerCase() === formatPokemonFullName(trainingCarry.variant, trainingCarry.name).toLowerCase())))
+      );
+      const matchesCandidateKey = (c, rawKey) => {
+        if (!c || !rawKey) return false;
+        const s = String(rawKey).toLowerCase().trim();
+        const cLow = String(c.name || '').toLowerCase().trim();
+        const fLow = formatPokemonFullName(c.variant, c.name).toLowerCase().trim();
+        const sClean = s.replace(/[^a-z0-9]/g, '');
+        const cClean = cLow.replace(/[^a-z0-9]/g, '');
+        const fClean = fLow.replace(/[^a-z0-9]/g, '');
+        return Boolean(s && (s === cLow || s === fLow || (sClean && (sClean === cClean || sClean === fClean))));
+      };
+      const canonicalSlotKey = (rawKey) => {
+        const s = String(rawKey || '').toLowerCase().trim();
+        if (!s) return '';
+        const matchedCand = teamCandidates.find(c => matchesCandidateKey(c, s));
+        if (matchedCand) {
+          return String(matchedCand.id || matchedCand.name) + ':' + matchedCand.slotIndex;
+        }
+        return s.replace(/[^a-z0-9]/g, '') || s;
+      };
+      const isCandInSet = (c, setObj) => {
+        if (!c || !setObj || setObj.size === 0) return false;
+        const slotK = String(c.id || c.name) + ':' + c.slotIndex;
+        if (setObj.has(slotK)) return true;
+        const cLow = String(c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const fLow = formatPokemonFullName(c.variant, c.name).toLowerCase().replace(/[^a-z0-9]/g, '');
+        return setObj.has(cLow) || setObj.has(fLow);
+      };
+
+      const isCarryStillAlive = carriesInTeam.length > 0
+        ? carriesInTeam.some(c => !c.isFainted && (c.hp === undefined || c.hp > 0))
+        : Boolean(trainingCarry && !trainingCarry.isFainted && (trainingCarry.hp === undefined || trainingCarry.hp > 0));
       if (isTrainingTeam && designatedTrainingBattler) {
         const desigFullName = formatPokemonFullName(designatedTrainingBattler.variant, designatedTrainingBattler.name);
         const actFullName = formatPokemonFullName(activeBattler.variant, activeBattler.name);
@@ -459,9 +576,9 @@ class DelugeAiAssistant {
         if (aliveBench) nextAliveCounter = aliveBench.name;
       }
 
-      // Precision Tactical Forfeit Evaluation (Zero False Positives):
-      // Only triggers when ALL Carries and high-level fighters (>= Lv 85) are fainted,
-      // AND all remaining alive user Pokemon are hopelessly outmatched by the remaining opponent roster.
+      // Precision Tactical Forfeit & Post-Carry Max-2 Evaluation:
+      // 1. Triggers unwinnable forfeit when ALL Carries and >= Lv 85 fighters faint and babies are hopelessly outmatched.
+      // 2. Once Carry falls, restricts remaining battle to at most 2 additional highest-chance-to-win fighters, then forfeits.
       const aliveUserMembers = teamCandidates.filter(c => !c.isFainted && (c.hp === undefined || c.hp > 0));
       const aliveOpponents = oppRoster.filter(o => !o.isFainted && (o.hp === undefined || o.hp > 0));
       const remainingOppCount = Math.max(aliveOpponents.length, isActiveOppFainted ? 0 : 1);
@@ -499,22 +616,89 @@ class DelugeAiAssistant {
         (battleData.hasContinueBtn || battleData.hasSkipSelectionBtn) &&
         (isActiveOppFainted || battleData.hasSkipSelectionBtn)
       );
-      let carryHasNotFaintedInMatch = Boolean(isTrainingTeam && trainingCarry && !trainingCarry.isFainted && (trainingCarry.hp === undefined || trainingCarry.hp > 0));
-      if (!carryHasNotFaintedInMatch && isTrainingTeam && trainingCarry && trainingCarry.name) {
-        const carryNameLow = String(trainingCarry.name).toLowerCase();
-        const carryFullLow = formatPokemonFullName(trainingCarry.variant, trainingCarry.name).toLowerCase();
-        const matchesCarryKey = (entry) => {
-          const s = String(entry || '').toLowerCase();
-          return Boolean(s && (s === carryNameLow || s === carryFullLow));
-        };
-        if (Array.isArray(battleData.verifiedFaintedNames) && !battleData.verifiedFaintedNames.some(matchesCarryKey)) {
-          carryHasNotFaintedInMatch = true;
-        }
-        if (Array.isArray(battleData.matchParticipants) && !battleData.matchParticipants.some(matchesCarryKey)) {
+      const allCarryCheckList = carriesInTeam.length > 0 ? carriesInTeam : (trainingCarry ? [trainingCarry] : []);
+      let carryHasNotFaintedInMatch = Boolean(isTrainingTeam && allCarryCheckList.length > 0 && isCarryStillAlive);
+      if (!carryHasNotFaintedInMatch && isTrainingTeam && allCarryCheckList.length > 0) {
+        const carryWasVerifiedDead = allCarryCheckList.every(cr => {
+          const deadActive = Boolean(isActiveBattlerFainted && matchesCandidateKey(cr, activeBattler.name));
+          const inVerified = !Array.isArray(battleData.verifiedFaintedNames) || battleData.verifiedFaintedNames.some(v => matchesCandidateKey(cr, v));
+          const inPart = !Array.isArray(battleData.matchParticipants) || battleData.matchParticipants.some(v => matchesCandidateKey(cr, v));
+          return deadActive || (inVerified && inPart);
+        });
+        if (!carryWasVerifiedDead) {
           carryHasNotFaintedInMatch = true;
         }
       }
-      const shouldForfeitBattle = Boolean(
+
+      const isCarryDefeated = Boolean(isTrainingTeam && allCarryCheckList.length > 0 && !isCarryStillAlive && !carryHasNotFaintedInMatch);
+      const postCarryDeployedSet = new Set();
+      const postCarryFaintedSet = new Set();
+      if (isCarryDefeated) {
+        const isCarryKey = (rawKey) => allCarryCheckList.some(cr => matchesCandidateKey(cr, rawKey));
+        if (Array.isArray(battleData.postCarryDeployedNames)) {
+          for (let pd = 0; pd < battleData.postCarryDeployedNames.length; pd++) {
+            const raw = battleData.postCarryDeployedNames[pd];
+            if (!raw || isCarryKey(raw)) continue;
+            const ck = canonicalSlotKey(raw);
+            if (ck) postCarryDeployedSet.add(ck);
+          }
+        }
+        if (Array.isArray(battleData.postCarryFaintedNames)) {
+          for (let pf = 0; pf < battleData.postCarryFaintedNames.length; pf++) {
+            const raw = battleData.postCarryFaintedNames[pf];
+            if (!raw || isCarryKey(raw)) continue;
+            const ck = canonicalSlotKey(raw);
+            if (ck) {
+              postCarryDeployedSet.add(ck);
+              postCarryFaintedSet.add(ck);
+            }
+          }
+        }
+        if (battleData.userActivePokemon && battleData.userActivePokemon.name && !matchesCarryCandidate(activeBattler)) {
+          const actCand = teamCandidates.find(c => !matchesCarryCandidate(c) && matchesCandidateKey(c, battleData.userActivePokemon.name)) || activeBattler;
+          const actCanon = canonicalSlotKey(actCand.name || battleData.userActivePokemon.name);
+          if (actCanon && (battleData.carryDefeatedInMatch || !isActiveBattlerFainted || postCarryDeployedSet.has(actCanon))) {
+            postCarryDeployedSet.add(actCanon);
+            if (isActiveBattlerFainted) {
+              postCarryFaintedSet.add(actCanon);
+            } else {
+              postCarryFaintedSet.delete(actCanon);
+            }
+          }
+        }
+      }
+      const postCarryUsedSet = new Set([...postCarryDeployedSet, ...postCarryFaintedSet]);
+      const postCarryUsedCount = postCarryUsedSet.size;
+      const postCarryFaintedCount = postCarryFaintedSet.size;
+      const hasAliveUsedPostCarry = aliveUserMembers.some(c => !matchesCarryCandidate(c) && isCandInSet(c, postCarryUsedSet));
+      const postCarryLimitReached = Boolean(
+        isCarryDefeated &&
+        !isChallLocked &&
+        !hasIncompleteBenchTelemetry &&
+        !isAliveInterTurnContinue &&
+        remainingOppCount >= 1 &&
+        totalRemOppHp > 0 &&
+        (postCarryFaintedCount >= MAX_POST_CARRY_ADDITIONAL ||
+         (postCarryUsedCount >= MAX_POST_CARRY_ADDITIONAL && !hasAliveUsedPostCarry))
+      );
+
+      let rankedPostCarryAlive = [];
+      if (isCarryDefeated && !postCarryLimitReached) {
+        const nonCarryAlive = aliveUserMembers.filter(c => !matchesCarryCandidate(c));
+        const eligiblePostCarry = (postCarryUsedCount >= MAX_POST_CARRY_ADDITIONAL)
+          ? nonCarryAlive.filter(c => isCandInSet(c, postCarryUsedSet))
+          : nonCarryAlive;
+        rankedPostCarryAlive = eligiblePostCarry
+          .slice()
+          .sort((a, b) => scorePostCarryWinChance(b, activeOpp, oppTypes, aliveOpponents) - scorePostCarryWinChance(a, activeOpp, oppTypes, aliveOpponents));
+        if (rankedPostCarryAlive.length > 0) {
+          designatedTrainingBattler = rankedPostCarryAlive[0];
+          const switchTarget = rankedPostCarryAlive.find(c => c.slotIndex !== activeBattler.slotIndex || isActiveBattlerFainted) || rankedPostCarryAlive[0];
+          nextAliveCounter = formatPokemonFullName(switchTarget.variant, switchTarget.name);
+        }
+      }
+
+      const isUnwinnableForfeit = Boolean(
         !isChallLocked &&
         !hasIncompleteBenchTelemetry &&
         !isAliveInterTurnContinue &&
@@ -530,6 +714,7 @@ class DelugeAiAssistant {
           (maxAliveUserHp <= 220 && totalRemOppHp >= 350 && levelDeficit >= 25)
         )
       );
+      const shouldForfeitBattle = Boolean(isUnwinnableForfeit || postCarryLimitReached);
 
       // -------------------------------------------------------------
       // Full Restore Tactical Decision Engine (Useless vs Chance)
@@ -732,6 +917,12 @@ class DelugeAiAssistant {
         hasBenchRadios: Boolean(battleData.hasBenchRadios),
         hasForfeitBtn: Boolean(battleData.hasForfeitBtn),
         shouldForfeitBattle: Boolean(shouldForfeitBattle),
+        isCarryDefeated: Boolean(isCarryDefeated),
+        postCarryLimitReached: Boolean(postCarryLimitReached),
+        postCarryUsedCount: postCarryUsedCount,
+        postCarryFaintedCount: postCarryFaintedCount,
+        postCarryMaxAllowed: MAX_POST_CARRY_ADDITIONAL,
+        postCarryTopCandidates: rankedPostCarryAlive.slice(0, MAX_POST_CARRY_ADDITIONAL).map(c => formatPokemonFullName(c.variant, c.name)),
         hasFullRestore: hasFullRestoreItem,
         fullRestoreCount: fullRestoreCount,
         hasUseItemBtn: hasUseItemBtn,

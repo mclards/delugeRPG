@@ -3703,11 +3703,18 @@
               "type": "Normal",
               "power": 70,
               "category": "Physical"
+            },
+            {
+              "name": "Bug Buzz",
+              "type": "Bug",
+              "power": 90,
+              "category": "Special"
             }
           ],
           "knownMoveTypes": [
             "Flying",
-            "Normal"
+            "Normal",
+            "Bug"
           ]
         },
         {
@@ -3733,11 +3740,18 @@
               "type": "Bug",
               "power": 80,
               "category": "Physical"
+            },
+            {
+              "name": "Iron Head",
+              "type": "Steel",
+              "power": 80,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
             "Normal",
-            "Bug"
+            "Bug",
+            "Steel"
           ]
         },
         {
@@ -3763,11 +3777,24 @@
               "type": "Normal",
               "power": 90,
               "category": "Physical"
+            },
+            {
+              "name": "Aerial Ace",
+              "type": "Flying",
+              "power": 60,
+              "category": "Physical"
+            },
+            {
+              "name": "Brick Break",
+              "type": "Fighting",
+              "power": 75,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
             "Fighting",
-            "Normal"
+            "Normal",
+            "Flying"
           ]
         },
         {
@@ -3793,11 +3820,18 @@
               "type": "Poison",
               "power": 40,
               "category": "Status"
+            },
+            {
+              "name": "Fury Cutter",
+              "type": "Bug",
+              "power": 40,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
             "Rock",
-            "Poison"
+            "Poison",
+            "Bug"
           ]
         },
         {
@@ -3840,11 +3874,11 @@
       ],
       "npcId": 451,
       "expYield": {
-        "baselinePool": 37941,
-        "lastGainedExp": 12647,
-        "lastCoinsWon": 3984,
-        "lastParticipantsCount": 3,
-        "lastCalibratedAt": 1794447092199
+        "baselinePool": 14864,
+        "lastGainedExp": 14864,
+        "lastCoinsWon": 3642,
+        "lastParticipantsCount": 1,
+        "lastCalibratedAt": 1795444873555
       }
     },
     {
@@ -6637,8 +6671,31 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/drifblim.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Payback",
+              "type": "Dark",
+              "power": 70,
+              "category": "Physical"
+            },
+            {
+              "name": "Gust",
+              "type": "Flying",
+              "power": 40,
+              "category": "Special"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Dark",
+            "Flying"
+          ]
         },
         {
           "name": "Dhelmise",
@@ -6651,8 +6708,37 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dhelmise.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Power Whip",
+              "type": "Grass",
+              "power": 120,
+              "category": "Physical"
+            },
+            {
+              "name": "Energy Ball",
+              "type": "Grass",
+              "power": 80,
+              "category": "Special"
+            },
+            {
+              "name": "Anchor Shot",
+              "type": "Steel",
+              "power": 80,
+              "category": "Physical"
+            },
+            {
+              "name": "Slam",
+              "type": "Normal",
+              "power": 80,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Grass",
+            "Steel",
+            "Normal"
+          ]
         },
         {
           "name": "Froslass",
@@ -6665,8 +6751,37 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/froslass.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ice Shard",
+              "type": "Ice",
+              "power": 40,
+              "category": "Physical"
+            },
+            {
+              "name": "Blizzard",
+              "type": "Ice",
+              "power": 120,
+              "category": "Special"
+            },
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting",
+              "power": 60,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ice",
+            "Ghost",
+            "Fighting"
+          ]
         },
         {
           "name": "Palossand",
@@ -6679,16 +6794,46 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/palossand.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost",
+              "power": 80,
+              "category": "Special"
+            },
+            {
+              "name": "Hypnosis",
+              "type": "Psychic",
+              "power": 40,
+              "category": "Status"
+            },
+            {
+              "name": "Giga Drain",
+              "type": "Grass",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Sand Tomb",
+              "type": "Ground",
+              "power": 55,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Psychic",
+            "Grass",
+            "Ground"
+          ]
         }
       ],
       "expYield": {
-        "baselinePool": 14121,
-        "lastGainedExp": 14121,
-        "lastCoinsWon": 2472,
+        "baselinePool": 13239,
+        "lastGainedExp": 13239,
+        "lastCoinsWon": 2317,
         "lastParticipantsCount": 1,
-        "lastCalibratedAt": 1795267781949
+        "lastCalibratedAt": 1795444650276
       },
       "npcId": 708
     },
@@ -7236,8 +7381,37 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dhelmise.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Power Whip",
+              "type": "Grass",
+              "power": 120,
+              "category": "Physical"
+            },
+            {
+              "name": "Energy Ball",
+              "type": "Grass",
+              "power": 80,
+              "category": "Special"
+            },
+            {
+              "name": "Anchor Shot",
+              "type": "Steel",
+              "power": 80,
+              "category": "Physical"
+            },
+            {
+              "name": "Slam",
+              "type": "Normal",
+              "power": 80,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Grass",
+            "Steel",
+            "Normal"
+          ]
         },
         {
           "name": "Froslass",
@@ -7250,8 +7424,37 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/froslass.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ice Shard",
+              "type": "Ice",
+              "power": 40,
+              "category": "Physical"
+            },
+            {
+              "name": "Blizzard",
+              "type": "Ice",
+              "power": 120,
+              "category": "Special"
+            },
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting",
+              "power": 60,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ice",
+            "Ghost",
+            "Fighting"
+          ]
         },
         {
           "name": "Palossand",
@@ -7264,8 +7467,38 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/palossand.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost",
+              "power": 80,
+              "category": "Special"
+            },
+            {
+              "name": "Hypnosis",
+              "type": "Psychic",
+              "power": 40,
+              "category": "Status"
+            },
+            {
+              "name": "Giga Drain",
+              "type": "Grass",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Sand Tomb",
+              "type": "Ground",
+              "power": 55,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Psychic",
+            "Grass",
+            "Ground"
+          ]
         }
       ],
       "npcId": 753
@@ -9384,11 +9617,18 @@
               "type": "Normal",
               "power": 70,
               "category": "Physical"
+            },
+            {
+              "name": "Bug Buzz",
+              "type": "Bug",
+              "power": 90,
+              "category": "Special"
             }
           ],
           "knownMoveTypes": [
             "Flying",
-            "Normal"
+            "Normal",
+            "Bug"
           ]
         },
         {
@@ -9414,11 +9654,18 @@
               "type": "Bug",
               "power": 80,
               "category": "Physical"
+            },
+            {
+              "name": "Iron Head",
+              "type": "Steel",
+              "power": 80,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
             "Normal",
-            "Bug"
+            "Bug",
+            "Steel"
           ]
         },
         {
@@ -9444,11 +9691,24 @@
               "type": "Normal",
               "power": 90,
               "category": "Physical"
+            },
+            {
+              "name": "Aerial Ace",
+              "type": "Flying",
+              "power": 60,
+              "category": "Physical"
+            },
+            {
+              "name": "Brick Break",
+              "type": "Fighting",
+              "power": 75,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
             "Fighting",
-            "Normal"
+            "Normal",
+            "Flying"
           ]
         },
         {
@@ -9474,11 +9734,18 @@
               "type": "Poison",
               "power": 40,
               "category": "Status"
+            },
+            {
+              "name": "Fury Cutter",
+              "type": "Bug",
+              "power": 40,
+              "category": "Physical"
             }
           ],
           "knownMoveTypes": [
             "Rock",
-            "Poison"
+            "Poison",
+            "Bug"
           ]
         },
         {
@@ -9584,8 +9851,31 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/drifblim.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Payback",
+              "type": "Dark",
+              "power": 70,
+              "category": "Physical"
+            },
+            {
+              "name": "Gust",
+              "type": "Flying",
+              "power": 40,
+              "category": "Special"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Dark",
+            "Flying"
+          ]
         },
         {
           "name": "Dhelmise",
@@ -9598,8 +9888,37 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dhelmise.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Power Whip",
+              "type": "Grass",
+              "power": 120,
+              "category": "Physical"
+            },
+            {
+              "name": "Energy Ball",
+              "type": "Grass",
+              "power": 80,
+              "category": "Special"
+            },
+            {
+              "name": "Anchor Shot",
+              "type": "Steel",
+              "power": 80,
+              "category": "Physical"
+            },
+            {
+              "name": "Slam",
+              "type": "Normal",
+              "power": 80,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Grass",
+            "Steel",
+            "Normal"
+          ]
         },
         {
           "name": "Froslass",
@@ -9612,8 +9931,37 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/froslass.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ice Shard",
+              "type": "Ice",
+              "power": 40,
+              "category": "Physical"
+            },
+            {
+              "name": "Blizzard",
+              "type": "Ice",
+              "power": 120,
+              "category": "Special"
+            },
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting",
+              "power": 60,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ice",
+            "Ghost",
+            "Fighting"
+          ]
         },
         {
           "name": "Palossand",
@@ -9626,8 +9974,38 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/palossand.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost",
+              "power": 80,
+              "category": "Special"
+            },
+            {
+              "name": "Hypnosis",
+              "type": "Psychic",
+              "power": 40,
+              "category": "Status"
+            },
+            {
+              "name": "Giga Drain",
+              "type": "Grass",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Sand Tomb",
+              "type": "Ground",
+              "power": 55,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Psychic",
+            "Grass",
+            "Ground"
+          ]
         }
       ]
     },
@@ -9732,8 +10110,37 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/dhelmise.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Power Whip",
+              "type": "Grass",
+              "power": 120,
+              "category": "Physical"
+            },
+            {
+              "name": "Energy Ball",
+              "type": "Grass",
+              "power": 80,
+              "category": "Special"
+            },
+            {
+              "name": "Anchor Shot",
+              "type": "Steel",
+              "power": 80,
+              "category": "Physical"
+            },
+            {
+              "name": "Slam",
+              "type": "Normal",
+              "power": 80,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Grass",
+            "Steel",
+            "Normal"
+          ]
         },
         {
           "name": "Froslass",
@@ -9746,8 +10153,37 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/froslass.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Ice Shard",
+              "type": "Ice",
+              "power": 40,
+              "category": "Physical"
+            },
+            {
+              "name": "Blizzard",
+              "type": "Ice",
+              "power": 120,
+              "category": "Special"
+            },
+            {
+              "name": "Ominous Wind",
+              "type": "Ghost",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Wake-up Slap",
+              "type": "Fighting",
+              "power": 60,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ice",
+            "Ghost",
+            "Fighting"
+          ]
         },
         {
           "name": "Palossand",
@@ -9760,8 +10196,38 @@
           "maxHp": 100,
           "isFainted": false,
           "sprite": "https://i.dstatic.com/images/pokemon/front/normal/palossand.png",
-          "moves": [],
-          "knownMoveTypes": []
+          "moves": [
+            {
+              "name": "Shadow Ball",
+              "type": "Ghost",
+              "power": 80,
+              "category": "Special"
+            },
+            {
+              "name": "Hypnosis",
+              "type": "Psychic",
+              "power": 40,
+              "category": "Status"
+            },
+            {
+              "name": "Giga Drain",
+              "type": "Grass",
+              "power": 60,
+              "category": "Special"
+            },
+            {
+              "name": "Sand Tomb",
+              "type": "Ground",
+              "power": 55,
+              "category": "Physical"
+            }
+          ],
+          "knownMoveTypes": [
+            "Ghost",
+            "Psychic",
+            "Grass",
+            "Ground"
+          ]
         }
       ]
     },

@@ -743,6 +743,9 @@ function handleLiveBattleOpponents(data) {
   if (prevWasPostBattle && !isPostBattle && (data.isPreparationScreen || data.isInActiveBattle)) {
     if (typeof currentMatchParticipants !== 'undefined') currentMatchParticipants.clear();
     if (matchFaintedSet) matchFaintedSet.clear();
+    if (typeof currentMatchCarryDefeated !== 'undefined') currentMatchCarryDefeated = false;
+    if (typeof currentMatchPostCarryDeployed !== 'undefined' && currentMatchPostCarryDeployed) currentMatchPostCarryDeployed.clear();
+    if (typeof currentMatchPostCarryFainted !== 'undefined' && currentMatchPostCarryFainted) currentMatchPostCarryFainted.clear();
     if (typeof justSwitchedActivePokemon !== 'undefined') justSwitchedActivePokemon.clear();
     if (Array.isArray(lastKnownUserTeam)) {
       lastKnownUserTeam = lastKnownUserTeam.map(mem => {
@@ -751,6 +754,16 @@ function handleLiveBattleOpponents(data) {
         const maxHp = (typeof mem.maxHp === 'number' && mem.maxHp > 0) ? mem.maxHp : (lvl * 4);
         return Object.assign({}, mem, { hp: maxHp, maxHp: maxHp, isFainted: false });
       });
+    }
+  }
+  let skipStalePostSwapSync = false;
+  if (typeof teamSwappedAwaitingNewBattle !== 'undefined' && teamSwappedAwaitingNewBattle) {
+    if (!isPostBattle && (data.isPreparationScreen || data.isInActiveBattle)) {
+      teamSwappedAwaitingNewBattle = false;
+    } else if (isPostBattle && Array.isArray(lastKnownUserTeam) && lastKnownUserTeam.length > 0) {
+      data.userTeam = lastKnownUserTeam.map(m => Object.assign({}, m));
+      data.participatingPokemon = [];
+      skipStalePostSwapSync = true;
     }
   }
   if (Array.isArray(data.userTeam) && data.userTeam.length > 0) {
@@ -786,6 +799,7 @@ function handleLiveBattleOpponents(data) {
           hp: lvl * 4,
           maxHp: lvl * 4,
           isFainted: false,
+          isCarry: Boolean(rec.isCarry),
           index: idx
         };
       });
@@ -861,6 +875,13 @@ function handleLiveBattleOpponents(data) {
         });
       }
     }
+    if (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0) {
+      data.userTeam = data.userTeam.map(u => {
+        if (!u) return u;
+        const recMatch = lastRecommendedTeam.find(r => matchesTeamEntryName(u, r));
+        return (recMatch && recMatch.isCarry) ? Object.assign({}, u, { isCarry: true }) : u;
+      });
+    }
     lastKnownUserTeam = data.userTeam;
     if (!isPostBattle && (data.isPreparationScreen || data.isInActiveBattle) && battleLoopTimer) {
       clearTimeout(battleLoopTimer);
@@ -874,6 +895,9 @@ function handleLiveBattleOpponents(data) {
     if (isFreshMatchPrep) {
       currentMatchParticipants.clear();
       if (matchFaintedSet) matchFaintedSet.clear();
+      if (typeof currentMatchCarryDefeated !== 'undefined') currentMatchCarryDefeated = false;
+      if (typeof currentMatchPostCarryDeployed !== 'undefined' && currentMatchPostCarryDeployed) currentMatchPostCarryDeployed.clear();
+      if (typeof currentMatchPostCarryFainted !== 'undefined' && currentMatchPostCarryFainted) currentMatchPostCarryFainted.clear();
       justSwitchedActivePokemon.clear();
       currentMatchSwitchCount = 0;
       currentMatchItemCount = 0;
@@ -910,79 +934,145 @@ function handleLiveBattleOpponents(data) {
           matchFaintedSet.delete(uKey);
         }
       });
+      if (typeof currentMatchCarryDefeated !== 'undefined' && Array.isArray(data.userTeam) && data.userTeam.length > 0) {
+        const hasExplicitCarries = data.userTeam.some(m => m && m.isCarry);
+        const hasTraineesInParty = data.userTeam.some(m => m && !m.isCarry && (m.level || 100) < 100);
+        const carryMembers = hasExplicitCarries
+          ? data.userTeam.filter(m => m && m.isCarry)
+          : (hasTraineesInParty ? data.userTeam.filter(m => m && (m.level || 0) >= 100) : []);
+        if (carryMembers.length > 0) {
+          const anyCarryAlive = carryMembers.some(c => !c.isFainted && (c.hp === undefined || c.hp > 0));
+          if (anyCarryAlive) {
+            currentMatchCarryDefeated = false;
+            if (typeof currentMatchPostCarryDeployed !== 'undefined' && currentMatchPostCarryDeployed) currentMatchPostCarryDeployed.clear();
+            if (typeof currentMatchPostCarryFainted !== 'undefined' && currentMatchPostCarryFainted) currentMatchPostCarryFainted.clear();
+          } else {
+            const carryVerifiedDefeated = carryMembers.some(c => {
+              const cKey = (c.name || '').toLowerCase();
+              const isActDeadCarry = Boolean(
+                data.userActivePokemon &&
+                matchesTeamEntryName(data.userActivePokemon, c) &&
+                (data.userActivePokemon.isFainted || (typeof data.userActivePokemon.hp === 'number' && data.userActivePokemon.hp <= 0))
+              );
+              const inFainted = Boolean(matchFaintedSet && Array.from(matchFaintedSet).some(k => k === cKey || matchesTeamEntryName({ name: k }, c)));
+              const inPart = Boolean(typeof currentMatchParticipants !== 'undefined' && Array.from(currentMatchParticipants).some(k => k === cKey || matchesTeamEntryName({ name: k }, c)));
+              return isActDeadCarry || (inFainted && inPart);
+            });
+            if (carryVerifiedDefeated) {
+              currentMatchCarryDefeated = true;
+            }
+          }
+        }
+        if (currentMatchCarryDefeated) {
+          const isPostCarryDeployedEntry = (u) => {
+            if (!u || !u.name || typeof currentMatchPostCarryDeployed === 'undefined' || !currentMatchPostCarryDeployed) return false;
+            const uKey = u.name.toLowerCase();
+            if (currentMatchPostCarryDeployed.has(uKey)) return true;
+            return Array.from(currentMatchPostCarryDeployed).some(k => matchesTeamEntryName({ name: k }, u));
+          };
+          if (data.userActivePokemon && data.userActivePokemon.name && !carryMembers.some(c => matchesTeamEntryName(data.userActivePokemon, c))) {
+            const matchedMember = data.userTeam.find(u => matchesTeamEntryName(data.userActivePokemon, u));
+            const canonKey = (matchedMember && matchedMember.name ? matchedMember.name : data.userActivePokemon.name).toLowerCase();
+            if (typeof currentMatchPostCarryDeployed !== 'undefined' && currentMatchPostCarryDeployed) {
+              currentMatchPostCarryDeployed.add(canonKey);
+            }
+            if (typeof currentMatchPostCarryFainted !== 'undefined' && currentMatchPostCarryFainted) {
+              if (data.userActivePokemon.isFainted || (typeof data.userActivePokemon.hp === 'number' && data.userActivePokemon.hp <= 0)) {
+                currentMatchPostCarryFainted.add(canonKey);
+              } else if (typeof data.userActivePokemon.hp === 'number' && data.userActivePokemon.hp > 0) {
+                currentMatchPostCarryFainted.delete(canonKey);
+              }
+            }
+          }
+          data.userTeam.forEach(u => {
+            if (!u || !u.name || carryMembers.some(c => matchesTeamEntryName(c, u))) return;
+            if (!isPostCarryDeployedEntry(u)) return;
+            const uKey = u.name.toLowerCase();
+            if (typeof currentMatchPostCarryFainted === 'undefined' || !currentMatchPostCarryFainted) return;
+            const faintedInSet = Boolean(matchFaintedSet && Array.from(matchFaintedSet).some(k => k === uKey || matchesTeamEntryName({ name: k }, u)));
+            if (u.isFainted || (typeof u.hp === 'number' && u.hp <= 0) || faintedInSet) {
+              currentMatchPostCarryFainted.add(uKey);
+            } else if (!u.isFainted && (u.aliveProven || (typeof u.hp === 'number' && u.hp > 0))) {
+              currentMatchPostCarryFainted.delete(uKey);
+            }
+          });
+        }
+      }
     }
     if (Array.isArray(data.participatingPokemon)) {
       data.participatingPokemon.forEach(u => {
         if (u && u.name) currentMatchParticipants.add(u.name.toLowerCase());
       });
     }
-    const preMaxedOnFreshPrep = [];
-    if (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0) {
-      let teamUpdated = false;
-      const isFreshPreBattlePrep = Boolean(
-        data.isPreparationScreen &&
-        !data.isInActiveBattle &&
-        !isPostBattle &&
-        typeof teamRosterMode !== 'undefined' &&
-        teamRosterMode === 'TRAINING'
-      );
-      lastRecommendedTeam.forEach(member => {
-        const found = data.userTeam.find(u => u && u.levelKnown !== false && matchesTeamEntryName(u, member));
-        if (found && found.level && found.level !== member.level) {
-          const prevLevel = typeof member.level === 'number' ? member.level : 0;
-          if (isFreshPreBattlePrep && !member.isCarry && prevLevel < 85 && found.level >= 100) {
-            preMaxedOnFreshPrep.push(member.name);
-          }
-          member.level = found.level;
-          teamUpdated = true;
-        }
-      });
-      if (teamUpdated) {
-        let hasAssignedPrimary = false;
+    if (!skipStalePostSwapSync) {
+      const preMaxedOnFreshPrep = [];
+      if (Array.isArray(lastRecommendedTeam) && lastRecommendedTeam.length > 0) {
+        let teamUpdated = false;
+        const isFreshPreBattlePrep = Boolean(
+          data.isPreparationScreen &&
+          !data.isInActiveBattle &&
+          !isPostBattle &&
+          typeof teamRosterMode !== 'undefined' &&
+          teamRosterMode === 'TRAINING'
+        );
         lastRecommendedTeam.forEach(member => {
-          if (member.isCarry) return;
-          if ((member.level || 0) >= 100) {
-            member.targetName = 'Maxed Graduate';
-            member.role = 'Graduated Lv 100';
-          } else if (!hasAssignedPrimary) {
-            member.targetName = 'Primary Trainee Partner';
-            member.role = 'Primary Trainee Duo (Lv ' + member.level + ')';
-            hasAssignedPrimary = true;
-          } else {
-            member.targetName = 'Trainee #' + member.slot;
-            member.role = 'Trainee EXP Receiver (Lv ' + member.level + ')';
+          const found = data.userTeam.find(u => u && u.levelKnown !== false && matchesTeamEntryName(u, member));
+          if (found && found.level && found.level !== member.level) {
+            const prevLevel = typeof member.level === 'number' ? member.level : 0;
+            if (isFreshPreBattlePrep && !member.isCarry && prevLevel < 85 && found.level >= 100) {
+              preMaxedOnFreshPrep.push(member.name);
+            }
+            member.level = found.level;
+            teamUpdated = true;
           }
         });
+        if (teamUpdated) {
+          let hasAssignedPrimary = false;
+          lastRecommendedTeam.forEach(member => {
+            if (member.isCarry) return;
+            if ((member.level || 0) >= 100) {
+              member.targetName = 'Maxed Graduate';
+              member.role = 'Graduated Lv 100';
+            } else if (!hasAssignedPrimary) {
+              member.targetName = 'Primary Trainee Partner';
+              member.role = 'Primary Trainee Duo (Lv ' + member.level + ')';
+              hasAssignedPrimary = true;
+            } else {
+              member.targetName = 'Trainee #' + member.slot;
+              member.role = 'Trainee EXP Receiver (Lv ' + member.level + ')';
+            }
+          });
+        }
+        if (teamUpdated && teamResultContainer && teamResultContainer.style.display !== 'none') {
+          renderTeamLineup(liveBattleOpponent || { name: 'Active Opponent' }, lastRecommendedTeam);
+        }
       }
-      if (teamUpdated && teamResultContainer && teamResultContainer.style.display !== 'none') {
-        renderTeamLineup(liveBattleOpponent || { name: 'Active Opponent' }, lastRecommendedTeam);
-      }
-    }
-    syncCollectionLevelsFromTelemetry(data.userTeam, lastRecommendedTeam);
-    if (
-      preMaxedOnFreshPrep.length > 0 &&
-      typeof isBattleLoopRunning !== 'undefined' &&
-      !isBattleLoopRunning &&
-      typeof executeTeamBuild === 'function' &&
-      teamResultContainer &&
-      teamResultContainer.style.display !== 'none'
-    ) {
-      const selInfo = (typeof getSelectedTrainerInfo === 'function') ? getSelectedTrainerInfo() : null;
-      const rebuildTarget = (selInfo && !selInfo.isLive && selInfo.leader)
-        ? selInfo.leader
-        : (liveBattleOpponent ? {
-            name: liveBattleOpponent.trainerName || 'Active Opponent',
-            roster: liveBattleOpponent.roster || [],
-            types: [],
-            avgLevel: 100
-          } : null);
-      const hasRemainingTrainees = Array.isArray(currentCollection) && currentCollection.some(p => (typeof p.level === 'number' ? p.level : 100) < 100);
-      if (rebuildTarget && hasRemainingTrainees) {
-        executeTeamBuild(rebuildTarget, { advanceCandidate: false });
-        if (teamActionStatus) {
-          teamActionStatus.textContent = '! Synced already-maxed ' + preMaxedOnFreshPrep.join(', ') + ' (Lv 100) - click Change Team';
-          teamActionStatus.style.color = '#f59e0b';
-          teamActionStatus.style.display = 'block';
+      syncCollectionLevelsFromTelemetry(data.userTeam, lastRecommendedTeam);
+      if (
+        preMaxedOnFreshPrep.length > 0 &&
+        typeof isBattleLoopRunning !== 'undefined' &&
+        !isBattleLoopRunning &&
+        typeof executeTeamBuild === 'function' &&
+        teamResultContainer &&
+        teamResultContainer.style.display !== 'none'
+      ) {
+        const selInfo = (typeof getSelectedTrainerInfo === 'function') ? getSelectedTrainerInfo() : null;
+        const rebuildTarget = (selInfo && !selInfo.isLive && selInfo.leader)
+          ? selInfo.leader
+          : (liveBattleOpponent ? {
+              name: liveBattleOpponent.trainerName || 'Active Opponent',
+              roster: liveBattleOpponent.roster || [],
+              types: [],
+              avgLevel: 100
+            } : null);
+        const hasRemainingTrainees = Array.isArray(currentCollection) && currentCollection.some(p => (typeof p.level === 'number' ? p.level : 100) < 100);
+        if (rebuildTarget && hasRemainingTrainees) {
+          executeTeamBuild(rebuildTarget, { advanceCandidate: false });
+          if (teamActionStatus) {
+            teamActionStatus.textContent = '! Synced already-maxed ' + preMaxedOnFreshPrep.join(', ') + ' (Lv 100) - click Change Team';
+            teamActionStatus.style.color = '#f59e0b';
+            teamActionStatus.style.display = 'block';
+          }
         }
       }
     }
@@ -1034,30 +1124,56 @@ function handleLiveBattleOpponents(data) {
   if (matchFaintedSet) {
     data.verifiedFaintedNames = Array.from(matchFaintedSet);
   }
+  if (typeof currentMatchCarryDefeated !== 'undefined') {
+    data.carryDefeatedInMatch = Boolean(currentMatchCarryDefeated);
+  }
+  if (typeof currentMatchPostCarryDeployed !== 'undefined' && currentMatchPostCarryDeployed) {
+    data.postCarryDeployedNames = Array.from(currentMatchPostCarryDeployed);
+  }
+  if (typeof currentMatchPostCarryFainted !== 'undefined' && currentMatchPostCarryFainted) {
+    data.postCarryFaintedNames = Array.from(currentMatchPostCarryFainted);
+  }
   activeAiBattleData = data;
   if (typeof updateLiveAiAssistantUI === 'function') {
     updateLiveAiAssistantUI(data);
   }
+  const prevLive = (typeof liveBattleOpponent !== 'undefined') ? liveBattleOpponent : null;
+  const incomingHasSpecificUrl = /\/(?:battle\/(?:trainer|gym)|npc)\/\d+/i.test(String(data.battleUrl || ''));
+  const cleanIncomingTrainer = String(data.trainerName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleanPrevTrainer = prevLive ? String(prevLive.trainerName || prevLive.name || '').toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+  const sameLiveTrainer = Boolean(prevLive && cleanIncomingTrainer && cleanPrevTrainer && cleanIncomingTrainer === cleanPrevTrainer);
+  const resolvedNpcId = data.npcId || (sameLiveTrainer && !incomingHasSpecificUrl ? prevLive.npcId : null);
+  const prevHasSpecificUrl = Boolean(prevLive && /\/(?:battle\/(?:trainer|gym)|npc)\/\d+/i.test(String(prevLive.battleUrl || '')));
+  const resolvedBattleUrl = incomingHasSpecificUrl
+    ? data.battleUrl
+    : (sameLiveTrainer && prevHasSpecificUrl ? prevLive.battleUrl : (data.battleUrl || '/battle/live'));
+  const incomingRoster = Array.isArray(data.roster) ? data.roster : [];
+  const isPostOrOutcome = Boolean(data.isVictoryScreen || data.isPostBattleScreen || data.isDefeatScreen);
+  const resolvedRoster = incomingRoster.length > 0
+    ? incomingRoster
+    : (sameLiveTrainer && isPostOrOutcome && Array.isArray(prevLive.roster) && prevLive.roster.length > 0
+      ? prevLive.roster
+      : incomingRoster);
   liveBattleOpponent = {
     name: data.trainerName || 'Challenger',
     trainerName: data.trainerName || 'Challenger',
     trainerTitle: data.trainerTitle || data.trainerName || 'Challenger',
-    roster: data.roster,
-    battleUrl: data.battleUrl || '/battle/live',
-    npcId: data.npcId,
+    roster: resolvedRoster,
+    battleUrl: resolvedBattleUrl,
+    npcId: resolvedNpcId,
     isProfileStalk: !!data.isProfileStalk,
     isManualCheck: !!data.isManualCheck
   };
-  if (data.battleUrl && !lastSelectedBattleUrl) {
-    lastSelectedBattleUrl = data.battleUrl;
+  if (resolvedBattleUrl && resolvedBattleUrl !== '/battle/live' && !lastSelectedBattleUrl) {
+    lastSelectedBattleUrl = resolvedBattleUrl;
   }
-  const oppSig = `${data.trainerName}:${data.battleUrl || ''}:${data.roster.map(p => p.name).join(',')}`;
+  const oppSig = `${data.trainerName}:${resolvedBattleUrl || ''}:${resolvedRoster.map(p => p.name).join(',')}`;
   const isNewOpponent = (lastLoggedBattleOpponentSig !== oppSig);
   if (isNewOpponent) {
     lastLoggedBattleOpponentSig = oppSig;
     currentMatchItemCount = 0;
     lastTurnActionType = null;
-    backendLog('BATTLE_DETECTOR', `Opponent detected: ${data.trainerName} (${data.roster.length} Pokemon)`);
+    backendLog('BATTLE_DETECTOR', `Opponent detected: ${data.trainerName} (${resolvedRoster.length} Pokemon)`);
   }
   if (data.hasFullRestore || (typeof data.fullRestoreCount === 'number' && data.fullRestoreCount > 0)) {
     backendLog('BATTLE_ITEM', `Full Restore sensor: count=${data.fullRestoreCount}, usable=${data.hasFullRestore}, hasUseBtn=${data.hasUseItemBtn}`);
@@ -1069,13 +1185,13 @@ function handleLiveBattleOpponents(data) {
   }
 
   // Auto-learn into gymLeadersData and persist to gym_leaders.json
-  const curBattleUrl = (data.battleUrl || (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '').toLowerCase();
+  const curBattleUrl = ((resolvedBattleUrl && resolvedBattleUrl !== '/battle/live') ? resolvedBattleUrl : (data.battleUrl || (delugeView && typeof delugeView.getURL === 'function' ? delugeView.getURL() : '') || '')).toLowerCase();
   const isNpcBattle = /\/battle\/(?:trainer|gym)(?:\/|\?|$)|\/npc\//i.test(curBattleUrl);
 
   if (gymLeadersData && data.trainerName && !data.isProfileStalk && isNpcBattle) {
     const matchedTrainers = [];
     const cleanSearchName = data.trainerName.toLowerCase().replace(/[^a-z0-9]/g, '');
-    let dataNpcId = data.npcId ? String(data.npcId) : null;
+    let dataNpcId = resolvedNpcId ? String(resolvedNpcId) : null;
     if (!dataNpcId && curBattleUrl) {
       const mId = curBattleUrl.match(/\/(?:battle\/(?:trainer|gym)|npc)\/(\d+)/i);
       if (mId) dataNpcId = mId[1];
@@ -1270,6 +1386,7 @@ function handleLiveBattleOpponents(data) {
   if (!teamTrainerSelect) return;
 
   if (!data.isProfileStalk) {
+    const prevSelectedVal = teamTrainerSelect.value;
     let liveGroup = document.getElementById('optgroup-live-battle');
     if (!liveGroup) {
       liveGroup = document.createElement('optgroup');
@@ -1277,15 +1394,44 @@ function handleLiveBattleOpponents(data) {
       liveGroup.label = 'CURRENT BATTLE (LIVE DETECTED)';
       teamTrainerSelect.insertBefore(liveGroup, teamTrainerSelect.firstChild);
     }
-    liveGroup.innerHTML = '';
-    const opt = document.createElement('option');
-    opt.value = 'LIVE__BATTLE';
-    opt.textContent = `${data.trainerTitle || data.trainerName} (${data.roster.length} Pokemon)`;
-    liveGroup.appendChild(opt);
+    let opt = (typeof liveGroup.querySelector === 'function')
+      ? liveGroup.querySelector('option[value="LIVE__BATTLE"]')
+      : (Array.isArray(liveGroup.children) ? liveGroup.children.find(c => c && c.value === 'LIVE__BATTLE') : null);
+    if (!opt) {
+      opt = document.createElement('option');
+      opt.value = 'LIVE__BATTLE';
+      liveGroup.appendChild(opt);
+    }
+    opt.textContent = `${data.trainerTitle || data.trainerName} (${resolvedRoster.length} Pokemon)`;
 
-    // Pre-select live opponent only if user has not already built an active team lineup
-    if (!lastRecommendedTeam || lastRecommendedTeam.length === 0) {
-      teamTrainerSelect.value = 'LIVE__BATTLE';
+    const hasSelectOption = (val) => {
+      if (!val) return false;
+      if (typeof teamTrainerSelect.querySelector === 'function') {
+        return Boolean(teamTrainerSelect.querySelector(`option[value="${val}"]`));
+      }
+      if (teamTrainerSelect.options && typeof teamTrainerSelect.options.length === 'number') {
+        for (let i = 0; i < teamTrainerSelect.options.length; i++) {
+          if (teamTrainerSelect.options[i] && teamTrainerSelect.options[i].value === val) return true;
+        }
+        return false;
+      }
+      return true;
+    };
+
+    // Respect the user's selected opponent; never hijack a chosen trainer to LIVE__BATTLE
+    if (prevSelectedVal && hasSelectOption(prevSelectedVal)) {
+      if (teamTrainerSelect.value !== prevSelectedVal) {
+        teamTrainerSelect.value = prevSelectedVal;
+      }
+    } else {
+      const savedTrainerVal = (typeof config !== 'undefined' && config && config.settings && config.settings.lastSelectedTrainer)
+        ? config.settings.lastSelectedTrainer
+        : '';
+      if (savedTrainerVal && hasSelectOption(savedTrainerVal)) {
+        teamTrainerSelect.value = savedTrainerVal;
+      } else {
+        teamTrainerSelect.value = 'LIVE__BATTLE';
+      }
     }
   }
 

@@ -1147,7 +1147,7 @@ console.log('\n--- TEST 3G: Live Level Persistence & Training Mode Stale-Maxed G
 
     const preloadFnStart = preloadCode.indexOf('function matchesTeamMemberEntry');
     assert(preloadFnStart !== -1, 'matchesTeamMemberEntry must exist in game-preload.js');
-    const preloadFnEnd = preloadCode.indexOf('\n        // Mode 1:', preloadFnStart);
+    const preloadFnEnd = preloadCode.indexOf('\nfunction detectBattleOpponents(', preloadFnStart);
     const preloadSandbox = {};
     vm.runInNewContext(preloadCode.slice(preloadFnStart, preloadFnEnd), preloadSandbox);
     assert.strictEqual(
@@ -1205,7 +1205,7 @@ console.log('\n--- TEST 3H: Turn-1 False Forfeit Guard & Table-Paired Switch Ben
 
   // 3H-1: Verify preload table-split switch card extraction and attack/item radio exclusion
   const pStart = preloadCode.indexOf('function collectBenchSwitchRadios');
-  const pEnd = preloadCode.indexOf('\n        // Mode 1:', pStart);
+  const pEnd = preloadCode.indexOf('\nfunction detectBattleOpponents(', pStart);
   assert(pStart !== -1 && pEnd !== -1, 'Bench card helpers must exist in game-preload.js');
   const pSandbox = { document: { body: null } };
   vm.runInNewContext(preloadCode.slice(pStart, pEnd), pSandbox);
@@ -3061,6 +3061,1233 @@ console.log('\n--- TEST 3O: Inter-Turn Continue Bench Preservation, Sticky-Faint
   assert(appCode.includes('healLastKnownUserTeamForNewMatch') && appCode.includes('blockForfeitOnAliveContinue'), '3O-5: app.js must include healLastKnownUserTeamForNewMatch and blockForfeitOnAliveContinue');
 
   console.log('[PASS] Inter-Turn Continue Bench Preservation, Sticky-Faint Heal & Carry-Before-Forfeit Guard verified.');
+}
+
+// 3P. Continuous Box Training Rotation, Loop Checkbox Post-Swap Sync & Post-Manual-Captcha Resume
+console.log('\n--- TEST 3P: Continuous Box Training Rotation, Loop Sync & Post-Manual-Captcha Resume ---');
+{
+  const vm = require('vm');
+  const appCode = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const preloadCode = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
+  const roamingCode = fs.readFileSync(path.join(__dirname, 'roaming_telemetry_ui.js'), 'utf8');
+
+  // 3P-1: applyEquippedTeamState updates lastKnownUserTeam & post-battle userTeam so Loop [x] unlocks immediately
+  const healStart = appCode.indexOf('function healLastKnownUserTeamForNewMatch()');
+  const healEnd = appCode.indexOf('\n// Evolution & Attack Moves', healStart);
+  const all100Start = appCode.indexOf('function areAllTeamPokemonLevel100()');
+  const all100End = appCode.indexOf('\nfunction isGMaxChallengeModeActive()', all100Start);
+  assert(healStart !== -1 && healEnd !== -1, 'applyEquippedTeamState block must exist in app.js');
+  assert(all100Start !== -1 && all100End !== -1, 'areAllTeamPokemonLevel100 must exist in app.js');
+
+  const swapSandbox = {
+    currentMatchParticipants: new Set(['carry']),
+    currentMatchFaintedPokemon: new Set(),
+    justSwitchedActivePokemon: new Set(),
+    currentMatchSwitchCount: 1,
+    currentMatchItemCount: 0,
+    lastTurnActionType: 'execute-battle-move',
+    teamSwappedAwaitingNewBattle: false,
+    lastKnownUserTeam: [
+      { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', level: 100, levelKnown: true },
+      { id: 't1', name: 'Goomy', variant: 'Normal', level: 100, levelKnown: true }
+    ],
+    lastRecommendedTeam: [
+      { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', types: ['Bug', 'Fighting'], level: 100, isCarry: true },
+      { id: 't2', name: 'Kubfu', variant: 'Normal', types: ['Fighting'], level: 18, isCarry: false }
+    ],
+    activeAiBattleData: {
+      isVictoryScreen: true,
+      isPostBattleScreen: true,
+      userTeam: [
+        { name: 'Dark Slither Wing', variant: 'Dark', level: 100, levelKnown: true },
+        { name: 'Goomy', variant: 'Normal', level: 100, levelKnown: true }
+      ],
+      participatingPokemon: [{ name: 'Goomy', level: 100 }]
+    },
+    currentCollection: []
+  };
+  vm.runInNewContext(roamingCode.slice(roamingCode.indexOf('function matchesTeamEntryName'), roamingCode.indexOf('function syncCollectionLevelsFromTelemetry')), swapSandbox);
+  vm.runInNewContext(appCode.slice(healStart, healEnd), swapSandbox);
+  vm.runInNewContext(appCode.slice(all100Start, all100End), swapSandbox);
+
+  assert.strictEqual(swapSandbox.areAllTeamPokemonLevel100(), true, '3P-1: Prior maxed team must return true before Change Team');
+  swapSandbox.applyEquippedTeamState(swapSandbox.lastRecommendedTeam);
+  assert.strictEqual(swapSandbox.teamSwappedAwaitingNewBattle, true, '3P-1: applyEquippedTeamState must set teamSwappedAwaitingNewBattle');
+  assert.strictEqual(swapSandbox.areAllTeamPokemonLevel100(), false, '3P-1: After Change Team, areAllTeamPokemonLevel100 MUST immediately return false so Loop [x] unlocks');
+  swapSandbox.activeAiBattleData.isInActiveBattle = true;
+  swapSandbox.activeAiBattleData.userTeam = [{ name: 'Goomy', variant: 'Normal', level: 100, levelKnown: true }];
+  assert.strictEqual(swapSandbox.areAllTeamPokemonLevel100(), false, '3P-1: Even if stale activeAiBattleData has old Lv 100 team, teamSwappedAwaitingNewBattle must use new trainees');
+
+  // 3P-2: Stale post-battle telemetry must not overwrite newly equipped trainee roster until new battle loads
+  const staleSandbox = {
+    currentCollection: [
+      { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', level: 100 },
+      { id: 't1', name: 'Goomy', variant: 'Normal', level: 100 },
+      { id: 't2', name: 'Kubfu', variant: 'Normal', level: 18 }
+    ],
+    lastRecommendedTeam: [
+      { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', level: 100, isCarry: true },
+      { id: 't2', name: 'Kubfu', variant: 'Normal', level: 18, isCarry: false }
+    ],
+    lastKnownUserTeam: [
+      { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', level: 100, levelKnown: true, hp: 400, maxHp: 400, isFainted: false },
+      { id: 't2', name: 'Kubfu', variant: 'Normal', level: 18, levelKnown: true, hp: 72, maxHp: 72, isFainted: false }
+    ],
+    teamSwappedAwaitingNewBattle: true,
+    teamRosterMode: 'TRAINING',
+    isBattleLoopRunning: false,
+    liveBattleOpponent: null,
+    activeAiBattleData: { isVictoryScreen: true, isPostBattleScreen: true },
+    battleLoopTimer: null,
+    delugeView: null,
+    teamTrainerSelect: null,
+    teamBattleMode: 'NPC',
+    teamCategorySelect: { value: 'ALL' },
+    activePvpTargetType: 'NPC',
+    pvpStrategy: 'COUNTERS',
+    scoutedPlayerOpponent: null,
+    currentMatchParticipants: new Set(),
+    currentMatchFaintedPokemon: new Set(),
+    justSwitchedActivePokemon: new Set(),
+    currentMatchSwitchCount: 0,
+    currentMatchItemCount: 0,
+    lastSelectedBattleUrl: '',
+    lastLoggedBattleOpponentSig: '',
+    gymLeadersData: {},
+    lastTurnActionType: null,
+    candidateListsCache: { trainingByPool: {} },
+    teamResultContainer: { style: { display: 'none' } },
+    backendLog: () => {},
+    updateLiveAiAssistantUI: () => {},
+    updateTeamBuilderBattleAction: () => {},
+    isWildHuntingOrCatchContext: () => false,
+    stopAllBattleAutomation: () => {},
+    updateLiveBattleHUD: () => {},
+    syncTeamSelectorsWithLiveOpponent: () => {},
+    renderTeamLineup: () => {},
+    refreshCandidateListsCache: () => {},
+    updateRosterModeUI: () => {},
+    updateTrainerIntelStats: () => {},
+    syncUserCollectionToGuest: () => {},
+    document: { getElementById: () => null }
+  };
+  vm.runInNewContext(roamingCode.slice(roamingCode.indexOf('function matchesTeamEntryName')), staleSandbox);
+  staleSandbox.handleLiveBattleOpponents({
+    trainerName: 'Sidney',
+    isVictoryScreen: true,
+    isPostBattleScreen: true,
+    userTeam: [
+      { name: 'Dark Slither Wing', variant: 'Dark', level: 100, levelKnown: true },
+      { name: 'Goomy', variant: 'Normal', level: 100, levelKnown: true }
+    ],
+    participatingPokemon: [{ name: 'Goomy', level: 100 }],
+    roster: []
+  });
+  assert.strictEqual(staleSandbox.lastKnownUserTeam[1].name, 'Kubfu', '3P-2: Stale victory screen must NOT overwrite swapped trainee Kubfu');
+  assert.strictEqual(staleSandbox.lastKnownUserTeam[1].level, 18, '3P-2: Swapped trainee level must stay 18');
+  assert.strictEqual(staleSandbox.teamSwappedAwaitingNewBattle, true, '3P-2: teamSwappedAwaitingNewBattle must stay true across stale post-battle telemetry');
+
+  staleSandbox.handleLiveBattleOpponents({
+    trainerName: 'Sidney',
+    isPreparationScreen: true,
+    isInActiveBattle: false,
+    isPostBattleScreen: false,
+    roster: [{ name: 'Mightyena', types: ['Dark'], level: 80, hp: 320, maxHp: 320 }],
+    userTeam: [
+      { name: 'Dark Slither Wing', variant: 'Dark', level: 100, levelKnown: true, hp: 400, maxHp: 400 },
+      { name: 'Kubfu', variant: 'Normal', level: 18, levelKnown: true, hp: 72, maxHp: 72 }
+    ]
+  });
+  assert.strictEqual(staleSandbox.teamSwappedAwaitingNewBattle, false, '3P-2: Entering fresh preparation screen must clear teamSwappedAwaitingNewBattle');
+
+  // 3P-3 & 3P-5: Continuous rotation & post-manual-CAPTCHA resume guards
+  const rotStart = appCode.indexOf('function clearPendingTrainingRotation(');
+  const rotEnd = appCode.indexOf('\nif (teamBattleAutoCheck)', rotStart);
+  const applyEvtStart = appCode.indexOf("if (event.channel === 'team-apply-complete') {");
+  const applyEvtEnd = appCode.indexOf("\n  if (event.channel === 'battle-exp-calibrated')", applyEvtStart);
+  assert(rotStart !== -1 && rotEnd !== -1, 'Training rotation helpers must exist in app.js');
+  assert(applyEvtStart !== -1 && applyEvtEnd !== -1, 'team-apply-complete handler must exist in app.js');
+
+  const scheduledTimers = [];
+  let buildClicks = 0;
+  let applyClicks = 0;
+  let battleClicks = 0;
+  let currentWebviewUrl = 'https://www.delugerpg.com/battle/trainer/753';
+  const rotSandbox = {
+    Date,
+    Math,
+    setTimeout: (fn) => { scheduledTimers.push(fn); return scheduledTimers.length; },
+    clearTimeout: () => {},
+    pendingTrainingRotation: null,
+    postCaptchaResumeContext: null,
+    postCaptchaResumeTimer: null,
+    teamSwappedAwaitingNewBattle: false,
+    lastAppliedTeamSnapshot: null,
+    isApplyingTeamOnDeluge: false,
+    isBattleLoopRunning: true,
+    isBattleAutoRunning: true,
+    isUnlockChallengeActive: false,
+    isCaptchaAlarmActive: false,
+    isPendingSessionAutoStop: false,
+    userManuallyPaused: false,
+    isRunning: false,
+    isAutoCatchCountdownActive: false,
+    isEncounterOnScreen: false,
+    targetEncounterActive: false,
+    battleLoopTimer: null,
+    battleLoopFallbackTimer: null,
+    guestLoadEventSeq: 1,
+    teamBattleMode: 'NPC',
+    teamRosterMode: 'TRAINING',
+    teamPoolFilter: 'ANY',
+    teamTrainerSelect: { value: 'VIP_TRAINERS__0' },
+    liveBattleOpponent: null,
+    activeAiBattleData: {
+      isVictoryScreen: true,
+      isPostBattleScreen: true,
+      userTeam: [
+        { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', level: 100, levelKnown: true },
+        { id: 't1', name: 'Goomy', variant: 'Normal', level: 100, levelKnown: true }
+      ]
+    },
+    currentCollection: [
+      { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', level: 100 },
+      { id: 't1', name: 'Goomy', variant: 'Normal', level: 98 },
+      { id: 't2', name: 'Kubfu', variant: 'Normal', level: 18 }
+    ],
+    lastKnownUserTeam: [
+      { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', level: 100, levelKnown: true },
+      { id: 't1', name: 'Goomy', variant: 'Normal', level: 100, levelKnown: true }
+    ],
+    lastRecommendedTeam: [
+      { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', types: ['Bug', 'Fighting'], level: 100, isCarry: true },
+      { id: 't1', name: 'Goomy', variant: 'Normal', types: ['Dragon'], level: 98, isCarry: false }
+    ],
+    candidateListsCache: { trainingCursorsByPool: { ANY: 3 }, lastTrainingBuiltCtx: { poolKey: 'ANY' } },
+    teamBattleAutoCheck: { checked: true },
+    teamBattleLoopCheck: { checked: false, disabled: false },
+    teamActionStatus: { textContent: '', style: { color: '' } },
+    buildTeamBtn: {
+      disabled: false,
+      click: () => {
+        buildClicks++;
+        const nextTrainees = rotSandbox.currentCollection.filter(p => p.level < 100);
+        rotSandbox.lastRecommendedTeam = nextTrainees.length > 0
+          ? [
+              { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', types: ['Bug', 'Fighting'], level: 100, isCarry: true },
+              Object.assign({}, nextTrainees[0], { types: ['Fighting'], isCarry: false })
+            ]
+          : [];
+      }
+    },
+    applyTeamBtn: {
+      disabled: false,
+      innerHTML: '',
+      click: () => {
+        applyClicks++;
+        rotSandbox.isApplyingTeamOnDeluge = true;
+        rotSandbox.lastAppliedTeamSnapshot = rotSandbox.lastRecommendedTeam.map(p => Object.assign({}, p));
+      }
+    },
+    battleOpponentBtn: {
+      disabled: false,
+      click: () => { battleClicks++; }
+    },
+    delugeView: {
+      getURL: () => currentWebviewUrl,
+      isLoading: () => false,
+      send: () => {}
+    },
+    isGMaxChallengeModeActive: () => false,
+    isWildHuntingOrCatchContext: () => false,
+    isCurrentPageBattle: () => currentWebviewUrl.includes('/battle/'),
+    isUnlockOrCaptchaUrl: (u) => /\/unlock|captcha|\/security|\/verify/i.test(String(u || '')),
+    updateLoopCheckboxVisual: () => {},
+    syncTeamActionButtonsState: () => {},
+    refreshCandidateListsCache: () => {},
+    updateRosterModeUI: () => {},
+    getEffectiveFilteredPool: (col) => col
+  };
+  vm.runInNewContext(roamingCode.slice(roamingCode.indexOf('function matchesTeamEntryName'), roamingCode.indexOf('function handleLiveBattleOpponents')), rotSandbox);
+  vm.runInNewContext(appCode.slice(healStart, healEnd), rotSandbox);
+  vm.runInNewContext(appCode.slice(all100Start, all100End), rotSandbox);
+  vm.runInNewContext(appCode.slice(rotStart, rotEnd), rotSandbox);
+  vm.runInNewContext(
+    'function dispatchTeamApplyComplete(data) { const event = { channel: "team-apply-complete", args: [data] }; ' +
+    appCode.slice(applyEvtStart, applyEvtEnd) + ' }',
+    rotSandbox
+  );
+
+  assert.strictEqual(rotSandbox.startContinuousTrainingRotation('BUILDING_TEAM'), true, '3P-3: Must start continuous rotation when Kubfu (< 100) remains');
+  assert.strictEqual(rotSandbox.currentCollection.find(p => p.id === 't1').level, 100, '3P-3: Graduated trainee Goomy must be marked Lv 100 in currentCollection');
+  assert.strictEqual(rotSandbox.candidateListsCache.trainingCursorsByPool.ANY, 0, '3P-3: Pool cursor must reset to 0 after graduating batch');
+
+  // Execute build step timer -> apply step timer -> team-apply-complete -> enter battle timer
+  assert(scheduledTimers.length > 0, '3P-3: Build timer must be queued');
+  scheduledTimers.shift()();
+  assert.strictEqual(buildClicks, 1, '3P-3: Must click Build Best Team');
+  assert(scheduledTimers.length > 0, '3P-3: Apply timer must be queued after building new trainees');
+  scheduledTimers.shift()();
+  assert.strictEqual(applyClicks, 1, '3P-3: Must click Change Team');
+
+  rotSandbox.dispatchTeamApplyComplete({ success: true });
+  assert.strictEqual(rotSandbox.teamBattleLoopCheck.checked, true, '3P-3: team-apply-complete MUST auto-tick Loop [x] when new trainees are < Lv 100');
+  // Drain Battle Now entry timer (plus 2500ms button text reset timer)
+  while (scheduledTimers.length > 0) {
+    scheduledTimers.shift()();
+  }
+  assert.strictEqual(battleClicks, 1, '3P-3: Must click Battle Now after team save & Loop [x]');
+
+  // Complete remaining trainee Kubfu -> rotation must return false cleanly when 0 trainees left
+  rotSandbox.lastKnownUserTeam = [
+    { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', level: 100, levelKnown: true },
+    { id: 't2', name: 'Kubfu', variant: 'Normal', level: 100, levelKnown: true }
+  ];
+  assert.strictEqual(rotSandbox.startContinuousTrainingRotation('BUILDING_TEAM'), false, '3P-3: Must return false cleanly once 0 trainable Pokemon remain');
+
+  // 3P-5: Post-manual-CAPTCHA resume refuses on /unlock, resumes on cleared non-captcha URL
+  rotSandbox.pendingTrainingRotation = null;
+  rotSandbox.teamBattleLoopCheck.checked = true;
+  rotSandbox.teamBattleAutoCheck.checked = true;
+  rotSandbox.teamSwappedAwaitingNewBattle = true;
+  rotSandbox.lastKnownUserTeam = [
+    { id: 'c1', name: 'Dark Slither Wing', variant: 'Dark', level: 100, levelKnown: true },
+    { id: 't3', name: 'Buneary', variant: 'Normal', level: 42, levelKnown: true }
+  ];
+  rotSandbox.capturePostCaptchaTrainingContext();
+  assert(rotSandbox.postCaptchaResumeContext && rotSandbox.postCaptchaResumeContext.needsBattleNow, '3P-5: Must capture post-CAPTCHA battle resume context');
+
+  currentWebviewUrl = 'https://www.delugerpg.com/unlock';
+  const battleClicksBeforeUnlockCheck = battleClicks;
+  rotSandbox.schedulePostCaptchaTrainingResume();
+  while (scheduledTimers.length > 0) scheduledTimers.shift()();
+  assert.strictEqual(battleClicks, battleClicksBeforeUnlockCheck, '3P-5: Must NEVER click Battle Now while still on /unlock');
+
+  rotSandbox.postCaptchaResumeContext = { needsBuildTeam: false, needsApplyTeam: false, needsBattleNow: true, wasTrainingRotation: true };
+  currentWebviewUrl = 'https://www.delugerpg.com/home';
+  rotSandbox.teamBattleLoopCheck.checked = false;
+  rotSandbox.schedulePostCaptchaTrainingResume();
+  while (scheduledTimers.length > 0) scheduledTimers.shift()();
+  assert.strictEqual(rotSandbox.teamBattleLoopCheck.checked, true, '3P-5: Must re-arm Loop [x] once CAPTCHA page genuinely clears');
+  assert.strictEqual(battleClicks, battleClicksBeforeUnlockCheck + 1, '3P-5: Must click Battle Now once CAPTCHA page genuinely clears');
+
+  // 3P-4: Preload CAPTCHA redirect rejection & zero automated CAPTCHA checkbox clicking
+  assert(preloadCode.includes("hitCaptchaRedirect"), '3P-4: executeSlotAssignment must inspect response URL and HTML for CAPTCHA redirects');
+  assert(preloadCode.includes("captchaDetected: true"), '3P-4: executeSlotAssignment must emit captchaDetected: true on CAPTCHA redirect');
+  assert(preloadCode.includes("preloadTeamSwappedAwaitingNewBattle = true"), '3P-4: executeSlotAssignment must mark preloadTeamSwappedAwaitingNewBattle on team save');
+  assert(!preloadCode.includes("cf-turnstile').click") && !preloadCode.includes("g-recaptcha').click") && !appCode.includes("cf-turnstile"), '3P-4: Client must NEVER automate clicking/bypassing CAPTCHA checkboxes');
+
+  console.log('[PASS] Continuous Box Training Rotation, Loop [x] Sync & Post-Manual-Captcha Resume verified.');
+}
+
+// 3Q. Stability, Switch Scope, Ad-Storm Throttle, Rematch Guard & Stuck-Battle Self-Recovery
+console.log('\n--- TEST 3Q: Stability, Switch Scope, Ad-Storm Throttle, Rematch Guard & Stuck-Battle Self-Recovery ---');
+{
+  const vm = require('vm');
+  const mainCode = fs.readFileSync(path.join(__dirname, 'main.js'), 'utf8');
+  const appCode = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const preloadCode = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
+
+  // 3Q-1: Bench switch helpers must be hoisted to module scope above detectBattleOpponents
+  const collectIdx = preloadCode.indexOf('function collectBenchSwitchRadios(');
+  const metaIdx = preloadCode.indexOf('function getBenchRadioCardMeta(');
+  const detectIdx = preloadCode.indexOf('function detectBattleOpponents(');
+  assert(collectIdx !== -1 && metaIdx !== -1 && detectIdx !== -1, '3Q-1: Helper functions and detectBattleOpponents must exist');
+  assert(collectIdx < detectIdx && metaIdx < detectIdx, '3Q-1: collectBenchSwitchRadios and getBenchRadioCardMeta MUST be hoisted above detectBattleOpponents to avoid ReferenceError');
+
+  // 3Q-2: classifyAdElement must safely handle non-string HTMLInputElement shadowing on form.id / form.name
+  const clsStart = preloadCode.indexOf('function classifyAdElement(');
+  const clsEnd = preloadCode.indexOf('\nfunction getAdElementKey(', clsStart);
+  assert(clsStart !== -1 && clsEnd !== -1, '3Q-2: classifyAdElement must exist in game-preload.js');
+  const clsSandbox = { window: { location: { pathname: '/battle', search: '' } }, Date };
+  vm.runInNewContext(preloadCode.slice(clsStart, clsEnd), clsSandbox);
+  const shadowedFormEl = {
+    tagName: 'FORM',
+    id: { tagName: 'INPUT' },
+    className: { baseVal: '' },
+    src: {},
+    name: { tagName: 'INPUT' },
+    href: {},
+    textContent: 'Attack',
+    getAttribute: (attr) => (attr === 'id' ? '' : ''),
+    hasAttribute: () => false
+  };
+  assert.strictEqual(clsSandbox.classifyAdElement(shadowedFormEl), null, '3Q-2: classifyAdElement MUST NOT throw TypeError when <form> child shadows .id/.name');
+
+  // 3Q-3: Log rotation & duplicate host console echo suppression in main.js
+  assert(mainCode.includes('MAX_BACKEND_LOG_BYTES'), '3Q-3: main.js must define MAX_BACKEND_LOG_BYTES');
+  assert(mainCode.includes('function rotateBackendLogIfOversized('), '3Q-3: main.js must define rotateBackendLogIfOversized');
+  assert(mainCode.includes('HostInit|BATTLE_ACTION_EVAL|USER_CLICK|AdsListener'), '3Q-3: main.js console-message must suppress duplicate host backendLog echoes');
+
+  // 3Q-4: Rematch single-click guard, ad-storm bounding & stuck disabled button detection in game-preload.js
+  assert(preloadCode.includes('let rematchNavigatingUntil = 0;'), '3Q-4: game-preload.js must track rematchNavigatingUntil');
+  assert(preloadCode.includes('if (!isManualCheck && Date.now() < rematchNavigatingUntil)'), '3Q-4: detectBattleOpponents must suppress dying-page re-broadcasts during rematch navigation');
+  const rematchStart = preloadCode.indexOf("ipcRenderer.on('click-rematch-button'");
+  const rematchEnd = preloadCode.indexOf("ipcRenderer.on('check-battle-opponents'", rematchStart);
+  const rematchSlice = preloadCode.slice(rematchStart, rematchEnd);
+  assert(!rematchSlice.includes('rematchEl.click()'), '3Q-4: click-rematch-button must NOT double-click rematchEl synchronously after dispatchHumanClick');
+  assert(preloadCode.includes('MAX_DETECTED_ADS_REGISTRY'), '3Q-4: game-preload.js must cap detectedAdsRegistry size');
+  assert(preloadCode.includes('buttonDisabled: true'), '3Q-4: click-battle-button must report buttonDisabled: true when button is stuck disabled');
+
+  // 3Q-5: Stuck battle self-recovery in app.js
+  const recStart = appCode.indexOf('function maybeRecoverStuckBattlePage(');
+  const recEnd = appCode.indexOf('\nlet aiActionTimeoutTimer', recStart);
+  assert(recStart !== -1 && recEnd !== -1, '3Q-5: maybeRecoverStuckBattlePage must exist in app.js');
+  let reloadedUrl = '';
+  let currentTestUrl = 'https://www.delugerpg.com/battle/trainer/753';
+  const recSandbox = {
+    Date,
+    setTimeout: () => 1,
+    clearTimeout: () => {},
+    consecutiveStuckBattleActions: 2,
+    lastBattleStallRecoveryTs: 0,
+    isUnlockChallengeActive: false,
+    isCaptchaAlarmActive: false,
+    isPendingSessionAutoStop: false,
+    userManuallyPaused: false,
+    isBattleAutoRunning: true,
+    teamBattleAutoCheck: { checked: true },
+    lastStuckActionKey: 'click-battle-button||act||',
+    scheduledAutoStepKey: 'Continue',
+    battleActionInFlightUntil: 0,
+    battleAutoStepTimer: null,
+    guestLoadEventSeq: 5,
+    teamActionStatus: { textContent: '', style: { color: '' } },
+    delugeView: {
+      getURL: () => currentTestUrl,
+      loadURL: (u) => { reloadedUrl = u; return Promise.resolve(); }
+    },
+    isWildHuntingOrCatchContext: () => false,
+    isCurrentPageBattle: () => currentTestUrl.includes('/battle/'),
+    isUnlockOrCaptchaUrl: (u) => /\/unlock|captcha/i.test(String(u || '')),
+    backendLog: () => {},
+    recoverHungWebviewAndLoad: () => Promise.resolve()
+  };
+  vm.runInNewContext(appCode.slice(recStart, recEnd), recSandbox);
+
+  assert.strictEqual(recSandbox.maybeRecoverStuckBattlePage('below threshold'), false, '3Q-5: Must not recover when consecutiveStuckBattleActions < 4');
+  assert.strictEqual(reloadedUrl, '', '3Q-5: Must not call loadURL below stuck threshold');
+
+  recSandbox.consecutiveStuckBattleActions = 5;
+  currentTestUrl = 'https://www.delugerpg.com/unlock';
+  assert.strictEqual(recSandbox.maybeRecoverStuckBattlePage('on captcha'), false, '3Q-5: Must never reload while on /unlock');
+
+  currentTestUrl = 'https://www.delugerpg.com/battle/trainer/753';
+  assert.strictEqual(recSandbox.maybeRecoverStuckBattlePage('stuck disabled button'), true, '3Q-5: Must recover stuck battle page once consecutiveStuckBattleActions >= 4');
+  assert.strictEqual(reloadedUrl, 'https://www.delugerpg.com/battle/trainer/753', '3Q-5: Must reload current battle arena URL');
+  assert.strictEqual(recSandbox.consecutiveStuckBattleActions, 0, '3Q-5: Must reset consecutiveStuckBattleActions after triggering recovery');
+
+  console.log('[PASS] Stability, Switch Scope, Ad-Storm Throttle, Rematch Guard & Stuck-Battle Self-Recovery verified.');
+}
+
+// 3R. Strict User Trainer Selection Preservation During Loop & Rotation
+console.log('\n--- TEST 3R: Strict User Trainer Selection Preservation During Loop & Rotation ---');
+{
+  const vm = require('vm');
+  const appCode = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const roamingCode = fs.readFileSync(path.join(__dirname, 'roaming_telemetry_ui.js'), 'utf8');
+  const createMockTrainerSelect = (initialOpts, initialValue) => {
+    const byId = new Map();
+    let selRef = null;
+    const makeEl = (tag) => ({
+      tagName: String(tag || '').toUpperCase(),
+      id: '',
+      label: '',
+      value: '',
+      textContent: '',
+      disabled: false,
+      selected: false,
+      style: {},
+      children: [],
+      appendChild(child) {
+        this.children.push(child);
+        if (child.id) byId.set(child.id, child);
+        return child;
+      },
+      querySelector(selector) {
+        const m = String(selector || '').match(/option\[value="([^"]*)"\]/);
+        if (!m) return null;
+        return this.children.find(c => c.tagName === 'OPTION' && c.value === m[1]) || null;
+      },
+      get innerHTML() { return ''; },
+      set innerHTML(html) {
+        if (html === '') {
+          if (selRef) selRef._wipeCount++;
+          this.children = [];
+          if (selRef) selRef._syncValue();
+        }
+      }
+    });
+    const sel = {
+      children: [],
+      style: {},
+      disabled: false,
+      _value: initialValue || '',
+      _wipeCount: 0,
+      _syncValue() {
+        const opts = this.options;
+        if (opts.length === 0) {
+          this._value = '';
+          return;
+        }
+        if (!opts.some(o => o.value === this._value)) {
+          this._value = opts[0].value;
+        }
+      },
+      get options() {
+        const list = [];
+        const walk = (nodes) => {
+          for (const n of nodes) {
+            if (!n) continue;
+            if (n.tagName === 'OPTION') list.push(n);
+            if (Array.isArray(n.children)) walk(n.children);
+          }
+        };
+        walk(this.children);
+        return list;
+      },
+      get firstChild() { return this.children[0] || null; },
+      get value() { return this._value; },
+      set value(v) {
+        const str = String(v || '');
+        if (this.options.some(o => o.value === str)) {
+          this._value = str;
+        }
+      },
+      get selectedIndex() {
+        return this.options.findIndex(o => o.value === this._value);
+      },
+      set selectedIndex(idx) {
+        const opts = this.options;
+        if (opts[idx]) this._value = opts[idx].value;
+      },
+      get innerHTML() { return ''; },
+      set innerHTML(html) {
+        if (html === '') {
+          this.children = [];
+          this._value = '';
+        }
+      },
+      appendChild(node) {
+        this.children.push(node);
+        if (node.id) byId.set(node.id, node);
+        if (!this._value) this._syncValue();
+        return node;
+      },
+      insertBefore(node, refNode) {
+        const idx = this.children.indexOf(refNode);
+        if (idx === -1) this.children.push(node);
+        else this.children.splice(idx, 0, node);
+        if (node.id) byId.set(node.id, node);
+        if (!this._value) this._syncValue();
+        return node;
+      },
+      querySelector(selector) {
+        const m = String(selector || '').match(/option\[value="([^"]*)"\]/);
+        if (!m) return null;
+        return this.options.find(o => o.value === m[1]) || null;
+      }
+    };
+    selRef = sel;
+    if (Array.isArray(initialOpts) && initialOpts.length > 0) {
+      const g = makeEl('optgroup');
+      g.label = 'VIP TRAINERS';
+      for (const spec of initialOpts) {
+        const o = makeEl('option');
+        o.value = spec.value;
+        o.textContent = spec.label;
+        g.appendChild(o);
+      }
+      sel.appendChild(g);
+      if (initialValue) sel.value = initialValue;
+    }
+    return {
+      select: sel,
+      document: {
+        getElementById: (id) => byId.get(id) || null,
+        createElement: (tag) => makeEl(tag)
+      }
+    };
+  };
+
+  // 3R-1, 3R-2, 3R-3: handleLiveBattleOpponents never hijacks or wipes selected option or loses npcId=753
+  const mockDom = createMockTrainerSelect([
+    { value: 'VIP_TRAINERS__0', label: 'Aaron (Bug - Lv 50) [5/6]' },
+    { value: 'VIP_TRAINERS__1', label: 'Acerola (Ghost - Lv 32) [4/6]' },
+    { value: 'VIP_TRAINERS__2', label: 'Acerola (Ghost - Lv 56) [6/6]' }
+  ], 'VIP_TRAINERS__2');
+  const full6Roster = [
+    { name: 'Brambleghast', types: ['Grass', 'Ghost'], level: 55 },
+    { name: 'Banette', types: ['Ghost'], level: 55 },
+    { name: 'Sableye', types: ['Dark', 'Ghost'], level: 56 },
+    { name: 'Drifblim', types: ['Ghost', 'Flying'], level: 56 },
+    { name: 'Palossand', types: ['Ghost', 'Ground'], level: 56 },
+    { name: 'Mimikyu', types: ['Ghost', 'Fairy'], level: 57 }
+  ];
+  let liveUrlNow = 'https://www.delugerpg.com/battle/trainer/753';
+  const selSandbox = {
+    currentCollection: [],
+    lastRecommendedTeam: [],
+    lastKnownUserTeam: [],
+    teamRosterMode: 'TRAINING',
+    isBattleLoopRunning: true,
+    liveBattleOpponent: null,
+    activeAiBattleData: null,
+    battleLoopTimer: null,
+    delugeView: { getURL: () => liveUrlNow },
+    teamTrainerSelect: mockDom.select,
+    config: { settings: { lastSelectedTrainer: 'VIP_TRAINERS__2', teamCategoryFilter: 'VIP_TRAINERS' } },
+    currentMatchParticipants: new Set(),
+    currentMatchFaintedPokemon: new Set(),
+    justSwitchedActivePokemon: new Set(),
+    currentMatchSwitchCount: 0,
+    currentMatchItemCount: 0,
+    lastSelectedBattleUrl: '',
+    lastLoggedBattleOpponentSig: '',
+    gymLeadersData: {
+      VIP_TRAINERS: [
+        { name: 'Aaron', npcId: 451, types: ['Bug'], avgLevel: 50, battleUrl: '/battle/trainer/451', roster: [] },
+        { name: 'Acerola', npcId: 708, types: ['Ghost'], avgLevel: 32, battleUrl: '/battle/trainer/708', roster: [] },
+        { name: 'Acerola', npcId: 753, types: ['Ghost'], avgLevel: 56, battleUrl: '/battle/trainer/753', roster: [] }
+      ]
+    },
+    activePvpTargetType: 'NPC',
+    teamBattleMode: 'NPC',
+    pvpStrategy: 'COUNTERS',
+    lastTurnActionType: null,
+    candidateListsCache: { trainingByPool: {} },
+    teamResultContainer: { style: { display: 'none' } },
+    document: mockDom.document,
+    backendLog: () => {},
+    updateLiveAiAssistantUI: () => {},
+    updateTeamBuilderBattleAction: () => {},
+    isWildHuntingOrCatchContext: () => false,
+    stopAllBattleAutomation: () => {},
+    updateLiveBattleHUD: () => {},
+    syncTeamSelectorsWithLiveOpponent: () => {},
+    renderTeamLineup: () => {},
+    refreshCandidateListsCache: () => {},
+    updateRosterModeUI: () => {},
+    updateTrainerIntelStats: () => {},
+    syncUserCollectionToGuest: () => {},
+    populateGymTrainerSelect: () => {},
+    buildAndRenderTeam: () => {},
+    handleBattleExpCalibrated: () => {},
+    getWritableDataPath: (f) => f,
+    fs: { writeFileSync: () => {}, existsSync: () => false },
+    path: path,
+    __dirname: __dirname
+  };
+  vm.runInNewContext(roamingCode.slice(roamingCode.indexOf('function matchesTeamEntryName')), selSandbox);
+
+  // 3R-1: Empty lastRecommendedTeam must NOT hijack VIP_TRAINERS__2 -> LIVE__BATTLE
+  selSandbox.handleLiveBattleOpponents({
+    trainerName: 'Acerola',
+    trainerTitle: 'Acerola',
+    battleUrl: '/battle/trainer/753',
+    npcId: 753,
+    isPreparationScreen: true,
+    roster: full6Roster
+  });
+  assert.strictEqual(mockDom.select.value, 'VIP_TRAINERS__2', '3R-1: Must NEVER hijack user selection VIP_TRAINERS__2 to LIVE__BATTLE');
+
+  // 3R-2: Explicitly selecting LIVE__BATTLE and receiving subsequent battle payloads must NOT wipe liveGroup.innerHTML or snap to VIP_TRAINERS__0
+  mockDom.select.value = 'LIVE__BATTLE';
+  mockDom.select._wipeCount = 0;
+  selSandbox.lastRecommendedTeam = [{ name: 'Dark Mega Sableye', level: 100 }];
+  selSandbox.handleLiveBattleOpponents({
+    trainerName: 'Acerola',
+    trainerTitle: 'Acerola',
+    battleUrl: '/battle/trainer/753',
+    npcId: 753,
+    isInActiveBattle: true,
+    roster: full6Roster
+  });
+  assert.strictEqual(mockDom.select._wipeCount, 0, '3R-2: Must update option[value="LIVE__BATTLE"] in place without clearing liveGroup.innerHTML');
+  assert.strictEqual(mockDom.select.value, 'LIVE__BATTLE', '3R-2: Must keep LIVE__BATTLE instead of snapping to VIP_TRAINERS__0');
+
+  // 3R-3: Bare /battle/trainer victory screen with empty roster preserves npcId=753, battleUrl, and 6-mon roster
+  liveUrlNow = 'https://www.delugerpg.com/battle/trainer';
+  selSandbox.handleLiveBattleOpponents({
+    trainerName: 'Acerola',
+    trainerTitle: 'Acerola',
+    battleUrl: '/battle/trainer',
+    npcId: null,
+    isVictoryScreen: true,
+    isPostBattleScreen: true,
+    roster: []
+  });
+  assert.strictEqual(selSandbox.liveBattleOpponent.npcId, 753, '3R-3: Post-battle bare /battle/trainer must preserve prior npcId 753 (never drop to 708)');
+  assert.strictEqual(selSandbox.liveBattleOpponent.battleUrl, '/battle/trainer/753', '3R-3: Post-battle bare /battle/trainer must preserve specific battleUrl /battle/trainer/753');
+  assert.strictEqual(selSandbox.liveBattleOpponent.roster.length, 6, '3R-3: Post-battle empty roster must preserve prior 6-Pokemon roster');
+
+  // 3R-4: populateGymTrainerSelect & startContinuousTrainingRotation trainer lock
+  const popStart = appCode.indexOf('function populateGymTrainerSelect(');
+  const popEnd = appCode.indexOf('\nif (teamCategorySelect) {', popStart);
+  assert(popStart !== -1 && popEnd !== -1, 'populateGymTrainerSelect must exist in app.js');
+  const popDom = createMockTrainerSelect([], '');
+  const popSandbox = {
+    teamTrainerSelect: popDom.select,
+    teamCategorySelect: { value: 'VIP_TRAINERS' },
+    favTrainerBtn: { disabled: false, style: {}, title: '', classList: { remove: () => {} } },
+    filteredTrainerCountBadge: { textContent: '', style: {} },
+    lastSelectedBattleUrl: '',
+    liveBattleOpponent: { trainerName: 'Aaron', trainerTitle: 'Aaron', roster: [{ name: 'Dustox', level: 50 }] },
+    gymLeadersData: {
+      VIP_TRAINERS: [
+        { name: 'Aaron', npcId: 451, types: ['Bug'], avgLevel: 50, battleUrl: '/battle/trainer/451', roster: [{ name: 'Dustox' }] },
+        { name: 'Acerola', npcId: 708, types: ['Ghost'], avgLevel: 32, battleUrl: '/battle/trainer/708', roster: [] },
+        { name: 'Acerola', npcId: 753, types: ['Ghost'], avgLevel: 56, battleUrl: '/battle/trainer/753', roster: full6Roster }
+      ]
+    },
+    config: { settings: { lastSelectedTrainer: 'VIP_TRAINERS__2', favoriteTrainers: ['Acerola'] } },
+    getFavoriteTrainersList: () => ['Acerola'],
+    updateFavTrainerButton: () => {},
+    updateCategoryFavoritesCount: () => {},
+    document: popDom.document
+  };
+  vm.runInNewContext(appCode.slice(popStart, popEnd), popSandbox);
+
+  // Saved config fallback when dropdown starts empty
+  popSandbox.populateGymTrainerSelect('VIP_TRAINERS');
+  assert.strictEqual(popDom.select.value, 'VIP_TRAINERS__2', '3R-4: populateGymTrainerSelect must restore config.settings.lastSelectedTrainer before LIVE__BATTLE or index 0');
+
+  // Explicit LIVE__BATTLE preserved even during empty-roster post-battle repopulation
+  popDom.select.value = 'LIVE__BATTLE';
+  popSandbox.liveBattleOpponent = { trainerName: 'Acerola', trainerTitle: 'Acerola', roster: [] };
+  popSandbox.populateGymTrainerSelect('VIP_TRAINERS');
+  assert.strictEqual(popDom.select.value, 'LIVE__BATTLE', '3R-4: populateGymTrainerSelect must keep LIVE__BATTLE option when explicitly selected during post-battle');
+
+  // Rotation lock restores drifted trainer value before Build Best Team and Battle Now
+  const rotLockTimers = [];
+  let lockBuildTrainerAtClick = '';
+  let lockBattleTrainerAtClick = '';
+  const lockDom = createMockTrainerSelect([
+    { value: 'VIP_TRAINERS__0', label: 'Aaron (Bug - Lv 50) [5/6]' },
+    { value: 'VIP_TRAINERS__2', label: 'Acerola (Ghost - Lv 56) [6/6]' }
+  ], 'VIP_TRAINERS__2');
+  const lockStart = appCode.indexOf('function clearPendingTrainingRotation(');
+  const lockEnd = appCode.indexOf('\nif (teamBattleAutoCheck)', lockStart);
+  const applyLockStart = appCode.indexOf("if (event.channel === 'team-apply-complete') {");
+  const applyLockEnd = appCode.indexOf("\n  if (event.channel === 'battle-exp-calibrated')", applyLockStart);
+  const rotLockSandbox = {
+    Date,
+    Math,
+    setTimeout: (fn) => { rotLockTimers.push(fn); return rotLockTimers.length; },
+    clearTimeout: () => {},
+    pendingTrainingRotation: null,
+    postCaptchaResumeContext: null,
+    postCaptchaResumeTimer: null,
+    teamSwappedAwaitingNewBattle: false,
+    lastAppliedTeamSnapshot: null,
+    isApplyingTeamOnDeluge: false,
+    isBattleLoopRunning: true,
+    isBattleAutoRunning: true,
+    isUnlockChallengeActive: false,
+    isCaptchaAlarmActive: false,
+    isPendingSessionAutoStop: false,
+    userManuallyPaused: false,
+    isRunning: false,
+    isAutoCatchCountdownActive: false,
+    isEncounterOnScreen: false,
+    targetEncounterActive: false,
+    battleLoopTimer: null,
+    battleLoopFallbackTimer: null,
+    guestLoadEventSeq: 1,
+    teamBattleMode: 'NPC',
+    teamRosterMode: 'TRAINING',
+    teamPoolFilter: 'ANY',
+    teamTrainerSelect: lockDom.select,
+    config: { settings: { lastSelectedTrainer: 'VIP_TRAINERS__2' } },
+    liveBattleOpponent: null,
+    activeAiBattleData: {
+      isVictoryScreen: true,
+      isPostBattleScreen: true,
+      userTeam: [
+        { id: 'c1', name: 'Dark Mega Sableye', variant: 'Dark', level: 100, levelKnown: true },
+        { id: 't1', name: 'Goomy', variant: 'Normal', level: 100, levelKnown: true }
+      ]
+    },
+    currentCollection: [
+      { id: 'c1', name: 'Dark Mega Sableye', variant: 'Dark', level: 100 },
+      { id: 't1', name: 'Goomy', variant: 'Normal', level: 99 },
+      { id: 't2', name: 'Kubfu', variant: 'Normal', level: 18 }
+    ],
+    lastKnownUserTeam: [
+      { id: 'c1', name: 'Dark Mega Sableye', variant: 'Dark', level: 100, levelKnown: true },
+      { id: 't1', name: 'Goomy', variant: 'Normal', level: 100, levelKnown: true }
+    ],
+    lastRecommendedTeam: [
+      { id: 'c1', name: 'Dark Mega Sableye', variant: 'Dark', level: 100, isCarry: true },
+      { id: 't1', name: 'Goomy', variant: 'Normal', level: 99, isCarry: false }
+    ],
+    candidateListsCache: { trainingCursorsByPool: { ANY: 2 }, lastTrainingBuiltCtx: { poolKey: 'ANY' } },
+    teamBattleAutoCheck: { checked: true },
+    teamBattleLoopCheck: { checked: true, disabled: false },
+    teamActionStatus: { textContent: '', style: { color: '' } },
+    buildTeamBtn: {
+      disabled: false,
+      click: () => {
+        lockBuildTrainerAtClick = lockDom.select.value;
+        rotLockSandbox.lastRecommendedTeam = [
+          { id: 'c1', name: 'Dark Mega Sableye', variant: 'Dark', level: 100, isCarry: true },
+          { id: 't2', name: 'Kubfu', variant: 'Normal', level: 18, isCarry: false }
+        ];
+      }
+    },
+    applyTeamBtn: {
+      disabled: false,
+      innerHTML: '',
+      click: () => {
+        rotLockSandbox.isApplyingTeamOnDeluge = true;
+        rotLockSandbox.lastAppliedTeamSnapshot = rotLockSandbox.lastRecommendedTeam.map(p => Object.assign({}, p));
+      }
+    },
+    battleOpponentBtn: {
+      disabled: false,
+      click: () => {
+        lockBattleTrainerAtClick = lockDom.select.value;
+      }
+    },
+    delugeView: { getURL: () => 'https://www.delugerpg.com/battle/trainer/753', isLoading: () => false, send: () => {} },
+    isGMaxChallengeModeActive: () => false,
+    isWildHuntingOrCatchContext: () => false,
+    isCurrentPageBattle: () => true,
+    isUnlockOrCaptchaUrl: () => false,
+    updateLoopCheckboxVisual: () => {},
+    syncTeamActionButtonsState: () => {},
+    refreshCandidateListsCache: () => {},
+    updateRosterModeUI: () => {},
+    updateFavTrainerButton: () => {},
+    getEffectiveFilteredPool: (col) => col,
+    backendLog: () => {}
+  };
+  const healLockStart = appCode.indexOf('function healLastKnownUserTeamForNewMatch()');
+  const healLockEnd = appCode.indexOf('\n// Evolution & Attack Moves', healLockStart);
+  const all100LockStart = appCode.indexOf('function areAllTeamPokemonLevel100()');
+  const all100LockEnd = appCode.indexOf('\nfunction isGMaxChallengeModeActive()', all100LockStart);
+  assert(healLockStart !== -1 && healLockEnd !== -1 && all100LockStart !== -1 && all100LockEnd !== -1, '3R-4: app.js helper slices must exist');
+  vm.runInNewContext(roamingCode.slice(roamingCode.indexOf('function matchesTeamEntryName'), roamingCode.indexOf('function handleLiveBattleOpponents')), rotLockSandbox);
+  vm.runInNewContext(appCode.slice(healLockStart, healLockEnd), rotLockSandbox);
+  vm.runInNewContext(appCode.slice(all100LockStart, all100LockEnd), rotLockSandbox);
+  vm.runInNewContext(appCode.slice(lockStart, lockEnd), rotLockSandbox);
+  vm.runInNewContext(
+    'function dispatchTeamApplyComplete(data) { const event = { channel: "team-apply-complete", args: [data] }; ' +
+    appCode.slice(applyLockStart, applyLockEnd) + ' }',
+    rotLockSandbox
+  );
+
+  assert.strictEqual(rotLockSandbox.startContinuousTrainingRotation('BUILDING_TEAM'), true, '3R-4: Rotation must start with Kubfu remaining');
+  assert.strictEqual(rotLockSandbox.pendingTrainingRotation.lockedTrainerVal, 'VIP_TRAINERS__2', '3R-4: Rotation must lock user trainer VIP_TRAINERS__2');
+  // Simulate external drift to Aaron before Build Best Team and again before Battle Now
+  lockDom.select.value = 'VIP_TRAINERS__0';
+  rotLockTimers.shift()();
+  assert.strictEqual(lockBuildTrainerAtClick, 'VIP_TRAINERS__2', '3R-4: Drifted dropdown must be restored to VIP_TRAINERS__2 before Build Best Team');
+  rotLockTimers.shift()();
+  lockDom.select.value = 'VIP_TRAINERS__0';
+  rotLockSandbox.dispatchTeamApplyComplete({ success: true });
+  while (rotLockTimers.length > 0) rotLockTimers.shift()();
+  assert.strictEqual(lockBattleTrainerAtClick, 'VIP_TRAINERS__2', '3R-4: Drifted dropdown must be restored to VIP_TRAINERS__2 before Battle Now');
+
+  console.log('[PASS] Strict User Trainer Selection Preservation During Loop & Rotation verified.');
+}
+
+// 3S. Post-Carry Max 2 Additional Highest-Chance-To-Win Fighters & Auto-Forfeit Cap
+console.log('\n--- TEST 3S: Post-Carry Max 2 Additional Highest-Chance-To-Win Fighters & Auto-Forfeit Cap ---');
+{
+  const vm = require('vm');
+  const appCode = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const roamingCode = fs.readFileSync(path.join(__dirname, 'roaming_telemetry_ui.js'), 'utf8');
+  const aiAssistant = require('./ai_agent_bridge.js');
+
+  const acerolaOppRoster = [
+    { name: 'Palossand', types: ['Ghost', 'Ground'], level: 56, hp: 224, maxHp: 224, isFainted: false, isCurrentActive: true },
+    { name: 'Mimikyu', types: ['Ghost', 'Fairy'], level: 56, hp: 224, maxHp: 224, isFainted: false },
+    { name: 'Drifblim', types: ['Ghost', 'Flying'], level: 56, hp: 224, maxHp: 224, isFainted: false }
+  ];
+
+  // 3S-1: Ranks remaining alive trainees by highest chance to win (not merely raw level)
+  const postCarryColl1 = [
+    { id: 'c1', slotIndex: 0, name: 'Dark Mega Sableye', variant: 'Dark', types: ['Dark', 'Ghost'], level: 100, isCarry: true },
+    { id: 't1', slotIndex: 1, name: 'Shiny Pikachu', variant: 'Shiny', types: ['Electric'], level: 62, isCarry: false },
+    { id: 't2', slotIndex: 2, name: 'Dark Houndoom', variant: 'Dark', types: ['Dark', 'Fire'], level: 58, isCarry: false },
+    { id: 't3', slotIndex: 3, name: 'Caterpie', variant: 'Normal', types: ['Bug'], level: 12, isCarry: false },
+    { id: 't4', slotIndex: 4, name: 'Rattata', variant: 'Normal', types: ['Normal'], level: 20, isCarry: false }
+  ];
+  const teamCarryDead1 = postCarryColl1.map((m, idx) => ({
+    id: m.id,
+    name: m.name,
+    variant: m.variant,
+    types: m.types,
+    level: m.level,
+    hp: idx === 0 ? 0 : (m.level * 4),
+    maxHp: m.level * 4,
+    isFainted: idx === 0,
+    isCarry: m.isCarry,
+    index: idx
+  }));
+  const res3S1 = aiAssistant.analyzeBattle({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 4,
+    benchRadiosCount: 4,
+    hasForfeitBtn: true,
+    carryDefeatedInMatch: true,
+    matchParticipants: ['dark mega sableye'],
+    verifiedFaintedNames: ['dark mega sableye'],
+    postCarryDeployedNames: [],
+    postCarryFaintedNames: [],
+    userActivePokemon: { name: 'Dark Mega Sableye', variant: 'Dark', types: ['Dark', 'Ghost'], level: 100, hp: 0, maxHp: 400, isFainted: true },
+    userTeam: teamCarryDead1,
+    roster: acerolaOppRoster
+  }, postCarryColl1);
+  assert.strictEqual(res3S1.isCarryDefeated, true, '3S-1: Must detect Carry defeated');
+  assert.strictEqual(res3S1.postCarryLimitReached, false, '3S-1: Must not forfeit when 0/2 additional post-Carry used');
+  assert.strictEqual(res3S1.shouldForfeitBattle, false, '3S-1: Must deploy highest win-chance additional Pokemon first');
+  assert.strictEqual(res3S1.nextAliveCounter, 'Dark Houndoom', '3S-1: Must select type-advantaged Dark Houndoom (Lv 58) over higher-level Shiny Pikachu (Lv 62)');
+
+  // 3S-2: Explicit isCarry anchor defeated -> graduated Lv 100 non-carry trainee becomes Additional #1, max 2 then forfeit
+  const postCarryColl2 = [
+    { id: 'c1', slotIndex: 0, name: 'Dark Mega Sableye', variant: 'Dark', types: ['Dark', 'Ghost'], level: 100, isCarry: true },
+    { id: 't1', slotIndex: 1, name: 'Shadow Snorlax', variant: 'Shadow', types: ['Normal'], level: 100, isCarry: false, moves: [{ name: 'Crunch', type: 'Dark', power: 80 }] },
+    { id: 't2', slotIndex: 2, name: 'Absol', variant: 'Normal', types: ['Dark'], level: 58, isCarry: false, moves: [{ name: 'Night Slash', type: 'Dark', power: 70 }] },
+    { id: 't3', slotIndex: 3, name: 'Lapras', variant: 'Normal', types: ['Water', 'Ice'], level: 45, isCarry: false }
+  ];
+  const makeTeam2 = (deadNames) => postCarryColl2.map((m, idx) => {
+    const dead = deadNames.includes(m.name);
+    return {
+      id: m.id, name: m.name, variant: m.variant, types: m.types, level: m.level,
+      hp: dead ? 0 : (m.level * 4), maxHp: m.level * 4, isFainted: dead, isCarry: m.isCarry, moves: m.moves || [], index: idx
+    };
+  });
+  const res3S2a = aiAssistant.analyzeBattle({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 3,
+    benchRadiosCount: 3,
+    hasForfeitBtn: true,
+    carryDefeatedInMatch: true,
+    matchParticipants: ['dark mega sableye'],
+    verifiedFaintedNames: ['dark mega sableye'],
+    postCarryDeployedNames: [],
+    postCarryFaintedNames: [],
+    userActivePokemon: { name: 'Dark Mega Sableye', variant: 'Dark', types: ['Dark', 'Ghost'], level: 100, hp: 0, maxHp: 400, isFainted: true },
+    userTeam: makeTeam2(['Dark Mega Sableye']),
+    roster: acerolaOppRoster
+  }, postCarryColl2);
+  assert.strictEqual(res3S2a.isCarryDefeated, true, '3S-2: Explicit isCarry fainted must trigger post-Carry mode even with graduated Lv 100 trainee');
+  assert.strictEqual(res3S2a.nextAliveCounter, 'Shadow Snorlax', '3S-2: Graduated Lv 100 trainee must be ranked Additional #1');
+  assert.strictEqual(res3S2a.shouldForfeitBattle, false, '3S-2: Must allow Additional #1 deployment');
+
+  const res3S2b = aiAssistant.analyzeBattle({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 2,
+    benchRadiosCount: 2,
+    hasForfeitBtn: true,
+    carryDefeatedInMatch: true,
+    matchParticipants: ['dark mega sableye', 'shadow snorlax'],
+    verifiedFaintedNames: ['dark mega sableye', 'shadow snorlax'],
+    postCarryDeployedNames: ['shadow snorlax'],
+    postCarryFaintedNames: ['shadow snorlax'],
+    userActivePokemon: { name: 'Shadow Snorlax', variant: 'Shadow', types: ['Normal'], level: 100, hp: 0, maxHp: 400, isFainted: true },
+    userTeam: makeTeam2(['Dark Mega Sableye', 'Shadow Snorlax']),
+    roster: acerolaOppRoster
+  }, postCarryColl2);
+  assert.strictEqual(res3S2b.postCarryFaintedCount, 1, '3S-2: Must record 1/2 post-Carry additional fainted');
+  assert.strictEqual(res3S2b.postCarryLimitReached, false, '3S-2: Must deploy Additional #2 after Additional #1 faints');
+  assert.strictEqual(res3S2b.shouldForfeitBattle, false, '3S-2: Must NOT forfeit before Additional #2 gets its chance');
+  assert.strictEqual(res3S2b.nextAliveCounter, 'Absol', '3S-2: Must choose Absol (Lv 58 Dark SE Counter) as Additional #2');
+
+  const res3S2c = aiAssistant.analyzeBattle({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 1,
+    benchRadiosCount: 1,
+    hasForfeitBtn: true,
+    carryDefeatedInMatch: true,
+    matchParticipants: ['dark mega sableye', 'shadow snorlax', 'absol'],
+    verifiedFaintedNames: ['dark mega sableye', 'shadow snorlax', 'absol'],
+    postCarryDeployedNames: ['shadow snorlax', 'absol'],
+    postCarryFaintedNames: ['shadow snorlax', 'absol'],
+    userActivePokemon: { name: 'Absol', variant: 'Normal', types: ['Dark'], level: 58, hp: 0, maxHp: 232, isFainted: true },
+    userTeam: makeTeam2(['Dark Mega Sableye', 'Shadow Snorlax', 'Absol']),
+    roster: acerolaOppRoster
+  }, postCarryColl2);
+  assert.strictEqual(res3S2c.postCarryFaintedCount, 2, '3S-2: Must record 2/2 post-Carry additional fainted');
+  assert.strictEqual(res3S2c.postCarryLimitReached, true, '3S-2: Must reach max 2 post-Carry limit even with Lapras alive on bench');
+  assert.strictEqual(res3S2c.shouldForfeitBattle, true, '3S-2: Must auto-forfeit after 2/2 post-Carry fighters fall');
+
+  // 3S-3: Lifecycle: Additional #2 active & alive continues; Additional #2 fainted (2/2) forfeits even with strong Lv 86/80 bench; never forfeits on KO/Challenge
+  const strongBenchColl = [
+    { id: 'c1', slotIndex: 0, name: 'Dark Mega Sableye', variant: 'Dark', types: ['Dark', 'Ghost'], level: 100, isCarry: true },
+    { id: 't1', slotIndex: 1, name: 'Gengar', variant: 'Normal', types: ['Ghost', 'Poison'], level: 90, isCarry: false },
+    { id: 't2', slotIndex: 2, name: 'Scizor', variant: 'Normal', types: ['Bug', 'Steel'], level: 88, isCarry: false },
+    { id: 't3', slotIndex: 3, name: 'Garchomp', variant: 'Normal', types: ['Dragon', 'Ground'], level: 86, isCarry: false },
+    { id: 't4', slotIndex: 4, name: 'Salamence', variant: 'Normal', types: ['Dragon', 'Flying'], level: 80, isCarry: false }
+  ];
+  const strongTeamAlive2 = strongBenchColl.map((m, idx) => ({
+    id: m.id, name: m.name, variant: m.variant, types: m.types, level: m.level,
+    hp: idx <= 1 ? 0 : (idx === 2 ? 300 : m.level * 4), maxHp: m.level * 4,
+    isFainted: idx <= 1, isCarry: m.isCarry, index: idx
+  }));
+  const res3S3a = aiAssistant.analyzeBattle({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasAttackBtn: true,
+    hasSwitchBtn: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 2,
+    benchRadiosCount: 2,
+    hasForfeitBtn: true,
+    carryDefeatedInMatch: true,
+    matchParticipants: ['dark mega sableye', 'gengar', 'scizor'],
+    verifiedFaintedNames: ['dark mega sableye', 'gengar'],
+    postCarryDeployedNames: ['gengar', 'scizor'],
+    postCarryFaintedNames: ['gengar'],
+    userActivePokemon: { name: 'Scizor', variant: 'Normal', types: ['Bug', 'Steel'], level: 88, hp: 300, maxHp: 352, isFainted: false },
+    userTeam: strongTeamAlive2,
+    roster: acerolaOppRoster
+  }, strongBenchColl);
+  assert.strictEqual(res3S3a.postCarryUsedCount, 2, '3S-3: Scizor active means 2 post-Carry fighters used');
+  assert.strictEqual(res3S3a.postCarryLimitReached, false, '3S-3: While Additional #2 Scizor is alive and fighting, must NOT forfeit');
+  assert.strictEqual(res3S3a.shouldForfeitBattle, false, '3S-3: Keep battling while Additional #2 is alive');
+
+  const strongTeamDead2 = strongTeamAlive2.map((m, idx) => idx === 2 ? Object.assign({}, m, { hp: 0, isFainted: true }) : m);
+  const res3S3b = aiAssistant.analyzeBattle({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 2,
+    benchRadiosCount: 2,
+    hasForfeitBtn: true,
+    carryDefeatedInMatch: true,
+    matchParticipants: ['dark mega sableye', 'gengar', 'scizor'],
+    verifiedFaintedNames: ['dark mega sableye', 'gengar', 'scizor'],
+    postCarryDeployedNames: ['gengar', 'scizor'],
+    postCarryFaintedNames: ['gengar', 'scizor'],
+    userActivePokemon: { name: 'Scizor', variant: 'Normal', types: ['Bug', 'Steel'], level: 88, hp: 0, maxHp: 352, isFainted: true },
+    userTeam: strongTeamDead2,
+    roster: acerolaOppRoster
+  }, strongBenchColl);
+  assert.strictEqual(res3S3b.postCarryFaintedCount, 2, '3S-3: Both Additional #1 and #2 fainted');
+  assert.strictEqual(res3S3b.postCarryLimitReached, true, '3S-3: Max 2 post-Carry limit reached with >= Lv 80 bench remaining');
+  assert.strictEqual(res3S3b.shouldForfeitBattle, true, '3S-3: Must forfeit immediately once 2/2 additional post-Carry Pokemon fall');
+
+  const res3S3NoOpp = aiAssistant.analyzeBattle({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasForfeitBtn: true,
+    carryDefeatedInMatch: true,
+    matchParticipants: ['dark mega sableye', 'gengar', 'scizor'],
+    verifiedFaintedNames: ['dark mega sableye', 'gengar', 'scizor'],
+    postCarryDeployedNames: ['gengar', 'scizor'],
+    postCarryFaintedNames: ['gengar', 'scizor'],
+    userActivePokemon: { name: 'Scizor', variant: 'Normal', types: ['Bug', 'Steel'], level: 88, hp: 0, maxHp: 352, isFainted: true },
+    userTeam: strongTeamDead2,
+    roster: acerolaOppRoster.map(o => Object.assign({}, o, { hp: 0, isFainted: true, isCurrentActive: false }))
+  }, strongBenchColl);
+  assert.strictEqual(res3S3NoOpp.shouldForfeitBattle, false, '3S-3: Must NEVER forfeit when 0 opponents remain alive');
+
+  const res3S3Chall = aiAssistant.analyzeBattle({
+    trainerName: 'G-Max Challenge',
+    isChallengeLocked: true,
+    isInActiveBattle: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 2,
+    benchRadiosCount: 2,
+    hasForfeitBtn: true,
+    carryDefeatedInMatch: true,
+    matchParticipants: ['dark mega sableye', 'gengar', 'scizor'],
+    verifiedFaintedNames: ['dark mega sableye', 'gengar', 'scizor'],
+    postCarryDeployedNames: ['gengar', 'scizor'],
+    postCarryFaintedNames: ['gengar', 'scizor'],
+    userActivePokemon: { name: 'Scizor', variant: 'Normal', types: ['Bug', 'Steel'], level: 88, hp: 0, maxHp: 352, isFainted: true },
+    userTeam: strongTeamDead2,
+    roster: acerolaOppRoster
+  }, strongBenchColl);
+  assert.strictEqual(res3S3Chall.shouldForfeitBattle, false, '3S-3: Must NEVER auto-forfeit in Challenge / G-Max mode');
+
+  // 3S-4: End-to-end roaming_telemetry_ui tracking (pre-Carry faints excluded; Carry excluded; fresh prep clears) + app.js forfeit label
+  let lastCapData = null;
+  const trackSandbox = {
+    currentCollection: [],
+    lastRecommendedTeam: [
+      { id: 'c1', name: 'Dark Mega Sableye', variant: 'Dark', level: 100, isCarry: true },
+      { id: 't1', name: 'Shiny Pikachu', variant: 'Shiny', level: 62, isCarry: false },
+      { id: 't2', name: 'Dark Houndoom', variant: 'Dark', level: 58, isCarry: false },
+      { id: 't3', name: 'Gardevoir', variant: 'Shiny', level: 55, isCarry: false }
+    ],
+    lastKnownUserTeam: [
+      { name: 'Dark Mega Sableye', variant: 'Dark', level: 100, levelKnown: true, hp: 400, maxHp: 400, isFainted: false, isCarry: true },
+      { name: 'Shiny Pikachu', variant: 'Shiny', level: 62, levelKnown: true, hp: 248, maxHp: 248, isFainted: false, isCarry: false },
+      { name: 'Dark Houndoom', variant: 'Dark', level: 58, levelKnown: true, hp: 232, maxHp: 232, isFainted: false, isCarry: false },
+      { name: 'Shiny Gardevoir', variant: 'Shiny', level: 55, levelKnown: true, hp: 220, maxHp: 220, isFainted: false, isCarry: false }
+    ],
+    teamRosterMode: 'TRAINING',
+    isBattleLoopRunning: true,
+    liveBattleOpponent: null,
+    activeAiBattleData: null,
+    battleLoopTimer: null,
+    delugeView: null,
+    teamTrainerSelect: null,
+    currentMatchParticipants: new Set(),
+    currentMatchFaintedPokemon: new Set(),
+    currentMatchCarryDefeated: false,
+    currentMatchPostCarryDeployed: new Set(),
+    currentMatchPostCarryFainted: new Set(),
+    justSwitchedActivePokemon: new Set(),
+    currentMatchSwitchCount: 0,
+    currentMatchItemCount: 0,
+    lastSelectedBattleUrl: '',
+    lastLoggedBattleOpponentSig: '',
+    gymLeadersData: null,
+    activePvpTargetType: 'NPC',
+    teamBattleMode: 'NPC',
+    pvpStrategy: 'COUNTERS',
+    lastTurnActionType: null,
+    candidateListsCache: { trainingByPool: {} },
+    backendLog: () => {},
+    updateLiveAiAssistantUI: (d) => { lastCapData = d; },
+    updateTeamBuilderBattleAction: () => {},
+    isWildHuntingOrCatchContext: () => false,
+    stopAllBattleAutomation: () => {},
+    updateLiveBattleHUD: () => {},
+    syncTeamSelectorsWithLiveOpponent: () => {},
+    renderTeamLineup: () => {},
+    refreshCandidateListsCache: () => {},
+    updateRosterModeUI: () => {},
+    updateTrainerIntelStats: () => {},
+    syncUserCollectionToGuest: () => {},
+    document: { getElementById: () => null }
+  };
+  vm.runInNewContext(roamingCode.slice(roamingCode.indexOf('function matchesTeamEntryName')), trackSandbox);
+
+  // Turn 1: Primary Trainee faints BEFORE Carry -> must NOT count toward post-Carry slots
+  trackSandbox.handleLiveBattleOpponents({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 3,
+    benchRadiosCount: 3,
+    userActivePokemon: { name: 'Shiny Pikachu', variant: 'Shiny', level: 62, levelKnown: true, hp: 0, maxHp: 248, isFainted: true },
+    userTeam: [
+      { name: 'Shiny Pikachu', variant: 'Shiny', level: 62, levelKnown: true, hp: 0, maxHp: 248, isFainted: true },
+      { name: 'Dark Mega Sableye', variant: 'Dark', level: 100, levelKnown: true, hp: 400, maxHp: 400, isFainted: false, aliveProven: true },
+      { name: 'Dark Houndoom', variant: 'Dark', level: 58, levelKnown: true, hp: 232, maxHp: 232, isFainted: false, aliveProven: true },
+      { name: 'Shiny Gardevoir', variant: 'Shiny', level: 55, levelKnown: true, hp: 220, maxHp: 220, isFainted: false, aliveProven: true }
+    ],
+    roster: acerolaOppRoster
+  });
+  assert.strictEqual(lastCapData.carryDefeatedInMatch, false, '3S-4: Pre-Carry trainee faint must not mark Carry defeated');
+  assert.strictEqual(lastCapData.postCarryFaintedNames.length, 0, '3S-4: Pre-Carry trainee faint must not consume a post-Carry slot');
+
+  // Turn 2: Carry falls -> Carry flag flips true, still 0 post-Carry slots consumed
+  trackSandbox.handleLiveBattleOpponents({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 2,
+    benchRadiosCount: 2,
+    userActivePokemon: { name: 'Dark Mega Sableye', variant: 'Dark', level: 100, levelKnown: true, hp: 0, maxHp: 400, isFainted: true },
+    userTeam: [
+      { name: 'Dark Mega Sableye', variant: 'Dark', level: 100, levelKnown: true, hp: 0, maxHp: 400, isFainted: true },
+      { name: 'Dark Houndoom', variant: 'Dark', level: 58, levelKnown: true, hp: 232, maxHp: 232, isFainted: false, aliveProven: true },
+      { name: 'Shiny Gardevoir', variant: 'Shiny', level: 55, levelKnown: true, hp: 220, maxHp: 220, isFainted: false, aliveProven: true }
+    ],
+    roster: acerolaOppRoster
+  });
+  assert.strictEqual(lastCapData.carryDefeatedInMatch, true, '3S-4: Carry faint must set carryDefeatedInMatch');
+  assert.strictEqual(lastCapData.postCarryDeployedNames.length, 0, '3S-4: Carry itself must not count as post-Carry slot');
+
+  // Turn 3 & 4: Additional #1 (Dark Houndoom) and Additional #2 (Shiny Gardevoir) deployed & faint
+  trackSandbox.handleLiveBattleOpponents({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 1,
+    benchRadiosCount: 1,
+    userActivePokemon: { name: 'Dark Houndoom', variant: 'Dark', level: 58, levelKnown: true, hp: 0, maxHp: 232, isFainted: true },
+    userTeam: [
+      { name: 'Dark Houndoom', variant: 'Dark', level: 58, levelKnown: true, hp: 0, maxHp: 232, isFainted: true },
+      { name: 'Shiny Gardevoir', variant: 'Shiny', level: 55, levelKnown: true, hp: 220, maxHp: 220, isFainted: false, aliveProven: true }
+    ],
+    roster: acerolaOppRoster
+  });
+  trackSandbox.handleLiveBattleOpponents({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasBenchRadios: false,
+    userActivePokemon: { name: 'Shiny Gardevoir', variant: 'Shiny', level: 55, levelKnown: true, hp: 0, maxHp: 220, isFainted: true },
+    userTeam: [
+      { name: 'Shiny Gardevoir', variant: 'Shiny', level: 55, levelKnown: true, hp: 0, maxHp: 220, isFainted: true }
+    ],
+    roster: acerolaOppRoster
+  });
+  assert.strictEqual(lastCapData.postCarryDeployedNames.length, 2, '3S-4: Exactly 2 post-Carry deployments tracked');
+  assert.strictEqual(lastCapData.postCarryFaintedNames.length, 2, '3S-4: Exactly 2 post-Carry faints tracked');
+
+  // Fresh prep resets all post-Carry trackers cleanly
+  trackSandbox.handleLiveBattleOpponents({
+    trainerName: 'Acerola',
+    isPreparationScreen: true,
+    userTeam: [
+      { name: 'Dark Mega Sableye', variant: 'Dark', level: 100, levelKnown: true, hp: 400, maxHp: 400, isFainted: false },
+      { name: 'Shiny Pikachu', variant: 'Shiny', level: 62, levelKnown: true, hp: 248, maxHp: 248, isFainted: false }
+    ],
+    roster: acerolaOppRoster.map(o => Object.assign({}, o, { hp: 224, maxHp: 224, isFainted: false }))
+  });
+  assert.strictEqual(lastCapData.carryDefeatedInMatch, false, '3S-4: Fresh prep resets currentMatchCarryDefeated');
+  assert.strictEqual(lastCapData.postCarryDeployedNames.length, 0, '3S-4: Fresh prep clears currentMatchPostCarryDeployed');
+  assert.strictEqual(lastCapData.postCarryFaintedNames.length, 0, '3S-4: Fresh prep clears currentMatchPostCarryFainted');
+
+  // UI config label check in app.js
+  const actCfgStart = appCode.indexOf('function formatCompactBattleName(');
+  const actCfgEnd = appCode.indexOf('\nfunction updateTeamBuilderBattleAction(', actCfgStart);
+  assert(actCfgStart !== -1 && actCfgEnd !== -1, 'computeAiBattleActionConfig must exist in app.js');
+  const actCfgSandbox = {
+    isUnlockChallengeActive: false,
+    isCaptchaAlarmActive: false,
+    aiAssistant: aiAssistant,
+    teamBattleMode: 'NPC',
+    teamRosterMode: 'TRAINING',
+    currentMatchParticipants: new Set(['dark mega sableye', 'gengar', 'scizor']),
+    justSwitchedActivePokemon: new Set(),
+    currentMatchSwitchCount: 0,
+    currentMatchItemCount: 0,
+    lastTurnActionType: null,
+    executeAiBattleAction: () => {},
+    escapeHtml: (s) => String(s || ''),
+    backendLog: () => {}
+  };
+  vm.runInNewContext(appCode.slice(actCfgStart, actCfgEnd), actCfgSandbox);
+  const forfeitBtnCfg = actCfgSandbox.computeAiBattleActionConfig({
+    trainerName: 'Acerola',
+    isInActiveBattle: true,
+    hasBenchRadios: true,
+    benchExtractedCount: 2,
+    benchRadiosCount: 2,
+    hasContinueBtn: true,
+    hasSkipSelectionBtn: false,
+    hasAttackBtn: false,
+    hasForfeitBtn: true,
+    carryDefeatedInMatch: true,
+    matchParticipants: ['dark mega sableye', 'gengar', 'scizor'],
+    verifiedFaintedNames: ['dark mega sableye', 'gengar', 'scizor'],
+    postCarryDeployedNames: ['gengar', 'scizor'],
+    postCarryFaintedNames: ['gengar', 'scizor'],
+    userActivePokemon: { name: 'Scizor', variant: 'Normal', types: ['Bug', 'Steel'], level: 88, hp: 0, maxHp: 352, isFainted: true },
+    userTeam: strongTeamDead2,
+    roster: acerolaOppRoster
+  }, strongBenchColl);
+  assert(forfeitBtnCfg && forfeitBtnCfg.labelHtml.includes('Max 2 Post-Carry'), '3S-4: Must render Max 2 Post-Carry forfeit label cleanly');
+  assert.strictEqual(forfeitBtnCfg.hudText, 'Forfeit & Loop', '3S-4: HUD text must trigger Forfeit & Loop');
+
+  console.log('[PASS] Post-Carry Max 2 Additional Highest-Chance-To-Win Fighters & Auto-Forfeit Cap verified.');
 }
 
 // 4. Verify 100% 7-bit Clean ASCII across all files

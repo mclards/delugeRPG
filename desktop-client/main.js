@@ -89,6 +89,27 @@ function getResolvedConfigPath() {
 
 const CONFIG_PATH = getResolvedConfigPath();
 const LOG_FILE = path.join(path.dirname(CONFIG_PATH), 'backend_live.log');
+const MAX_BACKEND_LOG_BYTES = 10 * 1024 * 1024;
+let _sessionLoggedBytes = 0;
+
+function rotateBackendLogIfOversized() {
+  try {
+    if (!fs.existsSync(LOG_FILE)) return;
+    const st = fs.statSync(LOG_FILE);
+    if (!st || st.size < MAX_BACKEND_LOG_BYTES) return;
+    const prevPath = LOG_FILE + '.prev';
+    try {
+      if (fs.existsSync(prevPath)) fs.unlinkSync(prevPath);
+      fs.renameSync(LOG_FILE, prevPath);
+    } catch (_) {
+      try { fs.truncateSync(LOG_FILE, 0); } catch (__) {}
+    }
+    const ts = new Date().toISOString().split('T')[1].slice(0, 12);
+    fs.appendFileSync(LOG_FILE, `[${ts}] [HostInit] Rotated oversized backend_live.log (cap 10MB)\n`, 'utf8');
+  } catch (_) {}
+}
+
+rotateBackendLogIfOversized();
 
 function isAdOrTrackerNoise(msg) {
   if (!msg || typeof msg !== 'string') return true;
@@ -126,6 +147,11 @@ function _flushSystemLogs() {
   const chunk = _systemLogBuffer.join('');
   _systemLogBuffer.length = 0;
   _systemLogFlushTimer = null;
+  _sessionLoggedBytes += Buffer.byteLength(chunk, 'utf8');
+  if (_sessionLoggedBytes >= MAX_BACKEND_LOG_BYTES) {
+    _sessionLoggedBytes = 0;
+    rotateBackendLogIfOversized();
+  }
   try {
     fs.appendFile(LOG_FILE, chunk, 'utf8', () => {});
   } catch (_) {}
@@ -684,6 +710,10 @@ if (!gotTheLock) {
     contents.on('console-message', (e, level, message) => {
       if (isAdOrTrackerNoise(message)) return;
       if (contents.getType && contents.getType() === 'webview') return;
+      const trimmedMsg = String(message || '').trim();
+      if (/^\[(?:HostInit|BATTLE_ACTION_EVAL|USER_CLICK|AdsListener|MATCH_TRACK|LOOP_ENGINE|EXP_CALIBRATOR|BATTLE_DETECTOR|WebviewConsole|NETWORK_|SecurityChallenge|TEAM_|BOT_ACTION|MoveSuccess|IPC_|AutoCatchGuard|RELOAD|WEBVIEW|GuestInput|MapRotation|BATTLE_STALL_RECOVERY)\]/.test(trimmedMsg)) {
+        return;
+      }
       const ts = new Date().toISOString().substring(11, 23);
       const line = `[${ts}] [WebContents Console] ${message}\n`;
       try {

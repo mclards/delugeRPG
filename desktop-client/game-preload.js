@@ -1818,18 +1818,28 @@ function getViewportDipCoords(el) {
         if (!rect || rect.width <= 0 || rect.height <= 0 || (el.offsetWidth === 0 && el.offsetHeight === 0)) {
             return { x: -1, y: -1, cssX: -1, cssY: -1, valid: false };
         }
+        const vw = window.innerWidth || 1200;
+        const vh = window.innerHeight || 800;
+        if (rect.bottom <= 0 || rect.top >= vh || rect.right <= 0 || rect.left >= vw) {
+            return { x: -1, y: -1, cssX: -1, cssY: -1, valid: false };
+        }
+        const visLeft = Math.max(4, rect.left);
+        const visRight = Math.min(vw - 4, rect.right);
+        const visTop = Math.max(4, rect.top);
+        const visBottom = Math.min(vh - 4, rect.bottom);
+        if (visRight <= visLeft || visBottom <= visTop) {
+            return { x: -1, y: -1, cssX: -1, cssY: -1, valid: false };
+        }
         const z = (typeof webFrame !== 'undefined' && webFrame && typeof webFrame.getZoomFactor === 'function')
             ? webFrame.getZoomFactor()
             : 1.0;
-        const cssX = rect.left + rect.width * (0.25 + Math.random() * 0.5);
-        const cssY = rect.top + rect.height * (0.25 + Math.random() * 0.5);
-        const clampedCssX = Math.max(10, Math.min((window.innerWidth || 1200) - 10, cssX));
-        const clampedCssY = Math.max(10, Math.min((window.innerHeight || 800) - 10, cssY));
+        const cssX = visLeft + (visRight - visLeft) * (0.25 + Math.random() * 0.5);
+        const cssY = visTop + (visBottom - visTop) * (0.25 + Math.random() * 0.5);
         return {
-            x: Math.max(1, Math.round(clampedCssX * z)),
-            y: Math.max(1, Math.round(clampedCssY * z)),
-            cssX: Math.round(clampedCssX),
-            cssY: Math.round(clampedCssY),
+            x: Math.max(1, Math.round(cssX * z)),
+            y: Math.max(1, Math.round(cssY * z)),
+            cssX: Math.round(cssX),
+            cssY: Math.round(cssY),
             valid: true
         };
     } catch (_) {
@@ -1860,6 +1870,47 @@ function isElementVisible(el) {
         return true;
     } catch (_) {
         return true;
+    }
+}
+
+function isHitMatchingTargetElement(el, hit) {
+    if (!hit || hit === el) return true;
+    try {
+        if (typeof el.contains === 'function' && el.contains(hit)) return true;
+        if (el.tagName === 'INPUT' && hit.tagName === 'LABEL' && typeof hit.contains === 'function' && hit.contains(el)) {
+            return true;
+        }
+    } catch (_) {}
+    return false;
+}
+
+function isElementUnobstructedAtPoint(el, cssX, cssY) {
+    if (!el) return false;
+    if (typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') {
+        return true;
+    }
+    try {
+        const hit = document.elementFromPoint(cssX, cssY);
+        return isHitMatchingTargetElement(el, hit);
+    } catch (_) {
+        return true;
+    }
+}
+
+function isSafeInteractableElement(el) {
+    if (!isElementVisible(el)) return false;
+    try {
+        if (typeof el.getBoundingClientRect !== 'function') return true;
+        const r = el.getBoundingClientRect();
+        const vw = window.innerWidth || 1200;
+        const vh = window.innerHeight || 800;
+        if (!r || r.width <= 0 || r.height <= 0) return false;
+        if (r.top < 45 || r.bottom > (vh - 15) || r.left < 4 || r.right > (vw - 4)) {
+            return false;
+        }
+        return isElementUnobstructedAtPoint(el, r.left + (r.width / 2), r.top + (r.height / 2));
+    } catch (_) {
+        return false;
     }
 }
 
@@ -1918,12 +1969,18 @@ function dispatchHumanClick(el, callback, opts) {
     }
     try {
         const skipScroll = Boolean(opts && opts.skipScroll);
+        const z = (typeof webFrame !== 'undefined' && webFrame && typeof webFrame.getZoomFactor === 'function')
+            ? webFrame.getZoomFactor()
+            : 1.0;
         if (!skipScroll) {
             try {
                 const r = (typeof el.getBoundingClientRect === 'function') ? el.getBoundingClientRect() : null;
+                const vw = window.innerWidth || 1200;
                 const vh = window.innerHeight || 800;
-                const inView = r && r.width > 0 && r.height > 0 && r.top >= 45 && r.bottom <= (vh - 15);
-                if (!inView && typeof el.scrollIntoView === 'function') {
+                const inView = r && r.width > 0 && r.height > 0 && r.top >= 45 && r.bottom <= (vh - 15) && r.left >= 4 && r.right <= (vw - 4);
+                const centerOk = r && r.width > 0 && r.height > 0 &&
+                    (typeof isElementUnobstructedAtPoint !== 'function' || isElementUnobstructedAtPoint(el, r.left + r.width / 2, r.top + r.height / 2));
+                if ((!inView || !centerOk) && typeof el.scrollIntoView === 'function') {
                     el.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' });
                 }
             } catch (_) {
@@ -2004,6 +2061,37 @@ function dispatchHumanClick(el, callback, opts) {
         if (!coords.valid || (coords.x <= 75 && coords.y <= 75)) {
             finishAction();
             return;
+        }
+
+        if (typeof isElementUnobstructedAtPoint === 'function' && !isElementUnobstructedAtPoint(el, coords.cssX, coords.cssY)) {
+            let recoveredCenter = false;
+            try {
+                const rAfter = (typeof el.getBoundingClientRect === 'function') ? el.getBoundingClientRect() : null;
+                const vw = window.innerWidth || 1200;
+                const vh = window.innerHeight || 800;
+                if (rAfter && rAfter.width > 0 && rAfter.height > 0) {
+                    const vL = Math.max(4, rAfter.left);
+                    const vR = Math.min(vw - 4, rAfter.right);
+                    const vT = Math.max(4, rAfter.top);
+                    const vB = Math.min(vh - 4, rAfter.bottom);
+                    if (vR > vL && vB > vT) {
+                        const cX = Math.round((vL + vR) / 2);
+                        const cY = Math.round((vT + vB) / 2);
+                        if (isElementUnobstructedAtPoint(el, cX, cY)) {
+                            coords.cssX = cX;
+                            coords.cssY = cY;
+                            coords.x = Math.max(1, Math.round(cX * z));
+                            coords.y = Math.max(1, Math.round(cY * z));
+                            recoveredCenter = true;
+                        }
+                    }
+                }
+            } catch (_) {}
+            if (!recoveredCenter) {
+                console.warn('[PokePreload] Blocked occluded hardware click (would hit covering element instead of target).');
+                finishAction();
+                return;
+            }
         }
 
         try {
@@ -9463,6 +9551,11 @@ function clickModalCloseButton(container) {
     const parent = container || document.getElementById('DModal') || document.getElementById('DMbody') || document;
     const btns = Array.from(parent.querySelectorAll('input[type="button"], button, a, #DMclose, .close'));
     const btn = btns.find(b => {
+        if (typeof isElementVisible === 'function' && !isElementVisible(b)) return false;
+        const href = String((b.getAttribute ? b.getAttribute('href') : b.href) || '').toLowerCase();
+        if (href && (href.indexOf('/multiselect') !== -1 || href.indexOf('/release') !== -1 || href.indexOf('/trade') !== -1)) {
+            return false;
+        }
         const v = (b.value || b.textContent || b.id || b.className || '').trim().toLowerCase();
         return v.includes('close') || v.includes('dmclose');
     });
@@ -9720,6 +9813,36 @@ function detectEvolveCard() {
             }
         }
 
+        const buildCannotEvolveCard = (rawText) => {
+            try { sessionStorage.removeItem('deluge_auto_evolve_target'); } catch (_) {}
+            const idMatch = (window.location.pathname || '').match(/\/pokemon\/evolve\/([a-zA-Z0-9_\-]+)/i);
+            const nameMatch = String(rawText || '').match(/([^\r\n]+?)\s*\(Level\s+\d+\)\s+cannot evolve any further/i);
+            const fullName = nameMatch ? nameMatch[1].trim() : ((lastClickedPokemonInfo && lastClickedPokemonInfo.name) || '');
+            return {
+                isOpen: true,
+                isComplete: false,
+                isMoveSelection: false,
+                cannotEvolveFurther: true,
+                pokemonId: idMatch ? idMatch[1] : ((lastClickedPokemonInfo && lastClickedPokemonInfo.id) || ''),
+                fullName: fullName,
+                message: fullName ? `${fullName} cannot evolve any further.` : 'Cannot evolve any further.'
+            };
+        };
+
+        if (!modalContainer && path.indexOf('/evolve') !== -1) {
+            const errContainer = document.querySelector('#content, body');
+            const errText = errContainer ? (errContainer.innerText || errContainer.textContent || '') : '';
+            if (/cannot evolve any further/i.test(errText)) {
+                return buildCannotEvolveCard(errText);
+            }
+        }
+        if (modalContainer) {
+            const modalErrText = modalContainer.innerText || modalContainer.textContent || '';
+            if (/cannot evolve any further/i.test(modalErrText) && !/can evolve into|choose any four attacks|evolved into/i.test(modalErrText)) {
+                return buildCannotEvolveCard(modalErrText);
+            }
+        }
+
         // CASE 0: Change Attacks Screen (/pokemon/change_attack/<id> or Change Attacks form with 4 selects)
         const changeAttackForm = document.querySelector('form[action*="change_attack" i], form[action*="attack" i]');
         const selectDropdowns = changeAttackForm
@@ -9728,9 +9851,14 @@ function detectEvolveCard() {
         const hasChangeAttackSubmit = Array.from(document.querySelectorAll('input[type="submit"], button')).some(b => /change attack/i.test(b.value || b.textContent || ''));
 
         if (selectDropdowns.length >= 4 && (hasChangeAttackSubmit || /change_attack/i.test(window.location.pathname))) {
-            let pokeName = (lastClickedPokemonInfo && lastClickedPokemonInfo.name) || '';
             const pathMatch = window.location.pathname.match(/change_attack\/([a-zA-Z0-9_\-]+)/i);
             const pokeId = pathMatch ? pathMatch[1] : ((lastClickedPokemonInfo && lastClickedPokemonInfo.id) || '');
+            const idMatchesLast = Boolean(
+                lastClickedPokemonInfo &&
+                lastClickedPokemonInfo.name &&
+                (!pokeId || !lastClickedPokemonInfo.id || String(lastClickedPokemonInfo.id) === String(pokeId))
+            );
+            let pokeName = idMatchesLast ? lastClickedPokemonInfo.name : '';
 
             if (!pokeName) {
                 const spriteImg = document.querySelector('img[src*="/pokemon/"], img[src*="sprites"]');
@@ -9752,17 +9880,30 @@ function detectEvolveCard() {
                 }
             }
 
+            const stripAttackOptionNoise = (txt, preserveZMarker) => {
+                const rawStr = String(txt || '');
+                const hasZMarker = preserveZMarker && /[\*\u26a1]/.test(rawStr);
+                const cleaned = rawStr
+                    .replace(/[\*\u26a1]/g, '')
+                    .replace(/\s*\([^)]*\)/g, '')
+                    .replace(/\s*\[[^\]]*\]/g, '')
+                    .replace(/\s+-\s+.*$/, '')
+                    .trim();
+                if (!cleaned) return '';
+                return hasZMarker ? `*${cleaned}` : cleaned;
+            };
+
             const currentMoves = selectDropdowns.slice(0, 4).map(sel => {
                 const opt = sel.options[sel.selectedIndex];
-                return opt ? opt.text.replace(/\s*\([^)]*\)/g, '').trim() : '';
+                return opt ? stripAttackOptionNoise(opt.text, false) : '';
             }).filter(Boolean);
 
             const availableMoves = Array.from(selectDropdowns[0].options).map(opt => ({
-                name: (opt.text || opt.value || '').replace(/\s*\([^)]*\)/g, '').trim(),
+                name: stripAttackOptionNoise(opt.text || opt.value || '', true),
                 value: opt.value
             }));
 
-            let pokeTypes = (lastClickedPokemonInfo && lastClickedPokemonInfo.types) || [];
+            let pokeTypes = (idMatchesLast && lastClickedPokemonInfo && Array.isArray(lastClickedPokemonInfo.types)) ? lastClickedPokemonInfo.types : [];
             if (pokeTypes.length === 0) {
                 const tBtns = document.querySelectorAll('i.tbtn, .tbtn, span.type, img[alt*="type" i]');
                 for (let j = 0; j < tBtns.length; j++) {
@@ -10269,7 +10410,7 @@ ipcRenderer.on('apply-recommended-moves', async (event, data) => {
                     const optName = (opt.text || opt.value || '')
                         .replace(/\s*\([^)]*\)/g, '')
                         .replace(/\s*\[[^\]]*\]/g, '')
-                        .replace(/\s*-\s*[A-Za-z0-9\s/+\-%]+$/, '')
+                        .replace(/\s+-\s+.*$/, '')
                         .toLowerCase()
                         .trim();
                     if (optName === targetMove) {
@@ -10371,7 +10512,7 @@ ipcRenderer.on('apply-recommended-moves-and-submit', async (event, data) => {
                     const optName = (opt.text || opt.value || '')
                         .replace(/\s*\([^)]*\)/g, '')
                         .replace(/\s*\[[^\]]*\]/g, '')
-                        .replace(/\s*-\s*[A-Za-z0-9\s/+\-%]+$/, '')
+                        .replace(/\s+-\s+.*$/, '')
                         .toLowerCase()
                         .trim();
                     if (optName === targetMove) {
@@ -10456,9 +10597,12 @@ function checkPendingAutoEvolve() {
         const isTargetEvolvePath = curPath.indexOf('/pokemon/evolve/' + String(pending.id).toLowerCase()) !== -1;
         const openCard = detectEvolveCard();
 
-        // Once on changeattacks or completion screen, the pending auto-evolve handoff is finished: purge immediately
-        if (isChangeAttacksPath || (openCard && (openCard.isMoveSelection || openCard.isComplete))) {
+        // Once on changeattacks, completion, or terminal error screen, purge handoff immediately
+        if (isChangeAttacksPath || (openCard && (openCard.isMoveSelection || openCard.isComplete || openCard.cannotEvolveFurther))) {
             sessionStorage.removeItem('deluge_auto_evolve_target');
+            if (openCard && openCard.cannotEvolveFurther) {
+                ipcRenderer.sendToHost('evolve-card-detected', openCard);
+            }
             return;
         }
 
@@ -10606,9 +10750,29 @@ ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
             }
         }
 
+        const tryScrollAndVerifyEvolveLink = (linkEl) => {
+            if (!linkEl) return false;
+            if (typeof isElementVisible === 'function' && !isElementVisible(linkEl)) return false;
+            const rawHref = String((linkEl.getAttribute ? linkEl.getAttribute('href') : linkEl.href) || '').toLowerCase();
+            if (!rawHref.includes('/pokemon/evolve/') || rawHref.includes('/multiselect') || rawHref.includes('/release') || rawHref.includes('/trade')) {
+                return false;
+            }
+            try {
+                if (typeof linkEl.scrollIntoView === 'function') {
+                    linkEl.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' });
+                }
+            } catch (_) {}
+            if (typeof isSafeInteractableElement === 'function') {
+                return isSafeInteractableElement(linkEl);
+            }
+            return true;
+        };
+
         if (pokeId) {
-            const link = document.querySelector(`a[href*="/pokemon/evolve/${pokeId}"]`) ||
-                         document.querySelector(`a.evolve[href*="${pokeId}"]`);
+            const linkList = (typeof document.querySelectorAll === 'function')
+                ? Array.from(document.querySelectorAll(`a[href*="/pokemon/evolve/${pokeId}"], a.evolve[href*="${pokeId}"]`))
+                : [document.querySelector(`a[href*="/pokemon/evolve/${pokeId}"]`), document.querySelector(`a.evolve[href*="${pokeId}"]`)].filter(Boolean);
+            const link = linkList.find(l => tryScrollAndVerifyEvolveLink(l));
             if (link) {
                 dispatchHumanClick(link);
                 return;
@@ -10623,8 +10787,15 @@ ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
                 if (text.includes(pokeName)) {
                     const evoLink = row.querySelector('a.evolve, a[href*="/pokemon/evolve/"]');
                     if (evoLink) {
-                        dispatchHumanClick(evoLink);
-                        return;
+                        if (tryScrollAndVerifyEvolveLink(evoLink)) {
+                            dispatchHumanClick(evoLink);
+                            return;
+                        }
+                        const safeHref = evoLink.getAttribute ? evoLink.getAttribute('href') : '';
+                        if (safeHref && safeHref.indexOf('/pokemon/evolve/') !== -1) {
+                            window.location.href = safeHref;
+                            return;
+                        }
                     }
                 }
             }
@@ -10655,6 +10826,15 @@ ipcRenderer.on('trigger-evolve-pokemon', async (event, data) => {
 ipcRenderer.on('trigger-change-attack', (event, data) => {
     try {
         const pokeId = data && data.pokemonId;
+        if (data && (data.name || pokeId)) {
+            lastClickedPokemonInfo = {
+                id: pokeId || '',
+                name: data.name || '',
+                sourceName: data.name || '',
+                level: data.level || 100,
+                types: Array.isArray(data.types) ? data.types : []
+            };
+        }
         if (pokeId && window.location.pathname.indexOf('/change_attack/' + pokeId) !== -1) {
             syncEvolveCardState(true);
             return;

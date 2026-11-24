@@ -11677,10 +11677,15 @@ if (evoFilterAllBtn) {
 if (evoFilterBlockedBtn) {
   evoFilterBlockedBtn.addEventListener('click', () => setEvoFilter('BLOCKED'));
 }
+let evoSearchDebounceTimer = null;
 if (evoSearchInput) {
   evoSearchInput.addEventListener('input', (e) => {
     currentEvoSearch = (e.target.value || '').trim().toLowerCase();
-    renderEvolutionDecisionMakerUI();
+    if (evoSearchDebounceTimer) clearTimeout(evoSearchDebounceTimer);
+    evoSearchDebounceTimer = setTimeout(() => {
+      evoSearchDebounceTimer = null;
+      renderEvolutionDecisionMakerUI({ reuseCache: true });
+    }, 120);
   });
 }
 if (refreshEvoBoxBtn) {

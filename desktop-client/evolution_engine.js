@@ -104,6 +104,14 @@ const EVOLUTION_FAMILIES = {
       { name: 'Slowking', types: ['Water', 'Psychic'], bst: 490, gmax: false, mega: false, role: 'Special Defense Wall', keyMoves: ['Surf', 'Psychic', 'Ice Beam', 'Fire Blast'] }
     ]
   },
+  'galarian slowpoke': {
+    base: 'Galarian Slowpoke',
+    stages: ['Galarian Slowpoke'],
+    branches: [
+      { name: 'Galarian Slowbro', types: ['Poison', 'Psychic'], bst: 490, gmax: false, mega: false, role: 'Quick Draw Poison/Psychic Attacker', keyMoves: ['Shell Side Arm', 'Psychic', 'Sludge Bomb', 'Flamethrower'] },
+      { name: 'Galarian Slowking', types: ['Poison', 'Psychic'], bst: 490, gmax: false, mega: false, role: 'Curious Medicine Special Wall', keyMoves: ['Eerie Spell', 'Sludge Bomb', 'Psychic', 'Flamethrower'] }
+    ]
+  },
   scyther: {
     base: 'Scyther',
     stages: ['Scyther'],
@@ -227,7 +235,13 @@ const EVOLUTION_FAMILIES = {
     base: 'Sneasel',
     stages: ['Sneasel'],
     branches: [
-      { name: 'Weavile', types: ['Dark', 'Ice'], bst: 510, gmax: false, mega: false, role: 'High Speed Physical Assassin', keyMoves: ['Triple Axel', 'Knock Off', 'Ice Shard', 'Poison Jab'] },
+      { name: 'Weavile', types: ['Dark', 'Ice'], bst: 510, gmax: false, mega: false, role: 'High Speed Physical Assassin', keyMoves: ['Triple Axel', 'Knock Off', 'Ice Shard', 'Poison Jab'] }
+    ]
+  },
+  'hisuian sneasel': {
+    base: 'Hisuian Sneasel',
+    stages: ['Hisuian Sneasel'],
+    branches: [
       { name: 'Sneasler', types: ['Poison', 'Fighting'], bst: 510, gmax: false, mega: false, role: 'Dire Claw Unburden Sweeper', keyMoves: ['Dire Claw', 'Close Combat', 'Acrobatics', 'Night Slash'] }
     ]
   },
@@ -235,7 +249,13 @@ const EVOLUTION_FAMILIES = {
     base: 'Wooper',
     stages: ['Wooper'],
     branches: [
-      { name: 'Quagsire', types: ['Water', 'Ground'], bst: 430, gmax: false, mega: false, role: 'Unaware Defensive Tank', keyMoves: ['Earthquake', 'Scald', 'Waterfall', 'Ice Beam'] },
+      { name: 'Quagsire', types: ['Water', 'Ground'], bst: 430, gmax: false, mega: false, role: 'Unaware Defensive Tank', keyMoves: ['Earthquake', 'Scald', 'Waterfall', 'Ice Beam'] }
+    ]
+  },
+  'paldean wooper': {
+    base: 'Paldean Wooper',
+    stages: ['Paldean Wooper'],
+    branches: [
       { name: 'Clodsire', types: ['Poison', 'Ground'], bst: 430, gmax: false, mega: false, role: 'Water Absorb Special Sponge', keyMoves: ['Earthquake', 'Poison Jab', 'Megahorn', 'Stone Edge'] }
     ]
   },
@@ -243,8 +263,20 @@ const EVOLUTION_FAMILIES = {
     base: 'Meowth',
     stages: ['Meowth'],
     branches: [
-      { name: 'Persian', types: ['Normal'], bst: 440, gmax: false, mega: false, role: 'Technician Speedster', keyMoves: ['Fake Out', 'Slash', 'Play Rough', 'Bite'] },
-      { name: 'Alolan Persian', types: ['Dark'], bst: 440, gmax: false, mega: false, role: 'Fur Coat Dark Tank', keyMoves: ['Dark Pulse', 'Thunderbolt', 'Power Gem', 'Shadow Ball'] },
+      { name: 'Persian', types: ['Normal'], bst: 440, gmax: false, mega: false, role: 'Technician Speedster', keyMoves: ['Fake Out', 'Slash', 'Play Rough', 'Bite'] }
+    ]
+  },
+  'alolan meowth': {
+    base: 'Alolan Meowth',
+    stages: ['Alolan Meowth'],
+    branches: [
+      { name: 'Alolan Persian', types: ['Dark'], bst: 440, gmax: false, mega: false, role: 'Fur Coat Dark Tank', keyMoves: ['Dark Pulse', 'Thunderbolt', 'Power Gem', 'Shadow Ball'] }
+    ]
+  },
+  'galarian meowth': {
+    base: 'Galarian Meowth',
+    stages: ['Galarian Meowth'],
+    branches: [
       { name: 'Perrserker', types: ['Steel'], bst: 440, gmax: false, mega: false, role: 'Steely Spirit Steel Booster', keyMoves: ['Iron Head', 'Close Combat', 'Seed Bomb', 'Shadow Claw'] }
     ]
   },
@@ -649,9 +681,9 @@ const EVOLUTION_FAMILIES = {
       { name: 'Silvally', types: ['Normal'], bst: 570, minLevel: 1, role: 'RKS System Multi-Type Sweeper', keyMoves: ['Multi-Attack', 'Parting Shot', 'Iron Head', 'Flamethrower'] }
     ]
   },
-  farfetchd: {
-    base: "Farfetch'd",
-    stages: ["Farfetch'd"],
+  "galarian farfetch'd": {
+    base: "Galarian Farfetch'd",
+    stages: ["Galarian Farfetch'd"],
     branches: [
       { name: "Sirfetch'd", types: ['Fighting'], bst: 507, minLevel: 1, role: 'Scrappy Meteor Assault Sweeper', keyMoves: ['Meteor Assault', 'Close Combat', 'Brave Bird', 'First Impression'] }
     ]
@@ -676,24 +708,24 @@ const EVOLUTION_FAMILIES = {
 // 2. DELUGE BEST ATTACKS PER TYPE (SERVER-WIDE PEAK MOVES REGARDLESS OF COST)
 // -----------------------------------------------------------------------------
 const TOP_STAB_MOVES = {
-  Normal: ['Boomburst', 'Double-Edge', 'Extreme Speed', 'Hyper Voice', 'Body Slam'],
-  Fire: ['V-create', 'Eruption', 'Blue Flare', 'Armor Cannon', 'Flare Blitz', 'Flamethrower'],
-  Water: ['Water Spout', 'Wave Crash', 'Origin Pulse', 'Steam Eruption', 'Surf', 'Waterfall'],
-  Grass: ['Leaf Storm', 'Seed Flare', 'Wood Hammer', 'Power Whip', 'Energy Ball', 'Leaf Blade'],
-  Electric: ['Bolt Strike', 'Volt Tackle', 'Plasma Fists', 'Fusion Bolt', 'Thunderbolt'],
-  Ice: ['Glacial Lance', 'Triple Axel', 'Ice Beam', 'Icicle Crash', 'Ice Spinner'],
+  Normal: ['Boomburst', 'Blood Moon', 'Double-Edge', 'Tera Starstorm', 'Extreme Speed', 'Hyper Voice'],
+  Fire: ['V-create', 'Eruption', 'Mind Blown', 'Overheat', 'Burn Up', 'Blue Flare', 'Armor Cannon', 'Flare Blitz', 'Flamethrower'],
+  Water: ['Water Spout', 'Wave Crash', 'Steam Eruption', 'Origin Pulse', 'Surging Strikes', 'Hydro Pump', 'Surf'],
+  Grass: ['Chloroblast', 'Leaf Storm', 'Seed Flare', 'Wood Hammer', 'Power Whip', 'Ivy Cudgel', 'Energy Ball'],
+  Electric: ['Bolt Strike', 'Fusion Bolt', 'Volt Tackle', 'Double Shock', 'Plasma Fists', 'Thunderbolt'],
+  Ice: ['Glacial Lance', 'Triple Axel', 'Ice Hammer', 'Mountain Gale', 'Ice Beam', 'Icicle Crash'],
   Fighting: ['Focus Punch', 'High Jump Kick', 'Close Combat', 'Superpower', 'Collision Course', 'Aura Sphere'],
-  Poison: ['Belch', 'Gunk Shot', 'Sludge Wave', 'Sludge Bomb', 'Poison Jab'],
-  Ground: ['Headlong Rush', 'Precipice Blades', 'Earthquake', 'Earth Power', 'High Horsepower'],
-  Flying: ['Dragon Ascent', 'Brave Bird', 'Aeroblast', 'Bleakwind Storm', 'Hurricane'],
+  Poison: ['Belch', 'Gunk Shot', 'Malignant Chain', 'Noxious Torque', 'Sludge Wave', 'Sludge Bomb'],
+  Ground: ['Headlong Rush', 'Precipice Blades', 'Earthquake', 'High Horsepower', 'Earth Power'],
+  Flying: ['Dragon Ascent', 'Brave Bird', 'Aeroblast', 'Beak Blast', 'Bleakwind Storm'],
   Psychic: ['Psycho Boost', 'Psystrike', 'Photon Geyser', 'Freezing Glare', 'Psychic', 'Psyshock'],
-  Bug: ['Megahorn', 'First Impression', 'Bug Buzz', 'Attack Order', 'X-Scissor'],
-  Rock: ['Head Smash', 'Diamond Storm', 'Stone Edge', 'Power Gem'],
+  Bug: ['Megahorn', 'Attack Order', 'Bug Buzz', 'First Impression', 'Pollen Puff', 'X-Scissor'],
+  Rock: ['Head Smash', 'Diamond Storm', 'Mighty Cleave', 'Stone Edge', 'Power Gem'],
   Ghost: ['Astral Barrage', 'Poltergeist', 'Moongeist Beam', 'Spectral Thief', 'Shadow Ball'],
-  Dragon: ['Dragon Energy', 'Draco Meteor', 'Clanging Scales', 'Core Enforcer', 'Spacial Rend', 'Dragon Pulse', 'Dragon Claw'],
-  Steel: ['Gigaton Hammer', 'Doom Desire', 'Double Iron Bash', 'Sunsteel Strike', 'Behemoth Blade', 'Iron Head', 'Flash Cannon'],
-  Dark: ['Hyperspace Fury', 'Wicked Blow', 'Fiery Wrath', 'Darkest Lariat', 'Dark Pulse', 'Crunch'],
-  Fairy: ['Light of Ruin', 'Fleur Cannon', 'Moonblast', 'Play Rough', 'Dazzling Gleam']
+  Dragon: ['Dragon Energy', 'Draco Meteor', 'Glaive Rush', 'Clanging Scales', 'Spacial Rend', 'Core Enforcer', 'Dragon Pulse'],
+  Steel: ['Gigaton Hammer', 'Steel Beam', 'Steel Roller', 'Doom Desire', 'Double Iron Bash', 'Make It Rain', 'Sunsteel Strike', 'Iron Head'],
+  Dark: ['Hyperspace Fury', 'Foul Play', 'Fiery Wrath', 'Darkest Lariat', 'Kowtow Cleave', 'Wicked Blow', 'Dark Pulse', 'Crunch'],
+  Fairy: ['Light of Ruin', 'Fleur Cannon', 'Sparkly Swirl', 'Magical Torque', 'Moonblast', 'Play Rough', 'Dazzling Gleam']
 };
 
 // Counters to cover defensive weaknesses in priority order (strictly non-STAB)
@@ -1048,27 +1080,28 @@ function findFamily(speciesOrName) {
   const base = getBaseSpecies(raw).toLowerCase();
   const cleanNoVar = cleanSpeciesKey(raw);
   const cName = cleanName(raw);
+  const isRegional = /\b(?:alolan|galarian|hisuian|paldean)\b/i.test(cleanNoVar);
 
-  // Direct key check
+  // Direct key check (never fall back from a regional form to a base-region family)
   if (EVOLUTION_FAMILIES[cleanNoVar]) return EVOLUTION_FAMILIES[cleanNoVar];
-  if (EVOLUTION_FAMILIES[base]) return EVOLUTION_FAMILIES[base];
+  if (!isRegional && EVOLUTION_FAMILIES[base]) return EVOLUTION_FAMILIES[base];
 
   // Scan all families for matching base, stage, or branch
   for (const key of Object.keys(EVOLUTION_FAMILIES)) {
     const fam = EVOLUTION_FAMILIES[key];
-    if (fam.base.toLowerCase() === base || cleanName(fam.base) === cName) {
+    if (fam.base.toLowerCase() === cleanNoVar || (!isRegional && (fam.base.toLowerCase() === base || cleanName(fam.base) === cName))) {
       return fam;
     }
-    if (Array.isArray(fam.stages) && fam.stages.some(s => s.toLowerCase() === base || s.toLowerCase() === cleanNoVar || cleanName(s) === cName)) {
+    if (Array.isArray(fam.stages) && fam.stages.some(s => s.toLowerCase() === cleanNoVar || (!isRegional && (s.toLowerCase() === base || cleanName(s) === cName)))) {
       return fam;
     }
-    if (Array.isArray(fam.branches) && fam.branches.some(b => b.name.toLowerCase() === base || b.name.toLowerCase() === cleanNoVar || cleanName(b.name) === cName)) {
+    if (Array.isArray(fam.branches) && fam.branches.some(b => b.name.toLowerCase() === cleanNoVar || (!isRegional && (b.name.toLowerCase() === base || cleanName(b.name) === cName)))) {
       return fam;
     }
   }
 
-  // Construct dynamic family from STAGE_TRANSITIONS for all 554 DelugeRPG evolving species (excluding G-Max Challenge forms)
-  const rawTrList = STAGE_TRANSITIONS[cleanNoVar] || STAGE_TRANSITIONS[base];
+  // Construct dynamic family from STAGE_TRANSITIONS for all evolving species (excluding G-Max Challenge forms)
+  const rawTrList = isRegional ? STAGE_TRANSITIONS[cleanNoVar] : (STAGE_TRANSITIONS[cleanNoVar] || STAGE_TRANSITIONS[base]);
   const trList = Array.isArray(rawTrList) ? rawTrList.filter(t => !/\bg-?max\b/i.test(t.name)) : null;
   if (Array.isArray(trList) && trList.length > 0) {
     const capBase = raw.replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|retro|chrome|negative)\s+/i, '').trim() || base;
@@ -1361,11 +1394,34 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
 
   const gmaxPrereq = checkGmaxPrerequisite(pokemonName, userCollection, variant);
 
-  const directTransitions = (STAGE_TRANSITIONS[cleanNoVar] || STAGE_TRANSITIONS[baseName.toLowerCase()] || [])
-    .filter(t => !/\bg-?max\b/i.test(t.name));
+  const isTerminalForm = Boolean(
+    /\b(?:Mega|Primal)\s+/i.test(cleanNoVar) ||
+    /\bG-Max\b/i.test(cleanNoVar) ||
+    /\bEternamax\b/i.test(cleanNoVar)
+  );
+  const isPreStage = Boolean(
+    family && (
+      (family.base && (family.base.toLowerCase() === cleanNoVar || family.base.toLowerCase() === baseName.toLowerCase())) ||
+      (Array.isArray(family.stages) && family.stages.some(s => s.toLowerCase() === cleanNoVar || s.toLowerCase() === baseName.toLowerCase()))
+    )
+  );
+  const isAlreadyFinalBranch = Boolean(
+    !isPreStage &&
+    family &&
+    Array.isArray(family.branches) &&
+    family.branches.some(b => b.name.toLowerCase() === cleanNoVar || b.name.toLowerCase() === baseName.toLowerCase())
+  );
+
+  const isRegional = /\b(?:alolan|galarian|hisuian|paldean)\b/i.test(cleanNoVar);
+  const directTransitions = isTerminalForm
+    ? []
+    : ((isRegional ? STAGE_TRANSITIONS[cleanNoVar] : (STAGE_TRANSITIONS[cleanNoVar] || STAGE_TRANSITIONS[baseName.toLowerCase()])) || [])
+        .filter(t => !/\bg-?max\b/i.test(t.name));
   const directSet = new Set(directTransitions.map(t => t.name.toLowerCase()));
 
-  let rawBranches = family && Array.isArray(family.branches) ? family.branches.slice() : [];
+  let rawBranches = (isTerminalForm || isAlreadyFinalBranch)
+    ? []
+    : (family && Array.isArray(family.branches) ? family.branches.slice() : []);
   if (cleanNoVar && rawBranches.length > 0) {
     const earlierSet = new Set([cleanNoVar]);
     if (family && Array.isArray(family.stages)) {
@@ -1376,9 +1432,9 @@ function analyzeEvolutionPath(pokemonName, userCollection) {
     }
     rawBranches = rawBranches.filter(b => !earlierSet.has(b.name.toLowerCase()) && !/\bg-?max\b/i.test(b.name));
   }
-  if (rawBranches.length === 0 || !EVOLUTION_FAMILIES[cleanNoVar]) {
+  if (!isTerminalForm && (rawBranches.length === 0 || !EVOLUTION_FAMILIES[cleanNoVar])) {
     for (const tr of directTransitions) {
-      if (tr.name.toLowerCase() !== cleanNoVar && !/\bg-?max\b/i.test(tr.name) && !rawBranches.some(b => b.name.toLowerCase() === tr.name.toLowerCase())) {
+      if (tr.name.toLowerCase() !== cleanNoVar && tr.name.toLowerCase() !== baseName.toLowerCase() && !/\bg-?max\b/i.test(tr.name) && !rawBranches.some(b => b.name.toLowerCase() === tr.name.toLowerCase())) {
         rawBranches.push({
           name: tr.name,
           minLevel: tr.minLevel || 20,
@@ -1618,8 +1674,32 @@ const CANONICAL_SPECIES_MOVES = {
   enamorus: ['Springtide Storm', 'Moonblast', 'Earth Power', 'Mystical Fire']
 };
 
+const Z_MOVE_SET = new Set();
+if (skillsMap) {
+  for (const [skKey, skVal] of Object.entries(skillsMap)) {
+    const rawKey = String(skKey || '');
+    const rawName = String((skVal && skVal.name) || '');
+    if (rawKey.startsWith('*') || rawName.startsWith('*')) {
+      const cleanK = rawKey.replace(/^\*+/, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanN = rawName.replace(/^\*+/, '').toLowerCase().trim();
+      if (cleanK) Z_MOVE_SET.add(cleanK);
+      if (cleanN) Z_MOVE_SET.add(cleanN);
+    }
+  }
+}
+
+function isZMoveName(moveName) {
+  if (!moveName) return false;
+  const raw = String(moveName).trim();
+  if (!raw) return false;
+  if (raw.startsWith('*') || /\u26a1|\[\s*z\s*-?\s*move\s*\]/i.test(raw)) return true;
+  const lower = raw.replace(/^\*+/, '').toLowerCase().trim();
+  const compact = lower.replace(/[^a-z0-9]/g, '');
+  return Z_MOVE_SET.has(lower) || Z_MOVE_SET.has(compact);
+}
+
 function isFlawlessMove(m) {
-  if (!m) return false;
+  if (!m || isZMoveName(m)) return false;
   const rm = (teamEngine && typeof teamEngine.resolveMove === 'function')
     ? teamEngine.resolveMove(m)
     : null;
@@ -1631,22 +1711,88 @@ function isFlawlessMove(m) {
   return true;
 }
 
-function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []) {
+const _variantBestTypeMoveCache = new Map();
+const _optimalMovesTemplateCache = new Map();
+
+function scoreMoveForVariantRaw(moveName, variantLower, isInverse) {
+  if (!moveName || !isFlawlessMove(moveName)) return -1;
+  const rm = teamEngine.resolveMove(moveName);
+  if (!rm || rm.power <= 0) return -1;
+  const acc = rm.accuracy || 100;
+  const prioBonus = rm.isPriority ? 2 : 0;
+  if (variantLower === 'dark' || variantLower === 'shadow') {
+    const accFactor = acc >= 95 ? 1.02 : Math.pow(acc / 100, 0.25);
+    return (rm.power * accFactor) + prioBonus;
+  }
+  if (variantLower === 'ghostly' || variantLower === 'chrome') {
+    const accFactor = acc >= 95 ? 1.12 : Math.pow(acc / 100, 2.2);
+    return (rm.power * accFactor) + prioBonus;
+  }
+  if (variantLower === 'shiny' || variantLower === 'metallic' || variantLower === 'mirage' || isInverse) {
+    const accFactor = acc >= 95 ? 1.06 : Math.pow(acc / 100, 1.8);
+    return (rm.power * accFactor) + prioBonus;
+  }
+  const accFactor = acc >= 95 ? 1.03 : Math.pow(acc / 100, 1.3);
+  return (rm.power * accFactor) + prioBonus;
+}
+
+function getCachedBestVariantTypeMove(variantLower, isInverse, moveType) {
+  const key = `${variantLower}|${isInverse ? '1' : '0'}|${moveType}`;
+  if (_variantBestTypeMoveCache.has(key)) return _variantBestTypeMoveCache.get(key);
+  let best = null;
+  const pool = TOP_STAB_MOVES[moveType] || [];
+  for (let i = 0; i < pool.length; i++) {
+    const cand = pool[i];
+    const s = scoreMoveForVariantRaw(cand, variantLower, isInverse);
+    if (s > 0 && (!best || s > best.score)) {
+      best = { name: cand, score: s };
+    }
+  }
+  _variantBestTypeMoveCache.set(key, best);
+  return best;
+}
+
+function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = [], options = {}) {
   let name = '';
   let existingMoves = [];
+  let explicitVariant = (options && typeof options.variant === 'string') ? options.variant.trim() : '';
 
   if (typeof pokemonOrName === 'string') {
     name = pokemonOrName;
     existingMoves = currentMoves || [];
   } else if (pokemonOrName && typeof pokemonOrName === 'object') {
-    name = pokemonOrName.name || 'Pokemon';
+    name = pokemonOrName.name || pokemonOrName.fullName || 'Pokemon';
     existingMoves = pokemonOrName.moves || currentMoves || [];
+    if (!explicitVariant && pokemonOrName.variant) {
+      explicitVariant = String(pokemonOrName.variant).trim();
+    }
   }
 
+  const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)\s+/i;
+  let variant = 'Normal';
+  if (explicitVariant && explicitVariant.toLowerCase() !== 'normal') {
+    variant = (explicitVariant.toLowerCase() === 'ghost')
+      ? 'Ghostly'
+      : (explicitVariant.charAt(0).toUpperCase() + explicitVariant.slice(1).toLowerCase());
+  } else {
+    const vMatch = String(name || '').match(VARIANT_PREFIX_REGEX);
+    if (vMatch) {
+      variant = (vMatch[1].toLowerCase() === 'ghost')
+        ? 'Ghostly'
+        : (vMatch[1].charAt(0).toUpperCase() + vMatch[1].slice(1).toLowerCase());
+    }
+  }
+  const variantLower = variant.toLowerCase();
+  const isInverse = Boolean(
+    teamEngine && typeof teamEngine.isNegativePokemon === 'function' &&
+    (teamEngine.isNegativePokemon(variant) || teamEngine.isNegativePokemon(name))
+  );
+
   const types = resolvePokemonTypes(pokemonOrName, collection);
-  const defProfile = teamEngine.getDefensiveProfile(types);
+  const defProfile = teamEngine.getDefensiveProfile(types, isInverse);
   const primaryType = types[0] || 'Normal';
-  const secondaryType = types[1] || null;
+  const secondaryType = (types[1] && types[1] !== primaryType) ? types[1] : null;
+  const stabTypes = secondaryType ? [primaryType, secondaryType] : [primaryType];
 
   // 1. Check if species has canonical keyMoves in CANONICAL_SPECIES_MOVES, STAGE_TRANSITIONS, or EVOLUTION_FAMILIES
   const cleanSpName = String(name || '').replace(/^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|retro|chrome|negative)\s+/i, '').toLowerCase().trim();
@@ -1664,13 +1810,17 @@ function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []
   }
 
   if (!canonicalKeyMoves) {
-    const transitions = STAGE_TRANSITIONS[baseSp];
+    const transitions = STAGE_TRANSITIONS[cleanSpName] || STAGE_TRANSITIONS[baseSp];
     if (transitions && transitions.length > 0) {
       if (isMegaPoke) {
-        const megaTr = transitions.find(t => t.mega && t.keyMoves);
+        const megaTr = transitions.find(t => {
+          if (!t || !t.mega || !t.keyMoves) return false;
+          const tn = cleanNameWithoutVariant(t.name);
+          return tn === cleanSpName || tn === baseSp;
+        });
         if (megaTr) canonicalKeyMoves = megaTr.keyMoves;
       }
-      if (!canonicalKeyMoves && transitions[0].keyMoves) {
+      if (!canonicalKeyMoves && !isMegaPoke && transitions[0].keyMoves) {
         canonicalKeyMoves = transitions[0].keyMoves;
       }
     }
@@ -1679,7 +1829,11 @@ function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []
   if (!canonicalKeyMoves) {
     for (const k of Object.keys(STAGE_TRANSITIONS)) {
       const trList = STAGE_TRANSITIONS[k];
-      const matchTr = trList.find(t => (isMegaPoke && t.mega && (t.name.toLowerCase() === baseSp || t.name.toLowerCase() === name.toLowerCase())) || t.name.toLowerCase() === baseSp || t.name.toLowerCase() === name.toLowerCase());
+      const matchTr = trList.find(t => {
+        if (!t || !t.keyMoves) return false;
+        const tn = cleanNameWithoutVariant(t.name);
+        return tn === cleanSpName || tn === baseSp;
+      });
       if (matchTr && matchTr.keyMoves) {
         canonicalKeyMoves = matchTr.keyMoves;
         break;
@@ -1690,7 +1844,11 @@ function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []
   if (!canonicalKeyMoves) {
     for (const k of Object.keys(EVOLUTION_FAMILIES)) {
       const fam = EVOLUTION_FAMILIES[k];
-      const matchBr = fam.branches && fam.branches.find(b => (isMegaPoke && b.mega) || b.name.toLowerCase() === baseSp || b.name.toLowerCase() === name.toLowerCase());
+      const matchBr = fam.branches && fam.branches.find(b => {
+        if (!b || !b.keyMoves) return false;
+        const bn = cleanNameWithoutVariant(b.name);
+        return bn === cleanSpName || bn === baseSp;
+      });
       if (matchBr && matchBr.keyMoves) {
         canonicalKeyMoves = matchBr.keyMoves;
         break;
@@ -1701,122 +1859,256 @@ function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []
   // -----------------------------------------------------------------------------
   // SERVER-WIDE OPTIMAL DELUGE MOVESET RECOMMENDATION (REGARDLESS OF POKEDOLLAR COST)
   // -----------------------------------------------------------------------------
-  // DelugeRPG allows purchasing any attack move from the server's Attack Relearner.
-  // We guarantee 4 peak-power, high-accuracy moves:
-  // Slot 1: Primary STAB (Highest power move matching types[0])
-  // Slot 2: Secondary STAB / Alternate STAB (Highest power move matching types[1] or 2nd primary)
-  // Slot 3: Anti-Weakness Coverage (Counter to Pokemon's worst defensive weakness)
-  // Slot 4: Universal Wallbreaker Coverage (Elite non-overlapping high-power attack)
+  // Variant-aware + Type-aware (Singular or Dual-Type + Inverse for Negative class):
+  //   - Dual-Type:     Primary STAB + Secondary STAB + Anti-Weakness + Wallbreaker
+  //   - Singular Type: Primary STAB + Anti-Weakness + Resistor Breaker + Wallbreaker
+  // Strictly 4 distinct move types with peak attack power (price disregarded).
+
+  const availMovesList = (options && Array.isArray(options.availableMoves)) ? options.availableMoves : [];
+  let availMap = null;
+  if (availMovesList.length > 0) {
+    availMap = new Map();
+    for (const am of availMovesList) {
+      const rawAm = (typeof am === 'string' ? am : (am && am.name ? am.name : '')).trim();
+      if (!rawAm || isZMoveName(rawAm)) continue;
+      const key = rawAm.toLowerCase();
+      if (!availMap.has(key)) availMap.set(key, rawAm);
+    }
+    if (availMap.size === 0) availMap = null;
+  }
+
+  const isMoveAvailable = (moveName) => {
+    if (!availMap) return true;
+    return availMap.has(String(moveName || '').toLowerCase().trim());
+  };
+
+  const resolveAvailableCanonicalName = (moveName) => {
+    if (!availMap) return moveName;
+    return availMap.get(String(moveName || '').toLowerCase().trim()) || moveName;
+  };
+
+  const scoreMoveForVariant = (moveName) => {
+    if (!moveName || !isMoveAvailable(moveName)) return -1;
+    return scoreMoveForVariantRaw(moveName, variantLower, isInverse);
+  };
 
   const nonFlawedEquipped = (existingMoves || []).map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : '')).trim()).filter(m => {
-    if (!m) return false;
+    if (!m || !isFlawlessMove(m)) return false;
     const rm = teamEngine.resolveMove(m);
-    return isFlawlessMove(m) && rm.power >= 85;
+    return rm && rm.power >= 85;
   });
 
   const canon = (canonicalKeyMoves || []).filter(m => {
+    if (!m || !isFlawlessMove(m)) return false;
     const rm = teamEngine.resolveMove(m);
-    return isFlawlessMove(m) && rm.power >= 80;
+    return rm && rm.power >= 90;
   });
 
-  // Slot 1: Primary STAB
-  const pPool = (TOP_STAB_MOVES[primaryType] || ['Boomburst'])
-    .concat(canon.filter(m => teamEngine.resolveMove(m).type === primaryType))
-    .concat(nonFlawedEquipped.filter(m => teamEngine.resolveMove(m).type === primaryType));
-  pPool.sort((a, b) => teamEngine.resolveMove(b).power - teamEngine.resolveMove(a).power);
-  const move1Name = pPool.find(m => isFlawlessMove(m)) || (TOP_STAB_MOVES[primaryType] ? TOP_STAB_MOVES[primaryType][0] : 'Double-Edge');
-
-  // Slot 2: Secondary STAB or Alternate STAB
-  let move2Name;
-  if (secondaryType && TOP_STAB_MOVES[secondaryType]) {
-    const sPool = TOP_STAB_MOVES[secondaryType]
-      .concat(canon.filter(m => teamEngine.resolveMove(m).type === secondaryType))
-      .concat(nonFlawedEquipped.filter(m => teamEngine.resolveMove(m).type === secondaryType));
-    sPool.sort((a, b) => teamEngine.resolveMove(b).power - teamEngine.resolveMove(a).power);
-    move2Name = sPool.find(m => m !== move1Name && isFlawlessMove(m)) || TOP_STAB_MOVES[secondaryType][0];
-  } else {
-    move2Name = pPool.find(m => m !== move1Name && isFlawlessMove(m)) || (TOP_STAB_MOVES[primaryType] && TOP_STAB_MOVES[primaryType][1]) || 'Earthquake';
-  }
-
-  // Slot 3: Anti-Weakness Coverage
-  const weaknesses = (defProfile.quadWeaknesses && defProfile.quadWeaknesses.length > 0)
-    ? defProfile.quadWeaknesses
-    : (defProfile.weaknesses || []);
-
-  let counterType = null;
-  for (const w of weaknesses) {
-    const candidateCounters = Array.isArray(WEAKNESS_COVERAGE_MAP[w])
-      ? WEAKNESS_COVERAGE_MAP[w]
-      : [WEAKNESS_COVERAGE_MAP[w]];
-    for (const c of candidateCounters) {
-      if (c && c !== primaryType && c !== secondaryType && TOP_STAB_MOVES[c]) {
-        counterType = c;
-        break;
-      }
-    }
-    if (counterType) break;
-  }
-  if (!counterType) {
-    counterType = (primaryType === 'Fire' ? 'Ground' : 'Fighting');
-  }
-
-  const cPool = (TOP_STAB_MOVES[counterType] || ['Close Combat'])
-    .concat(canon.filter(m => teamEngine.resolveMove(m).type === counterType))
-    .concat(nonFlawedEquipped.filter(m => teamEngine.resolveMove(m).type === counterType));
-  cPool.sort((a, b) => teamEngine.resolveMove(b).power - teamEngine.resolveMove(a).power);
-  const move3Name = cPool.find(m => m !== move1Name && m !== move2Name && isFlawlessMove(m))
-    || (TOP_STAB_MOVES[counterType] ? TOP_STAB_MOVES[counterType][0] : 'Close Combat');
-
-  // Slot 4: Universal Wallbreaker Coverage
-  const usedTypes = new Set([
-    teamEngine.resolveMove(move1Name).type,
-    teamEngine.resolveMove(move2Name).type,
-    teamEngine.resolveMove(move3Name).type
-  ]);
-
-  const eliteWallbreakers = [
-    'Earthquake', 'Close Combat', 'Glacial Lance', 'V-create',
-    'Gigaton Hammer', 'Dragon Energy', 'Astral Barrage', 'Bolt Strike',
-    'Water Spout', 'Boomburst', 'Headlong Rush', 'Dragon Ascent', 'Light of Ruin'
-  ];
-
-  let move4Name = null;
-  for (const cm of canon) {
-    const rm = teamEngine.resolveMove(cm);
-    if (isFlawlessMove(cm) && !usedTypes.has(rm.type) && cm !== move1Name && cm !== move2Name && cm !== move3Name) {
-      move4Name = cm;
-      break;
-    }
-  }
-
-  if (!move4Name) {
-    for (const cand of eliteWallbreakers) {
-      const rm = teamEngine.resolveMove(cand);
-      if (isFlawlessMove(cand) && !usedTypes.has(rm.type) && cand !== move1Name && cand !== move2Name && cand !== move3Name) {
-        move4Name = cand;
+  // Fast memoized path: when unrestricted (box list / species strategy) and no canonical/equipped move beats standard pools
+  const templateKey = `${variantLower}|${primaryType}|${secondaryType || ''}|${isInverse ? '1' : '0'}`;
+  let hasCustomStrongerOverride = false;
+  if (!availMap && (canon.length > 0 || nonFlawedEquipped.length > 0)) {
+    const extraMoves = canon.concat(nonFlawedEquipped);
+    for (let i = 0; i < extraMoves.length; i++) {
+      const em = extraMoves[i];
+      const rm = teamEngine.resolveMove(em);
+      if (!rm || !rm.type) continue;
+      const stdBest = getCachedBestVariantTypeMove(variantLower, isInverse, rm.type);
+      const emScore = scoreMoveForVariantRaw(em, variantLower, isInverse);
+      if (!stdBest || emScore > stdBest.score) {
+        hasCustomStrongerOverride = true;
         break;
       }
     }
   }
-  if (!move4Name) move4Name = 'Earthquake';
 
-  const rawOptimalMoves = [
-    { name: move1Name, role: 'Primary STAB' },
-    { name: move2Name, role: secondaryType ? 'Secondary STAB' : 'High-Power STAB' },
-    { name: move3Name, role: 'Anti-Weakness Coverage' },
-    { name: move4Name, role: 'Universal Wallbreaker' }
-  ];
+  let optimalMoves = null;
+  if (!availMap && !hasCustomStrongerOverride && _optimalMovesTemplateCache.has(templateKey)) {
+    optimalMoves = _optimalMovesTemplateCache.get(templateKey).map(m => Object.assign({}, m));
+  }
 
-  let optimalMoves = rawOptimalMoves.map(m => {
-    const rm = teamEngine.resolveMove(m.name);
-    return {
-      name: m.name,
-      type: rm.type || 'Normal',
-      power: rm.power || 90,
-      category: rm.category || 'Special',
-      role: m.role
+  if (!optimalMoves) {
+    const availMovesByType = new Map();
+    if (availMap) {
+      for (const amName of availMap.values()) {
+        if (!isFlawlessMove(amName)) continue;
+        const rm = teamEngine.resolveMove(amName);
+        if (!rm || !rm.type || rm.power < 60) continue;
+        if (!availMovesByType.has(rm.type)) availMovesByType.set(rm.type, []);
+        availMovesByType.get(rm.type).push(amName);
+      }
+    }
+
+    const pickBestMoveForType = (moveType, usedNames = new Set()) => {
+      if (!availMap && !hasCustomStrongerOverride) {
+        const cachedBest = getCachedBestVariantTypeMove(variantLower, isInverse, moveType);
+        if (cachedBest && !usedNames.has(cachedBest.name.toLowerCase())) {
+          return cachedBest.name;
+        }
+      }
+      const pool = [];
+      const seen = new Set();
+      const addCandidate = (m) => {
+        if (!m) return;
+        const k = String(m).toLowerCase().trim();
+        if (!k || seen.has(k) || usedNames.has(k)) return;
+        seen.add(k);
+        if (!isFlawlessMove(m) || !isMoveAvailable(m)) return;
+        const rm = teamEngine.resolveMove(m);
+        if (rm && rm.type === moveType) {
+          pool.push(resolveAvailableCanonicalName(m));
+        }
+      };
+      (TOP_STAB_MOVES[moveType] || []).forEach(addCandidate);
+      canon.forEach(addCandidate);
+      nonFlawedEquipped.forEach(addCandidate);
+      if (availMovesByType.has(moveType)) {
+        availMovesByType.get(moveType).forEach(addCandidate);
+      }
+      pool.sort((a, b) => scoreMoveForVariant(b) - scoreMoveForVariant(a));
+      if (pool.length > 0) return pool[0];
+      const fallbackList = TOP_STAB_MOVES[moveType] || ['Boomburst'];
+      return fallbackList.find(m => !usedNames.has(m.toLowerCase())) || fallbackList[0];
     };
-  });
+
+    const ALL_TYPES = Object.keys(WEAKNESS_COVERAGE_MAP);
+    const quadWeakSet = new Set(defProfile.quadWeaknesses || []);
+    const weaknesses = Array.from(new Set([
+      ...(defProfile.quadWeaknesses || []),
+      ...(defProfile.weaknesses || [])
+    ]));
+
+    // Identify defending types where EVERY STAB fails to reach neutral damage under the Pokemon's rules (normal or Inverse)
+    const stabResistedTargets = ALL_TYPES.filter(defType =>
+      stabTypes.every(stabType => teamEngine.getTypeMultiplier(stabType, [defType], isInverse) < 1.0)
+    );
+
+    const pickBestCoverageType = (priorityTargets, coveredAtkTypes, excludedAtkTypes, usedNames) => {
+      const alreadyCoveredDef = new Set();
+      for (const defType of ALL_TYPES) {
+        if (coveredAtkTypes.some(atkType => teamEngine.getTypeMultiplier(atkType, [defType], isInverse) >= 2.0)) {
+          alreadyCoveredDef.add(defType);
+        }
+      }
+
+      let bestType = null;
+      let bestTotalScore = -Infinity;
+
+      for (const atkType of ALL_TYPES) {
+        if (excludedAtkTypes.has(atkType)) continue;
+        if (!TOP_STAB_MOVES[atkType] && !availMovesByType.has(atkType)) continue;
+        const topMove = pickBestMoveForType(atkType, usedNames);
+        const moveScore = scoreMoveForVariant(topMove);
+        if (moveScore <= 0) continue;
+
+        let priorityHits = 0;
+        let priorityBonus = 0;
+        for (const pTarget of priorityTargets) {
+          const mult = teamEngine.getTypeMultiplier(atkType, [pTarget], isInverse);
+          if (mult >= 2.0) {
+            priorityHits++;
+            priorityBonus += quadWeakSet.has(pTarget) ? 120 : 75;
+          }
+        }
+
+        let newTypesCovered = 0;
+        for (const defType of ALL_TYPES) {
+          if (!alreadyCoveredDef.has(defType) && teamEngine.getTypeMultiplier(atkType, [defType], isInverse) >= 2.0) {
+            newTypesCovered++;
+          }
+        }
+
+        const missPriorityPenalty = (priorityTargets.length > 0 && priorityHits === 0) ? -45 : 0;
+        const totalScore = priorityBonus + (newTypesCovered * 14) + (moveScore * 0.55) + missPriorityPenalty;
+        if (totalScore > bestTotalScore) {
+          bestTotalScore = totalScore;
+          bestType = atkType;
+        }
+      }
+
+      if (bestType) return bestType;
+      return ALL_TYPES.find(t => !excludedAtkTypes.has(t)) || 'Fighting';
+    };
+
+    const usedNames = new Set();
+    const excludedTypes = new Set(stabTypes);
+    const coveredTypes = [...stabTypes];
+
+    const move1Name = pickBestMoveForType(primaryType, usedNames);
+    usedNames.add(move1Name.toLowerCase());
+
+    let rawOptimalMoves;
+    if (secondaryType) {
+      // Dual-Type layout: Primary STAB + Secondary STAB + Anti-Weakness + Universal Wallbreaker
+      const move2Name = pickBestMoveForType(secondaryType, usedNames);
+      usedNames.add(move2Name.toLowerCase());
+
+      const slot3Type = pickBestCoverageType(weaknesses, coveredTypes, excludedTypes, usedNames);
+      const move3Name = pickBestMoveForType(slot3Type, usedNames);
+      excludedTypes.add(slot3Type);
+      coveredTypes.push(slot3Type);
+      usedNames.add(move3Name.toLowerCase());
+
+      const uncoveredWeaknesses = weaknesses.filter(w =>
+        !coveredTypes.some(atk => teamEngine.getTypeMultiplier(atk, [w], isInverse) >= 2.0)
+      );
+      const slot4Targets = Array.from(new Set([...uncoveredWeaknesses, ...stabResistedTargets]));
+      const slot4Type = pickBestCoverageType(slot4Targets, coveredTypes, excludedTypes, usedNames);
+      const move4Name = pickBestMoveForType(slot4Type, usedNames);
+
+      rawOptimalMoves = [
+        { name: move1Name, role: 'Primary STAB' },
+        { name: move2Name, role: 'Secondary STAB' },
+        { name: move3Name, role: isInverse ? 'Inverse Anti-Weakness' : 'Anti-Weakness Coverage' },
+        { name: move4Name, role: isInverse ? 'Inverse Wallbreaker' : 'Universal Wallbreaker' }
+      ];
+    } else {
+      // Singular-Type layout: Primary STAB + Anti-Weakness + Resistor Breaker + Universal Wallbreaker (4 distinct types)
+      const slot2Type = pickBestCoverageType(weaknesses, coveredTypes, excludedTypes, usedNames);
+      const move2Name = pickBestMoveForType(slot2Type, usedNames);
+      excludedTypes.add(slot2Type);
+      coveredTypes.push(slot2Type);
+      usedNames.add(move2Name.toLowerCase());
+
+      const uncoveredResistors = stabResistedTargets.filter(r =>
+        !coveredTypes.some(atk => teamEngine.getTypeMultiplier(atk, [r], isInverse) >= 2.0)
+      );
+      const slot3Targets = uncoveredResistors.length > 0 ? uncoveredResistors : stabResistedTargets;
+      const slot3Type = pickBestCoverageType(slot3Targets, coveredTypes, excludedTypes, usedNames);
+      const move3Name = pickBestMoveForType(slot3Type, usedNames);
+      excludedTypes.add(slot3Type);
+      coveredTypes.push(slot3Type);
+      usedNames.add(move3Name.toLowerCase());
+
+      const remainingWeaknesses = weaknesses.filter(w =>
+        !coveredTypes.some(atk => teamEngine.getTypeMultiplier(atk, [w], isInverse) >= 2.0)
+      );
+      const slot4Type = pickBestCoverageType(remainingWeaknesses, coveredTypes, excludedTypes, usedNames);
+      const move4Name = pickBestMoveForType(slot4Type, usedNames);
+
+      rawOptimalMoves = [
+        { name: move1Name, role: 'Primary STAB' },
+        { name: move2Name, role: isInverse ? 'Inverse Anti-Weakness' : 'Anti-Weakness Coverage' },
+        { name: move3Name, role: isInverse ? 'Inverse Breaker' : 'Resistor Breaker' },
+        { name: move4Name, role: isInverse ? 'Inverse Wallbreaker' : 'Universal Wallbreaker' }
+      ];
+    }
+
+    optimalMoves = rawOptimalMoves.map(m => {
+      const rm = teamEngine.resolveMove(m.name);
+      return {
+        name: m.name,
+        type: rm.type || 'Normal',
+        power: rm.power || 90,
+        category: rm.category || 'Special',
+        role: m.role
+      };
+    });
+
+    if (!availMap && !hasCustomStrongerOverride) {
+      _optimalMovesTemplateCache.set(templateKey, optimalMoves.map(m => Object.assign({}, m)));
+    }
+  }
 
   // Critique current moves with intelligent unequipped move recommendations
   const moveCritique = [];
@@ -1886,10 +2178,12 @@ function recommendOptimalMoves(pokemonOrName, currentMoves = [], collection = []
 
   return {
     pokemon: name,
+    variant,
+    isInverse,
     types,
     optimalMoves,
     moveCritique,
-    summary: `Optimal Deluge RPG moveset configured with 100% accuracy STAB and anti-weakness coverage.`
+    summary: `Optimal ${variant} (${types.join('/')}${isInverse ? ' Inverse' : ''}) moveset with peak damage and 4-type coverage.`
   };
 }
 
@@ -2394,6 +2688,7 @@ const STAGE_TRANSITIONS = {
     { name: 'Galarian Slowking', minLevel: 37, types: ['Poison', 'Psychic'], bst: 490, keyMoves: ['Eerie Spell', 'Sludge Bomb', 'Psychic', 'Flamethrower'] }
   ],
   slowbro: [{ name: 'Mega Slowbro', minLevel: 100, types: ['Water', 'Psychic'], bst: 590, mega: true, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Calm Mind'] }],
+  'galarian slowbro': [{ name: 'Mega Slowbro', minLevel: 100, types: ['Water', 'Psychic'], bst: 590, mega: true, keyMoves: ['Scald', 'Psychic', 'Ice Beam', 'Calm Mind'] }],
   snorunt: [
     { name: 'Glalie', minLevel: 42, types: ['Ice'], bst: 480, keyMoves: ['Ice Beam', 'Blizzard', 'Earthquake', 'Shadow Ball'] },
     { name: 'Froslass', minLevel: 42, types: ['Ice', 'Ghost'], bst: 480, keyMoves: ['Ice Beam', 'Shadow Ball', 'Thunderbolt', 'Psychic'] }
@@ -2402,7 +2697,6 @@ const STAGE_TRANSITIONS = {
   poipole: [{ name: 'Naganadel', minLevel: 60, types: ['Poison', 'Dragon'], bst: 540, keyMoves: ['Sludge Wave', 'Draco Meteor', 'Fire Blast', 'Thunderbolt'] }],
   meltan: [{ name: 'Melmetal', minLevel: 80, types: ['Steel'], bst: 600, keyMoves: ['Double Iron Bash', 'Earthquake', 'Thunder Punch', 'Superpower'] }],
   'type: null': [{ name: 'Silvally', minLevel: 25, types: ['Normal'], bst: 570, keyMoves: ['Multi-Attack', 'Parting Shot', 'Iron Head', 'Flamethrower'] }],
-  "farfetch'd": [{ name: "Sirfetch'd", minLevel: 35, types: ['Fighting'], bst: 507, keyMoves: ['Meteor Assault', 'Close Combat', 'Brave Bird', 'First Impression'] }],
   "galarian farfetch'd": [{ name: "Sirfetch'd", minLevel: 35, types: ['Fighting'], bst: 507, keyMoves: ['Meteor Assault', 'Close Combat', 'Brave Bird', 'First Impression'] }],
   kubfu: [
     { name: 'Urshifu (Single Strike)', minLevel: 20, types: ['Fighting', 'Dark'], bst: 550, gmax: true, keyMoves: ['Wicked Blow', 'Close Combat', 'Poison Jab', 'Iron Head'] },
@@ -2543,7 +2837,7 @@ const UNIVERSAL_STAGE_MAP = {
   sewaddle: [['Swadloon', 20]], swadloon: [['Leavanny', 32]],
   venipede: [['Whirlipede', 22]], whirlipede: [['Scolipede', 30]],
   cottonee: [['Whimsicott', 25]], petilil: [['Lilligant', 25], ['Hisuian Lilligant', 25]],
-  basculin: [['Basculegion', 40]],
+  'basculin (white-striped)': [['Basculegion', 40]],
   sandile: [['Krokorok', 29]], krokorok: [['Krookodile', 40]],
   darumaka: [['Darmanitan', 35]], 'galarian darumaka': [['Galarian Darmanitan', 35]],
   dwebble: [['Crustle', 34]], scraggy: [['Scrafty', 39]],
@@ -2585,7 +2879,7 @@ const UNIVERSAL_STAGE_MAP = {
   helioptile: [['Heliolisk', 30]], tyrunt: [['Tyrantrum', 39]],
   amaura: [['Aurorus', 39]], phantump: [['Trevenant', 30]],
   pumpkaboo: [['Gourgeist', 30]],
-  bergmite: [['Avalugg', 37]], 'hisuian bergmite': [['Hisuian Avalugg', 37]],
+  bergmite: [['Avalugg', 37], ['Hisuian Avalugg', 37]], 'hisuian bergmite': [['Hisuian Avalugg', 37]],
   noibat: [['Noivern', 48]],
   // Gen 7
   rowlet: [['Dartrix', 17]], dartrix: [['Decidueye', 34], ['Hisuian Decidueye', 36]],
@@ -2653,7 +2947,7 @@ const UNIVERSAL_STAGE_MAP = {
   gimmighoul: [['Gholdengo', 40]], poltchageist: [['Sinistcha', 30]],
   quilava: [['Typhlosion', 36], ['Hisuian Typhlosion', 36]],
   "galarian farfetch'd": [["Sirfetch'd", 30]],
-  farfetchd: [["Sirfetch'd", 30]]
+  "galarian farfetchd": [["Sirfetch'd", 30]]
 };
 
 for (const [srcKey, targets] of Object.entries(UNIVERSAL_STAGE_MAP)) {
@@ -2710,7 +3004,10 @@ function getEvolveReadyPokemon(userCollection) {
     const VARIANT_PREFIX_REGEX = /^(normal|shiny|metallic|ghostly|ghost|dark|shadow|mirage|chrome|negative|retro)(?:\s+|$)/i;
     const cleanNoVariant = rawName.replace(VARIANT_PREFIX_REGEX, '').trim().toLowerCase();
     const baseSpecies = teamEngine.getBaseSpecies(rawName).toLowerCase();
-    const transitions = STAGE_TRANSITIONS[cleanNoVariant] || STAGE_TRANSITIONS[baseSpecies];
+    const isRegional = /\b(?:alolan|galarian|hisuian|paldean)\b/i.test(cleanNoVariant);
+    const transitions = isRegional
+      ? STAGE_TRANSITIONS[cleanNoVariant]
+      : (STAGE_TRANSITIONS[cleanNoVariant] || STAGE_TRANSITIONS[baseSpecies]);
     const fam = findFamily(rawName);
 
     const branches = [];
@@ -2730,7 +3027,7 @@ function getEvolveReadyPokemon(userCollection) {
         }
         branches.push(tr);
       }
-    } else if (fam) {
+    } else if (fam && !isRegional) {
       const isBase = fam.base.toLowerCase() === baseSpecies;
       const isStage = Array.isArray(fam.stages) && fam.stages.some(s => s.toLowerCase() === baseSpecies);
       if (isBase || isStage) {
@@ -2880,17 +3177,25 @@ function getBoxPokemonMovesCollection(userCollection, filterMode = 'ALL') {
 
     const types = resolvePokemonTypes(poke, userCollection);
     const currentMoves = Array.isArray(poke.moves) ? poke.moves.map(m => (typeof m === 'string' ? m : (m && m.name ? m.name : ''))).filter(Boolean) : [];
-    const moveAnalysis = recommendOptimalMoves(rawName, currentMoves, userCollection);
+    const moveAnalysis = recommendOptimalMoves(poke, currentMoves, userCollection);
     const currentCritiques = moveAnalysis.moveCritique || [];
     const hasFlaws = currentCritiques.length > 0;
 
     let moveStatus = 'OPTIMAL';
     if (hasFlaws) {
       moveStatus = 'NEEDS_OPTIMIZATION';
-    } else {
+    } else if (currentMoves.length > 0) {
       const equippedResolved = currentMoves.map(m => teamEngine.resolveMove(m));
       const hasWeakMove = equippedResolved.some(m => m.power > 0 && m.power <= 60 && !m.isPriority);
-      if (hasWeakMove) {
+      const equippedTypes = new Set(equippedResolved.map(m => String(m.type || '').toLowerCase()).filter(Boolean));
+      const missingStab = types.some(t => !equippedTypes.has(String(t).toLowerCase()));
+      const hasDuplicateType = equippedTypes.size < equippedResolved.length;
+      const eqAvgPwr = equippedResolved.reduce((acc, m) => acc + (m.power || 0), 0) / equippedResolved.length;
+      const optMoves = moveAnalysis.optimalMoves || [];
+      const optAvgPwr = optMoves.length > 0
+        ? optMoves.reduce((acc, m) => acc + (m.power || 0), 0) / optMoves.length
+        : eqAvgPwr;
+      if (hasWeakMove || missingStab || hasDuplicateType || (optAvgPwr - eqAvgPwr) >= 25) {
         moveStatus = 'CAN_IMPROVE';
       }
     }

@@ -22,12 +22,73 @@ function handleEvolveMoveSelection(card) {
   }
   const availableMoves = Array.isArray(card.availableMoves) ? card.availableMoves : [];
 
-  const evalResult = (evolutionEngine && evolutionEngine.evaluateEvolutionMoveSelection)
-    ? evolutionEngine.evaluateEvolutionMoveSelection(pName, {
-        currentMoves: card.currentChoices || [],
-        evolutionMoves: card.evolutionChoices || []
-      }, currentCollection)
-    : { recommendedMoves: [], dropMoves: [], slotOrder: [], types: [] };
+  let matchedChangeBoxPoke = null;
+  if (card.isChangeAttackPage) {
+    const cPokeId = card.pokemonId ? String(card.pokemonId) : '';
+    if (cPokeId && Array.isArray(currentCollection)) {
+      matchedChangeBoxPoke = currentCollection.find(p => p && String(p.id) === cPokeId) || null;
+    }
+    if (!matchedChangeBoxPoke && cPokeId && typeof cachedBoxMovesList !== 'undefined' && Array.isArray(cachedBoxMovesList)) {
+      matchedChangeBoxPoke = cachedBoxMovesList.find(p => p && String(p.id) === cPokeId) || null;
+    }
+    if (!matchedChangeBoxPoke && typeof selectedMovesPoke !== 'undefined' && selectedMovesPoke && (!cPokeId || String(selectedMovesPoke.id || '') === cPokeId)) {
+      matchedChangeBoxPoke = selectedMovesPoke;
+    }
+    if (matchedChangeBoxPoke && matchedChangeBoxPoke.name) {
+      pName = matchedChangeBoxPoke.name;
+      if (matchedChangeBoxPoke.level) card.level = matchedChangeBoxPoke.level;
+    }
+  }
+
+  let evalResult;
+  if (card.isChangeAttackPage && evolutionEngine && typeof evolutionEngine.recommendOptimalMoves === 'function') {
+    const targetObj = {
+      name: pName,
+      variant: (matchedChangeBoxPoke && matchedChangeBoxPoke.variant) || card.variant || '',
+      types: (matchedChangeBoxPoke && matchedChangeBoxPoke.types && matchedChangeBoxPoke.types.length > 0)
+        ? matchedChangeBoxPoke.types
+        : (card.types || [])
+    };
+    const rec = evolutionEngine.recommendOptimalMoves(
+      targetObj,
+      card.currentChoices || [],
+      currentCollection,
+      { availableMoves }
+    );
+    const resolvedTypes = (rec.types && rec.types.length > 0) ? rec.types : (targetObj.types || []);
+    const recMoves = (rec.optimalMoves || []).map(m => ({
+      name: m.name,
+      type: m.type,
+      power: m.power,
+      role: m.role,
+      isStab: resolvedTypes.some(t => t.toLowerCase() === String(m.type || '').toLowerCase())
+    }));
+    const recNameSet = new Set(recMoves.map(m => m.name.toLowerCase()));
+    const critiqueMap = new Map((rec.moveCritique || []).map(c => [String(c.move || '').toLowerCase(), c.flaw]));
+    const dropMoves = (card.currentChoices || [])
+      .filter(cName => cName && !recNameSet.has(String(cName).toLowerCase()))
+      .map(cName => ({
+        name: cName,
+        reason: critiqueMap.get(String(cName).toLowerCase()) || 'replaced by stronger attack'
+      }));
+    evalResult = {
+      recommendedMoves: recMoves,
+      dropMoves,
+      slotOrder: recMoves.map(m => m.name),
+      types: resolvedTypes,
+      currentChoices: card.currentChoices || [],
+      evolutionChoices: [],
+      duplicateChoices: [],
+      moveCritique: rec.moveCritique || []
+    };
+  } else {
+    evalResult = (evolutionEngine && evolutionEngine.evaluateEvolutionMoveSelection)
+      ? evolutionEngine.evaluateEvolutionMoveSelection(pName, {
+          currentMoves: card.currentChoices || [],
+          evolutionMoves: card.evolutionChoices || []
+        }, currentCollection)
+      : { recommendedMoves: [], dropMoves: [], slotOrder: [], types: [] };
+  }
 
   card.recommendedMoves = evalResult.recommendedMoves;
   card.dropMoves = evalResult.dropMoves;
@@ -107,19 +168,56 @@ function handleEvolveMoveSelection(card) {
     }
 
     const typeStr = (card.types && card.types.length > 0) ? card.types.join('/') : 'Normal';
+    const isInverseModalPoke = Boolean(teamEngine && typeof teamEngine.isNegativePokemon === 'function' && teamEngine.isNegativePokemon(matchedChangeBoxPoke || pName));
+    const modeTag = isInverseModalPoke ? ' &bull; <span style="color: #a371f7; font-weight: 700;">Inverse</span>' : '';
 
-    aiTacticalBriefing.innerHTML = `
-      <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(pName)}</span>
-          <span style="font-size: 9.5px; color: #8eaad0;">Lv ${card.level || 50} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span></span>
+    if (card.isChangeAttackPage) {
+      let equippedChangeHtml = '';
+      (card.currentChoices || []).forEach((mName, idx) => {
+        const res = teamEngine.resolveMove(mName);
+        const isStab = (card.types || []).some(t => t.toLowerCase() === (res.type || '').toLowerCase());
+        const flawObj = (evalResult.moveCritique || []).find(c => c.move.toLowerCase() === String(mName).toLowerCase());
+        const pwr = res.power || 0;
+        const badge = flawObj
+          ? '<span style="font-size: 8px; font-weight: 700; color: #f87171; padding: 1px 3px; background: rgba(248,81,73,0.15); border: 1px solid rgba(248,81,73,0.3); border-radius: 2px;">FLAW</span>'
+          : (isStab ? '<span style="font-size: 8px; font-weight: 700; color: #10b981; padding: 1px 3px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: 2px;">STAB</span>' : '');
+        equippedChangeHtml += `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0; border-top: 1px solid #1a283e; font-size: 9.5px;">
+            <div style="color: ${flawObj ? '#ff7b72' : '#e0ecfa'}; font-weight: 600;">
+              <span style="color: #8eaad0; margin-right: 3px;">[Slot ${idx + 1}]</span>
+              ${escapeHtml(mName)}
+              <span style="font-size: 8.5px; color: #8eaad0; margin-left: 2px;">(${escapeHtml(res.type || 'Normal')} ${pwr} Pwr)</span>
+            </div>
+            <div>${badge}</div>
+          </div>
+        `;
+      });
+
+      aiTacticalBriefing.innerHTML = `
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(pName)}</span>
+            <span style="font-size: 9.5px; color: #8eaad0;">Lv ${card.level || 100} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span>${modeTag}</span>
+          </div>
+          ${equippedChangeHtml ? `<div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 2px;">CURRENT EQUIPPED MOVES</div>${equippedChangeHtml}` : ''}
+          <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-top: ${equippedChangeHtml ? '5px' : '2px'}; margin-bottom: 2px;">RECOMMENDED 4 ATTACKS</div>
+          ${recListHtml}
         </div>
-        ${choicesGridHtml}
-        <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-top: 4px; margin-bottom: 2px;">RECOMMENDED 4 ATTACKS (SLOTS 1-4)</div>
-        ${recListHtml}
-        ${dropListHtml}
-      </div>
-    `;
+      `;
+    } else {
+      aiTacticalBriefing.innerHTML = `
+        <div style="background: #0e1b30; border: 1px solid #1a283e; border-radius: 4px; padding: 6px 8px; box-shadow: none !important;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 11px; font-weight: 700; color: #e0ecfa;">${escapeHtml(pName)}</span>
+            <span style="font-size: 9.5px; color: #8eaad0;">Lv ${card.level || 50} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span>${modeTag}</span>
+          </div>
+          ${choicesGridHtml}
+          <div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-top: 4px; margin-bottom: 2px;">RECOMMENDED 4 ATTACKS (SLOTS 1-4)</div>
+          ${recListHtml}
+          ${dropListHtml}
+        </div>
+      `;
+    }
   }
 
   // 3. Render Instant Action Buttons
@@ -198,6 +296,7 @@ function handleEvolveMoveSelection(card) {
         } else if (!autoMatches) {
           if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Different Pokemon move modal');
         } else if (typeof scheduleAutoEvolveStep === 'function') {
+          activeAutoEvolveCycle.pendingTransition = null;
           activeAutoEvolveCycle.expectedEvolvedName = pName;
           activeAutoEvolveCycle.targetBranch = pName;
           const stepSig = `moves:${pName}:${recNames.join(',')}`;
@@ -314,8 +413,14 @@ function startAutoEvolveCycle(info) {
     targetBranch: String((info && info.targetBranch) || '').trim(),
     level: (info && typeof info.level === 'number') ? info.level : 100,
     startedAt: Date.now(),
+    lastProgressAt: Date.now(),
     stepCount: 0,
     maxSteps: 12,
+    maxTotalPokemon: 250,
+    totalPokemonCount: 1,
+    completedOrSkippedIds: new Set(),
+    completedOrSkippedNames: new Set(),
+    pendingTransition: null,
     lastStepSig: '',
     awaitingPostConfirm: false,
     expectedEvolvedName: ''
@@ -325,7 +430,10 @@ function startAutoEvolveCycle(info) {
 
 function matchesAutoEvolveCyclePokemon(candidateName, candidateId) {
   if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active) return false;
-  if (Date.now() - (activeAutoEvolveCycle.startedAt || 0) > 90000 || (activeAutoEvolveCycle.stepCount || 0) >= (activeAutoEvolveCycle.maxSteps || 12)) {
+  const now = Date.now();
+  const lastProgress = activeAutoEvolveCycle.lastProgressAt || activeAutoEvolveCycle.startedAt || now;
+  const maxSteps = activeAutoEvolveCycle.maxSteps || 12;
+  if (now - lastProgress > 120000 || (activeAutoEvolveCycle.stepCount || 0) >= maxSteps) {
     stopAutoEvolveCycle('Cycle safety limit reached');
     return false;
   }
@@ -365,15 +473,177 @@ function scheduleAutoEvolveStep(stepSig, delayMs, fn) {
   }
   activeAutoEvolveCycle.stepCount = (activeAutoEvolveCycle.stepCount || 0) + 1;
   activeAutoEvolveCycle.lastStepSig = stepSig || '';
+  activeAutoEvolveCycle.lastProgressAt = Date.now();
   if (typeof setTimeout === 'function') {
     autoEvolveStepTimer = setTimeout(() => {
       autoEvolveStepTimer = null;
       if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active || !isEvoAutoEnabled()) return;
+      activeAutoEvolveCycle.lastProgressAt = Date.now();
       fn();
     }, delayMs);
     return true;
   }
   return false;
+}
+
+function markAutoEvolveCompletedOrSkipped(id, name) {
+  if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active) return;
+  if (!(activeAutoEvolveCycle.completedOrSkippedIds instanceof Set)) {
+    activeAutoEvolveCycle.completedOrSkippedIds = new Set();
+  }
+  if (!(activeAutoEvolveCycle.completedOrSkippedNames instanceof Set)) {
+    activeAutoEvolveCycle.completedOrSkippedNames = new Set();
+  }
+  const cleanId = id ? String(id).trim() : '';
+  const cleanName = normalizeEvoCycleName(name);
+  if (cleanId) activeAutoEvolveCycle.completedOrSkippedIds.add(cleanId);
+  if (cleanName) activeAutoEvolveCycle.completedOrSkippedNames.add(cleanName);
+}
+
+function isPendingOutgoingAutoTransition(candidateName, candidateId) {
+  if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active) return false;
+  const pt = activeAutoEvolveCycle.pendingTransition;
+  if (!pt) return false;
+  const candId = candidateId ? String(candidateId).trim() : '';
+  const candName = normalizeEvoCycleName(candidateName);
+  const toId = pt.toId ? String(pt.toId).trim() : '';
+  const toName = normalizeEvoCycleName(pt.toName);
+  if (toId && candId && candId === toId) return false;
+  if (toName && candName && candName === toName) return false;
+  const fromId = pt.fromId ? String(pt.fromId).trim() : '';
+  if (fromId && candId && candId === fromId) return true;
+  const fromNames = [
+    pt.fromName,
+    pt.fromNameAlt,
+    activeAutoEvolveCycle.currentName,
+    activeAutoEvolveCycle.targetBranch,
+    activeAutoEvolveCycle.expectedEvolvedName
+  ];
+  if (candName) {
+    for (let i = 0; i < fromNames.length; i++) {
+      const f = normalizeEvoCycleName(fromNames[i]);
+      if (f && candName === f) return true;
+    }
+  }
+  return false;
+}
+
+function advanceAutoEvolveToNextBoxPokemon(opts) {
+  const options = opts || {};
+  if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active) return false;
+  if (!isEvoAutoEnabled()) {
+    stopAutoEvolveCycle('Auto disabled');
+    return false;
+  }
+  const existingPt = activeAutoEvolveCycle.pendingTransition;
+  if (existingPt && !existingPt.dispatched) {
+    if (options.buttonEl) {
+      options.buttonEl.disabled = true;
+      options.buttonEl.innerHTML = `&#9203; Auto-Next: ${escapeHtml(existingPt.toName)} &#8594; ${escapeHtml(existingPt.toTarget)}...`;
+    }
+    return true;
+  }
+  const excludeId = options.excludeId ? String(options.excludeId) : (activeAutoEvolveCycle.pokemonId ? String(activeAutoEvolveCycle.pokemonId) : '');
+  const excludeName = options.excludeName ? String(options.excludeName) : '';
+  markAutoEvolveCompletedOrSkipped(excludeId, excludeName);
+  if (activeAutoEvolveCycle.pokemonId && activeAutoEvolveCycle.pokemonId !== excludeId) {
+    markAutoEvolveCompletedOrSkipped(activeAutoEvolveCycle.pokemonId, '');
+  }
+
+  if ((activeAutoEvolveCycle.totalPokemonCount || 1) >= (activeAutoEvolveCycle.maxTotalPokemon || 250)) {
+    stopAutoEvolveCycle('Box safety limit reached');
+    if (typeof updateStatus === 'function') {
+      updateStatus('Auto-Evolve paused: box safety limit reached.', '#fbbf24');
+    }
+    return false;
+  }
+
+  const nextPoke = (typeof getNextAllowableEvolvePokemon === 'function')
+    ? getNextAllowableEvolvePokemon({
+        id: excludeId,
+        name: excludeName,
+        excludeIds: activeAutoEvolveCycle.completedOrSkippedIds,
+        excludeNames: activeAutoEvolveCycle.completedOrSkippedNames
+      })
+    : null;
+
+  if (!nextPoke) {
+    stopAutoEvolveCycle('All allowable evolutions complete');
+    if (typeof updateStatus === 'function') {
+      updateStatus('Auto-Evolve complete: no more legitimately evolvable Pokemon.', '#10b981');
+    }
+    return false;
+  }
+
+  const nextBranch = nextPoke.bestBranch || (Array.isArray(nextPoke.branches)
+    ? nextPoke.branches.find(b => b && !b.isDuplicate && !/\bg-?max\b/i.test(b.fullName || b.name || ''))
+    : null);
+  const nextTarget = nextBranch ? (nextBranch.fullName || nextBranch.name) : '';
+  if (!nextTarget || /\bg-?max\b/i.test(nextTarget)) {
+    markAutoEvolveCompletedOrSkipped(nextPoke.id, nextPoke.name);
+    stopAutoEvolveCycle('No allowable next target');
+    return false;
+  }
+
+  activeAutoEvolveCycle.pendingTransition = {
+    fromId: excludeId,
+    fromName: excludeName || activeAutoEvolveCycle.currentName || '',
+    fromNameAlt: options.excludeNameAlt || activeAutoEvolveCycle.currentName || '',
+    toId: nextPoke.id ? String(nextPoke.id) : '',
+    toName: String(nextPoke.name || '').trim(),
+    toTarget: nextTarget,
+    dispatched: false
+  };
+  activeAutoEvolveCycle.stepCount = 0;
+  activeAutoEvolveCycle.lastStepSig = '';
+  activeAutoEvolveCycle.lastProgressAt = Date.now();
+  activeAutoEvolveCycle.awaitingPostConfirm = false;
+
+  if (options.buttonEl) {
+    options.buttonEl.disabled = true;
+    options.buttonEl.innerHTML = `&#9203; Auto-Next: ${escapeHtml(nextPoke.name)} &#8594; ${escapeHtml(nextTarget)}...`;
+  }
+
+  const stepSig = `box-next:${nextPoke.id || nextPoke.name}->${nextTarget}`;
+  const delayMs = 850 + Math.floor(Math.random() * 450);
+  return scheduleAutoEvolveStep(stepSig, delayMs, () => {
+    if (!activeAutoEvolveCycle || !activeAutoEvolveCycle.active) return;
+    if (activeAutoEvolveCycle.pendingTransition) {
+      activeAutoEvolveCycle.pendingTransition.dispatched = true;
+    }
+    activeAutoEvolveCycle.pokemonId = nextPoke.id ? String(nextPoke.id) : null;
+    activeAutoEvolveCycle.currentName = String(nextPoke.name || '').trim();
+    activeAutoEvolveCycle.targetBranch = nextTarget;
+    activeAutoEvolveCycle.expectedEvolvedName = '';
+    activeAutoEvolveCycle.level = (typeof nextPoke.level === 'number') ? nextPoke.level : 100;
+    activeAutoEvolveCycle.stepCount = 0;
+    activeAutoEvolveCycle.lastStepSig = '';
+    activeAutoEvolveCycle.lastProgressAt = Date.now();
+    activeAutoEvolveCycle.totalPokemonCount = (activeAutoEvolveCycle.totalPokemonCount || 1) + 1;
+    activeAutoEvolveCycle.awaitingPostConfirm = false;
+    if (typeof delugeView === 'undefined' || !delugeView || typeof delugeView.send !== 'function') return;
+    if (options.buttonEl) {
+      options.buttonEl.disabled = true;
+      options.buttonEl.innerHTML = `&#9203; Auto-Next: ${escapeHtml(nextPoke.name)} &#8594; ${escapeHtml(nextTarget)}...`;
+    }
+    if (typeof selectedEvoPoke !== 'undefined') {
+      selectedEvoPoke = nextPoke;
+    }
+    delugeView.send('trigger-evolve-pokemon', {
+      pokemonId: nextPoke.id || null,
+      name: nextPoke.name,
+      level: nextPoke.level || 100,
+      types: nextPoke.types,
+      variant: nextPoke.variant,
+      targetBranch: nextTarget,
+      closeModalFirst: Boolean(options.closeModalFirst),
+      managedByHostAuto: true
+    });
+    if (typeof updateStatus === 'function') {
+      const prefix = options.statusPrefix || 'Auto-Evolve: Next Pokemon';
+      updateStatus(`${prefix} ${nextPoke.name} -> ${nextTarget}...`, '#388bfd');
+    }
+  });
 }
 
 function continueAutoEvolveAfterFullPageConfirm() {
@@ -422,10 +692,12 @@ function continueAutoEvolveAfterFullPageConfirm() {
     : null;
 
   if (!allowableNextBranch) {
-    stopAutoEvolveCycle('Cycle complete');
-    if (typeof updateStatus === 'function' && evolvedName) {
-      updateStatus(`Auto-Evolve complete: ${evolvedName}`, '#10b981');
-    }
+    advanceAutoEvolveToNextBoxPokemon({
+      excludeId: cycleId || (evolvedEntry && evolvedEntry.id) || '',
+      excludeName: evolvedName,
+      closeModalFirst: false,
+      statusPrefix: evolvedName ? `Auto-Evolve: Completed ${evolvedName}, next` : 'Auto-Evolve: Next Pokemon'
+    });
     return;
   }
 
@@ -543,6 +815,8 @@ function getNextAllowableEvolvePokemon(excludeInfo) {
   if (!Array.isArray(cachedEvolveReadyList) || cachedEvolveReadyList.length === 0) return null;
   const exId = excludeInfo && excludeInfo.id ? String(excludeInfo.id) : '';
   const exName = excludeInfo && excludeInfo.name ? String(excludeInfo.name).toLowerCase().trim() : '';
+  const exIds = (excludeInfo && excludeInfo.excludeIds instanceof Set) ? excludeInfo.excludeIds : null;
+  const exNames = (excludeInfo && excludeInfo.excludeNames instanceof Set) ? excludeInfo.excludeNames : null;
 
   const isAllowableItem = (p) => {
     if (!p || !p.hasUnique || p.isBlockedForGmax || p.status === 'DISREGARDED') return false;
@@ -550,6 +824,8 @@ function getNextAllowableEvolvePokemon(excludeInfo) {
     const pName = (p.name || '').toLowerCase().trim();
     if (exId && pId && pId === exId) return false;
     if (exName && pName && pName === exName) return false;
+    if (exIds && pId && exIds.has(pId)) return false;
+    if (exNames && pName && exNames.has(pName)) return false;
     if (pId && typeof disregardedEvoPokeIds !== 'undefined' && disregardedEvoPokeIds.has(pId)) return false;
     if (pName && typeof disregardedEvoPokeNames !== 'undefined' && disregardedEvoPokeNames.has(pName)) return false;
     const targetBranch = p.bestBranch || (Array.isArray(p.branches) ? p.branches.find(b => b && !b.isDuplicate && !/\bg-?max\b/i.test(b.fullName || b.name || '')) : null);
@@ -576,6 +852,9 @@ function getNextAllowableEvolvePokemon(excludeInfo) {
 
 function findAllowableNextEvolutionBranch(evolvedPokeId, evolvedName, evolvedLevel, refreshedReadyMatch, isGmaxComplete) {
   if (isGmaxComplete || !evolvedName) return null;
+  if (/\b(?:Mega|Primal)\s+/i.test(evolvedName) || /\bG-Max\b/i.test(evolvedName) || /\bEternamax\b/i.test(evolvedName)) {
+    return null;
+  }
   if (refreshedReadyMatch) {
     if (!refreshedReadyMatch.hasUnique || refreshedReadyMatch.isBlockedForGmax) return null;
     const readyBranches = Array.isArray(refreshedReadyMatch.branches)
@@ -590,7 +869,7 @@ function findAllowableNextEvolutionBranch(evolvedPokeId, evolvedName, evolvedLev
     return null;
   }
   return nextAnalysis.branches.find(b => {
-    if (!b || b.isDuplicate) return false;
+    if (!b || b.isDuplicate || b.isImmediateStage === false) return false;
     const bLabel = String(b.fullName || b.name || '');
     if (/\bg-?max\b/i.test(bLabel)) return false;
     const isActualMega = /\b(?:Mega|Primal)\s+/i.test(bLabel);
@@ -683,6 +962,109 @@ function handleEvolveCardDetectedImpl(card) {
   }
   activeAiBattleData = null;
   activeEvolveCardData = card;
+
+  // Terminal guard: Pokemon already reached max evolution / cannot evolve further
+  if (card.cannotEvolveFurther) {
+    const deadId = card.pokemonId ? String(card.pokemonId) : '';
+    const deadName = String(card.fullName || '').trim();
+    const deadLower = deadName.toLowerCase();
+    if (Array.isArray(currentCollection)) {
+      let cIdx = deadId ? currentCollection.findIndex(p => p && String(p.id) === deadId) : -1;
+      if (cIdx === -1 && deadLower) {
+        cIdx = currentCollection.findIndex(p => p && String(p.name || '').trim().toLowerCase() === deadLower);
+      }
+      if (cIdx !== -1 && currentCollection[cIdx]) {
+        currentCollection[cIdx].canEvolve = false;
+        if (deadName && !currentCollection[cIdx].name) currentCollection[cIdx].name = deadName;
+        try {
+          if (typeof fs !== 'undefined' && typeof getWritableDataPath === 'function') {
+            fs.writeFileSync(getWritableDataPath('user_collection.json'), JSON.stringify(currentCollection, null, 2), 'utf8');
+          }
+        } catch (_) {}
+        if (typeof syncUserCollectionToGuest === 'function') syncUserCollectionToGuest();
+        if (typeof refreshCandidateListsCache === 'function') {
+          refreshCandidateListsCache({ resetCursors: false });
+        }
+        if (typeof updateRosterModeUI === 'function') updateRosterModeUI();
+      }
+    }
+    if (typeof renderEvolutionDecisionMakerUI === 'function') {
+      renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+    }
+    if (aiBattleOpponentBadge) {
+      aiBattleOpponentBadge.textContent = 'Cannot Evolve';
+      aiBattleOpponentBadge.style.color = '#fbbf24';
+    }
+    if (aiStatusChip) {
+      aiStatusChip.textContent = 'Max Stage';
+      aiStatusChip.style.color = '#fbbf24';
+    }
+    if (aiTacticalBriefing) {
+      aiTacticalBriefing.innerHTML = `
+        <div style="background: #2a2012; border: 1px solid #fbbf24; border-radius: 4px; padding: 8px; text-align: center; box-shadow: none !important;">
+          <div style="font-size: 11.5px; font-weight: 700; color: #fbbf24;">
+            ${escapeHtml(card.message || 'Cannot evolve any further.')}
+          </div>
+        </div>
+      `;
+    }
+    let deadActionBtn = null;
+    if (aiInstantActionSlot) {
+      aiInstantActionSlot.innerHTML = '';
+      const actionBtn = document.createElement('button');
+      actionBtn.type = 'button';
+      actionBtn.className = 'btn btn-accent';
+      actionBtn.style.cssText = 'width: 100%; height: 26px; font-size: 10.5px; font-weight: 700; justify-content: center; gap: 6px; box-shadow: none !important;';
+      const nextAllowable = (typeof getNextAllowableEvolvePokemon === 'function')
+        ? getNextAllowableEvolvePokemon({ id: deadId, name: deadName })
+        : null;
+      if (nextAllowable && typeof wireNextAllowableEvolveButton === 'function') {
+        wireNextAllowableEvolveButton(actionBtn, nextAllowable, { prefix: 'Next Allowable', closeModalFirst: false });
+      } else {
+        actionBtn.innerHTML = '&#8617; Return to Pokemon Page';
+        actionBtn.addEventListener('click', () => {
+          activeEvolveCardData = null;
+          if (typeof delugeView !== 'undefined' && delugeView && typeof delugeView.loadURL === 'function') {
+            delugeView.loadURL('https://www.delugerpg.com/pokemon').catch(() => {});
+          }
+          if (typeof renderEvolutionDecisionMakerUI === 'function') renderEvolutionDecisionMakerUI();
+        });
+      }
+      aiInstantActionSlot.appendChild(actionBtn);
+      deadActionBtn = actionBtn;
+    }
+    if (typeof syncEvoAutoToggleUI === 'function') syncEvoAutoToggleUI();
+    if (typeof activeAutoEvolveCycle !== 'undefined' && activeAutoEvolveCycle && activeAutoEvolveCycle.active) {
+      activeAutoEvolveCycle.awaitingPostConfirm = false;
+      if (typeof isEvoAutoEnabled === 'function' && !isEvoAutoEnabled()) {
+        if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Auto disabled');
+      } else if (typeof isPendingOutgoingAutoTransition === 'function' && isPendingOutgoingAutoTransition(deadName, deadId)) {
+        const pt = activeAutoEvolveCycle.pendingTransition;
+        if (deadActionBtn && pt) {
+          deadActionBtn.disabled = true;
+          deadActionBtn.innerHTML = `&#9203; Auto-Next: ${escapeHtml(pt.toName)} &#8594; ${escapeHtml(pt.toTarget)}...`;
+        }
+      } else {
+        const autoMatchesDead = (typeof matchesAutoEvolveCyclePokemon === 'function') &&
+          matchesAutoEvolveCyclePokemon(deadName, deadId);
+        if (!autoMatchesDead) {
+          if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Unrelated cannot-evolve modal');
+        } else {
+          activeAutoEvolveCycle.pendingTransition = null;
+          if (typeof advanceAutoEvolveToNextBoxPokemon === 'function') {
+            advanceAutoEvolveToNextBoxPokemon({
+              excludeId: deadId || activeAutoEvolveCycle.pokemonId,
+              excludeName: deadName,
+              closeModalFirst: false,
+              statusPrefix: `Auto-Evolve: Skipped max-stage ${deadName || 'Pokemon'}, next`,
+              buttonEl: deadActionBtn
+            });
+          }
+        }
+      }
+    }
+    return;
+  }
 
   // CASE 0: Evolution Complete (Success Screen)
   if (card.isComplete) {
@@ -837,17 +1219,40 @@ function handleEvolveCardDetectedImpl(card) {
           autoEvolvePostConfirmTimer = null;
         }
         activeAutoEvolveCycle.awaitingPostConfirm = false;
-        const matchesCycle = (typeof matchesAutoEvolveCyclePokemon === 'function') &&
-          (matchesAutoEvolveCyclePokemon(evolvedName, evolvedPokeId) || matchesAutoEvolveCyclePokemon(fromNameClean, evolvedPokeId));
-        if (card.isGmax || (typeof isEvoAutoEnabled === 'function' && !isEvoAutoEnabled()) || !canEvolveFurther) {
-          if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Single-Pokemon cycle complete');
+        if (card.isGmax || (typeof isEvoAutoEnabled === 'function' && !isEvoAutoEnabled())) {
+          if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle(card.isGmax ? 'G-Max complete' : 'Auto disabled');
           if (typeof updateStatus === 'function' && evolvedName) {
             updateStatus(`Auto-Evolve complete: ${evolvedName}`, '#10b981');
           }
-        } else if (!matchesCycle) {
-          if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Unrelated completion modal');
-        } else if (typeof scheduleAutoEvolveStep === 'function') {
-          const nextTarget = allowableNextBranch.fullName || allowableNextBranch.name;
+        } else if (typeof isPendingOutgoingAutoTransition === 'function' &&
+          (isPendingOutgoingAutoTransition(evolvedName, evolvedPokeId) || isPendingOutgoingAutoTransition(fromNameClean, evolvedPokeId))) {
+          const pt = activeAutoEvolveCycle.pendingTransition;
+          if (actionBtn && pt) {
+            actionBtn.disabled = true;
+            actionBtn.innerHTML = `&#9203; Auto-Next: ${escapeHtml(pt.toName)} &#8594; ${escapeHtml(pt.toTarget)}...`;
+          }
+        } else {
+          const matchesCycle = (typeof matchesAutoEvolveCyclePokemon === 'function') &&
+            (matchesAutoEvolveCyclePokemon(evolvedName, evolvedPokeId) || matchesAutoEvolveCyclePokemon(fromNameClean, evolvedPokeId));
+          if (!matchesCycle) {
+            if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Unrelated completion modal');
+          } else if (!canEvolveFurther) {
+            activeAutoEvolveCycle.pendingTransition = null;
+            if (typeof advanceAutoEvolveToNextBoxPokemon === 'function') {
+              advanceAutoEvolveToNextBoxPokemon({
+                excludeId: evolvedPokeId || activeAutoEvolveCycle.pokemonId,
+                excludeName: evolvedName,
+                excludeNameAlt: fromNameClean,
+                closeModalFirst: true,
+                statusPrefix: `Auto-Evolve: Completed ${evolvedName}, next`,
+                buttonEl: actionBtn
+              });
+            } else if (typeof stopAutoEvolveCycle === 'function') {
+              stopAutoEvolveCycle('Single-Pokemon cycle complete');
+            }
+          } else if (typeof scheduleAutoEvolveStep === 'function') {
+            activeAutoEvolveCycle.pendingTransition = null;
+            const nextTarget = allowableNextBranch.fullName || allowableNextBranch.name;
           if (evolvedPokeId && !activeAutoEvolveCycle.pokemonId) {
             activeAutoEvolveCycle.pokemonId = String(evolvedPokeId);
           }
@@ -875,6 +1280,7 @@ function handleEvolveCardDetectedImpl(card) {
           });
         }
       }
+    }
     }
     return;
   }
@@ -1287,12 +1693,34 @@ function handleEvolveCardDetectedImpl(card) {
     if (typeof activeAutoEvolveCycle !== 'undefined' && activeAutoEvolveCycle && activeAutoEvolveCycle.active) {
       activeAutoEvolveCycle.awaitingPostConfirm = false;
       const branchValid = Boolean(hasAllowableDirectEvolution && activeDirectTargetChoice && !/\bg-?max\b/i.test(activeDirectTargetChoice));
-      const matchesCycle = (typeof matchesAutoEvolveCyclePokemon === 'function') && matchesAutoEvolveCyclePokemon(rawName, matchedReadyId);
-      if ((typeof isEvoAutoEnabled === 'function' && !isEvoAutoEnabled()) || !branchValid) {
-        if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('No allowable direct evolution');
-      } else if (!matchesCycle) {
-        if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Different Pokemon opened');
-      } else if (typeof scheduleAutoEvolveStep === 'function') {
+      const candidateTrackId = currentExcludeId || matchedReadyId;
+      if (typeof isEvoAutoEnabled === 'function' && !isEvoAutoEnabled()) {
+        if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Auto disabled');
+      } else if (typeof isPendingOutgoingAutoTransition === 'function' && isPendingOutgoingAutoTransition(rawName, candidateTrackId)) {
+        const pt = activeAutoEvolveCycle.pendingTransition;
+        if (actionBtn && pt) {
+          actionBtn.disabled = true;
+          actionBtn.innerHTML = `&#9203; Auto-Next: ${escapeHtml(pt.toName)} &#8594; ${escapeHtml(pt.toTarget)}...`;
+        }
+      } else {
+        const matchesCycle = (typeof matchesAutoEvolveCyclePokemon === 'function') && matchesAutoEvolveCyclePokemon(rawName, matchedReadyId);
+        if (!matchesCycle) {
+          if (typeof stopAutoEvolveCycle === 'function') stopAutoEvolveCycle('Different Pokemon opened');
+        } else if (!branchValid) {
+          activeAutoEvolveCycle.pendingTransition = null;
+          if (typeof advanceAutoEvolveToNextBoxPokemon === 'function') {
+            advanceAutoEvolveToNextBoxPokemon({
+              excludeId: candidateTrackId || activeAutoEvolveCycle.pokemonId,
+              excludeName: rawName,
+              closeModalFirst: true,
+              statusPrefix: `Auto-Evolve: Skipped blocked ${rawName || 'Pokemon'}, next`,
+              buttonEl: actionBtn
+            });
+          } else if (typeof stopAutoEvolveCycle === 'function') {
+            stopAutoEvolveCycle('No allowable direct evolution');
+          }
+        } else if (typeof scheduleAutoEvolveStep === 'function') {
+          activeAutoEvolveCycle.pendingTransition = null;
         if (matchedReadyId && !activeAutoEvolveCycle.pokemonId) {
           activeAutoEvolveCycle.pokemonId = String(matchedReadyId);
         }
@@ -1320,6 +1748,7 @@ function handleEvolveCardDetectedImpl(card) {
             }, 4200);
           }
         });
+        }
       }
     }
   }
@@ -1363,7 +1792,7 @@ function handleEvolveCardClosed() {
   }
   const isAiPanelOpen = Boolean(typeof aiAssistantModal !== 'undefined' && aiAssistantModal && aiAssistantModal.style.display === 'flex');
   if (isAiPanelOpen) {
-    renderEvolutionDecisionMakerUI();
+    renderEvolutionDecisionMakerUI({ reuseCache: true });
     if (typeof renderAiAssistantUI === 'function') {
       renderAiAssistantUI();
     }
@@ -1393,12 +1822,13 @@ function setEvoFilter(filterType) {
     evoFilterBlockedBtn.style.fontWeight = filterType === 'BLOCKED' ? '700' : '600';
   }
   if (typeof syncEvoAutoToggleUI === 'function') syncEvoAutoToggleUI();
-  renderEvolutionDecisionMakerUI();
+  renderEvolutionDecisionMakerUI({ reuseCache: true });
 }
 
 function refreshEvolveBoxList() {
   disregardedEvoPokeIds.clear();
   disregardedEvoPokeNames.clear();
+  _evoUiCacheSignature = '';
   loadTeamBuilderData();
   if (delugeView) {
     try {
@@ -1418,7 +1848,7 @@ function refreshEvolveBoxList() {
     delugeView.send('start-scan-pokemon');
     return;
   }
-  renderEvolutionDecisionMakerUI();
+  renderEvolutionDecisionMakerUI({ forceRefresh: true });
   updateStatus('Evolve-ready Pokemon box refreshed', '#10b981');
 }
 
@@ -1723,9 +2153,11 @@ function selectPokemonForMoves(poke) {
     });
 
     const typeStr = (poke.types && poke.types.length > 0) ? poke.types.join('/') : 'Normal';
+    const isInversePoke = Boolean(teamEngine && typeof teamEngine.isNegativePokemon === 'function' && teamEngine.isNegativePokemon(poke));
+    const modeTag = isInversePoke ? ' &bull; <span style="color: #a371f7; font-weight: 700;">Inverse</span>' : '';
     const headerSub = isLookup
-      ? `<span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span>`
-      : `Lv ${poke.level || 100} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span>`;
+      ? `<span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span>${modeTag}`
+      : `Lv ${poke.level || 100} &bull; <span style="color: #388bfd; font-weight: 600;">${escapeHtml(typeStr)}</span>${modeTag}`;
 
     const equippedSection = equippedHtml
       ? `<div style="font-size: 8.5px; font-weight: 700; color: #566e96; text-transform: uppercase; margin-bottom: 2px;">CURRENT EQUIPPED MOVES</div>${equippedHtml}`
@@ -1775,7 +2207,12 @@ function selectPokemonForMoves(poke) {
       changeBtn.innerHTML = `&#9876; Change Moves in Game (${escapeHtml(poke.name)})`;
       changeBtn.addEventListener('click', () => {
         if (delugeView) {
-          delugeView.send('trigger-change-attack', { pokemonId: poke.id, name: poke.name });
+          delugeView.send('trigger-change-attack', {
+            pokemonId: poke.id,
+            name: poke.name,
+            level: poke.level || 100,
+            types: poke.types || []
+          });
           updateStatus(`Opening Change Moves for ${poke.name}...`, '#388bfd');
         }
       });
@@ -1828,7 +2265,7 @@ function renderMoveItemCard(item) {
   }
 
   const spriteHtml = item.sprite
-    ? `<img src="${escapeHtml(item.sprite)}" style="width: 24px; height: 24px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0;" onerror="this.style.display='none';">`
+    ? `<img src="${escapeHtml(item.sprite)}" loading="lazy" style="width: 24px; height: 24px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0;" onerror="this.style.display='none';">`
     : '';
 
   const movesPreview = (item.currentMoves || []).slice(0, 3).join(', ');
@@ -1866,7 +2303,12 @@ function renderMoveItemCard(item) {
       e.stopPropagation();
       selectPokemonForMoves(item);
       if (delugeView && item.id) {
-        delugeView.send('trigger-change-attack', { pokemonId: item.id, name: item.name });
+        delugeView.send('trigger-change-attack', {
+          pokemonId: item.id,
+          name: item.name,
+          level: item.level || 100,
+          types: item.types || []
+        });
         updateStatus(`Opening Change Moves for ${item.name}...`, '#388bfd');
       }
       return;
@@ -1885,30 +2327,95 @@ function renderMoveItemCard(item) {
   return card;
 }
 
+let _evoUiCacheSignature = '';
+let cachedFlawedList = [];
+const EVO_LIST_PAGE_SIZE = 80;
+
+function computeEvoCollectionSignature(col) {
+  if (!Array.isArray(col) || col.length === 0) return 'empty';
+  const parts = [String(col.length), String(disregardedEvoPokeIds.size), String(disregardedEvoPokeNames.size)];
+  for (let i = 0; i < col.length; i++) {
+    const p = col[i];
+    if (!p) continue;
+    const moves = Array.isArray(p.moves) ? p.moves : [];
+    const firstMove = moves[0] ? (typeof moves[0] === 'string' ? moves[0] : (moves[0].name || '')) : '';
+    const lastMove = moves.length > 1 && moves[moves.length - 1]
+      ? (typeof moves[moves.length - 1] === 'string' ? moves[moves.length - 1] : (moves[moves.length - 1].name || ''))
+      : '';
+    parts.push(`${p.id || ''}|${p.name || ''}|${p.level || 1}|${p.canEvolve === false ? '0' : '1'}|${moves.length}|${firstMove}|${lastMove}`);
+  }
+  return parts.join(';');
+}
+
+function appendPaginatedCards(container, items, renderCardFn, tailNode) {
+  if (!container) return;
+  let renderedCount = 0;
+  const renderBatch = () => {
+    const end = Math.min(renderedCount + EVO_LIST_PAGE_SIZE, items.length);
+    const useFrag = typeof document !== 'undefined' && typeof document.createDocumentFragment === 'function';
+    const target = useFrag ? document.createDocumentFragment() : container;
+    for (let i = renderedCount; i < end; i++) {
+      target.appendChild(renderCardFn(items[i]));
+    }
+    if (useFrag) container.appendChild(target);
+    renderedCount = end;
+
+    if (renderedCount < items.length) {
+      const remaining = items.length - renderedCount;
+      const moreBtn = document.createElement('button');
+      moreBtn.type = 'button';
+      moreBtn.className = 'btn';
+      moreBtn.style.cssText = 'width: 100%; height: 24px; font-size: 10px; font-weight: 700; justify-content: center; margin-top: 4px; box-shadow: none !important;';
+      moreBtn.textContent = `Show More (${remaining} remaining)`;
+      moreBtn.addEventListener('click', () => {
+        if (moreBtn.parentNode) moreBtn.parentNode.removeChild(moreBtn);
+        renderBatch();
+      });
+      container.appendChild(moreBtn);
+    } else if (tailNode) {
+      container.appendChild(tailNode);
+    }
+  };
+  renderBatch();
+}
+
 function renderEvolutionDecisionMakerUI(opts) {
   if (!evolutionEngine || typeof evolutionEngine.getEvolveReadyPokemon !== 'function') return;
   if (typeof syncEvoAutoToggleUI === 'function') syncEvoAutoToggleUI();
 
-  const rawReadyList = evolutionEngine.getEvolveReadyPokemon(currentCollection);
-  const readyList = rawReadyList.map(item => {
-    const idKey = item && item.id ? String(item.id) : '';
-    const nameKey = item && item.name ? String(item.name).toLowerCase().trim() : '';
-    if ((idKey && disregardedEvoPokeIds.has(idKey)) || (nameKey && disregardedEvoPokeNames.has(nameKey))) {
-      return Object.assign({}, item, { hasUnique: false, status: 'DISREGARDED' });
-    }
-    return item;
-  });
-  cachedEvolveReadyList = readyList;
+  const hasWarmCache = cachedEvolveReadyList.length > 0 || cachedBoxMovesList.length > 0;
+  const wantReuse = Boolean(opts && opts.reuseCache && hasWarmCache && !(opts && opts.forceRefresh));
+  const nextSig = wantReuse ? _evoUiCacheSignature : computeEvoCollectionSignature(currentCollection);
 
-  const boxMovesList = (typeof evolutionEngine.getBoxPokemonMovesCollection === 'function')
-    ? evolutionEngine.getBoxPokemonMovesCollection(currentCollection)
-    : [];
-  cachedBoxMovesList = boxMovesList;
+  let readyList = cachedEvolveReadyList;
+  let boxMovesList = cachedBoxMovesList;
+  let megaList = cachedMegaList;
+  let flawedList = cachedFlawedList;
 
-  const megaList = boxMovesList.filter(p => teamEngine.isActualMegaEvolution(p.name) || teamEngine.isAlreadyGmax(p));
-  cachedMegaList = megaList;
+  if (!wantReuse && (!hasWarmCache || (opts && opts.forceRefresh) || nextSig !== _evoUiCacheSignature)) {
+    const rawReadyList = evolutionEngine.getEvolveReadyPokemon(currentCollection);
+    readyList = rawReadyList.map(item => {
+      const idKey = item && item.id ? String(item.id) : '';
+      const nameKey = item && item.name ? String(item.name).toLowerCase().trim() : '';
+      if ((idKey && disregardedEvoPokeIds.has(idKey)) || (nameKey && disregardedEvoPokeNames.has(nameKey))) {
+        return Object.assign({}, item, { hasUnique: false, status: 'DISREGARDED' });
+      }
+      return item;
+    });
+    cachedEvolveReadyList = readyList;
 
-  const flawedList = boxMovesList.filter(p => p.moveStatus === 'NEEDS_OPTIMIZATION');
+    boxMovesList = (typeof evolutionEngine.getBoxPokemonMovesCollection === 'function')
+      ? evolutionEngine.getBoxPokemonMovesCollection(currentCollection)
+      : [];
+    cachedBoxMovesList = boxMovesList;
+
+    megaList = boxMovesList.filter(p => teamEngine.isActualMegaEvolution(p.name) || teamEngine.isAlreadyGmax(p));
+    cachedMegaList = megaList;
+
+    flawedList = boxMovesList.filter(p => p.moveStatus === 'NEEDS_OPTIMIZATION');
+    cachedFlawedList = flawedList;
+    _evoUiCacheSignature = nextSig;
+  }
 
   const uniqueCount = readyList.filter(p => p.hasUnique).length;
   const megaCount = megaList.length;
@@ -1957,10 +2464,7 @@ function renderEvolutionDecisionMakerUI(opts) {
     if (!evoReadyList) return;
     evoReadyList.innerHTML = '';
 
-    displayedMoves.forEach(item => {
-      evoReadyList.appendChild(renderMoveItemCard(item));
-    });
-
+    let lookupTailNode = null;
     // On-demand species lookup card when searching
     if (currentEvoSearch && currentEvoSearch.trim().length >= 2) {
       const query = currentEvoSearch.trim();
@@ -2017,14 +2521,17 @@ function renderEvolutionDecisionMakerUI(opts) {
           lookupCard.addEventListener('click', () => {
             selectPokemonForMoves(lookupPoke);
           });
-          evoReadyList.appendChild(lookupCard);
+          lookupTailNode = lookupCard;
           if (displayedMoves.length === 0) {
+            evoReadyList.appendChild(lookupCard);
             selectPokemonForMoves(lookupPoke);
             return;
           }
         }
       }
     }
+
+    appendPaginatedCards(evoReadyList, displayedMoves, renderMoveItemCard, lookupTailNode);
 
     if (displayedMoves.length === 0) {
       const emptyNotice = document.createElement('div');
@@ -2073,7 +2580,7 @@ function renderEvolutionDecisionMakerUI(opts) {
   if (!evoReadyList) return;
   evoReadyList.innerHTML = '';
 
-  displayed.forEach(item => {
+  const buildEvolveReadyCard = (item) => {
     const isSelected = Boolean(selectedEvoPoke && selectedEvoPoke.id === item.id);
     const card = document.createElement('div');
     card.className = 'evo-item-card';
@@ -2096,7 +2603,7 @@ function renderEvolutionDecisionMakerUI(opts) {
     const isBranchDup = branch ? branch.isDuplicate : !item.hasUnique;
 
     const spriteHtml = item.sprite
-      ? `<img src="${escapeHtml(item.sprite)}" style="width: 24px; height: 24px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0;" onerror="this.style.display='none';">`
+      ? `<img src="${escapeHtml(item.sprite)}" loading="lazy" style="width: 24px; height: 24px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0;" onerror="this.style.display='none';">`
       : '';
 
     const isBlockedForGmax = Boolean(item.isBlockedForGmax);
@@ -2145,9 +2652,10 @@ function renderEvolutionDecisionMakerUI(opts) {
       });
     }
 
-    evoReadyList.appendChild(card);
-  });
+    return card;
+  };
 
+  let uniqueLookupTail = null;
   // On-demand species lookup card when searching in Unique mode
   if (currentEvoSearch && currentEvoSearch.trim().length >= 2) {
     const query = currentEvoSearch.trim();
@@ -2204,14 +2712,17 @@ function renderEvolutionDecisionMakerUI(opts) {
         lookupCard.addEventListener('click', () => {
           selectPokemonForMoves(lookupPoke);
         });
-        evoReadyList.appendChild(lookupCard);
+        uniqueLookupTail = lookupCard;
         if (displayed.length === 0) {
+          evoReadyList.appendChild(lookupCard);
           selectPokemonForMoves(lookupPoke);
           return;
         }
       }
     }
   }
+
+  appendPaginatedCards(evoReadyList, displayed, buildEvolveReadyCard, uniqueLookupTail);
 
   if (displayed.length === 0) {
     const emptyNotice = document.createElement('div');

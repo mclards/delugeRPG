@@ -2707,7 +2707,7 @@ console.log('\n--- TEST 3N: Single-Pokemon One-Click Auto Evolve Cycle (Auto [x]
   assert.strictEqual(sentIpcs[0].p.targetBranch, 'Shadow Charizard');
   assert.strictEqual(sentIpcs[0].p.closeModalFirst, true);
 
-  // Stage 2: Branch modal + Move selection + Completion (Shadow Charizard held for G-Max) -> MUST stop cycle & NOT click Shadow Rookidee
+  // Stage 2: Branch modal + Move selection + Completion (Shadow Charizard held for G-Max) -> advances box-wide to Shadow Rookidee
   sentIpcs.length = 0;
   cycleSb.handleEvolveCardDetected({
     isOpen: true, fullName: 'Shadow Charmeleon', baseSpecies: 'charmeleon', variant: 'Shadow', level: 100,
@@ -2730,7 +2730,48 @@ console.log('\n--- TEST 3N: Single-Pokemon One-Click Auto Evolve Cycle (Auto [x]
     isOpen: true, isComplete: true, fromPokemon: 'Shadow Charmeleon', toPokemon: 'Shadow Charizard', fullName: 'Shadow Charizard'
   });
   flushShortTimers();
-  assert.strictEqual(sentIpcs.length, 0, 'Completed single-Pokemon cycle MUST stop cleanly and NEVER auto-start Shadow Rookidee');
+  assert.strictEqual(sentIpcs.length, 1, 'Completed Pokemon MUST advance box-wide to next allowable Pokemon (Shadow Rookidee)');
+  assert.strictEqual(sentIpcs[0].ch, 'trigger-evolve-pokemon');
+  assert.strictEqual(sentIpcs[0].p.pokemonId, 'sr1');
+  assert.strictEqual(sentIpcs[0].p.name, 'Shadow Rookidee');
+  assert.strictEqual(sentIpcs[0].p.targetBranch, 'Shadow Corvisquire');
+  assert.strictEqual(sentIpcs[0].p.closeModalFirst, true);
+
+  // Advance Shadow Rookidee -> Shadow Corvisquire -> Shadow Corviknight, then stop when box has 0 left
+  sentIpcs.length = 0;
+  cycleSb.handleEvolveCardDetected({
+    isOpen: true, fullName: 'Shadow Rookidee', baseSpecies: 'rookidee', variant: 'Shadow', level: 100,
+    options: [{ fullName: 'Shadow Corvisquire', requirement: 'at Level 18', isOwned: false }]
+  });
+  flushShortTimers();
+  assert.strictEqual(sentIpcs[0].ch, 'submit-modal-evolve');
+  assert.strictEqual(sentIpcs[0].p.targetBranch, 'Shadow Corvisquire');
+
+  sentIpcs.length = 0;
+  cycleSb.handleEvolveCardDetected({
+    isOpen: true, isComplete: true, fromPokemon: 'Shadow Rookidee', toPokemon: 'Shadow Corvisquire', fullName: 'Shadow Corvisquire'
+  });
+  flushShortTimers();
+  assert.strictEqual(sentIpcs.length, 1);
+  assert.strictEqual(sentIpcs[0].ch, 'trigger-evolve-pokemon');
+  assert.strictEqual(sentIpcs[0].p.pokemonId, 'sr1');
+  assert.strictEqual(sentIpcs[0].p.targetBranch, 'Shadow Corviknight');
+
+  sentIpcs.length = 0;
+  cycleSb.handleEvolveCardDetected({
+    isOpen: true, fullName: 'Shadow Corvisquire', baseSpecies: 'corvisquire', variant: 'Shadow', level: 100,
+    options: [{ fullName: 'Shadow Corviknight', requirement: 'at Level 38', isOwned: false }]
+  });
+  flushShortTimers();
+  assert.strictEqual(sentIpcs[0].ch, 'submit-modal-evolve');
+  assert.strictEqual(sentIpcs[0].p.targetBranch, 'Shadow Corviknight');
+
+  sentIpcs.length = 0;
+  cycleSb.handleEvolveCardDetected({
+    isOpen: true, isComplete: true, fromPokemon: 'Shadow Corvisquire', toPokemon: 'Shadow Corviknight', fullName: 'Shadow Corviknight'
+  });
+  flushShortTimers();
+  assert.strictEqual(sentIpcs.length, 0, 'Box-wide Auto-Evolve MUST stop cleanly when no legitimately evolvable Pokemon remain');
 
   // 3N-3: Full-page redirect continuation (/pokemon/evolve/changeattacks -> /pokemon) without card.isComplete
   sentIpcs.length = 0;
@@ -2768,7 +2809,7 @@ console.log('\n--- TEST 3N: Single-Pokemon One-Click Auto Evolve Cycle (Auto [x]
   flushShortTimers();
   assert.strictEqual(sentIpcs.length, 0, 'Unchecking Auto MUST stop cycle and prevent auto-evolve');
 
-  // Re-enable Auto, hit G-Max Challenge modal mid-cycle -> must stop and NEVER auto-click Skip & Evolve into Shadow Rookidee
+  // Re-enable Auto, hit G-Max Challenge modal mid-cycle -> must NEVER submit blocked G-Max modal; skips to next allowable box Pokemon (sc2) if present, else stops
   evoAutoCheckEl.checked = true;
   cycleSb.startAutoEvolveCycle({ pokemonId: 'orb1', name: 'Orbeetle', targetBranch: 'G-Max Orbeetle', level: 100 });
   cycleSb.handleEvolveCardDetected({
@@ -2776,7 +2817,22 @@ console.log('\n--- TEST 3N: Single-Pokemon One-Click Auto Evolve Cycle (Auto [x]
     options: [{ fullName: 'G-Max Orbeetle', requirement: 'using G-Max Challenge', requiresGmaxChallenge: true, isOwned: false }]
   });
   flushShortTimers();
-  assert.strictEqual(sentIpcs.length, 0, 'Blocked G-Max modal MUST halt auto-cycle and never auto-click Skip & Evolve');
+  assert(sentIpcs.every(x => x.ch !== 'submit-modal-evolve'), 'Blocked G-Max modal MUST NEVER submit-modal-evolve');
+  assert.strictEqual(sentIpcs.length, 1, 'Box-wide Auto must skip blocked G-Max Pokemon and advance to next allowable Pokemon');
+  assert.strictEqual(sentIpcs[0].ch, 'trigger-evolve-pokemon');
+  assert.strictEqual(sentIpcs[0].p.pokemonId, 'sc2');
+
+  // If no allowable Pokemon remain after blocked G-Max modal, cycle stops with 0 IPCs
+  sentIpcs.length = 0;
+  cycleSb.currentCollection = [{ id: 'orb1', name: 'Orbeetle', variant: 'Normal', level: 100, canEvolve: true }];
+  cycleSb.renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+  cycleSb.startAutoEvolveCycle({ pokemonId: 'orb1', name: 'Orbeetle', targetBranch: 'G-Max Orbeetle', level: 100 });
+  cycleSb.handleEvolveCardDetected({
+    isOpen: true, fullName: 'Orbeetle', baseSpecies: 'orbeetle', variant: 'Normal', level: 100, isGmaxChallengeOnly: true,
+    options: [{ fullName: 'G-Max Orbeetle', requirement: 'using G-Max Challenge', requiresGmaxChallenge: true, isOwned: false }]
+  });
+  flushShortTimers();
+  assert.strictEqual(sentIpcs.length, 0, 'Blocked G-Max modal MUST halt auto-cycle cleanly when no allowable Pokemon remain');
 
   // Map navigation and Captcha halt
   cycleSb.startAutoEvolveCycle({ pokemonId: 'sc2', name: 'Shadow Charmeleon', targetBranch: 'Shadow Charizard', level: 100 });
@@ -4288,6 +4344,860 @@ console.log('\n--- TEST 3S: Post-Carry Max 2 Additional Highest-Chance-To-Win Fi
   assert.strictEqual(forfeitBtnCfg.hudText, 'Forfeit & Loop', '3S-4: HUD text must trigger Forfeit & Loop');
 
   console.log('[PASS] Post-Carry Max 2 Additional Highest-Chance-To-Win Fighters & Auto-Forfeit Cap verified.');
+}
+
+// 3T. Occluded Evolve Link Protection & Zero Mis-Click Onto Release/Trade Bulk Links
+console.log('\n--- TEST 3T: Occluded Evolve Link Protection & Zero Mis-Click Onto Release/Trade Bulk Links ---');
+{
+  const vm = require('vm');
+  const preloadCode = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
+
+  const helperStart = preloadCode.indexOf('function getViewportDipCoords(');
+  const helperEnd = preloadCode.indexOf('\nfunction handleGuestClickEvent(', helperStart);
+  const helperAltEnd = preloadCode.indexOf('\nlet ', preloadCode.indexOf('function dispatchHumanClick('));
+  const clickEnd = preloadCode.indexOf('\n}', preloadCode.indexOf('function dispatchHumanClick('));
+  assert(helperStart !== -1 && (helperEnd !== -1 || clickEnd !== -1), '3T: Viewport/click helpers must exist in game-preload.js');
+  const clickFnEnd = preloadCode.indexOf('\nfunction dispatchHumanClick(');
+  const afterDispatchIdx = preloadCode.indexOf('\n// ', clickFnEnd);
+  const sliceEnd = (helperEnd !== -1 && helperEnd > clickFnEnd) ? helperEnd : (afterDispatchIdx !== -1 ? afterDispatchIdx : preloadCode.indexOf('\nfunction ', clickFnEnd + 30));
+  assert(sliceEnd > helperStart, '3T: Valid slice end for dispatchHumanClick');
+
+  // 3T-1 & 3T-2: getViewportDipCoords rejects offscreen rects & dispatchHumanClick blocks occluded clicks / scrolls clipped ones
+  let hitElementOverride = null;
+  const trustedClickCalls = [];
+  const noopSetTimeout = (fn) => { return 0; };
+  const clickSandbox = {
+    window: { innerWidth: 1200, innerHeight: 800, screenX: 0, screenY: 0, scrollX: 0, scrollY: 0, getComputedStyle: () => ({ display: 'inline-block', visibility: 'visible', opacity: '1' }), location: { pathname: '/pokemon', href: 'https://www.delugerpg.com/pokemon' } },
+    webFrame: { getZoomFactor: () => 1.0 },
+    document: { elementFromPoint: () => hitElementOverride },
+    sessionStorage: { getItem: () => 'false' },
+    ipcRenderer: {
+      on: () => {},
+      removeListener: () => {},
+      sendToHost: (ch, payload) => {
+        if (ch === 'trusted-click-request') trustedClickCalls.push(payload);
+      }
+    },
+    checkHasCaptchaElement: () => false,
+    unlockNoticeSent: false,
+    _internalAuthorizedClickFlag: false,
+    __delugeAutoCatchAuthorizedClick: false,
+    setTimeout: noopSetTimeout,
+    Date,
+    Math,
+    console: { warn: () => {}, log: () => {} }
+  };
+  vm.runInNewContext(preloadCode.slice(helperStart, sliceEnd), clickSandbox);
+
+  // 3T-1: Offscreen top/bottom must return valid: false (not clamped to [10, 790])
+  const offTop = clickSandbox.getViewportDipCoords({ offsetWidth: 80, offsetHeight: 20, getBoundingClientRect: () => ({ left: 200, right: 280, top: -120, bottom: -100, width: 80, height: 20 }) });
+  const offBot = clickSandbox.getViewportDipCoords({ offsetWidth: 80, offsetHeight: 20, getBoundingClientRect: () => ({ left: 200, right: 280, top: 900, bottom: 920, width: 80, height: 20 }) });
+  assert.strictEqual(offTop.valid, false, '3T-1: Offscreen top element must return valid: false');
+  assert.strictEqual(offBot.valid, false, '3T-1: Offscreen bottom element must return valid: false');
+
+  // 3T-2a: Covered by Release multiple pokemon -> hardware click blocked
+  const releaseLink = { tagName: 'A', href: '/multiselect/release', textContent: 'Release multiple pokemon' };
+  const occludedEvolveLink = {
+    tagName: 'A',
+    offsetWidth: 80,
+    offsetHeight: 20,
+    scrollCalled: false,
+    getClientRects: () => [{ width: 80, height: 20 }],
+    getBoundingClientRect: () => ({ left: 300, right: 380, top: 180, bottom: 200, width: 80, height: 20 }),
+    scrollIntoView: () => { occludedEvolveLink.scrollCalled = true; },
+    contains: (node) => node === occludedEvolveLink,
+    focus: () => {}
+  };
+  hitElementOverride = releaseLink;
+  let occludedCbRan = false;
+  clickSandbox.dispatchHumanClick(occludedEvolveLink, () => { occludedCbRan = true; });
+  assert.strictEqual(occludedEvolveLink.scrollCalled, true, '3T-2a: Must attempt scrollIntoView when obstructed inside viewport');
+  assert.strictEqual(trustedClickCalls.length, 0, '3T-2a: Must BLOCK trusted-click-request when target stays occluded by Release link');
+  assert.strictEqual(occludedCbRan, true, '3T-2a: Callback must still complete cleanly');
+
+  // 3T-2b: Clip-scrolled inside #showbox (top=180 >= 45) -> scrollIntoView moves it clear, then click succeeds
+  const scrollFixLink = {
+    tagName: 'A',
+    offsetWidth: 80,
+    offsetHeight: 20,
+    scrolled: false,
+    getClientRects: () => [{ width: 80, height: 20 }],
+    getBoundingClientRect: () => scrollFixLink.scrolled
+      ? { left: 300, right: 380, top: 400, bottom: 420, width: 80, height: 20 }
+      : { left: 300, right: 380, top: 180, bottom: 200, width: 80, height: 20 },
+    scrollIntoView: () => {
+      scrollFixLink.scrolled = true;
+      hitElementOverride = scrollFixLink;
+    },
+    contains: (node) => node === scrollFixLink,
+    focus: () => {}
+  };
+  hitElementOverride = releaseLink;
+  clickSandbox.dispatchHumanClick(scrollFixLink, () => {});
+  assert.strictEqual(scrollFixLink.scrolled, true, '3T-2b: Must call scrollIntoView even when top=180 >= 45 if occluded before scroll');
+  assert.strictEqual(trustedClickCalls.length, 1, '3T-2b: Must send trusted-click-request once scrollIntoView clears occlusion');
+  assert(trustedClickCalls[0].y >= 400 && trustedClickCalls[0].y <= 420, '3T-2b: Click coordinate must land on scrolled evolve link (y=400..420)');
+
+  // 3T-3: trigger-evolve-pokemon navigates directly to /pokemon/evolve/yG16hg when link is occluded/invisible, clicks inline when clear
+  const trigStart = preloadCode.indexOf("ipcRenderer.on('trigger-evolve-pokemon'");
+  const trigEnd = preloadCode.indexOf("\nipcRenderer.on('trigger-change-attack'", trigStart);
+  assert(trigStart !== -1 && trigEnd !== -1, '3T-3: trigger-evolve-pokemon handler must exist in game-preload.js');
+
+  let dispatchedEvolveEl = null;
+  let navHref = '/pokemon';
+  let savedSession = {};
+  let trigHitEl = null;
+  let linkInDom = null;
+  const listeners = {};
+  const trigSandbox = {
+    window: {
+      innerWidth: 1200,
+      innerHeight: 800,
+      getComputedStyle: () => ({ display: 'inline-block', visibility: 'visible', opacity: '1' }),
+      location: {
+        pathname: '/pokemon',
+        get href() { return navHref; },
+        set href(v) { navHref = v; }
+      }
+    },
+    document: {
+      getElementById: () => null,
+      querySelectorAll: (sel) => (sel.includes('yG16hg') && linkInDom) ? [linkInDom] : [],
+      querySelector: () => null,
+      elementFromPoint: () => trigHitEl
+    },
+    sessionStorage: {
+      setItem: (k, v) => { savedSession[k] = v; },
+      getItem: (k) => savedSession[k] || null
+    },
+    ipcRenderer: {
+      on: (ch, fn) => { listeners[ch] = fn; },
+      sendToHost: () => {}
+    },
+    detectEvolveCard: () => ({ isOpen: false }),
+    lastClickedPokemonInfo: null,
+    dispatchHumanClick: (el) => { dispatchedEvolveEl = el; },
+    isElementVisible: clickSandbox.isElementVisible,
+    isSafeInteractableElement: (el) => {
+      clickSandbox.window.innerWidth = 1200;
+      clickSandbox.window.innerHeight = 800;
+      hitElementOverride = trigHitEl;
+      return clickSandbox.isSafeInteractableElement(el);
+    },
+    isSameEvolveSpeciesName: () => false,
+    isModalEvolveSubmissionBlocked: () => false,
+    getRadioOptionText: () => '',
+    humanClickElementVerified: async () => {},
+    clickModalEvolveButton: () => {},
+    clickModalCloseButton: () => {},
+    isModalElementOpen: () => false,
+    getGaussianDelay: () => 200,
+    setTimeout: (fn) => { return 0; },
+    Date
+  };
+  vm.runInNewContext(preloadCode.slice(trigStart, trigEnd), trigSandbox);
+  assert(typeof listeners['trigger-evolve-pokemon'] === 'function', '3T-3: Listener must register');
+
+  // Case A: Chrome Metapod link clipped/occluded by Release multiple pokemon -> must NOT click, must navigate cleanly
+  linkInDom = {
+    tagName: 'A',
+    offsetWidth: 80,
+    offsetHeight: 20,
+    getClientRects: () => [{ width: 80, height: 20 }],
+    getBoundingClientRect: () => ({ left: 300, right: 380, top: 180, bottom: 200, width: 80, height: 20 }),
+    getAttribute: (attr) => attr === 'href' ? '/pokemon/evolve/yG16hg' : '',
+    scrollIntoView: () => {},
+    contains: (node) => node === linkInDom
+  };
+  trigHitEl = releaseLink;
+  dispatchedEvolveEl = null;
+  navHref = '/pokemon';
+  savedSession = {};
+  listeners['trigger-evolve-pokemon']({}, {
+    pokemonId: 'yG16hg',
+    name: 'Chrome Metapod',
+    level: 100,
+    types: ['Bug'],
+    targetBranch: 'Chrome Butterfree',
+    managedByHostAuto: true
+  });
+  assert.strictEqual(dispatchedEvolveEl, null, '3T-3: Occluded evolve link must NOT call dispatchHumanClick');
+  assert.strictEqual(navHref, '/pokemon/evolve/yG16hg', '3T-3: Must fall back safely to /pokemon/evolve/yG16hg navigation');
+  assert(savedSession['deluge_auto_evolve_target'] && savedSession['deluge_auto_evolve_target'].includes('Chrome Butterfree'), '3T-3: Must store deluge_auto_evolve_target for standalone evolve page');
+
+  // Case B: Unobstructed evolve link -> clicks inline modal directly
+  trigHitEl = linkInDom;
+  dispatchedEvolveEl = null;
+  navHref = '/pokemon';
+  listeners['trigger-evolve-pokemon']({}, {
+    pokemonId: 'yG16hg',
+    name: 'Chrome Metapod',
+    level: 100,
+    types: ['Bug'],
+    targetBranch: 'Chrome Butterfree',
+    managedByHostAuto: true
+  });
+  assert.strictEqual(dispatchedEvolveEl, linkInDom, '3T-3: Unobstructed evolve link must click inline cleanly');
+  assert.strictEqual(navHref, '/pokemon', '3T-3: Unobstructed inline click must not force URL navigation');
+
+  // 3T-4: clickModalCloseButton ignores /multiselect/release and invisible elements
+  const closeStart = preloadCode.indexOf('function clickModalCloseButton(');
+  const closeEnd = preloadCode.indexOf('\nfunction isModalElementOpen(', closeStart);
+  assert(closeStart !== -1 && closeEnd !== -1, '3T-4: clickModalCloseButton must exist');
+  let closedTarget = null;
+  const hiddenCloseBtn = { tagName: 'A', value: '', textContent: 'Close', id: 'DMclose', className: 'close', getAttribute: () => '#close', offsetWidth: 0, offsetHeight: 0 };
+  const trapReleaseLink = { tagName: 'A', value: '', textContent: 'Release multiple pokemon close', id: '', className: '', getAttribute: () => '/multiselect/release', offsetWidth: 100, offsetHeight: 20 };
+  const closeSandbox = {
+    document: { getElementById: () => null },
+    window: { location: { pathname: '/pokemon', href: '/pokemon' } },
+    isElementVisible: (el) => el.offsetWidth > 0,
+    dispatchHumanClick: (el) => { closedTarget = el; }
+  };
+  vm.runInNewContext(preloadCode.slice(closeStart, closeEnd), closeSandbox);
+  const closeRes = closeSandbox.clickModalCloseButton({ querySelectorAll: () => [hiddenCloseBtn, trapReleaseLink] });
+  assert.strictEqual(closeRes, false, '3T-4: Must return false rather than clicking hidden close or /multiselect/release');
+  assert.strictEqual(closedTarget, null, '3T-4: Must never click /multiselect/release');
+
+  console.log('[PASS] Occluded Evolve Link Protection & Zero Mis-Click Onto Release/Trade Bulk Links verified.');
+}
+
+// 3U. Terminal Mega/Split-Branch Evolution Stop & Cannot-Evolve-Further Recovery
+console.log('\n--- TEST 3U: Terminal Mega/Split-Branch Evolution Stop & Cannot-Evolve-Further Recovery ---');
+{
+  const vm = require('vm');
+  const evolutionEngine = require('./evolution_engine.js');
+  const evoUiCode = fs.readFileSync(path.join(__dirname, 'evolution_ui.js'), 'utf8');
+  const preloadCode = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
+
+  // 3U-1: Terminal Mega / Primal / G-Max / Eternamax & split-branch final evolutions return SINGLE_STAGE with 0 branches
+  const terminalSpecies = [
+    'Shadow Mega Slowbro',
+    'Mega Slowbro',
+    'Ghostly Mega Gyarados',
+    'Mega Charizard X',
+    'Mega Blastoise',
+    'G-Max Charizard',
+    'Primal Groudon',
+    'Slowking',
+    'Vaporeon',
+    'Flareon',
+    'Vileplume',
+    'Poliwrath',
+    'Froslass',
+    'Hydrapple'
+  ];
+  for (const sp of terminalSpecies) {
+    const res = evolutionEngine.analyzeEvolutionPath(sp, []);
+    assert.strictEqual(res.status, 'SINGLE_STAGE', `3U-1: ${sp} must stop at SINGLE_STAGE (got ${res.status})`);
+    assert.strictEqual(res.branches.length, 0, `3U-1: ${sp} must have 0 evolution branches`);
+  }
+
+  // 3U-2: Final-stage Mega-capable / two-stage split branches return ONLY forward direct transitions (no sideways siblings)
+  const slowbroPath = evolutionEngine.analyzeEvolutionPath('Slowbro', []);
+  assert.deepStrictEqual(slowbroPath.branches.map(b => b.fullName || b.name), ['Mega Slowbro'], '3U-2: Slowbro must evolve only into Mega Slowbro');
+  const galarianSlowbroPath = evolutionEngine.analyzeEvolutionPath('Shadow Galarian Slowbro', []);
+  assert.deepStrictEqual(galarianSlowbroPath.branches.map(b => b.fullName || b.name), ['Shadow Mega Slowbro'], '3U-2: Shadow Galarian Slowbro must evolve only into Shadow Mega Slowbro');
+  const gardevoirPath = evolutionEngine.analyzeEvolutionPath('Gardevoir', []);
+  assert.deepStrictEqual(gardevoirPath.branches.map(b => b.fullName || b.name), ['Mega Gardevoir'], '3U-2: Gardevoir must evolve only into Mega Gardevoir (not Gallade)');
+  const galladePath = evolutionEngine.analyzeEvolutionPath('Gallade', []);
+  assert.deepStrictEqual(galladePath.branches.map(b => b.fullName || b.name), ['Mega Gallade'], '3U-2: Gallade must evolve only into Mega Gallade (not Gardevoir)');
+  const dipplinPath = evolutionEngine.analyzeEvolutionPath('Dipplin', []);
+  assert.deepStrictEqual(dipplinPath.branches.map(b => b.fullName || b.name), ['Hydrapple'], '3U-2: Dipplin must evolve only into Hydrapple');
+
+  // Pre-stages retain full branching
+  assert.strictEqual(evolutionEngine.analyzeEvolutionPath('Eevee', []).branches.length, 8, '3U-2: Eevee retains all 8 branches');
+  assert.strictEqual(evolutionEngine.analyzeEvolutionPath('Applin', []).branches.length, 4, '3U-2: Applin retains all 4 branches');
+  const gmaxCharColl = [{ id: 'gm1', name: 'Ghostly G-Max Charizard', variant: 'Ghostly', level: 100 }];
+  const gCharPath = evolutionEngine.analyzeEvolutionPath('Ghostly Charizard', gmaxCharColl);
+  assert.deepStrictEqual(gCharPath.branches.map(b => b.name), ['Mega Charizard X', 'Mega Charizard Y'], '3U-2: Ghostly Charizard retains both Mega X & Mega Y');
+
+  // 3U-3: findAllowableNextEvolutionBranch returns null for terminal forms & final split stages
+  const findNextStart = evoUiCode.indexOf('function findAllowableNextEvolutionBranch(');
+  const findNextEnd = evoUiCode.indexOf('\nfunction wireNextAllowableEvolveButton(', findNextStart);
+  assert(findNextStart !== -1 && findNextEnd !== -1, '3U-3: findAllowableNextEvolutionBranch must exist in evolution_ui.js');
+  const nextSandbox = {
+    aiAssistant: evolutionEngine,
+    currentCollection: [
+      { id: 'c1', name: 'Shadow Mega Slowbro', variant: 'Shadow', level: 100 }
+    ]
+  };
+  vm.runInNewContext(evoUiCode.slice(findNextStart, findNextEnd), nextSandbox);
+  assert.strictEqual(nextSandbox.findAllowableNextEvolutionBranch('yyYSv4', 'Shadow Mega Slowbro', 100, null, false), null, '3U-3: Shadow Mega Slowbro must return null');
+  assert.strictEqual(nextSandbox.findAllowableNextEvolutionBranch('g1', 'Ghostly Mega Gyarados', 100, null, false), null, '3U-3: Ghostly Mega Gyarados must return null');
+  assert.strictEqual(nextSandbox.findAllowableNextEvolutionBranch('s1', 'Slowking', 100, null, false), null, '3U-3: Slowking must return null');
+
+  // 3U-4: detectEvolveCard detects "cannot evolve any further" error banner and clears deluge_auto_evolve_target
+  const decStart = preloadCode.indexOf('function detectEvolveCard(');
+  const decEnd = preloadCode.indexOf('\nfunction syncEvolveCardState(', decStart);
+  assert(decStart !== -1 && decEnd !== -1, '3U-4: detectEvolveCard must exist in game-preload.js');
+  let errStore = { deluge_auto_evolve_target: '{"id":"yyYSv4"}' };
+  const errEl = {
+    textContent: 'YOUR POKEMON\nShadow Mega Slowbro (Level 100) cannot evolve any further.\nRETURN TO YOUR POKEMON PAGE.',
+    innerText: 'YOUR POKEMON\nShadow Mega Slowbro (Level 100) cannot evolve any further.\nRETURN TO YOUR POKEMON PAGE.'
+  };
+  const decSandbox = {
+    window: { location: { pathname: '/pokemon/evolve/yyYSv4', href: 'https://www.delugerpg.com/pokemon/evolve/yyYSv4' } },
+    document: {
+      getElementById: () => null,
+      querySelectorAll: () => [],
+      querySelector: (sel) => (sel.includes('#content') ? errEl : null)
+    },
+    sessionStorage: {
+      removeItem: (k) => { delete errStore[k]; }
+    },
+    isModalElementOpen: () => true,
+    lastClickedPokemonInfo: null
+  };
+  vm.runInNewContext(preloadCode.slice(decStart, decEnd), decSandbox);
+  const errCard = decSandbox.detectEvolveCard();
+  assert(errCard && errCard.cannotEvolveFurther === true, '3U-4: Must detect cannotEvolveFurther error screen');
+  assert.strictEqual(errCard.pokemonId, 'yyYSv4', '3U-4: Must extract pokemonId yyYSv4 from URL');
+  assert.strictEqual(errCard.fullName, 'Shadow Mega Slowbro', '3U-4: Must extract Shadow Mega Slowbro from error banner');
+  assert.strictEqual(errStore.deluge_auto_evolve_target, undefined, '3U-4: Must purge deluge_auto_evolve_target immediately');
+
+  console.log('[PASS] Terminal Mega/Split-Branch Evolution Stop & Cannot-Evolve-Further Recovery verified.');
+}
+
+// 3V. Verify Box-Wide Auto-Evolve Queue Progression, Skips, Step Reset & Security Halts
+console.log('\n--- TEST 3V: Box-Wide Auto-Evolve Queue Progression & Safety Limits ---');
+{
+  const vm = require('vm');
+  const evolutionEngine = require('./evolution_engine');
+  const teamEngine = require('./team_engine');
+  const evoUiCodeV = fs.readFileSync(path.join(__dirname, 'evolution_ui.js'), 'utf8');
+  const sentV = [];
+  const scheduledV = [];
+  const makeElV = () => ({
+    innerHTML: '', textContent: '', value: '', style: { display: '' }, disabled: false,
+    className: '', children: [], checked: false,
+    _listeners: {},
+    addEventListener(ev, fn) { this._listeners[ev] = this._listeners[ev] || []; this._listeners[ev].push(fn); },
+    click() { (this._listeners.click || []).forEach(fn => fn()); },
+    appendChild(c) { this.children.push(c); },
+    setAttribute() {},
+    getAttribute() { return ''; },
+    querySelector(sel) { return sel === 'button' ? (this.children[0] || null) : null; },
+    querySelectorAll() { return []; }
+  });
+  const autoCheckV = makeElV();
+  autoCheckV.checked = true;
+  const autoLabelV = makeElV();
+  const actionSlotV = makeElV();
+
+  const sbV = {
+    Math, Date, JSON, Set, Array, String, Number, Boolean, Object, RegExp, URL,
+    console,
+    delugeView: { send: (ch, p) => sentV.push({ ch, p }) },
+    activeAiBattleData: null,
+    activeEvolveCardData: null,
+    cachedEvolveReadyList: [],
+    cachedBoxMovesList: [],
+    cachedMegaList: [],
+    selectedEvoPoke: null,
+    currentCollection: [
+      { id: 'c1', name: 'Metapod', variant: 'Normal', level: 100, canEvolve: true },
+      { id: 'dup1', name: 'Pidgey', variant: 'Normal', level: 100, canEvolve: true },
+      { id: 'own1', name: 'Pidgeotto', variant: 'Normal', level: 100, canEvolve: false },
+      { id: 'own2', name: 'Pidgeot', variant: 'Normal', level: 100, canEvolve: false },
+      { id: 'gmx1', name: 'Orbeetle', variant: 'Normal', level: 100, canEvolve: true },
+      { id: 'r1', name: 'Shadow Rookidee', variant: 'Shadow', level: 100, canEvolve: true }
+    ],
+    currentEvoFilter: 'UNIQUE',
+    currentEvoSearch: '',
+    evolutionEngine: evolutionEngine,
+    teamEngine: teamEngine,
+    aiAssistant: {
+      analyzeEvolutionPath: (n, c) => evolutionEngine.analyzeEvolutionPath(n, c),
+      getOptimalMoves: (n) => evolutionEngine.recommendOptimalMoves(n, [], sbV.currentCollection)
+    },
+    getBaseSpecies: (n) => evolutionEngine.cleanSpeciesKey ? evolutionEngine.cleanSpeciesKey(n) : n,
+    aiBattleOpponentBadge: makeElV(),
+    aiStatusChip: makeElV(),
+    aiTacticalBriefing: makeElV(),
+    aiInstantActionSlot: actionSlotV,
+    evoReadyList: makeElV(),
+    evoCountUnique: makeElV(),
+    evoCountMegas: makeElV(),
+    evoCountAll: makeElV(),
+    evoCountBlocked: makeElV(),
+    evoListHeaderTitle: makeElV(),
+    evoReadyCountBadge: makeElV(),
+    evoAutoCheck: autoCheckV,
+    evoAutoLabel: autoLabelV,
+    aiAssistantModal: { style: { display: 'flex' } },
+    isUnlockChallengeActive: false,
+    isCaptchaAlarmActive: false,
+    escapeHtml: (s) => String(s || ''),
+    document: {
+      createElement: () => makeElV(),
+      getElementById: (id) => (id === 'evoAutoCheck' ? autoCheckV : (id === 'evoAutoLabel' ? autoLabelV : null))
+    },
+    fs: { writeFileSync: () => {} },
+    getWritableDataPath: (f) => f,
+    syncUserCollectionToGuest: () => {},
+    candidateListsCache: { gmaxLastDisplayedId: null },
+    updateStatus: () => {},
+    renderAiAssistantUI: () => {},
+    appendAiChatMessage: () => {},
+    lastAnnouncedEvolveSignature: '',
+    setTimeout: (fn, ms) => {
+      const id = scheduledV.length + 1;
+      scheduledV.push({ id, fn, ms, cleared: false });
+      return id;
+    },
+    clearTimeout: (id) => {
+      const item = scheduledV.find(t => t.id === id);
+      if (item) item.cleared = true;
+    }
+  };
+  const flushTimersV = () => {
+    const ready = scheduledV.splice(0, scheduledV.length).filter(t => !t.cleared && t.ms < 2500);
+    ready.forEach(t => t.fn());
+  };
+
+  vm.runInNewContext(evoUiCodeV, sbV);
+  sbV.renderEvolutionDecisionMakerUI();
+
+  // 3V-1: Full-page confirm completion on Metapod -> Butterfree skips duplicate Pidgey & G-Max-blocked Orbeetle, picks Shadow Rookidee
+  assert(sbV.startAutoEvolveCycle({ pokemonId: 'c1', name: 'Metapod', targetBranch: 'Butterfree', level: 100 }));
+  sbV.handleEvolveCardDetected({
+    isOpen: true, isMoveSelection: true, targetPokemon: 'Butterfree', sourcePokemon: 'Metapod',
+    level: 100, currentChoices: ['Tackle', 'String Shot'], evolutionChoices: ['Gust', 'Confusion', 'Quiver Dance', 'Bug Buzz']
+  });
+  flushTimersV();
+  assert.strictEqual(sentV.length, 1);
+  assert.strictEqual(sentV[0].ch, 'apply-recommended-moves-and-submit');
+
+  sentV.length = 0;
+  sbV.handleEvolveCardClosed();
+  sbV.handleEvoAutoCyclePageLoaded('https://www.delugerpg.com/pokemon');
+  flushTimersV(); // 500ms postConfirm settle -> advanceAutoEvolveToNextBoxPokemon
+  flushTimersV(); // 850-1300ms box-next trigger
+  assert.strictEqual(sentV.length, 1, '3V-1: Full-page confirmation completion must advance to next allowable box Pokemon');
+  assert.strictEqual(sentV[0].ch, 'trigger-evolve-pokemon');
+  assert.strictEqual(sentV[0].p.pokemonId, 'r1', '3V-1: Must skip duplicate Pidgey & G-Max Orbeetle and pick Shadow Rookidee (r1)');
+  assert.strictEqual(sentV[0].p.targetBranch, 'Shadow Corvisquire');
+
+  // 3V-2: Mid-box cannotEvolveFurther skips dead entry and continues to next legitimately evolvable Pokemon
+  sentV.length = 0;
+  sbV.currentCollection = [
+    { id: 'dead1', name: 'Shadow Mega Slowbro', variant: 'Shadow', level: 100, canEvolve: true },
+    { id: 'r1', name: 'Shadow Rookidee', variant: 'Shadow', level: 100, canEvolve: true }
+  ];
+  sbV.renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+  sbV.startAutoEvolveCycle({ pokemonId: 'dead1', name: 'Shadow Mega Slowbro', targetBranch: 'Shadow Mega Slowbro', level: 100 });
+  sbV.handleEvolveCardDetected({
+    isOpen: true, cannotEvolveFurther: true, pokemonId: 'dead1', fullName: 'Shadow Mega Slowbro',
+    message: 'Shadow Mega Slowbro (Level 100) cannot evolve any further.'
+  });
+  flushTimersV();
+  assert.strictEqual(sentV.length, 1, '3V-2: cannotEvolveFurther must advance to remaining allowable box Pokemon');
+  assert.strictEqual(sentV[0].ch, 'trigger-evolve-pokemon');
+  assert.strictEqual(sentV[0].p.pokemonId, 'r1');
+
+  // 3V-3: Cumulative > 12 steps across multiple Pokemon must NOT hit maxSteps limit, and CAPTCHA/unlock stops cycle
+  sentV.length = 0;
+  sbV.currentCollection = [];
+  for (let idx = 1; idx <= 6; idx++) {
+    sbV.currentCollection.push({
+      id: `m${idx}`, name: `Caterpie`, variant: idx === 1 ? 'Normal' : (idx === 2 ? 'Shiny' : (idx === 3 ? 'Dark' : (idx === 4 ? 'Shadow' : (idx === 5 ? 'Metallic' : 'Mirage')))),
+      level: 100, canEvolve: true
+    });
+  }
+  sbV.currentCollection.forEach((p, i) => {
+    if (i > 0) p.name = `${p.variant} Caterpie`;
+  });
+  sbV.renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+  assert(sbV.startAutoEvolveCycle({ pokemonId: 'm1', name: 'Caterpie', targetBranch: 'Metapod', level: 100 }));
+  let totalStepSubmissions = 0;
+  for (let i = 0; i < 6; i++) {
+    const mon = sbV.currentCollection[i];
+    const variantPrefix = mon.variant === 'Normal' ? '' : `${mon.variant} `;
+    const midName = `${variantPrefix}Metapod`;
+    const finalName = `${variantPrefix}Butterfree`;
+    // Stage 1 branch + moves + complete
+    sbV.handleEvolveCardDetected({ isOpen: true, fullName: mon.name, baseSpecies: 'caterpie', variant: mon.variant, level: 100, options: [{ fullName: midName, isOwned: false }] });
+    flushTimersV();
+    totalStepSubmissions += sentV.length; sentV.length = 0;
+    sbV.handleEvolveCardDetected({ isOpen: true, isMoveSelection: true, targetPokemon: midName, sourcePokemon: mon.name, level: 100, currentChoices: ['Tackle'], evolutionChoices: ['Harden'] });
+    flushTimersV();
+    totalStepSubmissions += sentV.length; sentV.length = 0;
+    sbV.handleEvolveCardDetected({ isOpen: true, isComplete: true, fromPokemon: mon.name, toPokemon: midName, fullName: midName });
+    flushTimersV();
+    totalStepSubmissions += sentV.length; sentV.length = 0;
+    // Stage 2 branch + moves + complete -> advances to next Caterpie until i === 5
+    sbV.handleEvolveCardDetected({ isOpen: true, fullName: midName, baseSpecies: 'metapod', variant: mon.variant, level: 100, options: [{ fullName: finalName, isOwned: false }] });
+    flushTimersV();
+    totalStepSubmissions += sentV.length; sentV.length = 0;
+    sbV.handleEvolveCardDetected({ isOpen: true, isMoveSelection: true, targetPokemon: finalName, sourcePokemon: midName, level: 100, currentChoices: ['Tackle'], evolutionChoices: ['Gust'] });
+    flushTimersV();
+    totalStepSubmissions += sentV.length; sentV.length = 0;
+    sbV.handleEvolveCardDetected({ isOpen: true, isComplete: true, fromPokemon: midName, toPokemon: finalName, fullName: finalName });
+    flushTimersV();
+    totalStepSubmissions += sentV.length;
+    if (i < 5) {
+      assert.strictEqual(sentV.length, 1, `3V-3: Must advance to Caterpie #${i + 2}`);
+      assert.strictEqual(sentV[0].ch, 'trigger-evolve-pokemon');
+      assert.strictEqual(sentV[0].p.pokemonId, `m${i + 2}`);
+    } else {
+      assert.strictEqual(sentV.length, 0, '3V-3: Must stop cleanly after evolving all 6 Pokemon');
+    }
+    sentV.length = 0;
+  }
+  assert(totalStepSubmissions >= 30, `3V-3: Expected >= 30 cumulative auto steps without tripping per-Pokemon cap, got ${totalStepSubmissions}`);
+
+  // Captcha / unlock gate halt
+  sbV.currentCollection = [{ id: 'z1', name: 'Shadow Rookidee', variant: 'Shadow', level: 100, canEvolve: true }];
+  sbV.renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+  assert(sbV.startAutoEvolveCycle({ pokemonId: 'z1', name: 'Shadow Rookidee', targetBranch: 'Shadow Corvisquire', level: 100 }));
+  sbV.isUnlockChallengeActive = true;
+  sbV.handleEvolveCardDetected({ isOpen: true, fullName: 'Shadow Rookidee', baseSpecies: 'rookidee', variant: 'Shadow', level: 100, options: [{ fullName: 'Shadow Corvisquire', isOwned: false }] });
+  flushTimersV();
+  assert.strictEqual(sentV.length, 0, '3V-3: isUnlockChallengeActive=true must immediately halt Auto-Evolve');
+
+  // 3V-4: Live Scyther screenshot regression - duplicate blocked/terminal/completion events during pending box transition MUST NOT cancel timer
+  sbV.isUnlockChallengeActive = false;
+  sbV.stopAutoEvolveCycle('reset');
+  sbV.currentCollection = [
+    { id: 'scy1', name: 'Scyther', variant: 'Normal', level: 100, canEvolve: true },
+    { id: 'kl1', name: 'Kleavor', variant: 'Normal', level: 100, canEvolve: false },
+    { id: 'mt1', name: 'Mirage Trubbish', variant: 'Mirage', level: 100, canEvolve: true }
+  ];
+  sbV.renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+  sentV.length = 0;
+  assert(sbV.startAutoEvolveCycle({ pokemonId: 'scy1', name: 'Scyther', targetBranch: 'Scizor', level: 100 }));
+  const scytherModal = {
+    isOpen: true, fullName: 'Scyther', baseSpecies: 'scyther', variant: 'Normal', level: 100,
+    options: [{ fullName: 'Kleavor', requirement: 'using Black Augurite', isOwned: true, hasCaughtIcon: true }]
+  };
+  sbV.handleEvolveCardDetected(scytherModal);
+  sbV.handleEvolveCardDetected(scytherModal);
+  flushTimersV();
+  assert.strictEqual(sentV.length, 1, '3V-4: Duplicate Scyther blocked modal MUST NOT cancel pending box transition');
+  assert.strictEqual(sentV[0].ch, 'trigger-evolve-pokemon');
+  assert.strictEqual(sentV[0].p.pokemonId, 'mt1');
+  assert.strictEqual(sentV[0].p.name, 'Mirage Trubbish');
+  assert.strictEqual(sentV[0].p.targetBranch, 'Mirage Garbodor');
+  // Stray post-dispatch Scyther card before Mirage Trubbish opens must preserve cycle
+  sentV.length = 0;
+  sbV.handleEvolveCardDetected(scytherModal);
+  assert(sbV.matchesAutoEvolveCyclePokemon('Mirage Trubbish', 'mt1'), '3V-4: Stray post-dispatch Scyther card must preserve active cycle');
+  // Now Mirage Trubbish modal opens -> auto submits Mirage Garbodor
+  sbV.handleEvolveCardDetected({
+    isOpen: true, fullName: 'Mirage Trubbish', baseSpecies: 'trubbish', variant: 'Mirage', level: 100,
+    options: [{ fullName: 'Mirage Garbodor', requirement: 'at Level 36', isOwned: false }]
+  });
+  flushTimersV();
+  assert.strictEqual(sentV.length, 1, '3V-4: Mirage Trubbish modal must auto-submit Mirage Garbodor');
+  assert.strictEqual(sentV[0].ch, 'submit-modal-evolve');
+  assert.strictEqual(sentV[0].p.targetBranch, 'Mirage Garbodor');
+
+  // Duplicate cannotEvolveFurther and duplicate isComplete during pending box-next transition must preserve timer
+  sentV.length = 0;
+  sbV.currentCollection = [
+    { id: 'dead2', name: 'Shadow Mega Slowbro', variant: 'Shadow', level: 100, canEvolve: true },
+    { id: 'mt1', name: 'Mirage Trubbish', variant: 'Mirage', level: 100, canEvolve: true }
+  ];
+  sbV.renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+  assert(sbV.startAutoEvolveCycle({ pokemonId: 'dead2', name: 'Shadow Mega Slowbro', targetBranch: 'Shadow Mega Slowbro', level: 100 }));
+  const deadCard2 = {
+    isOpen: true, cannotEvolveFurther: true, pokemonId: 'dead2', fullName: 'Shadow Mega Slowbro',
+    message: 'Shadow Mega Slowbro (Level 100) cannot evolve any further.'
+  };
+  sbV.handleEvolveCardDetected(deadCard2);
+  sbV.handleEvolveCardDetected(deadCard2);
+  flushTimersV();
+  assert.strictEqual(sentV.length, 1, '3V-4: Duplicate cannotEvolveFurther MUST NOT cancel pending box transition');
+  assert.strictEqual(sentV[0].p.pokemonId, 'mt1');
+
+  sentV.length = 0;
+  sbV.currentCollection = [
+    { id: 'cmp1', name: 'Butterfree', variant: 'Normal', level: 100, canEvolve: true },
+    { id: 'mt1', name: 'Mirage Trubbish', variant: 'Mirage', level: 100, canEvolve: true }
+  ];
+  sbV.renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+  assert(sbV.startAutoEvolveCycle({ pokemonId: 'cmp1', name: 'Metapod', targetBranch: 'Butterfree', level: 100 }));
+  const completeCard = { isOpen: true, isComplete: true, fromPokemon: 'Metapod', toPokemon: 'Butterfree', fullName: 'Butterfree' };
+  sbV.handleEvolveCardDetected(completeCard);
+  sbV.handleEvolveCardDetected(completeCard);
+  flushTimersV();
+  assert.strictEqual(sentV.length, 1, '3V-4: Duplicate isComplete MUST NOT cancel pending box transition');
+  assert.strictEqual(sentV[0].p.pokemonId, 'mt1');
+
+  // Opening genuinely unrelated third Pokemon (Pikachu) during pendingTransition MUST stop cycle
+  sentV.length = 0;
+  sbV.currentCollection = [
+    { id: 'scy2', name: 'Scyther', variant: 'Normal', level: 100, canEvolve: true },
+    { id: 'kl2', name: 'Kleavor', variant: 'Normal', level: 100, canEvolve: false },
+    { id: 'mt1', name: 'Mirage Trubbish', variant: 'Mirage', level: 100, canEvolve: true }
+  ];
+  sbV.renderEvolutionDecisionMakerUI({ skipActiveCardReentry: true });
+  assert(sbV.startAutoEvolveCycle({ pokemonId: 'scy2', name: 'Scyther', targetBranch: 'Scizor', level: 100 }));
+  sbV.handleEvolveCardDetected({
+    isOpen: true, fullName: 'Scyther', baseSpecies: 'scyther', variant: 'Normal', level: 100,
+    options: [{ fullName: 'Kleavor', requirement: 'using Black Augurite', isOwned: true, hasCaughtIcon: true }]
+  });
+  sbV.handleEvolveCardDetected({
+    isOpen: true, fullName: 'Pikachu', baseSpecies: 'pikachu', variant: 'Normal', level: 100,
+    options: [{ fullName: 'Raichu', requirement: 'using Thunder Stone', isOwned: false }]
+  });
+  flushTimersV();
+  assert.strictEqual(sentV.length, 0, '3V-4: Opening unrelated Pikachu during pendingTransition MUST stop Auto-Evolve');
+  assert.strictEqual(sbV.matchesAutoEvolveCyclePokemon('Mirage Trubbish', 'mt1'), false, '3V-4: active cycle must be cleared after unrelated modal');
+  assert.strictEqual(sbV.matchesAutoEvolveCyclePokemon('Scyther', 'scy2'), false, '3V-4: active cycle must be cleared for outgoing Scyther too');
+
+  console.log('[PASS] Box-Wide Auto-Evolve Queue Progression & Safety Limits verified.');
+}
+
+// 3W. Verify Strict Regional & Alternate Forme Isolation Across Engine & Box Scanner
+console.log('\n--- TEST 3W: Regional & Alternate Forme Evolution Accuracy Audit ---');
+{
+  const eeW = require('./evolution_engine');
+  const getReadyNames = (name) => {
+    const res = eeW.getEvolveReadyPokemon([{ id: 'w1', name, variant: 'Normal', level: 100, canEvolve: true }]);
+    return res.length > 0 ? res[0].branches.map(b => b.name) : [];
+  };
+  const getPathNames = (name) => (eeW.analyzeEvolutionPath(name, []).branches || []).map(b => b.name);
+
+  // Non-Mega regional finals must stay terminal (SINGLE_STAGE, no bleed into base lines), while Galarian Slowbro -> Mega Slowbro is preserved per 3U-2
+  assert.deepStrictEqual(getReadyNames('Galarian Slowbro'), ['Mega Slowbro'], '3W: Galarian Slowbro must preserve Mega Slowbro transition per 3U-2');
+  assert.deepStrictEqual(getReadyNames('Galarian Slowking'), [], '3W: Galarian Slowking must remain terminal');
+  assert.strictEqual(eeW.analyzeEvolutionPath('Galarian Slowking', []).status, 'SINGLE_STAGE');
+  assert.deepStrictEqual(getReadyNames('Alolan Persian'), []);
+  assert.strictEqual(eeW.analyzeEvolutionPath('Alolan Persian', []).status, 'SINGLE_STAGE');
+  assert.deepStrictEqual(getReadyNames('Alolan Raichu'), []);
+  assert.strictEqual(eeW.analyzeEvolutionPath('Alolan Raichu', []).status, 'SINGLE_STAGE');
+  assert.deepStrictEqual(getReadyNames('Slowbro'), ['Mega Slowbro'], '3W: Regular Slowbro must still map to Mega Slowbro');
+
+  // Galarian vs Base Slowpoke, Meowth, Sneasel, Wooper stay strictly scoped
+  assert.deepStrictEqual(getReadyNames('Galarian Slowpoke'), ['Galarian Slowbro', 'Galarian Slowking']);
+  assert.deepStrictEqual(getPathNames('Galarian Slowpoke'), ['Galarian Slowbro', 'Galarian Slowking']);
+  assert.deepStrictEqual(getReadyNames('Slowpoke'), ['Slowbro', 'Slowking']);
+  assert.deepStrictEqual(getReadyNames('Alolan Meowth'), ['Alolan Persian']);
+  assert.deepStrictEqual(getPathNames('Alolan Meowth'), ['Alolan Persian']);
+  assert.deepStrictEqual(getReadyNames('Galarian Meowth'), ['Perrserker']);
+  assert.deepStrictEqual(getPathNames('Galarian Meowth'), ['Perrserker']);
+  assert.deepStrictEqual(getReadyNames('Meowth'), ['Persian']);
+  assert.deepStrictEqual(getPathNames('Hisuian Sneasel'), ['Sneasler']);
+  assert.deepStrictEqual(getPathNames('Sneasel'), ['Weavile']);
+  assert.deepStrictEqual(getPathNames('Paldean Wooper'), ['Clodsire']);
+  assert.deepStrictEqual(getPathNames('Wooper'), ['Quagsire']);
+
+  // Bergmite supports both Avalugg & Hisuian Avalugg
+  assert.deepStrictEqual(getReadyNames('Bergmite'), ['Avalugg', 'Hisuian Avalugg']);
+
+  // Galarian Farfetch'd evolves into Sirfetch'd; Kantonian Farfetch'd does NOT
+  assert.deepStrictEqual(getReadyNames("Galarian Farfetch'd"), ["Sirfetch'd"]);
+  assert.deepStrictEqual(getReadyNames("Farfetch'd"), []);
+  assert.strictEqual(eeW.analyzeEvolutionPath("Farfetch'd", []).status, 'SINGLE_STAGE');
+
+  // Basculin (White-Striped) evolves into Basculegion; Red/Blue-Striped and plain Basculin do NOT
+  assert.deepStrictEqual(getReadyNames('Basculin (White-Striped)'), ['Basculegion']);
+  assert.deepStrictEqual(getReadyNames('Basculin (Red-Striped)'), []);
+  assert.deepStrictEqual(getReadyNames('Basculin (Blue-Striped)'), []);
+  assert.deepStrictEqual(getReadyNames('Basculin'), []);
+
+  console.log('[PASS] Regional & Alternate Forme Evolution Accuracy Audit verified.');
+}
+
+// 3X. Verify Variant-Aware & Singular/Dual-Type Optimal Moves Hardening (Price Disregarded)
+console.log('\n--- TEST 3X: Variant-Aware & Singular/Dual-Type Optimal Moves Audit ---');
+{
+  const eeX = require('./evolution_engine');
+
+  // 3X-1: Dark Mega Sableye (Dual-Type Dark/Ghost): peak power, no Gardevoir Dazzling Gleam bleed, 4 unique types
+  const darkSab = eeX.recommendOptimalMoves({
+    name: 'Dark Mega Sableye',
+    variant: 'Dark',
+    types: ['Dark', 'Ghost'],
+    moves: ['Hyperspace Fury', 'Astral Barrage', 'Gigaton Hammer', 'Dazzling Gleam']
+  }, [], []);
+  assert.strictEqual(darkSab.variant, 'Dark');
+  assert.strictEqual(darkSab.isInverse, false);
+  assert.strictEqual(darkSab.optimalMoves.length, 4);
+  assert.strictEqual(new Set(darkSab.optimalMoves.map(m => m.type)).size, 4, '3X-1: Dark Mega Sableye must have 4 distinct move types');
+  assert.strictEqual(darkSab.optimalMoves[0].name, 'Hyperspace Fury', '3X-1: Primary STAB Dark must be Hyperspace Fury (100 Pwr)');
+  assert.strictEqual(darkSab.optimalMoves[1].name, 'Astral Barrage', '3X-1: Secondary STAB Ghost must be Astral Barrage (120 Pwr)');
+  assert.strictEqual(darkSab.optimalMoves[2].name, 'Gigaton Hammer', '3X-1: Fairy weakness counter must be Gigaton Hammer (160 Pwr Steel)');
+  assert(!darkSab.optimalMoves.some(m => m.name === 'Dazzling Gleam'), '3X-1: Must NEVER recommend weak 80-Pwr Dazzling Gleam from Mega bleed');
+  assert(darkSab.optimalMoves[3].power >= 120, `3X-1: Slot 4 wallbreaker must be >= 120 Pwr (got ${darkSab.optimalMoves[3].name} ${darkSab.optimalMoves[3].power})`);
+
+  // 3X-2: Negative Mega Sableye (Inverse Type Chart): counters real Inverse weaknesses (Normal/Poison/Psychic), NOT Normal Fairy->Steel trap
+  const negSab = eeX.recommendOptimalMoves({
+    name: 'Negative Mega Sableye',
+    variant: 'Negative',
+    types: ['Dark', 'Ghost']
+  }, [], []);
+  assert.strictEqual(negSab.variant, 'Negative');
+  assert.strictEqual(negSab.isInverse, true);
+  assert.strictEqual(negSab.optimalMoves.length, 4);
+  assert.strictEqual(new Set(negSab.optimalMoves.map(m => m.type)).size, 4, '3X-2: Negative Mega Sableye must have 4 distinct types');
+  assert.strictEqual(negSab.optimalMoves[2].type, 'Fighting', '3X-2: Inverse Anti-Weakness must pick Fighting (hits Poison & Psychic 2x in Inverse)');
+  assert.strictEqual(negSab.optimalMoves[2].role, 'Inverse Anti-Weakness');
+
+  // 3X-3: Variant accuracy differentiation (Dark maximizes raw nukes vs Ghostly/Chrome prioritizes >=95% reliability)
+  const darkRaikou = eeX.recommendOptimalMoves('Dark Raikou', [], []);
+  const ghostlyRaikou = eeX.recommendOptimalMoves('Ghostly Raikou', [], []);
+  const chromeRaikou = eeX.recommendOptimalMoves('Chrome Raikou', [], []);
+  assert.strictEqual(darkRaikou.optimalMoves[0].name, 'Bolt Strike', '3X-3: Dark variant must pick 130-Pwr Bolt Strike');
+  assert(['Fusion Bolt', 'Volt Tackle'].includes(ghostlyRaikou.optimalMoves[0].name), `3X-3: Ghostly must prefer 100%-acc 120-Pwr Electric move, got ${ghostlyRaikou.optimalMoves[0].name}`);
+  assert(['Fusion Bolt', 'Volt Tackle'].includes(chromeRaikou.optimalMoves[0].name), `3X-3: Chrome must prefer 100%-acc 120-Pwr Electric move, got ${chromeRaikou.optimalMoves[0].name}`);
+
+  // 3X-4: Singular-Type vs Dual-Type slot structure (always 4 distinct move types)
+  const monoMewtwo = eeX.recommendOptimalMoves('Dark Mewtwo', [], []);
+  assert.deepStrictEqual(monoMewtwo.types, ['Psychic']);
+  assert.strictEqual(new Set(monoMewtwo.optimalMoves.map(m => m.type)).size, 4, '3X-4: Singular-Type Mewtwo must have 1 STAB + 3 distinct coverage types');
+  assert.strictEqual(monoMewtwo.optimalMoves[0].type, 'Psychic');
+  assert.strictEqual(monoMewtwo.optimalMoves[2].role, 'Resistor Breaker');
+  assert.strictEqual(new Set(darkRaikou.optimalMoves.map(m => m.type)).size, 4, '3X-4: Singular-Type Raikou must have 1 STAB + 3 distinct coverage types');
+
+  // 3X-5: Box moveset status flags stale/suboptimal sets as CAN_IMPROVE while true peak set is OPTIMAL
+  const boxAudit = eeX.getBoxPokemonMovesCollection([
+    {
+      id: 'chr1', name: 'Chrome Mega Sableye', variant: 'Chrome', level: 100, types: ['Dark', 'Ghost'],
+      moves: ['Shadow Ball', 'Zen Headbutt', 'Power Gem', 'Dark Pulse']
+    },
+    {
+      id: 'drk1', name: 'Dark Mega Sableye', variant: 'Dark', level: 100, types: ['Dark', 'Ghost'],
+      moves: ['Hyperspace Fury', 'Astral Barrage', 'Gigaton Hammer', darkSab.optimalMoves[3].name]
+    }
+  ], 'ALL');
+  const chrEntry = boxAudit.find(p => p.id === 'chr1');
+  const drkEntry = boxAudit.find(p => p.id === 'drk1');
+  assert(chrEntry && chrEntry.moveStatus === 'CAN_IMPROVE', `3X-5: Chrome Mega Sableye 80-Pwr set must be CAN_IMPROVE (got ${chrEntry && chrEntry.moveStatus})`);
+  assert(drkEntry && drkEntry.moveStatus === 'OPTIMAL', `3X-5: Dark Mega Sableye peak set must be OPTIMAL (got ${drkEntry && drkEntry.moveStatus})`);
+
+  // 3X-6: availableMoves filter respects Attack Relearner options (disregarding PokeDollar price) & preload price-stripper preserves hyphens
+  const filteredRec = eeX.recommendOptimalMoves(
+    { name: 'Dark Mega Sableye', variant: 'Dark', types: ['Dark', 'Ghost'] },
+    [], [],
+    { availableMoves: ['Crunch', 'Shadow Ball', 'Iron Head', 'Focus Punch', 'Splash'] }
+  );
+  assert.deepStrictEqual(
+    filteredRec.optimalMoves.map(m => m.name),
+    ['Crunch', 'Shadow Ball', 'Iron Head', 'Focus Punch'],
+    '3X-6: availableMoves filter must select best move per role strictly from learnable options'
+  );
+
+  const preloadCodeX = fs.readFileSync(path.join(__dirname, 'game-preload.js'), 'utf8');
+  assert(preloadCodeX.includes(".replace(/\\s+-\\s+.*$/, '')"), '3X-6: game-preload must strip " - $Price" suffix without breaking hyphenated move names');
+
+  console.log('[PASS] Variant-Aware & Singular/Dual-Type Optimal Moves Audit verified.');
+}
+
+// 3Y. Verify Z-Move Exclusion on Change Attacks, Clean Change Attacks UI & Box Search Performance
+console.log('\n--- TEST 3Y: Z-Move Exclusion, Change Attacks UI & Search Performance Audit ---');
+{
+  const vmY = require('vm');
+  const eeY = require('./evolution_engine');
+  const teY = require('./team_engine');
+
+  // 3Y-1: Z-Moves (e.g. Splintered Stormshards, Catastropika, *Malicious Moonsault) must NEVER override regular optimal attacks
+  const slitherRec = eeY.recommendOptimalMoves(
+    { name: 'Dark Slither Wing', variant: 'Dark', types: ['Bug', 'Fighting'] },
+    ['Megahorn', 'Focus Punch', 'Bolt Strike', 'Earthquake'],
+    [],
+    {
+      availableMoves: [
+        'Megahorn', 'Focus Punch', 'Head Smash', 'Glacial Lance', 'Bolt Strike', 'Earthquake',
+        'Splintered Stormshards', 'Catastropika', '*Malicious Moonsault', '*10,000,000 Volt Thunderbolt'
+      ]
+    }
+  );
+  assert.deepStrictEqual(
+    slitherRec.optimalMoves.map(m => m.name),
+    ['Megahorn', 'Focus Punch', 'Head Smash', 'Glacial Lance'],
+    '3Y-1: Change Attacks page with Z-Moves in dropdown MUST keep regular optimal moves and exclude all Z-Moves'
+  );
+
+  // 3Y-2: Live /pokemon/change_attack/<id> panel renders CURRENT EQUIPPED MOVES + RECOMMENDED 4 ATTACKS without EVOLUTION (0) / Uncheck clutter
+  const evoUiCodeY = fs.readFileSync(path.join(__dirname, 'evolution_ui.js'), 'utf8');
+  const appCodeY = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const briefingEl = { innerHTML: '' };
+  const slotElY = { innerHTML: '', appendChild: () => {} };
+  const makeElY = () => ({ innerHTML: '', textContent: '', style: { display: '' }, disabled: false, className: '', addEventListener: () => {}, appendChild: () => {} });
+  const sbY = {
+    Math, Date, JSON, Set, Map, Array, String, Number, Boolean, Object, RegExp, URL, console,
+    delugeView: { send: () => {} },
+    activeAiBattleData: null,
+    activeEvolveCardData: { isOpen: true, isMoveSelection: true, isChangeAttackPage: true },
+    cachedEvolveReadyList: [],
+    cachedBoxMovesList: [],
+    cachedMegaList: [],
+    selectedEvoPoke: null,
+    selectedMovesPoke: null,
+    currentCollection: [
+      { id: 'sw1', name: 'Dark Slither Wing', variant: 'Dark', level: 100, types: ['Bug', 'Fighting'], moves: ['Megahorn', 'Focus Punch', 'Bolt Strike', 'Earthquake'] }
+    ],
+    evolutionEngine: eeY,
+    teamEngine: teY,
+    aiAssistant: eeY,
+    aiBattleOpponentBadge: makeElY(),
+    aiStatusChip: makeElY(),
+    aiTacticalBriefing: briefingEl,
+    aiInstantActionSlot: slotElY,
+    evoReadyList: null,
+    escapeHtml: (s) => String(s || ''),
+    document: { createElement: () => makeElY(), getElementById: () => null },
+    updateStatus: () => {},
+    renderAiAssistantUI: () => {},
+    appendAiChatMessage: () => {},
+    lastAnnouncedEvolveSignature: '',
+    isUnlockChallengeActive: false,
+    isCaptchaAlarmActive: false,
+    evoAutoCheck: null,
+    evoAutoLabel: null
+  };
+  vmY.runInNewContext(evoUiCodeY, sbY);
+  sbY.handleEvolveMoveSelection({
+    isOpen: true,
+    isMoveSelection: true,
+    isChangeAttackPage: true,
+    pokemonId: 'sw1',
+    targetPokemon: 'Slither Wing',
+    fullName: 'Slither Wing',
+    level: 100,
+    types: ['Bug', 'Fighting'],
+    currentChoices: ['Megahorn', 'Focus Punch', 'Bolt Strike', 'Earthquake'],
+    availableMoves: [
+      { name: 'Megahorn' }, { name: 'Focus Punch' }, { name: 'Head Smash' }, { name: 'Glacial Lance' },
+      { name: '*Splintered Stormshards' }, { name: '*Catastropika' }
+    ]
+  });
+  assert(briefingEl.innerHTML.includes('Dark Slither Wing'), '3Y-2: Must preserve exact Dark Slither Wing variant from collection by pokemonId');
+  assert(briefingEl.innerHTML.includes('CURRENT EQUIPPED MOVES'), '3Y-2: Must show CURRENT EQUIPPED MOVES on Change Attacks');
+  assert(briefingEl.innerHTML.includes('RECOMMENDED 4 ATTACKS'), '3Y-2: Must show RECOMMENDED 4 ATTACKS');
+  assert(!briefingEl.innerHTML.includes('EVOLUTION (0)'), '3Y-2: Must NOT show empty EVOLUTION (0) modal grid on Change Attacks');
+  assert(!briefingEl.innerHTML.includes('Uncheck:'), '3Y-2: Must NOT show evolution-modal Uncheck clutter on Change Attacks');
+  assert(!briefingEl.innerHTML.includes('Splintered Stormshards') && !briefingEl.innerHTML.includes('Catastropika'), '3Y-2: Must NEVER suggest Z-Moves');
+
+  // 3Y-3: Memoized box-wide move analysis speed (< 300ms on 400 mixed-variant Pokemon) & UI debounce/lazy pagination guards
+  const synthBox = [];
+  const variantsY = ['Normal', 'Dark', 'Shadow', 'Ghostly', 'Chrome', 'Negative', 'Shiny', 'Metallic', 'Mirage', 'Retro'];
+  const basesY = ['Sableye', 'Raikou', 'Charizard', 'Mewtwo', 'Scizor', 'Slither Wing', 'Gyarados', 'Venusaur', 'Snorlax', 'Tyranitar'];
+  for (let i = 0; i < 400; i++) {
+    const v = variantsY[i % variantsY.length];
+    const b = basesY[(i >> 1) % basesY.length];
+    synthBox.push({
+      id: `perf${i}`,
+      name: v === 'Normal' ? b : `${v} ${b}`,
+      variant: v,
+      level: 100,
+      moves: ['Tackle', 'Bite', 'Quick Attack', 'Scratch']
+    });
+  }
+  const t0 = Date.now();
+  const boxRes = eeY.getBoxPokemonMovesCollection(synthBox);
+  const elapsedMs = Date.now() - t0;
+  assert.strictEqual(boxRes.length, 400, '3Y-3: Must analyze all 400 synthetic Pokemon');
+  assert(elapsedMs < 300, `3Y-3: Expected memoized 400-Pokemon box move scan < 300ms, got ${elapsedMs}ms`);
+
+  assert(evoUiCodeY.includes('EVO_LIST_PAGE_SIZE = 80'), '3Y-3: evolution_ui must paginate rendered cards to eliminate filter lag');
+  assert(evoUiCodeY.includes('loading="lazy"'), '3Y-3: evolution_ui sprites must use loading="lazy"');
+  assert(evoUiCodeY.includes('computeEvoCollectionSignature'), '3Y-3: evolution_ui must memoize box signature across renders');
+  assert(appCodeY.includes('evoSearchDebounceTimer') && appCodeY.includes('reuseCache: true'), '3Y-3: app.js must debounce #evoSearchInput with reuseCache: true');
+
+  console.log(`[PASS] Z-Move Exclusion, Change Attacks UI & Search Performance Audit verified (${elapsedMs}ms for 400 Pokemon).`);
 }
 
 // 4. Verify 100% 7-bit Clean ASCII across all files
